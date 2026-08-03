@@ -5,7 +5,7 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
   name: serviceBusNamespaceName
 }
 
-// Publishing topics (first four pillars that emit domain events)
+// Publishing topics (pillars that emit domain events)
 resource tenantTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview' existing = {
   parent: serviceBusNamespace
   name: 'tenant.events'
@@ -14,6 +14,11 @@ resource tenantTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview'
 resource ssoTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview' existing = {
   parent: serviceBusNamespace
   name: 'single-sign-on.events'
+}
+
+resource permissionsTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview' existing = {
+  parent: serviceBusNamespace
+  name: 'permissions.events'
 }
 
 resource subscriptionsTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview' existing = {
@@ -56,6 +61,18 @@ resource ssoSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-0
   }
 ]
 
+resource permissionsSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
+  for consumer in consumers: {
+    parent: permissionsTopic
+    name: consumer
+    properties: {
+      deadLetteringOnMessageExpiration: true
+      maxDeliveryCount: 10
+      lockDuration: 'PT1M'
+    }
+  }
+]
+
 resource subscriptionsSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
   for consumer in consumers: {
     parent: subscriptionsTopic
@@ -80,4 +97,4 @@ resource contactSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-
   }
 ]
 
-output createdSubscriptionCount int = length(consumers) * 4
+output createdSubscriptionCount int = length(consumers) * 5

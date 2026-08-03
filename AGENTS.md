@@ -24,10 +24,11 @@
 
 ## AI loop (mandatory)
 
-1. **Implementer** picks tickets in **READY FOR AI** → optionally set **IN PROGRESS** → implement in a **git worktree** → open PR → comment PR URL on ticket → set **READY FOR REVIEW**.
-2. **Reviewer** (different AI) picks **READY FOR REVIEW** → review PR in a **worktree** → post review comments → set **READY FOR HUMAN**.
+1. **Implementer** picks tickets in **READY FOR AI** → **assigns itself** to the task (ClickUp MCP `assignees: ["me"]` / resolve current identity) → set **IN PROGRESS** → implement in a **git worktree** → open PR → comment PR URL on ticket → set **READY FOR REVIEW**. Do not leave assignee empty when claiming.
+2. **Reviewer** (different AI) picks **READY FOR REVIEW** → **assigns itself** as assignee for the review phase (prefer set assignee to the reviewer; if the implementer must stay visible, comment their identity on the ticket before/when reassigning) → review PR in a **worktree** → post review comments → set **READY FOR HUMAN**.
 3. **Human only** approves + merges the PR and sets **COMPLETE**.
 4. Agents never approve or merge PRs. No self-review.
+5. **Assignment = claiming work.** Never assign when merely browsing or reading tickets. Only assign when starting implement or review work.
 
 ## Branch naming (locked)
 
@@ -53,15 +54,17 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## Architecture
 
-Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**.
+Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Permissions**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**.
 
 - Messaging: Azure Service Bus (topics = events, queues = jobs)
 - Mutations: same transaction → entity + **local Audit** + **Outbox** (when others must be notified)
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - API: NestJS + Swagger on Azure App Service
+- AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent)
+- AuthZ (fine-grained): **Permissions** pillar — `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Azure has no first-class app-data authZ for domain items. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events → Audit.
 - Secrets: **Azure Key Vault** `ssd-pocpk-kv-dev-ae` (subscription `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`) — see below
-- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
+- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, ACA Consumption for OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
 
 ## Secrets (locked)
 

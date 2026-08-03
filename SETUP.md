@@ -37,8 +37,9 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## 3. Agent automations
 
-- [ ] Implementer: pick tickets in **READY FOR AI**
-- [ ] Reviewer: pick tickets in **READY FOR REVIEW** (must be a different AI than implementer)
+- [ ] Implementer: pick tickets in **READY FOR AI** → **assign self** (`assignees: ["me"]`) → **IN PROGRESS** → PR → **READY FOR REVIEW**
+- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → **assign self** for the review phase (comment prior implementer if they must stay visible) → **READY FOR HUMAN**
+- [ ] Assignment only when claiming work — not when browsing
 - [ ] Humans only: merge PR when **READY FOR HUMAN**, then set **COMPLETE**
 
 ## 4. Azure
@@ -64,7 +65,20 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 
-Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
+Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
+
+### AuthZ: Permissions pillar (locked)
+
+Azure does **not** offer a first-class app-data authZ service for “user X / action Y / resource Z” on domain items (Azure RBAC / Entra app roles are Azure resources + coarse app roles only).
+
+| Layer | Choice |
+| --- | --- |
+| AuthN + coarse roles | Entra via **SingleSignOn** (e.g. tenant-admin, support-agent) |
+| Fine-grained authZ | **Permissions** pillar — `Check(subject, action, resource)` |
+| Engine (PoC) | **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption** |
+| Avoid unless insisted | Auth0 FGA / Permit.io (extra vendor); flat SQL ACLs alone (harder to scale relationships) |
+
+Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
 ### Secrets: Azure Key Vault (locked)
 

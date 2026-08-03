@@ -4,8 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo \"db schema stub\"",
+    "generate": "prisma generate",
+    "build": "prisma generate",
     "lint": "echo \"lint:db stub\"",
-    "test": "echo \"test:db stub\""
+    "test": "prisma validate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
   }
 }

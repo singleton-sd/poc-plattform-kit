@@ -23,8 +23,18 @@ Use this skill when implementing work from a project-management list or workflow
    - Do not mix files for different tickets in the same staged set.
    - Do not start the next task until the current task is staged and summarized.
 
-3. Status transitions:
-   - When starting a task, set that task to `in progress`.
+3. Status transitions and assignment (claiming work):
+   - **Assignment = claiming.** When starting implement or review work, assign
+     yourself to the ClickUp task (`assignees: ["me"]` via ClickUp MCP, or
+     resolve the current Cursor/ClickUp identity). Do not leave assignee empty.
+     Never assign when merely browsing or reading tickets.
+   - **Implementer:** On pick-up from **READY FOR AI**, assign self → set
+     status **IN PROGRESS** → then implement.
+   - **Reviewer:** On pick-up from **READY FOR REVIEW**, assign self as the
+     reviewer for the review phase (prefer set assignee to the reviewer). If
+     the implementer must remain visible, comment their identity on the ticket
+     before/when reassigning.
+   - When starting a task, set that task to `in progress` / **IN PROGRESS**.
    - When the task implementation is finished, do **not** mark it complete yet.
    - Mark a finished task complete only when the user explicitly asks, or when the user says to move to the next task.
    - If a requested status is rejected, inspect valid task/list statuses and use the closest valid equivalent.
@@ -88,6 +98,6 @@ When the user says "next", "next task", or similar:
 
 1. Mark the previous staged task complete if it was finished and the user is moving on.
 2. Read the next task details.
-3. Set the next task to `in progress`.
+3. Assign yourself to the next task (`assignees: ["me"]`) and set it to `in progress` / **IN PROGRESS**.
 4. Implement, verify, and stage the files for that task.
 5. Leave the task in progress until the user asks to complete it or move on again.

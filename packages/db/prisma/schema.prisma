@@ -1,6 +1,9 @@
 // Azure SQL + Prisma sqlserver
-// Each pillar DB must include Outbox + local Audit (see AGENTS.md).
-// Full schema lands via foundation tickets.
+// Foundation schema: shared User stub + per-pillar Outbox + local Audit.
+// Per AGENTS.md: no cross-pillar DB joins -- each pillar gets its own
+// Outbox/Audit tables rather than a shared table with a pillar column, so
+// there's nothing to join across pillars even by accident. Domain entities
+// (Tenant, Contact, Subscription, ...) land via their own foundation tickets.
 
 datasource db {
   provider = "sqlserver"
@@ -11,7 +14,191 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Placeholder — expand per pillar in foundation tickets.
-model Placeholder {
-  id String @id @default(cuid())
+/// Shared identity stub -- tenancy/roles land with the SingleSignOn ticket.
+model User {
+  id        String   @id @default(cuid())
+  entraOid  String   @unique
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// --- Tenant ---
+
+model TenantOutbox {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     String
+  occurredAt  DateTime  @default(now())
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("tenant_outbox")
+}
+
+model TenantAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("tenant_audit")
+}
+
+// --- SingleSignOn ---
+
+model SingleSignOnOutbox {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     String
+  occurredAt  DateTime  @default(now())
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("single_sign_on_outbox")
+}
+
+model SingleSignOnAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("single_sign_on_audit")
+}
+
+// --- Subscriptions ---
+
+model SubscriptionsOutbox {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     String
+  occurredAt  DateTime  @default(now())
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("subscriptions_outbox")
+}
+
+model SubscriptionsAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("subscriptions_audit")
+}
+
+// --- Contact ---
+
+model ContactOutbox {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     String
+  occurredAt  DateTime  @default(now())
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("contact_outbox")
+}
+
+model ContactAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("contact_audit")
+}
+
+// --- Support ---
+
+model SupportOutbox {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     String
+  occurredAt  DateTime  @default(now())
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("support_outbox")
+}
+
+model SupportAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("support_audit")
+}
+
+// --- Audit (pillar) ---
+// The Audit pillar consumes other pillars' events over Service Bus; its own
+// Outbox/Audit tables track that consumption, same shape as every pillar.
+
+model AuditOutbox {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     String
+  occurredAt  DateTime  @default(now())
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("audit_outbox")
+}
+
+model AuditAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("audit_audit")
+}
+
+// --- Reporting ---
+
+model ReportingOutbox {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     String
+  occurredAt  DateTime  @default(now())
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("reporting_outbox")
+}
+
+model ReportingAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("reporting_audit")
 }
