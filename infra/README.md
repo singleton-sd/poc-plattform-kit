@@ -16,6 +16,8 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Static Web Apps | **Free** | Region often `eastasia` for Free |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
+| ACR | **Basic** | API PR images; alphanumeric name only |
+| Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
 | Container Apps (OpenFGA) | **Consumption** | Permissions pillar authZ engine — not an Azure product name |
 
 ### Naming
@@ -43,6 +45,10 @@ Example: `ssd-pocpk-kv-dev-ae`
 | App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | F1 Free |
 | Static Web App | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `ssd-pocpk-sb-dev-ae` | Standard |
+| Container Apps Env | `ssd-pocpk-cae-dev-ae` | (CAF) | Consumption |
+| Log Analytics | `ssd-pocpk-law-dev-ae` | (CAF) | PerGB2018 (CAE required) |
+| ACR | `ssdpocpkacrdevae` | CAF would be `ssd-pocpk-acr-dev-ae` (hyphens illegal) | Basic |
+| Ephemeral ACA (PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
 
 ### Key Vault secret names (values never in git)
 
@@ -51,10 +57,23 @@ Example: `ssd-pocpk-kv-dev-ae`
 | `sql-admin-password` | `AZURE_SQL_ADMIN_PASSWORD` |
 | `database-url` | `DATABASE_URL` |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
+| `acr-admin-username` | (from `az acr credential show`) |
+| `acr-admin-password` | (from `az acr credential show`) |
+| `acr-login-server` | e.g. `ssdpocpkacrdevae.azurecr.io` |
 | *(future)* `auth-secret` | `AUTH_SECRET` |
 | *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
+
+### API PR previews (Container Apps)
+
+```powershell
+az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
+powershell -File ./infra/deploy-aca-preview.ps1 -WhatIf
+powershell -File ./infra/deploy-aca-preview.ps1
+```
+
+Bicep: `container-apps-preview.bicep`. Workflow: `.github/workflows/preview-api.yml`. Docs: `docs/pr-pipelines.md`.
 
 ### Service Bus topics
 
@@ -76,16 +95,18 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
 pwsh ./infra/deploy.ps1 -WhatIf   # preview
 pwsh ./infra/deploy.ps1           # create / update (idempotent)
+powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR previews
 ```
 
-`deploy.ps1` upserts SQL/SB secrets into Key Vault and mirrors non-secret + secret cache into local `.env` (gitignored).
+`deploy.ps1` upserts SQL/SB secrets into Key Vault and mirrors non-secret + secret cache into local `.env` (gitignored).  
+`deploy-aca-preview.ps1` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
 
 ## Secrets surfaces
 
 | Surface | How |
 | --- | --- |
 | Local | `az keyvault secret show` (optional `.env` cache) |
-| GitHub Actions | OIDC → Azure login → Key Vault |
-| App Service / SWA | Prefer `@Microsoft.KeyVault(...)` references when wired |
+| GitHub Actions | OIDC → Azure login → Key Vault / ACR / ACA |
+| App Service / SWA / ACA | Prefer KV references or CI-injected settings |
 
 Do not paste secrets into ClickUp or git.

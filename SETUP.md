@@ -51,8 +51,8 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**.
-- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`.
+- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, ACR **Basic**, Container Apps **Consumption** (API PR previews + OpenFGA).
+- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
 
 ### Provisioned (2026-08-04)
@@ -60,10 +60,14 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 | Kind | Name | URL / notes | SKU |
 | --- | --- | --- | --- |
 | SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `pocpk-sql-si5fhs6dvxiha.database.windows.net` | Basic |
-| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://pocpk-api-si5fhs6dvxiha.azurewebsites.net | F1 Free |
+| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://pocpk-api-si5fhs6dvxiha.azurewebsites.net | F1 Free (prod/dev host) |
 | Static Web App | `pocpk-web-si5fhs6dvxiha` | https://kind-rock-0f409fe00.7.azurestaticapps.net | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
+| Container Apps Env | `ssd-pocpk-cae-dev-ae` | API **PR previews** | Consumption |
+| Log Analytics | `ssd-pocpk-law-dev-ae` | Required by CAE | PerGB2018 |
+| ACR | `ssdpocpkacrdevae` | `ssdpocpkacrdevae.azurecr.io` | Basic |
+| Ephemeral ACA | `ssd-pocpk-aca-pr-<n>-ae` | created/deleted by `preview-api.yml` | Consumption |
 
 Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
 
@@ -83,26 +87,41 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 ### Secrets: Azure Key Vault (locked)
 
 **Vault:** `ssd-pocpk-kv-dev-ae`  
-**Secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`  
+**Secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`  
 *(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
 
 | Surface | Rule |
 | --- | --- |
 | Local | Pull from KV. Do not commit secrets. `.env` is optional gitignored cache. |
 | GitHub Actions | OIDC → fetch from KV. |
-| App Service / SWA | Key Vault references for app settings where possible. |
+| App Service / SWA / ACA | Key Vault references / CI-injected settings where possible. |
 
 - [x] CLI identity can see the subscription
 - [x] Core deploy succeeded — SQL, App Service (F1), SWA Free, Service Bus Standard
 - [x] Key Vault `ssd-pocpk-kv-dev-ae` provisioned; SQL/SB secrets migrated from `.env`
 - [x] Local `.env` written by deploy (gitignored); `.env.example` has placeholders
+- [x] `deploy-aca-preview.ps1` — CAE + ACR Basic + LAW + KV ACR secrets
 - [ ] Entra app registration (SPA + API) — secrets in KV
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
-- [ ] GitHub Actions OIDC → Key Vault; App Service/SWA use KV references
-- [ ] Connect SWA ↔ GitHub for deploys
+- [ ] GitHub Actions OIDC → Azure (API previews) + Key Vault; App Service/SWA use KV references
+- [ ] Add GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (SWA portal / CLI)
+- [ ] Add GitHub OIDC secrets `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (or `AZURE_CREDENTIALS`)
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
+- [ ] ~~S1 slots for API PR previews~~ — **deprecated**; use Container Apps Path B
 
-## 5. Skills
+## 5. PR pipelines & previews
+
+See [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
+
+| Workflow | Paths | What it does |
+| --- | --- | --- |
+| `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
+| `preview-web.yml` | `apps/web/**`, `packages/**` | SWA Free PR preview (when enabled) |
+
+- **Path B locked:** Container Apps Consumption per PR (scale to zero). F1 stays prod/dev only. Shared F1 overwrite and S1 slots rejected/deprecated for per-PR need.
+- API auth: OIDC secrets or `AZURE_CREDENTIALS`. Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
+
+## 6. Skills
 
 Curated skills are committed under `.cursor/skills/`. Refresh from local source:
 

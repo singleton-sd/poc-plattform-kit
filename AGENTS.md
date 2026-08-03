@@ -60,22 +60,29 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - Mutations: same transaction → entity + **local Audit** + **Outbox** (when others must be notified)
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
-- API: NestJS + Swagger on Azure App Service
+- API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent)
 - AuthZ (fine-grained): **Permissions** pillar — `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Azure has no first-class app-data authZ for domain items. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events → Audit.
 - Secrets: **Azure Key Vault** `ssd-pocpk-kv-dev-ae` (subscription `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`) — see below
-- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, ACA Consumption for OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
+- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, ACR Basic, ACA Consumption for API previews + OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
 
 ## Secrets (locked)
 
-**All secrets** live in **Azure Key Vault** `ssd-pocpk-kv-dev-ae` in sub `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30` (SQL passwords, Service Bus connection strings, Entra client secrets, etc.).
+**All secrets** live in **Azure Key Vault** `ssd-pocpk-kv-dev-ae` in sub `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30` (SQL passwords, Service Bus connection strings, ACR admin, Entra client secrets, etc.).
 
-Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`.
+Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`.
 
 - **Local:** pull from KV (`az keyvault secret show` or App Config/KV refs). Never commit secrets. `.env` only as optional gitignored cache, preferably populated from KV.
 - **CI (GitHub Actions):** OIDC / Azure login → Key Vault. Do not keep long-lived production secrets only in GitHub Secrets (except bootstrap Azure creds for OIDC if required).
-- **Runtime (App Service / SWA):** Key Vault references for app settings where possible.
+- **Runtime (App Service / SWA / ACA):** Key Vault references for app settings where possible.
 - Agents must not paste secrets into ClickUp, PRs, or git.
+
+## PR pipelines & previews
+
+See `docs/pr-pipelines.md` / `SETUP.md`. **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host. FE SWA Free previews stay as-is when enabled.
+
+- ACA auth: OIDC `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (or `AZURE_CREDENTIALS`).
+- Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
 
 ## Skills
 
