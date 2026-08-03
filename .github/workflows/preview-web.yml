@@ -1,0 +1,106 @@
+# Azure Static Web Apps PR preview (Free SKU — no extra cost).
+# Requires GitHub secret AZURE_STATIC_WEB_APPS_API_TOKEN (see SETUP.md).
+name: Preview Web (SWA)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/preview-web.yml'
+
+concurrency:
+  group: preview-web-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    name: Build + SWA preview
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        run: pnpm --filter @poc-plattform-kit/web... run build
+
+      - name: Deploy SWA preview
+        id: deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: apps/web/public
+          skip_app_build: true
+          skip_api_build: true
+
+      - name: Comment preview URL
+        if: steps.deploy.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- swa-preview-web -->';
+            const body = [
+              marker,
+              '### Web preview (SWA Free)',
+              '',
+              'Static Web Apps created a **PR preview environment** for `apps/web`.',
+              '',
+              '- Check the **Azure Static Web Apps** bot / deployment summary for the URL.',
+              '- Production SWA: `pocpk-web-si5fhs6dvxiha` (Free) — PR previews are included.',
+              '',
+              '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path A)._',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  close_preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close SWA preview
+    steps:
+      - name: Close Static Web App preview
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: close

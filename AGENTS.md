@@ -74,6 +74,21 @@ Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus
 - **Runtime (App Service / SWA):** Key Vault references for app settings where possible.
 - Agents must not paste secrets into ClickUp, PRs, or git.
 
+## PR pipelines & previews
+
+Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
+
+| Change set | CI | Preview |
+| --- | --- | --- |
+| `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) |
+| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path A stub only (`preview-api.yml`) — no F1 slots |
+| `packages/**` | **both** CI workflows | web preview if web deps change; API comment if api/pillars touch packages |
+
+- Local checks: `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`.
+- SWA previews need repo secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (human adds from Azure portal; not in git).
+- API live PR hosts wait for optional shared F1 preview app or **S1** staging slots (Path B).
+- Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
+
 ## Skills
 
 Read curated skills under `.cursor/skills/` before coding (backend, frontend, test-generation, code-review, git-conventions, task-driven-development, etc.).

@@ -85,10 +85,34 @@ Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `conta
 - [ ] Entra app registration (SPA + API) — secrets in KV
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] GitHub Actions OIDC → Key Vault; App Service/SWA use KV references
-- [ ] Connect SWA ↔ GitHub for deploys
+- [ ] Add GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (from SWA portal / CLI; also store in KV as `swa-deployment-token` later)
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
+- [ ] (Optional Path B) Upgrade App Service plan to **S1** for API staging slots
 
-## 5. Skills
+## 5. PR pipelines & previews
+
+See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
+
+| Workflow | Paths | What it does |
+| --- | --- | --- |
+| `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test |
+| `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
+| `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free SKU) |
+| `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | Path A stub comment (no slot on F1) |
+
+- **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
+- **FE preview:** SWA Free PR environments via `Azure/static-web-apps-deploy` — needs secret `AZURE_STATIC_WEB_APPS_API_TOKEN`.
+- **BE preview (Path A locked):** no deployment slots on F1; CI validates API. Optional later: shared `pocpk-api-preview` overwrite app, or Path B (S1 + staging slot).
+- Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
+
+### SWA deployment token (human)
+
+1. Portal → `pocpk-web-si5fhs6dvxiha` → **Manage deployment token**, or  
+   `az staticwebapp secrets list -n pocpk-web-si5fhs6dvxiha -g rg-poc-plattform-kit --query "properties.apiKey" -o tsv`
+2. GitHub → **Settings** → **Secrets and variables** → **Actions** → `AZURE_STATIC_WEB_APPS_API_TOKEN`
+3. Do not commit the token; prefer mirroring into Key Vault for OIDC later.
+
+## 6. Skills
 
 Curated skills are committed under `.cursor/skills/`. Refresh from local source:
 

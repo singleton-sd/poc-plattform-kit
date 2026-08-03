@@ -1,0 +1,63 @@
+name: CI Web
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/ci-web.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.prettierrc'
+      - '.prettierignore'
+      - 'eslint.config.js'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/ci-web.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.prettierrc'
+      - '.prettierignore'
+      - 'eslint.config.js'
+
+concurrency:
+  group: ci-web-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Lint / format / build (web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prettier check
+        run: pnpm format:check
+
+      - name: Lint (web + packages)
+        run: |
+          pnpm --filter @poc-plattform-kit/web... run lint
+          pnpm exec eslint .
+
+      - name: Build (web + packages)
+        run: pnpm --filter @poc-plattform-kit/web... run build
+
+      - name: Test (web + packages)
+        run: pnpm --filter @poc-plattform-kit/web... run test

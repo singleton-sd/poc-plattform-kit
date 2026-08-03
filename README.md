@@ -17,7 +17,7 @@ Platform kit PoC: seven NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus
 | DB | Azure SQL + Prisma (`sqlserver`) |
 | Messaging | Azure Service Bus |
 | Auth | Entra + Auth.js cookies |
-| CI | GitHub Actions |
+| CI | GitHub Actions — split `ci-web` / `ci-api` (path filters); SWA PR previews |
 | Agents | READY FOR AI → REVIEW → HUMAN → COMPLETE; worktrees; humans merge |
 
 ## Pillars
@@ -33,4 +33,4 @@ pnpm dev:api
 pnpm dev:web
 ```
 
-See [SETUP.md](./SETUP.md) and [AGENTS.md](./AGENTS.md).
+See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md), and [docs/pr-pipelines.md](./docs/pr-pipelines.md).

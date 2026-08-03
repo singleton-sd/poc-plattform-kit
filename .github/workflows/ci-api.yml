@@ -1,0 +1,70 @@
+name: CI API
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'pillars/**'
+      - 'packages/**'
+      - '.github/workflows/ci-api.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.prettierrc'
+      - '.prettierignore'
+      - 'eslint.config.js'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'pillars/**'
+      - 'packages/**'
+      - '.github/workflows/ci-api.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.prettierrc'
+      - '.prettierignore'
+      - 'eslint.config.js'
+
+concurrency:
+  group: ci-api-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: Lint / test / build (api)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prettier check
+        run: pnpm format:check
+
+      - name: Lint (api + pillars + packages)
+        run: |
+          pnpm --filter @poc-plattform-kit/api... run lint
+          pnpm --filter "./pillars/**" run lint
+          pnpm exec eslint .
+
+      - name: Test (api + pillars + packages)
+        run: |
+          pnpm --filter @poc-plattform-kit/api... run test
+          pnpm --filter "./pillars/**" run test
+
+      - name: Build (api + pillars + packages)
+        run: |
+          pnpm --filter @poc-plattform-kit/api... run build
+          pnpm --filter "./pillars/**" run build

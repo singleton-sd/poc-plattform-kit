@@ -39,8 +39,8 @@ Example: `ssd-pocpk-kv-dev-ae`
 | Resource group | `rg-poc-plattform-kit` | — | — |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | (CAF) | Standard |
 | SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `ssd-pocpk-sql-dev-ae` | Basic |
-| App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | F1 Free |
-| Static Web App | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
+| App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | F1 Free (no slots; Path A — see `docs/pr-pipelines.md`) |
+| Static Web App | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free (includes PR preview envs) |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `ssd-pocpk-sb-dev-ae` | Standard |
 
 ### Key Vault secret names (values never in git)

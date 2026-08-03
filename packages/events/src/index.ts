@@ -1,24 +1,18 @@
 /** Shared Service Bus event contracts — pillars publish/subscribe these types. */
 
 export type PillarName =
-  | "tenant"
-  | "single-sign-on"
-  | "subscriptions"
-  | "contact"
-  | "support"
-  | "audit"
-  | "reporting";
+  'tenant' | 'single-sign-on' | 'subscriptions' | 'contact' | 'support' | 'audit' | 'reporting';
 
 export type DomainEventType =
-  | "tenant.created"
-  | "tenant.updated"
-  | "user.created"
-  | "user.name_changed"
-  | "subscription.created"
-  | "subscription.changed"
-  | "contact.created"
-  | "contact.name_changed"
-  | "support.ops_action";
+  | 'tenant.created'
+  | 'tenant.updated'
+  | 'user.created'
+  | 'user.name_changed'
+  | 'subscription.created'
+  | 'subscription.changed'
+  | 'contact.created'
+  | 'contact.name_changed'
+  | 'support.ops_action';
 
 export interface DomainEvent<TPayload = Record<string, unknown>> {
   id: string;
