@@ -25,14 +25,27 @@
 
 ## 4. Azure
 
-**Subscription:** `7b8343d7-969f-4b71-8864-b7925e7fae30`  
+**Subscription:** `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`  
 **Resource group:** `rg-poc-plattform-kit` (region `australiaeast`; SWA uses `eastasia` for Free SKU)  
-**IaC:** [`infra/`](./infra/) — `pwsh ./infra/deploy.ps1` (writes secrets to local `.env` only)
+**IaC:** [`infra/`](./infra/) — `pwsh ./infra/deploy.ps1`
+
+### Secrets: Azure Key Vault (locked)
+
+**All secrets** use **Azure Key Vault** in this subscription/RG (SQL passwords, Service Bus connection strings, Entra client secrets, etc.).
+
+| Surface | Rule |
+| --- | --- |
+| Local | Pull from KV (`az keyvault secret show` or App Config/KV refs). Do not commit secrets. `.env` is optional gitignored cache, preferably populated from KV. |
+| GitHub Actions | OIDC federated credential / Azure login → fetch from KV. Do not store long-lived production secrets only in GitHub Secrets (except bootstrap Azure creds for OIDC if required). |
+| App Service / SWA | Key Vault references for app settings where possible. |
+
+Foundation: provision Key Vault in the RG as part of infra (see `infra/README.md`).
 
 Planned / provisioned names (prefix `pocpk`, suffix from RG unique string):
 
 | Kind | Name pattern |
 | --- | --- |
+| Key Vault | `pocpk-kv-*` |
 | SQL Server + DB | `pocpk-sql-*` / `pocpk` |
 | App Service Plan + API | `pocpk-plan` / `pocpk-api-*` |
 | Static Web App | `pocpk-web-*` |
@@ -41,10 +54,12 @@ Planned / provisioned names (prefix `pocpk`, suffix from RG unique string):
 Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events` (+ support/audit/reporting). Consumers `audit` / `reporting` / `support` on publishing topics.
 
 - [ ] CLI identity can see the subscription (`az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30`)
+- [ ] Key Vault provisioned in RG; deploy script / agents store & read secrets from KV
 - [ ] `pwsh ./infra/deploy.ps1` succeeded
-- [ ] `.env` filled locally (not committed); `.env.example` has placeholders
-- [ ] Entra app registration (SPA + API) — `AZURE_AD_*`
-- [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP); move secrets to Key Vault when ready
+- [ ] Optional local `.env` from KV only (not committed); `.env.example` has placeholders
+- [ ] Entra app registration (SPA + API) — secrets in KV; `AZURE_AD_*` locally from KV
+- [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
+- [ ] GitHub Actions OIDC → Key Vault; App Service/SWA use KV references
 - [ ] Connect SWA ↔ GitHub for deploys
 
 ## 5. Skills

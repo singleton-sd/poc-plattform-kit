@@ -1,6 +1,9 @@
 // poc-plattform-kit — minimum viable Azure resources
 // Deploy: pwsh ./infra/deploy.ps1
-// Secrets are never stored here; SQL admin password is a secure param only.
+// Secrets: Azure Key Vault is the locked store (see infra/README.md).
+// SQL admin password is a secure param only — never commit; upsert into Key Vault
+// (pocpk-kv-*) and use KV references on App Service/SWA. Add Key Vault resource
+// + RBAC in a follow-up; do not leave long-lived secrets only in GitHub Secrets.
 
 @description('Azure region for most resources')
 param location string = resourceGroup().location
