@@ -1,0 +1,11 @@
+{
+  "name": "@poc-plattform-kit/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start:dev": "echo \"Nest API stub — implement via foundation tickets\"",
+    "build": "echo \"build:api stub\"",
+    "lint": "echo \"lint:api stub\"",
+    "test": "echo \"test:api stub\""
+  }
+}

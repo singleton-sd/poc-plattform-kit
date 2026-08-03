@@ -1,0 +1,6 @@
+{
+  "name": "@poc-plattform-kit/pillar-contact",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": { "build": "echo stub", "lint": "echo stub", "test": "echo stub" }
+}

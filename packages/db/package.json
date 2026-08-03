@@ -1,0 +1,11 @@
+{
+  "name": "@poc-plattform-kit/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"db schema stub\"",
+    "lint": "echo \"lint:db stub\"",
+    "test": "echo \"test:db stub\""
+  }
+}

@@ -1,0 +1,17 @@
+// Azure SQL + Prisma sqlserver
+// Each pillar DB must include Outbox + local Audit (see AGENTS.md).
+// Full schema lands via foundation tickets.
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Placeholder — expand per pillar in foundation tickets.
+model Placeholder {
+  id String @id @default(cuid())
+}
