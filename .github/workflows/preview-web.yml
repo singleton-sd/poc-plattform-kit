@@ -1,6 +1,6 @@
 # Azure Static Web Apps PR preview (Free SKU — no extra cost).
-# Requires GitHub secret AZURE_STATIC_WEB_APPS_API_TOKEN (see SETUP.md).
-# Until that secret exists, deploy steps skip successfully via SKIP_DEPLOY_ON_MISSING_SECRETS.
+# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
+# See SETUP.md / docs/pr-pipelines.md.
 name: Preview Web (SWA)
 
 on:
@@ -22,6 +22,7 @@ jobs:
     name: Build + SWA preview
     permissions:
       contents: read
+      id-token: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
@@ -44,49 +45,52 @@ jobs:
       - name: Build web
         run: pnpm --filter @poc-plattform-kit/web... run build
 
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read SWA deploy token from Key Vault
+        id: swa
+        run: |
+          set -euo pipefail
+          token=$(az keyvault secret show \
+            --vault-name ssd-pocpk-kv-dev-ae \
+            --name swa-deployment-token \
+            --query value -o tsv)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
       - name: Deploy SWA preview
         id: deploy
         uses: Azure/static-web-apps-deploy@v1
-        env:
-          SKIP_DEPLOY_ON_MISSING_SECRETS: true
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: apps/web/public
           skip_app_build: true
 
-      - name: Comment preview status
+      - name: Comment preview URL
+        if: steps.deploy.outcome == 'success'
         uses: actions/github-script@v7
-        env:
-          HAS_SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN != '' }}
         with:
           script: |
             const marker = '<!-- swa-preview-web -->';
-            const tokenPresent = process.env.HAS_SWA_TOKEN === 'true';
-            const body = tokenPresent
-              ? [
-                  marker,
-                  '### Web preview (SWA Free)',
-                  '',
-                  'Static Web Apps created a **PR preview environment** for `apps/web`.',
-                  '',
-                  '- Check the **Azure Static Web Apps** bot / deployment summary for the URL.',
-                  '- Production SWA: `pocpk-web-si5fhs6dvxiha` (Free) — PR previews are included.',
-                  '',
-                  '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path A)._',
-                ].join('\n')
-              : [
-                  marker,
-                  '### Web preview (SWA Free) — deploy skipped',
-                  '',
-                  'Built `apps/web` successfully, but **SWA deploy was skipped** because',
-                  '`AZURE_STATIC_WEB_APPS_API_TOKEN` is not set in repo Actions secrets.',
-                  '',
-                  'A human must add the token (SETUP.md § SWA deployment token) for PR preview URLs.',
-                  '',
-                  '_CI stays green via `SKIP_DEPLOY_ON_MISSING_SECRETS` until that secret exists._',
-                ].join('\n');
+            const body = [
+              marker,
+              '### Web preview (SWA Free)',
+              '',
+              'Static Web Apps created a **PR preview environment** for `apps/web`.',
+              '',
+              '- Check the **Azure Static Web Apps** bot / deployment summary for the URL.',
+              '- Production SWA: `pocpk-web-si5fhs6dvxiha` (Free) — PR previews are included.',
+              '- Deploy token loaded at runtime via **OIDC → Key Vault** (`swa-deployment-token`).',
+              '',
+              '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path A)._',
+            ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -114,11 +118,30 @@ jobs:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     name: Close SWA preview
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read SWA deploy token from Key Vault
+        id: swa
+        run: |
+          set -euo pipefail
+          token=$(az keyvault secret show \
+            --vault-name ssd-pocpk-kv-dev-ae \
+            --name swa-deployment-token \
+            --query value -o tsv)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
       - name: Close Static Web App preview
         uses: Azure/static-web-apps-deploy@v1
-        env:
-          SKIP_DEPLOY_ON_MISSING_SECRETS: true
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
           action: close
