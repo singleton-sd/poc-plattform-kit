@@ -48,36 +48,45 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 **Resource group:** `rg-poc-plattform-kit` (region `australiaeast`; SWA Free in `eastasia`)  
 **IaC:** [`infra/`](./infra/) — `powershell -File ./infra/deploy.ps1`
 
+### Locked: cost + naming
+
+- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**.
+- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`.
+- **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
+
 ### Provisioned (2026-08-04)
 
-| Kind | Name |
-| --- | --- |
-| SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` |
-| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` |
-| Static Web App | `pocpk-web-si5fhs6dvxiha` |
-| Service Bus | `pocpk-sb-si5fhs6dvxiha` |
-| Key Vault | _(not yet — see below)_ |
+| Kind | Name | URL / notes | SKU |
+| --- | --- | --- | --- |
+| SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `pocpk-sql-si5fhs6dvxiha.database.windows.net` | Basic |
+| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://pocpk-api-si5fhs6dvxiha.azurewebsites.net | F1 Free |
+| Static Web App | `pocpk-web-si5fhs6dvxiha` | https://kind-rock-0f409fe00.7.azurestaticapps.net | Free |
+| Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
+| Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 
 Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
 
 ### Secrets: Azure Key Vault (locked)
 
-**All secrets** use **Azure Key Vault** in this subscription/RG (SQL passwords, Service Bus connection strings, Entra client secrets, etc.).
+**Vault:** `ssd-pocpk-kv-dev-ae`  
+**Secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`  
+*(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
 
 | Surface | Rule |
 | --- | --- |
-| Local | Pull from KV. Do not commit secrets. `.env` is optional gitignored cache, preferably populated from KV. |
+| Local | Pull from KV. Do not commit secrets. `.env` is optional gitignored cache. |
 | GitHub Actions | OIDC → fetch from KV. |
 | App Service / SWA | Key Vault references for app settings where possible. |
 
 - [x] CLI identity can see the subscription
-- [x] Core deploy (`infra/deploy.ps1`) succeeded — SQL, App Service, SWA, Service Bus
+- [x] Core deploy succeeded — SQL, App Service (F1), SWA Free, Service Bus Standard
+- [x] Key Vault `ssd-pocpk-kv-dev-ae` provisioned; SQL/SB secrets migrated from `.env`
 - [x] Local `.env` written by deploy (gitignored); `.env.example` has placeholders
-- [ ] Key Vault provisioned in RG; migrate SQL/SB secrets from local `.env` into KV
 - [ ] Entra app registration (SPA + API) — secrets in KV
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] GitHub Actions OIDC → Key Vault; App Service/SWA use KV references
 - [ ] Connect SWA ↔ GitHub for deploys
+- [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
 
 ## 5. Skills
 

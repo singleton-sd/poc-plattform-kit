@@ -6,7 +6,8 @@
   Creates RG (if missing), generates a SQL admin password once (saved to local .env),
   and deploys infra/main.bicep into the target subscription.
 
-  Secrets are written only to the repo-root .env (gitignored). Never commit them.
+  Secrets are written to Azure Key Vault (locked store) and mirrored to repo-root
+  .env (gitignored) for local convenience. Never commit .env or secret values.
 
 .EXAMPLE
   pwsh ./infra/deploy.ps1
@@ -20,6 +21,7 @@ param(
   [string]$Location = 'australiaeast',
   [string]$SwaLocation = 'eastasia',
   [string]$NamePrefix = 'pocpk',
+  [string]$KeyVaultName = 'ssd-pocpk-kv-dev-ae',
   [string]$DeploymentName = 'pocpk-infra',
   [switch]$WhatIf
 )
@@ -105,6 +107,14 @@ if ([string]::IsNullOrWhiteSpace($sqlPassword)) {
   Write-Host 'Reusing SQL admin password from existing .env.'
 }
 
+Write-Step 'Resolving deployer object id for Key Vault RBAC'
+$deployerObjectId = ''
+try {
+  $deployerObjectId = (az ad signed-in-user show --query id -o tsv 2>$null)
+} catch {
+  Write-Host 'Could not resolve signed-in user object id; KV admin role skipped in Bicep.'
+}
+
 Write-Step $(if ($WhatIf) { 'Running what-if' } else { 'Deploying Bicep' })
 $deployArgs = @(
   'deployment', 'group', $(if ($WhatIf) { 'what-if' } else { 'create' }),
@@ -115,6 +125,9 @@ $deployArgs = @(
   "location=$Location",
   "swaLocation=$SwaLocation",
   "namePrefix=$NamePrefix",
+  "keyVaultName=$KeyVaultName",
+  "deployerObjectId=$deployerObjectId",
+  "appServiceSku=F1",
   "sqlAdminLogin=$sqlLogin",
   "sqlAdminPassword=$sqlPassword",
   '--output', 'json'
@@ -207,6 +220,23 @@ if ($sbCs) {
   } | Set-Content $envFile -Encoding utf8
 }
 
+$kvNameOut = Get-Out 'keyVaultName'
+if (-not $kvNameOut) { $kvNameOut = $KeyVaultName }
+
+Write-Step "Upserting secrets into Key Vault $kvNameOut (names only logged)"
+function Set-KvSecret([string]$SecretName, [string]$SecretValue) {
+  if ([string]::IsNullOrWhiteSpace($SecretValue)) { return }
+  az keyvault secret set --vault-name $kvNameOut --name $SecretName --value $SecretValue -o none
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "  set $SecretName"
+  } else {
+    Write-Warning "Failed to set $SecretName (check RBAC / provider registration)"
+  }
+}
+Set-KvSecret 'sql-admin-password' $sqlPassword
+Set-KvSecret 'database-url' $databaseUrl
+if ($sbCs) { Set-KvSecret 'servicebus-connection-string' $sbCs }
+
 if (-not (Test-Path $envExample)) {
   Write-Host 'Note: .env.example missing — create from template in repo.'
 }
@@ -224,16 +254,17 @@ Write-Step 'Deployment summary (no secrets)'
   StaticWebApp            = $swaName
   StaticWebAppUrl         = "https://$swaHost"
   ServiceBusNamespace     = $sbNs
+  KeyVault                = $kvNameOut
   LocalEnvFile            = $envFile
 } | Format-List
 
 Write-Host @'
 
 Next steps:
-  1. Entra app registration (SPA + API) — fill AZURE_AD_* in .env
-  2. Move SQL password / SB connection string to Key Vault when ready
-  3. Tighten SQL firewall rule AllowAllDevPoC to your IP
-  4. Connect SWA to GitHub for CI deploy (or az staticwebapp deploy)
-  5. pnpm install && set DATABASE_URL from .env for Prisma migrate
+  1. Entra app registration (SPA + API) — store secrets in Key Vault
+  2. Tighten SQL firewall rule AllowAllDevPoC to your IP
+  3. Connect SWA to GitHub for CI deploy (or az staticwebapp deploy)
+  4. GitHub Actions OIDC → Key Vault; App Service KV references
+  5. pnpm install && pull DATABASE_URL from Key Vault for Prisma migrate
 
 '@ -ForegroundColor Green

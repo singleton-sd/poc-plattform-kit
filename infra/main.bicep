@@ -1,9 +1,8 @@
-// poc-plattform-kit — minimum viable Azure resources
+// poc-plattform-kit — cheapest-that-works PoC Azure resources
 // Deploy: pwsh ./infra/deploy.ps1
-// Secrets: Azure Key Vault is the locked store (see infra/README.md).
-// SQL admin password is a secure param only — never commit; upsert into Key Vault
-// (pocpk-kv-*) and use KV references on App Service/SWA. Add Key Vault resource
-// + RBAC in a follow-up; do not leave long-lived secrets only in GitHub Secrets.
+// Cost: Free/Basic/Standard-min only (see SETUP.md). Secrets: Key Vault (CAF name).
+// Existing resources keep legacy uniqueString names; new resources use CAF names.
+// Do not leave long-lived secrets only in GitHub Secrets.
 
 @description('Azure region for most resources')
 param location string = resourceGroup().location
@@ -11,10 +10,18 @@ param location string = resourceGroup().location
 @description('Static Web Apps region (Free SKU is region-limited; eastasia works for AU PoCs)')
 param swaLocation string = 'eastasia'
 
-@description('Short name prefix for resources (lowercase alphanumeric)')
+@description('Legacy short prefix for already-deployed resources (do not change — renames recreate)')
 @minLength(3)
 @maxLength(20)
 param namePrefix string = 'pocpk'
+
+@description('CAF Key Vault name (org-app-resource-env-region), max 24 chars')
+@minLength(3)
+@maxLength(24)
+param keyVaultName string = 'ssd-pocpk-kv-dev-ae'
+
+@description('Object ID of deployer/user to grant Key Vault Administrator (empty skips role)')
+param deployerObjectId string = ''
 
 @description('SQL Server administrator login')
 param sqlAdminLogin string = 'pocpkadmin'
@@ -23,20 +30,24 @@ param sqlAdminLogin string = 'pocpkadmin'
 @secure()
 param sqlAdminPassword string
 
-@description('App Service Plan SKU')
-@allowed(['B1', 'B2', 'S1'])
-param appServiceSku string = 'B1'
+@description('App Service Plan SKU — prefer F1 Free for PoC; B1 if Nest needs always-on wake')
+@allowed(['F1', 'B1'])
+param appServiceSku string = 'F1'
 
 @description('Static Web Apps SKU')
 @allowed(['Free', 'Standard'])
 param staticWebAppSku string = 'Free'
 
-@description('Service Bus SKU (Standard required for topics)')
-@allowed(['Standard', 'Premium'])
+@description('Service Bus SKU (Standard required for topics; never Premium for PoC)')
+@allowed(['Standard'])
 param serviceBusSku string = 'Standard'
 
 @description('Azure SQL database name')
 param sqlDatabaseName string = 'pocpk'
+
+// Built-in role definition IDs
+var roleKeyVaultAdministrator = '00482a5a-887f-4fb3-b363-3b7fe8e74483'
+var roleKeyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var sqlServerName = '${namePrefix}-sql-${uniqueSuffix}'
@@ -196,6 +207,43 @@ module topicSubs 'servicebus-subscriptions.bicep' = {
   ]
 }
 
+// CAF name for new resources; Standard SKU (no Premium HSM). Soft-delete 7d; no purge protection (PoC).
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: keyVaultName
+  location: location
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    tenantId: tenant().tenantId
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 7
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+resource kvAdminRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerObjectId)) {
+  name: guid(keyVault.id, deployerObjectId, roleKeyVaultAdministrator)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleKeyVaultAdministrator)
+    principalId: deployerObjectId
+    principalType: 'User'
+  }
+}
+
+resource kvApiSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, webApp.id, roleKeyVaultSecretsUser)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleKeyVaultSecretsUser)
+    principalId: webApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output swaLocation string = swaLocation
@@ -212,3 +260,5 @@ output serviceBusNamespaceName string = serviceBusNamespace.name
 output serviceBusTopics array = eventTopics
 output appServicePlanName string = appPlan.name
 output subscriptionModuleName string = topicSubs.name
+output keyVaultName string = keyVault.name
+output keyVaultUri string = keyVault.properties.vaultUri
