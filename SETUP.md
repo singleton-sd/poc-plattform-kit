@@ -5,7 +5,25 @@
 - [x] Repo exists: `https://github.com/singleton-sd/poc-plattform-kit` (SSH: `git@github-personal:singleton-sd/poc-plattform-kit.git`; personal remotes use the `github-personal` SSH host alias)
 - [x] Push `main` from `C:\00Personal\singleton-sd\poc-plattform-kit`
 - [ ] Branch protection on `main`: require PR, **require human approval**, disallow AI/bot merge if possible
+- [ ] Optional ruleset for `feature/*` branch naming (see below)
 - [ ] Connect repo in [Cursor Integrations](https://cursor.com/dashboard/integrations)
+
+### Branch naming (agents + optional GitHub rules)
+
+**Convention (primary — agents follow `AGENTS.md`):**
+
+```
+feature/<clickup-task-id>-<kebab-title>
+```
+
+Example: `feature/86dxxxx-prisma-azure-sql`
+
+**Where to click in GitHub (optional enforcement):**
+
+1. Open the repo → **Settings** → **Rules** → **Rulesets** (or **Branches** for classic branch protection).
+2. **Protect `main`:** New ruleset targeting `refs/heads/main` — require a pull request before merging, require at least one **human** approving review, block force pushes and deletions, disallow direct pushes to `main`.
+3. **Optional `feature/*` pattern:** New ruleset targeting `refs/heads/feature/*` (and/or restrict which refs can be created). Branch name patterns in rulesets can limit create/push depending on GitHub plan; they do not always force the create pattern globally. Prefer documenting the convention in `AGENTS.md` and using rulesets as a safety net.
+4. Ensure PRs into `main` come from feature/hotfix branches only (agents never merge; humans approve).
 
 ## 2. ClickUp (workspace `90161394355`) — locked locations
 

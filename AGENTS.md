@@ -29,9 +29,25 @@
 3. **Human only** approves + merges the PR and sets **COMPLETE**.
 4. Agents never approve or merge PRs. No self-review.
 
+## Branch naming (locked)
+
+Implementer and reviewer worktrees **must** use this pattern:
+
+```
+feature/<clickup-task-id>-<kebab-title>
+```
+
+Example: `feature/86dxxxx-prisma-azure-sql`
+
+- Use the ClickUp task id (custom id or short id) plus a short kebab-case slug from the ticket title.
+- Fallback if the id is unavailable: `feature/<short-ticket-title-slug>` (still kebab-case).
+- Also allowed: `hotfix/<clickup-task-id>-<kebab-title>`, protected bases `main` / `develop`.
+- Do **not** create bare names like `feature/ticket-title` without the id when the ClickUp id is known.
+- GitHub branch protection / rulesets (optional enforcement) are documented in `SETUP.md`.
+
 ## Worktrees
 
-- Every implementer/reviewer subagent **must** use its own `git worktree` (and branch).
+- Every implementer/reviewer subagent **must** use its own `git worktree` (and branch named per **Branch naming** above).
 - Never share a dirty `main` working tree across parallel agents.
 - Remove the worktree when the run finishes.
 
