@@ -24,10 +24,11 @@
 
 ## AI loop (mandatory)
 
-1. **Implementer** picks tickets in **READY FOR AI** → optionally set **IN PROGRESS** → implement in a **git worktree** → open PR → comment PR URL on ticket → set **READY FOR REVIEW**.
-2. **Reviewer** (different AI) picks **READY FOR REVIEW** → review PR in a **worktree** → post review comments → set **READY FOR HUMAN**.
+1. **Implementer** picks tickets in **READY FOR AI** → **assigns itself** to the task (ClickUp MCP `assignees: ["me"]` / resolve current identity) → set **IN PROGRESS** → implement in a **git worktree** → open PR → comment PR URL on ticket → set **READY FOR REVIEW**. Do not leave assignee empty when claiming.
+2. **Reviewer** (different AI) picks **READY FOR REVIEW** → **assigns itself** as assignee for the review phase (prefer set assignee to the reviewer; if the implementer must stay visible, comment their identity on the ticket before/when reassigning) → review PR in a **worktree** → post review comments → set **READY FOR HUMAN**.
 3. **Human only** approves + merges the PR and sets **COMPLETE**.
 4. Agents never approve or merge PRs. No self-review.
+5. **Assignment = claiming work.** Never assign when merely browsing or reading tickets. Only assign when starting implement or review work.
 
 ## Branch naming (locked)
 

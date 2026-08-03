@@ -37,8 +37,9 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## 3. Agent automations
 
-- [ ] Implementer: pick tickets in **READY FOR AI**
-- [ ] Reviewer: pick tickets in **READY FOR REVIEW** (must be a different AI than implementer)
+- [ ] Implementer: pick tickets in **READY FOR AI** → **assign self** (`assignees: ["me"]`) → **IN PROGRESS** → PR → **READY FOR REVIEW**
+- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → **assign self** for the review phase (comment prior implementer if they must stay visible) → **READY FOR HUMAN**
+- [ ] Assignment only when claiming work — not when browsing
 - [ ] Humans only: merge PR when **READY FOR HUMAN**, then set **COMPLETE**
 
 ## 4. Azure
