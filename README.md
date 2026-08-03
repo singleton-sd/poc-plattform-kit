@@ -1,6 +1,6 @@
 # poc-plattform-kit
 
-Platform kit PoC: seven NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus, ClickUp → Cursor agents.
+Platform kit PoC: eight NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus, ClickUp → Cursor agents.
 
 ## ClickUp (locked)
 
@@ -16,13 +16,14 @@ Platform kit PoC: seven NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus
 | API | NestJS + Swagger |
 | DB | Azure SQL + Prisma (`sqlserver`) |
 | Messaging | Azure Service Bus |
-| Auth | Entra + Auth.js cookies |
+| AuthN | Entra + Auth.js cookies (SingleSignOn) |
+| AuthZ | Permissions pillar — OpenFGA (ReBAC) on ACA Consumption |
 | CI | GitHub Actions |
 | Agents | READY FOR AI → REVIEW → HUMAN → COMPLETE; worktrees; humans merge |
 
 ## Pillars
 
-`tenant` · `single-sign-on` · `subscriptions` · `contact` · `support` · `audit` · `reporting`
+`tenant` · `single-sign-on` · `permissions` · `subscriptions` · `contact` · `support` · `audit` · `reporting`
 
 ## Quick start
 

@@ -65,7 +65,20 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 
-Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
+Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
+
+### AuthZ: Permissions pillar (locked)
+
+Azure does **not** offer a first-class app-data authZ service for “user X / action Y / resource Z” on domain items (Azure RBAC / Entra app roles are Azure resources + coarse app roles only).
+
+| Layer | Choice |
+| --- | --- |
+| AuthN + coarse roles | Entra via **SingleSignOn** (e.g. tenant-admin, support-agent) |
+| Fine-grained authZ | **Permissions** pillar — `Check(subject, action, resource)` |
+| Engine (PoC) | **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption** |
+| Avoid unless insisted | Auth0 FGA / Permit.io (extra vendor); flat SQL ACLs alone (harder to scale relationships) |
+
+Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
 ### Secrets: Azure Key Vault (locked)
 

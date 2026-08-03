@@ -3,6 +3,7 @@
 export type PillarName =
   | "tenant"
   | "single-sign-on"
+  | "permissions"
   | "subscriptions"
   | "contact"
   | "support"
@@ -14,6 +15,8 @@ export type DomainEventType =
   | "tenant.updated"
   | "user.created"
   | "user.name_changed"
+  | "permission.denied"
+  | "permission.granted"
   | "subscription.created"
   | "subscription.changed"
   | "contact.created"

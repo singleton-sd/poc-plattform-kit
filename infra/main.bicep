@@ -60,6 +60,7 @@ var serviceBusName = '${namePrefix}-sb-${uniqueSuffix}'
 var eventTopics = [
   'tenant.events'
   'single-sign-on.events'
+  'permissions.events'
   'subscriptions.events'
   'contact.events'
   'support.events'

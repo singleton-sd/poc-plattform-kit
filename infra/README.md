@@ -16,6 +16,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Static Web Apps | **Free** | Region often `eastasia` for Free |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
+| Container Apps (OpenFGA) | **Consumption** | Permissions pillar authZ engine — not an Azure product name |
 
 ### Naming
 
@@ -57,9 +58,13 @@ Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
 
 ### Service Bus topics
 
-`tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`
+`tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`
 
-Subscriptions `audit`, `reporting`, `support` on each publishing topic (`tenant` / `single-sign-on` / `subscriptions` / `contact`).
+Subscriptions `audit`, `reporting`, `support` on each publishing topic (`tenant` / `single-sign-on` / `permissions` / `subscriptions` / `contact`).
+
+### Permissions / OpenFGA (locked)
+
+Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** hosted on **Azure Container Apps Consumption** (CAF name e.g. `ssd-pocpk-openfga-dev-ae` when provisioned). Azure RBAC/Entra are not used for per-item domain ACL.
 
 ## Prerequisites
 

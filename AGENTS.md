@@ -54,15 +54,17 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## Architecture
 
-Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**.
+Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Permissions**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**.
 
 - Messaging: Azure Service Bus (topics = events, queues = jobs)
 - Mutations: same transaction → entity + **local Audit** + **Outbox** (when others must be notified)
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - API: NestJS + Swagger on Azure App Service
+- AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent)
+- AuthZ (fine-grained): **Permissions** pillar — `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Azure has no first-class app-data authZ for domain items. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events → Audit.
 - Secrets: **Azure Key Vault** `ssd-pocpk-kv-dev-ae` (subscription `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`) — see below
-- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
+- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, ACA Consumption for OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
 
 ## Secrets (locked)
 
