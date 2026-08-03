@@ -25,9 +25,22 @@
 
 ## 4. Azure
 
-**Subscription:** `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`  
-**Resource group:** `rg-poc-plattform-kit` (region `australiaeast`; SWA uses `eastasia` for Free SKU)  
-**IaC:** [`infra/`](./infra/) — `pwsh ./infra/deploy.ps1`
+**Subscription:** **ssd-poc-plattform-kit** / `7b8343d7-969f-4b71-8864-b7925e7fae30`  
+**Tenant:** `9a0e57d7-e58e-4e8b-814d-037cd7d9015c`  
+**Resource group:** `rg-poc-plattform-kit` (region `australiaeast`; SWA Free in `eastasia`)  
+**IaC:** [`infra/`](./infra/) — `powershell -File ./infra/deploy.ps1`
+
+### Provisioned (2026-08-04)
+
+| Kind | Name |
+| --- | --- |
+| SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` |
+| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` |
+| Static Web App | `pocpk-web-si5fhs6dvxiha` |
+| Service Bus | `pocpk-sb-si5fhs6dvxiha` |
+| Key Vault | _(not yet — see below)_ |
+
+Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
 
 ### Secrets: Azure Key Vault (locked)
 
@@ -35,29 +48,15 @@
 
 | Surface | Rule |
 | --- | --- |
-| Local | Pull from KV (`az keyvault secret show` or App Config/KV refs). Do not commit secrets. `.env` is optional gitignored cache, preferably populated from KV. |
-| GitHub Actions | OIDC federated credential / Azure login → fetch from KV. Do not store long-lived production secrets only in GitHub Secrets (except bootstrap Azure creds for OIDC if required). |
+| Local | Pull from KV. Do not commit secrets. `.env` is optional gitignored cache, preferably populated from KV. |
+| GitHub Actions | OIDC → fetch from KV. |
 | App Service / SWA | Key Vault references for app settings where possible. |
 
-Foundation: provision Key Vault in the RG as part of infra (see `infra/README.md`).
-
-Planned / provisioned names (prefix `pocpk`, suffix from RG unique string):
-
-| Kind | Name pattern |
-| --- | --- |
-| Key Vault | `pocpk-kv-*` |
-| SQL Server + DB | `pocpk-sql-*` / `pocpk` |
-| App Service Plan + API | `pocpk-plan` / `pocpk-api-*` |
-| Static Web App | `pocpk-web-*` |
-| Service Bus | `pocpk-sb-*` |
-
-Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events` (+ support/audit/reporting). Consumers `audit` / `reporting` / `support` on publishing topics.
-
-- [ ] CLI identity can see the subscription (`az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30`)
-- [ ] Key Vault provisioned in RG; deploy script / agents store & read secrets from KV
-- [ ] `pwsh ./infra/deploy.ps1` succeeded
-- [ ] Optional local `.env` from KV only (not committed); `.env.example` has placeholders
-- [ ] Entra app registration (SPA + API) — secrets in KV; `AZURE_AD_*` locally from KV
+- [x] CLI identity can see the subscription
+- [x] Core deploy (`infra/deploy.ps1`) succeeded — SQL, App Service, SWA, Service Bus
+- [x] Local `.env` written by deploy (gitignored); `.env.example` has placeholders
+- [ ] Key Vault provisioned in RG; migrate SQL/SB secrets from local `.env` into KV
+- [ ] Entra app registration (SPA + API) — secrets in KV
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] GitHub Actions OIDC → Key Vault; App Service/SWA use KV references
 - [ ] Connect SWA ↔ GitHub for deploys
