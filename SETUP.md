@@ -65,7 +65,7 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 
-Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
+Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`, `notifications.events`. Consumers `audit` / `reporting` / `support` / `notifications` on publishing topics; trail consumers `audit` / `reporting` / `support` on `notifications.events`. Queue: `notifications.send` (explicit send commands).
 
 ### AuthZ: Permissions pillar (locked)
 
@@ -83,8 +83,20 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 ### Secrets: Azure Key Vault (locked)
 
 **Vault:** `ssd-pocpk-kv-dev-ae`  
-**Secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`  
+**Secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`  
 *(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
+
+**Non-secret config:** Azure App Configuration `ssd-pocpk-appcs-dev-ae` (provider base URLs, WhatsApp phone-number-id, Graph API version). Secrets appear only as **Key Vault references** in App Config — never inline.
+
+### Notifications pillar (locked)
+
+| Channel | Provider | Adapter |
+| --- | --- | --- |
+| Email | [Forward Email API](https://forwardemail.net/en/email-api) | `EmailProvider` |
+| SMS | [android-sms-gateway](https://github.com/capcom6/android-sms-gateway) | `SmsProvider` |
+| WhatsApp | Meta WhatsApp Cloud API (default; swappable) | `WhatsAppProvider` |
+
+Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`.
 
 | Surface | Rule |
 | --- | --- |

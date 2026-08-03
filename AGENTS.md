@@ -54,7 +54,7 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## Architecture
 
-Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Permissions**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**.
+Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Permissions**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**, **Notifications**.
 
 - Messaging: Azure Service Bus (topics = events, queues = jobs)
 - Mutations: same transaction → entity + **local Audit** + **Outbox** (when others must be notified)
@@ -63,14 +63,16 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - API: NestJS + Swagger on Azure App Service
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent)
 - AuthZ (fine-grained): **Permissions** pillar — `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Azure has no first-class app-data authZ for domain items. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events → Audit.
+- Outbound messaging: **Notifications** pillar — email (Forward Email API), SMS (android-sms-gateway), WhatsApp (Meta Cloud API default; adapter swappable). Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`.
 - Secrets: **Azure Key Vault** `ssd-pocpk-kv-dev-ae` (subscription `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`) — see below
+- Non-secret config: **Azure App Configuration** (KV references for secrets) — never inline API keys in App Config or GitHub
 - **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, ACA Consumption for OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
 
 ## Secrets (locked)
 
-**All secrets** live in **Azure Key Vault** `ssd-pocpk-kv-dev-ae` in sub `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30` (SQL passwords, Service Bus connection strings, Entra client secrets, etc.).
+**All secrets** live in **Azure Key Vault** `ssd-pocpk-kv-dev-ae` in sub `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30` (SQL passwords, Service Bus connection strings, Entra client secrets, notification provider keys, etc.).
 
-Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`.
+Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`.
 
 - **Local:** pull from KV (`az keyvault secret show` or App Config/KV refs). Never commit secrets. `.env` only as optional gitignored cache, preferably populated from KV.
 - **CI (GitHub Actions):** OIDC / Azure login → Key Vault. Do not keep long-lived production secrets only in GitHub Secrets (except bootstrap Azure creds for OIDC if required).

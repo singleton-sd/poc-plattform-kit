@@ -51,16 +51,38 @@ Example: `ssd-pocpk-kv-dev-ae`
 | `sql-admin-password` | `AZURE_SQL_ADMIN_PASSWORD` |
 | `database-url` | `DATABASE_URL` |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
+| `forwardemail-api-key` | `FORWARDEMAIL_API_KEY` |
+| `sms-gateway-username` | `SMS_GATEWAY_USERNAME` |
+| `sms-gateway-password` | `SMS_GATEWAY_PASSWORD` |
+| `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` |
 | *(future)* `auth-secret` | `AUTH_SECRET` |
 | *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
 
+**App Configuration:** non-secret keys (provider base URLs, WhatsApp phone-number-id, Graph API version) in `ssd-pocpk-appcs-dev-ae`; secrets only as Key Vault references.
+
 ### Service Bus topics
 
-`tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`
+`tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`, `notifications.events`
 
-Subscriptions `audit`, `reporting`, `support` on each publishing topic (`tenant` / `single-sign-on` / `permissions` / `subscriptions` / `contact`).
+Subscriptions `audit`, `reporting`, `support`, `notifications` on each publishing topic (`tenant` / `single-sign-on` / `permissions` / `subscriptions` / `contact`).
+
+Subscriptions `audit`, `reporting`, `support` on `notifications.events`.
+
+### Service Bus queues
+
+| Queue | Purpose |
+| --- | --- |
+| `notifications.send` | Explicit “send notification” commands from other pillars |
+
+### Notifications / channels (locked)
+
+| Channel | Provider | Adapter |
+| --- | --- | --- |
+| Email | Forward Email API | `EmailProvider` |
+| SMS | android-sms-gateway (self-hosted) | `SmsProvider` |
+| WhatsApp | Meta WhatsApp Cloud API (default; swappable) | `WhatsAppProvider` |
 
 ### Permissions / OpenFGA (locked)
 
