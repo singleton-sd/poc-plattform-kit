@@ -22,7 +22,9 @@ Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge
 | Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (IDs) | Any secret: SWA deploy token, connection strings, passwords, client secrets |
 | Built-in `GITHUB_TOKEN` for PR comments | `AZURE_STATIC_WEB_APPS_API_TOKEN` or similar |
 
-Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only in that job (mask in logs).
+Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
+
+If OIDC Variables are missing, `preview-web.yml` **skips** deploy/close (job succeeds) so CI is not blocked forever. Set the three Variables when ready.
 
 Secrets live in **Key Vault** `ssd-pocpk-kv-dev-ae`. Non-secret config + KV refs live in **App Configuration** `ssd-pocpk-appcs-dev-ae`.
 

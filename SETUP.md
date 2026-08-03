@@ -141,7 +141,7 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | Path A stub comment (no slot on F1) |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
-- **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC).
+- **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
 - **BE preview (Path A locked):** no deployment slots on F1; CI validates API. Path B (Container Apps) must also use OIDC → KV/App Config — never GitHub secret tokens.
 - Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
 
