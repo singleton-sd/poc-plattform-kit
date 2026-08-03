@@ -56,12 +56,11 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 
 #### GitHub Azure auth (human)
 
-Prefer **OIDC**:
+**OIDC only** (`AZURE_CREDENTIALS` / SP-JSON is not supported):
 
 1. Entra app + federated credential for `repo:singleton-sd/poc-plattform-kit:pull_request`.
 2. RBAC: Contributor on `rg-poc-plattform-kit`, AcrPush on `ssdpocpkacrdevae`, Key Vault Secrets User on `ssd-pocpk-kv-dev-ae`.
 3. Secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` (`9a0e57d7-e58e-4e8b-814d-037cd7d9015c`), `AZURE_SUBSCRIPTION_ID` (`7b8343d7-969f-4b71-8864-b7925e7fae30`).
-
-**Fallback:** `AZURE_CREDENTIALS` (SP JSON). Workflow tries OIDC first, then credentials.
+4. Workflow fails fast if any OIDC secret is missing.
 
 Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health`.

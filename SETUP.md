@@ -105,7 +105,7 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] GitHub Actions OIDC → Azure (API previews) + Key Vault; App Service/SWA use KV references
 - [ ] Add GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (SWA portal / CLI)
-- [ ] Add GitHub OIDC secrets `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (or `AZURE_CREDENTIALS`)
+- [ ] Add GitHub OIDC secrets `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (OIDC only; do not use `AZURE_CREDENTIALS`)
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
 - [ ] ~~S1 slots for API PR previews~~ — **deprecated**; use Container Apps Path B
 
@@ -119,7 +119,7 @@ See [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA Free PR preview (when enabled) |
 
 - **Path B locked:** Container Apps Consumption per PR (scale to zero). F1 stays prod/dev only. Shared F1 overwrite and S1 slots rejected/deprecated for per-PR need.
-- API auth: OIDC secrets or `AZURE_CREDENTIALS`. Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
+- API auth: OIDC secrets only (`AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`). Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
 
 ## 6. Skills
 

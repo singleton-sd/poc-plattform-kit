@@ -81,7 +81,7 @@ Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus
 
 See `docs/pr-pipelines.md` / `SETUP.md`. **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host. FE SWA Free previews stay as-is when enabled.
 
-- ACA auth: OIDC `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (or `AZURE_CREDENTIALS`).
+- ACA auth: OIDC only — `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
 - Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
 
 ## Skills

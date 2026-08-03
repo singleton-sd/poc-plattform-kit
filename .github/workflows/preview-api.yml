@@ -6,8 +6,8 @@
 #
 # Requires (human):
 #   - infra/deploy-aca-preview.ps1 already run (CAE + ACR Basic)
-#   - GitHub OIDC secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
-#     OR fallback secret AZURE_CREDENTIALS (service principal JSON)
+#   - GitHub OIDC secrets only: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#     (AZURE_CREDENTIALS / SP-JSON is not supported)
 #   - Identity: Contributor on rg-poc-plattform-kit + AcrPush on ssdpocpkacrdevae
 #     + Key Vault Secrets User on ssd-pocpk-kv-dev-ae
 #
@@ -47,20 +47,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Require Azure OIDC secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${AZURE_CLIENT_ID}" ]; then
+            echo "::error::Missing GitHub secret AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_TENANT_ID}" ]; then
+            echo "::error::Missing GitHub secret AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Missing GitHub secret AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure federated OIDC for this repo and set AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            exit 1
+          fi
+
       - name: Azure login (OIDC)
-        id: oidc
-        continue-on-error: true
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Azure login (AZURE_CREDENTIALS fallback)
-        if: steps.oidc.outcome != 'success'
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Resolve ACR login server
         id: acr
@@ -188,20 +205,37 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
+      - name: Require Azure OIDC secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${AZURE_CLIENT_ID}" ]; then
+            echo "::error::Missing GitHub secret AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_TENANT_ID}" ]; then
+            echo "::error::Missing GitHub secret AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Missing GitHub secret AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure federated OIDC for this repo and set AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            exit 1
+          fi
+
       - name: Azure login (OIDC)
-        id: oidc
-        continue-on-error: true
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Azure login (AZURE_CREDENTIALS fallback)
-        if: steps.oidc.outcome != 'success'
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Delete Container App
         env:
