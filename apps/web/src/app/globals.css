@@ -1,0 +1,15 @@
+/* Singleton SD design tokens -- canonical source, not vendored/hardcoded.
+   Both themes are imported; the active one is selected by [data-theme] on
+   <html> (see src/components/theme-script.tsx). See AGENTS.md: token CSS
+   vars + Tailwind only, no hardcoded palette hex. */
+@import url('https://tokens.design.singletonsd.com/css/light/_variables.css');
+@import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: var(--bg-default);
+  color: var(--fg-default);
+}
