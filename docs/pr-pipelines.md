@@ -26,6 +26,16 @@ Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use 
 
 If OIDC Variables are missing, `preview-web.yml` **skips** deploy/close (job succeeds) so CI is not blocked forever. Set the three Variables when ready.
 
+### OIDC subject forms (Entra FIC)
+
+GitHub may emit **ID-form** OIDC subjects such as `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` (and the matching `:ref:refs/heads/main` form). The Entra federated identity credential **subject must match that `sub` claim exactly**. Classic subjects (`repo:org/repo:pull_request`) can remain on the app registration for compatibility when tokens still use them.
+
+`preview-web.yml` uses `azure/login@v2` with job `permissions.id-token: write` for OIDC.
+
+### Node version
+
+CI/preview workflows use **Node 24**. Prefer upgrading actions over setting `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` (only if forced by an unupgradable action).
+
 Secrets live in **Key Vault** `ssd-pocpk-kv-dev-ae`. Non-secret config + KV refs live in **App Configuration** `ssd-pocpk-appcs-dev-ae`.
 
 ## Preview strategy (locked Path A)

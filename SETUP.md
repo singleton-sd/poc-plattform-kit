@@ -99,7 +99,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `conta
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials for `repo:singleton-sd/poc-plattform-kit:ref:refs/heads/main` and `…:pull_request`. Roles: **Reader** on RG, **Key Vault Secrets User**, **App Configuration Data Reader**.
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG, **Key Vault Secrets User**, **App Configuration Data Reader**.
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 
@@ -124,10 +124,18 @@ App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials for `repo:
 ### OIDC bootstrap (if Variables missing / admin consent)
 
 1. App registration `ssd-pocpk-gha-oidc-dev` already created in tenant `9a0e57d7-e58e-4e8b-814d-037cd7d9015c`.
-2. Federated credentials: subjects `repo:singleton-sd/poc-plattform-kit:ref:refs/heads/main` and `repo:singleton-sd/poc-plattform-kit:pull_request`, issuer `https://token.actions.githubusercontent.com`.
+2. Federated credentials (issuer `https://token.actions.githubusercontent.com`). **Entra FIC `subject` must match the JWT `sub` exactly.**
+   - **ID-form (current GitHub default for many orgs):** `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` and `repo:ORG@ORG_ID/REPO@REPO_ID:ref:refs/heads/main` (numeric org/repo IDs). Example shape: `repo:singleton-sd@NNNN/poc-plattform-kit@MMMM:pull_request`.
+   - **Classic (optional compatibility):** keep `repo:singleton-sd/poc-plattform-kit:pull_request` and `repo:singleton-sd/poc-plattform-kit:ref:refs/heads/main` if tokens still emit that form.
+   - Tip: decode a failed job's OIDC token / check the Azure login error for the exact `sub`, then set FIC subjects to match (both forms can coexist on the app registration).
 3. Ensure repo **Variables** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` match the app/sub/tenant.
 4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
 5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
+
+
+### GitHub Actions runtime (Node)
+
+Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
 
 ## 5. PR pipelines & previews
 
