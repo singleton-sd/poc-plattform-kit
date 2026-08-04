@@ -70,3 +70,26 @@ pnpm lint           # package stubs + root ESLint
 pnpm test
 pnpm build
 ```
+
+## PR hygiene (conflicts, CI, feedback)
+
+Agents do **not** get push notifications. Poll GitHub before ClickUp handoffs (`AGENTS.md` § PR hygiene). Workflow: `.github/workflows/pr-hygiene.yml`.
+
+| Label | Meaning | Agent action |
+| --- | --- | --- |
+| `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Merge/rebase `main`, fix, push, re-check CI → ClickUp **READY FOR AI** |
+| `ci-failed` | A PR workflow failed | Diagnose via linked run; fix or document human blocker → **READY FOR AI** |
+| `has-feedback` | Bugbot or human (non-author) comment | Fetch issue + review comments; address or bounce → **READY FOR AI** |
+
+```bash
+gh pr list --label needs-rebase
+gh pr list --label ci-failed
+gh pr list --label has-feedback
+gh pr view <n> --json mergeable,mergeStateStatus,statusCheckRollup
+gh api repos/singleton-sd/poc-plattform-kit/issues/<n>/comments --jq '.[].body'
+gh api repos/singleton-sd/poc-plattform-kit/pulls/<n>/comments --jq '.[].body'
+```
+
+Triggers: PR opened/synchronize (dirty check), push to `main` (scan open PRs), failed `workflow_run` for CI/preview workflows, issue/review comments from Bugbot or collaborators.
+
+**READY FOR HUMAN** only when mergeable, required checks green, and no open actionable feedback. ClickUp API bridge from Actions is phase 2; v1 uses labels + PR comments.
