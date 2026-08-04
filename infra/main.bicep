@@ -152,6 +152,9 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'NODE|20-lts'
+      // Prebuilt zip from deploy-api.yml (CI builds dist). Oryx remote nest
+      // build fails without tsconfig in the package — keep this false.
+      appCommandLine: 'node dist/main.js'
       alwaysOn: false
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
@@ -162,7 +165,7 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'true'
+          value: 'false'
         }
         {
           name: 'AZURE_SERVICEBUS_NAMESPACE'

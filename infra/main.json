@@ -208,6 +208,7 @@
         "httpsOnly": true,
         "siteConfig": {
           "linuxFxVersion": "NODE|20-lts",
+          "appCommandLine": "node dist/main.js",
           "alwaysOn": false,
           "ftpsState": "Disabled",
           "minTlsVersion": "1.2",
@@ -218,7 +219,7 @@
             },
             {
               "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-              "value": "true"
+              "value": "false"
             },
             {
               "name": "AZURE_SERVICEBUS_NAMESPACE",
