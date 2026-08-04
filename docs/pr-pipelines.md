@@ -9,7 +9,7 @@
 | `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test (web + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
-| `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | Path A stub comment only |
+| `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `apps/web/**`, `packages/**` on **`main`** | SWA **production** via OIDC → Key Vault |
 | `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** | Nest zip → App Service F1 via OIDC |
 
@@ -21,12 +21,12 @@ Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge
 
 | Allowed in GitHub | Forbidden in GitHub |
 | --- | --- |
-| Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (IDs) | Any secret: SWA deploy token, connection strings, passwords, client secrets |
+| Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (IDs) | Any secret: SWA deploy token, connection strings, passwords, client secrets, ACR admin, `AZURE_CREDENTIALS` |
 | Built-in `GITHUB_TOKEN` for PR comments | `AZURE_STATIC_WEB_APPS_API_TOKEN` or similar |
 
 Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
 
-If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. Set the three Variables when ready.
+If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
 
 `deploy-api.yml` also needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (SWA production uses the KV deploy token only).
 
@@ -34,7 +34,7 @@ If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-ap
 
 GitHub may emit **ID-form** OIDC subjects such as `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` (and the matching `:ref:refs/heads/main` form). The Entra federated identity credential **subject must match that `sub` claim exactly**. Classic subjects (`repo:org/repo:pull_request`) can remain on the app registration for compatibility when tokens still use them.
 
-`preview-web.yml` uses `azure/login@v2` with job `permissions.id-token: write` for OIDC.
+Both preview workflows use `azure/login@v2` with job `permissions.id-token: write` for OIDC.
 
 ### Node version
 
@@ -42,9 +42,9 @@ CI/preview workflows use **Node 24**. Prefer upgrading actions over setting `ACT
 
 Secrets live in **Key Vault** `ssd-pocpk-kv-dev-ae`. Non-secret config + KV refs live in **App Configuration** `ssd-pocpk-appcs-dev-ae`.
 
-## Preview strategy (locked Path A)
+## Preview strategy (locked)
 
-### FE — SWA Free PR previews (yes)
+### FE — SWA Free PR previews
 
 Azure Static Web Apps **Free** includes PR preview environments.
 
@@ -53,17 +53,51 @@ Azure Static Web Apps **Free** includes PR preview environments.
 - App location: `apps/web/out` (Next.js static export; workflow builds first)
 - Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
 
-### BE — no slots on F1 (Path A)
+### BE — Container Apps per PR (Path B — locked)
 
-True **deployment slots** need App Service **Standard (S1)+**. PoC uses **F1 Free**.
+Each API PR gets its own preview URL via **Azure Container Apps Consumption** (scale to zero).
 
-| Option | Cost | Status |
+| Option | Cost / behaviour | Status |
 | --- | --- | --- |
-| **Path A (locked)** | Stay on F1 | CI build/test only; `preview-api.yml` documents strategy |
-| Path A optional | Second F1 app `pocpk-api-preview` | Overwrite per PR; concurrency risk |
-| **Path B** | Container Apps (or S1 slots) | Must use **OIDC → KV / App Config** — same locked secret model |
+| **Path B (locked)** | ACA Consumption + ACR Basic; ephemeral `ssd-pocpk-aca-pr-<n>-ae` | **Use this** |
+| Shared F1 overwrite | One app, last PR wins | **Rejected** for per-PR need |
+| App Service S1 slots | Expensive for PoC | **Deprecated** |
+| Path A (CI-only stub) | No live URL | Superseded by Path B |
 
-Until Path B: treat API **PR** preview as **CI green + local**. **Production** API on `main` is deployed by `deploy-api.yml` to App Service F1 (`pocpk-api-si5fhs6dvxiha`).
+#### Resources (CAF)
+
+| Resource | Name | SKU / notes |
+| --- | --- | --- |
+| Container Apps Environment | `ssd-pocpk-cae-dev-ae` | Consumption; Log Analytics `ssd-pocpk-law-dev-ae` |
+| ACR | `ssdpocpkacrdevae` | **Basic**; alphanumeric-only (CAF without hyphens) |
+| Ephemeral app | `ssd-pocpk-aca-pr-<n>-ae` | max 32 chars; min replicas 0 |
+| Optional base app | `ssd-pocpk-aca-api-dev-ae` | off by default |
+
+Provision once:
+
+```powershell
+az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
+powershell -File ./infra/deploy-aca-preview.ps1
+```
+
+KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-server`.
+
+#### Workflow behaviour (`preview-api.yml`)
+
+1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`): build `apps/api/Dockerfile`, push `…/pocpk-api:pr-<n>`, create/update Container App, comment preview URL (`/health`).
+2. **PR close:** delete `ssd-pocpk-aca-pr-<n>-ae`.
+
+#### GitHub Azure auth (human)
+
+**OIDC only** (`AZURE_CREDENTIALS` / SP-JSON is not supported):
+
+1. Entra app + federated credential for `repo:singleton-sd/poc-plattform-kit:pull_request` (and ID-form subject if tokens use it).
+2. RBAC: Contributor on `rg-poc-plattform-kit`, Key Vault Secrets User on `ssd-pocpk-kv-dev-ae` (ACR admin secrets already in KV from `deploy-aca-preview.ps1`).
+3. Repository **Variables** (not Secrets): `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+4. Workflow fails fast if any OIDC Variable is missing.
+5. Image push + ACA registry attach use OIDC → KV `acr-admin-*` (never GitHub Secrets / `AZURE_CREDENTIALS`).
+
+Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health`.
 
 ## Production deploy on `main` (locked)
 

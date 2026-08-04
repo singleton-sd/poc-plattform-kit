@@ -1,0 +1,15 @@
+# Ignore local secrets and heavy trees when building apps/api image
+.git
+.github
+.cursor
+.worktrees
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/dist
+**/coverage
+infra
+docs
+apps/web
+*.md

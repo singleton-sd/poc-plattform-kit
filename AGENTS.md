@@ -93,14 +93,14 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - Mutations: same transaction → entity + **local Audit** + **Outbox** (when others must be notified)
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
-- API: NestJS + Swagger on Azure App Service (Container Apps for optional Path B previews)
+- API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent)
-- AuthZ (fine-grained): **Permissions** pillar — `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events → Audit.
+- AuthZ (fine-grained): **Permissions** pillar — `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Azure has no first-class app-data authZ for domain items. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events → Audit.
 - Outbound messaging: **Notifications** pillar — email (Forward Email API), SMS (android-sms-gateway), WhatsApp (Meta Cloud API default; adapter swappable). Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`.
 - **Secrets:** Azure Key Vault only (`ssd-pocpk-kv-dev-ae`)
 - **App configuration:** Azure App Configuration (`ssd-pocpk-appcs-dev-ae`) with **Key Vault references** for secret values
 - **CI/CD:** GitHub Actions **OIDC** → Azure → Key Vault / App Config (no deploy tokens or connection strings in GitHub Secrets)
-- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, App Config Free, ACA Consumption for OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
+- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
 
 ## Secrets + configuration (locked)
 
@@ -108,13 +108,13 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 
 | Concern | Store |
 | --- | --- |
-| Secrets (passwords, connection strings, SWA deploy token, Entra secrets, notification provider keys) | Key Vault `ssd-pocpk-kv-dev-ae` |
+| Secrets (passwords, connection strings, SWA deploy token, ACR admin, Entra secrets, notification provider keys) | Key Vault `ssd-pocpk-kv-dev-ae` |
 | Non-secret app settings + KV references | App Configuration `ssd-pocpk-appcs-dev-ae` |
 
-Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`.
+Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`.
 
 - **Local:** pull from KV / App Config. Never commit secrets. `.env` only as optional gitignored cache.
-- **CI (GitHub Actions):** OIDC login using repo **Variables** `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (IDs only) → `az keyvault secret show` or App Config at job runtime. **Never** put `AZURE_STATIC_WEB_APPS_API_TOKEN` or other secrets in GitHub Secrets.
+- **CI (GitHub Actions):** OIDC login using repo **Variables** `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (IDs only) → `az keyvault secret show` or App Config at job runtime. **Never** put `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, or other secrets in GitHub Secrets.
 - **Runtime (App Service / SWA / Container Apps):** App Configuration provider + Key Vault references via managed identity.
 - Agents must not paste secrets into ClickUp, PRs, or git.
 
@@ -125,9 +125,11 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 | Change set | CI | Preview (PR) | Production (`main`) |
 | --- | --- | --- | --- |
 | `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV | `deploy-web.yml` → SWA production |
-| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path A stub (`preview-api.yml`); Path B ACA must use OIDC → KV/App Config | `deploy-api.yml` → App Service F1 |
-| `packages/**` | **both** CI workflows | web preview if web deps change; API comment if api/pillars touch packages | matching deploy workflows when paths hit |
+| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC → KV | `deploy-api.yml` → App Service F1 |
+| `packages/**` | **both** CI workflows | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 
+- **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
+- ACA auth: OIDC Variables only — `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
 - Local checks: `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`.
 - Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
 - Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.

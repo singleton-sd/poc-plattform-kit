@@ -64,8 +64,8 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**.
-- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`.
+- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API PR previews + OpenFGA).
+- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
 
 ### Provisioned (2026-08-04)
@@ -73,11 +73,15 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 | Kind | Name | URL / notes | SKU |
 | --- | --- | --- | --- |
 | SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `pocpk-sql-si5fhs6dvxiha.database.windows.net` | Basic |
-| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://pocpk-api-si5fhs6dvxiha.azurewebsites.net | F1 Free |
+| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://pocpk-api-si5fhs6dvxiha.azurewebsites.net | F1 Free (prod/dev host) |
 | Static Web App | `pocpk-web-si5fhs6dvxiha` | https://kind-rock-0f409fe00.7.azurestaticapps.net | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | https://ssd-pocpk-appcs-dev-ae.azconfig.io | Free |
+| Container Apps Env | `ssd-pocpk-cae-dev-ae` | API **PR previews** | Consumption |
+| Log Analytics | `ssd-pocpk-law-dev-ae` | Required by CAE | PerGB2018 |
+| ACR | `ssdpocpkacrdevae` | `ssdpocpkacrdevae.azurecr.io` | Basic |
+| Ephemeral ACA | `ssd-pocpk-aca-pr-<n>-ae` | created/deleted by `preview-api.yml` | Consumption |
 
 Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`, `notifications.events`. Consumers `audit` / `reporting` / `support` / `notifications` on publishing topics; trail consumers `audit` / `reporting` / `support` on `notifications.events`. Queue: `notifications.send` (explicit send commands).
 
@@ -85,11 +89,20 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 | Layer | Store | Rule |
 | --- | --- | --- |
-| **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, Entra client secrets, notification provider keys. **Never** in git or GitHub Actions secrets. |
+| **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, ACR admin, Entra client secrets, notification provider keys. **Never** in git or GitHub Actions secrets. |
 | **App configuration** | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | Non-secret settings + **Key Vault references** for secret values (not inline secrets). |
 | **CI/CD** | GitHub Actions **OIDC** → Azure | Workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. |
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`  
+| Layer | Choice |
+| --- | --- |
+| AuthN + coarse roles | Entra via **SingleSignOn** (e.g. tenant-admin, support-agent) |
+| Fine-grained authZ | **Permissions** pillar — `Check(subject, action, resource)` |
+| Engine (PoC) | **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption** |
+| Avoid unless insisted | Auth0 FGA / Permit.io (extra vendor); flat SQL ACLs alone (harder to scale relationships) |
+
+Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
+
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`
 *(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
 
 **GitHub Actions — allowed identifiers only (repository Variables, not Secrets):**
@@ -100,9 +113,9 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG, **Key Vault Secrets User**, **App Configuration Data Reader**, and **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (required for `deploy-api.yml`).
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (SWA preview), **Contributor** on RG (ACA preview deploy), **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (`deploy-api.yml`), **Key Vault Secrets User**, **App Configuration Data Reader**. ACR push uses OIDC → KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
-**Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, connection strings, passwords, or deploy tokens in GitHub Secrets.
+**Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 
 ### Notifications pillar (locked)
 
@@ -126,12 +139,15 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 - [x] App Configuration `ssd-pocpk-appcs-dev-ae` (Free) + KV references seeded
 - [x] GitHub OIDC app + federated credentials + Variables set; **no** deploy tokens in GitHub Secrets
 - [x] Local `.env` written by deploy (gitignored); `.env.example` has placeholders
+- [x] `deploy-aca-preview.ps1` — CAE + ACR Basic + LAW + KV ACR secrets
 - [ ] Entra app registration (SPA + API) — secrets in KV; config keys in App Config
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] Wire App Service / SWA / ACA to App Configuration provider + managed identity
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
+- [x] Confirm OIDC app has **Contributor** on RG + **Key Vault Secrets User** (ACR push uses KV `acr-admin-*`, not AcrPush)
 - [x] Grant **Website Contributor** on `pocpk-api-si5fhs6dvxiha` to `ssd-pocpk-gha-oidc-dev` (needed once for `deploy-api.yml`)
-- [ ] (Optional Path B) Container Apps API preview — same OIDC → KV/App Config pattern (no GH secrets)
+- [ ] ~~S1 slots for API PR previews~~ — **deprecated**; use Container Apps Path B
+
 
 ### OIDC bootstrap (if Variables missing / admin consent)
 
@@ -143,7 +159,8 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 3. Ensure repo **Variables** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` match the app/sub/tenant.
 4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
 5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
-6. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
+6. ACR admin username/password live only in KV as `acr-admin-*` (written by `deploy-aca-preview.ps1`).
+7. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
 
 ```bash
 az role assignment create \
@@ -166,14 +183,14 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
-| `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | Path A stub comment (no slot on F1) |
+| `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
 | `deploy-api.yml` | same as ci-api, **`push` `main`** | Nest → App Service F1 via OIDC |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
 - **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
 - **Production on merge:** `deploy-web.yml` / `deploy-api.yml` publish to the live SWA hostname and App Service URL (same OIDC skip behaviour).
-- **BE preview (Path A locked):** no deployment slots on F1; CI validates API on PRs. Path B (Container Apps) must also use OIDC → KV/App Config — never GitHub secret tokens.
+- **BE preview (Path B locked):** Container Apps Consumption per PR (scale to zero). F1 stays prod/dev only. Shared F1 overwrite and S1 slots rejected/deprecated for per-PR need. OIDC Variables → KV ACR secrets — never GitHub secret tokens / `AZURE_CREDENTIALS`. Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
 - Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
 
 ## 6. Skills

@@ -2,7 +2,7 @@
 
 Idempotent Bicep for the PoC stack. **No secrets in git.**
 
-**Subscription:** `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`  
+**Subscription:** `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`
 **Resource group:** `rg-poc-plattform-kit` (`australiaeast`)
 
 ## Locked constraints
@@ -17,6 +17,9 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
 | App Configuration | **Free** | Non-secret config + KV references |
+| ACR | **Basic** | API PR images; alphanumeric name only |
+| Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
+| Container Apps (OpenFGA) | **Consumption** | Permissions pillar authZ engine — not an Azure product name |
 
 ### Naming
 
@@ -44,6 +47,10 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | F1 Free |
 | Static Web App | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `ssd-pocpk-sb-dev-ae` | Standard |
+| Container Apps Env | `ssd-pocpk-cae-dev-ae` | (CAF) | Consumption |
+| Log Analytics | `ssd-pocpk-law-dev-ae` | (CAF) | PerGB2018 (CAE required) |
+| ACR | `ssdpocpkacrdevae` | CAF would be `ssd-pocpk-acr-dev-ae` (hyphens illegal) | Basic |
+| Ephemeral ACA (PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
 
 ### Key Vault secret names (values never in git)
 
@@ -53,11 +60,13 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `database-url` | `DATABASE_URL` |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
 | `swa-deployment-token` | (from `az staticwebapp secrets list`) |
+| `acr-admin-username` | (from `az acr credential show`) |
+| `acr-admin-password` | (from `az acr credential show`) |
+| `acr-login-server` | e.g. `ssdpocpkacrdevae.azurecr.io` |
 | `forwardemail-api-key` | `FORWARDEMAIL_API_KEY` |
 | `sms-gateway-username` | `SMS_GATEWAY_USERNAME` |
 | `sms-gateway-password` | `SMS_GATEWAY_PASSWORD` |
-| `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` |
-| *(future)* `auth-secret` | `AUTH_SECRET` |
+| `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` || *(future)* `auth-secret` | `AUTH_SECRET` |
 | *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
@@ -82,6 +91,16 @@ Also: non-secret notification provider URLs / WhatsApp phone-number-id / Graph A
 **How apps load config:** use the Azure App Configuration provider (or SDK) with **managed identity**. Resolve Key Vault references with the same (or app) identity that has **Key Vault Secrets User**. Do not embed secret values in App Config.
 
 **How CI loads secrets:** GitHub Actions OIDC (`azure/login` + Variables `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`) → `az keyvault secret show`. Never GitHub Secrets for tokens/passwords.
+
+### API PR previews (Container Apps)
+
+```powershell
+az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
+powershell -File ./infra/deploy-aca-preview.ps1 -WhatIf
+powershell -File ./infra/deploy-aca-preview.ps1
+```
+
+Bicep: `container-apps-preview.bicep`. Workflow: `.github/workflows/preview-api.yml`. Docs: `docs/pr-pipelines.md`.
 
 ### Service Bus topics
 
@@ -119,16 +138,18 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
 pwsh ./infra/deploy.ps1 -WhatIf   # preview
 pwsh ./infra/deploy.ps1           # create / update (idempotent)
+powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR previews
 ```
 
 `deploy.ps1` upserts SQL/SB/SWA secrets into Key Vault, seeds App Config plain keys + KV refs, and mirrors non-secret + secret cache into local `.env` (gitignored).
+`deploy-aca-preview.ps1` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
 
 ## Secrets & config surfaces
 
 | Surface | How |
 | --- | --- |
 | Local | `az keyvault secret show` / App Config (optional `.env` cache) |
-| GitHub Actions | OIDC → Azure login → Key Vault / App Config at runtime |
+| GitHub Actions | OIDC → Azure login → Key Vault / App Config / ACR / ACA at runtime |
 | App Service / SWA / ACA | App Configuration provider + `@Microsoft.KeyVault(...)` / KV refs via MI |
 
 Do not paste secrets into ClickUp, GitHub Secrets, or git.

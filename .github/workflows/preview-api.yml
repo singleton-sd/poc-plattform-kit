@@ -1,18 +1,23 @@
-# API PR preview — Path A (cheapest PoC).
+# API PR preview — Azure Container Apps Consumption (Path B).
 #
-# Live App Service deployment slots need Standard (S1)+ and conflict with
-# F1 Free / B1 cheapest SKUs. Until the plan is upgraded:
-#   - ci-api.yml runs lint / test / build on API PRs (authoritative check)
-#   - This workflow only posts a PR comment documenting the preview strategy
-# Optional later (still Path A): deploy to a shared F1 app `pocpk-api-preview`
-# (overwrite per PR — note concurrency). Path B: upgrade plan to S1 + staging slot.
+# Per-PR ephemeral app: ssd-pocpk-aca-pr-<n>-ae (scale to zero).
+# Shared F1 overwrite and S1 slots are rejected for per-PR preview need.
+# FE SWA previews stay in preview-web.yml.
 #
-# See SETUP.md → "PR pipelines & previews".
-name: Preview API (stub)
+# Requires (human):
+#   - infra/deploy-aca-preview.ps1 already run (CAE + ACR Basic + KV acr-admin-*)
+#   - GitHub Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#     (AZURE_CREDENTIALS / SP-JSON is not supported; never GitHub Secrets for tokens)
+#   - Identity: Contributor on rg-poc-plattform-kit
+#     + Key Vault Secrets User on ssd-pocpk-kv-dev-ae (ACR admin + future secrets)
+#   - Push/deploy use OIDC → KV acr-admin-* (same pattern as SWA → swa-deployment-token)
+#
+# See docs/pr-pipelines.md and SETUP.md.
+name: Preview API (Container Apps)
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
     paths:
       - 'apps/api/**'
       - 'pillars/**'
@@ -23,32 +28,269 @@ concurrency:
   group: preview-api-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+env:
+  AZURE_RESOURCE_GROUP: rg-poc-plattform-kit
+  ACA_ENV_NAME: ssd-pocpk-cae-dev-ae
+  ACR_NAME: ssdpocpkacrdevae
+  IMAGE_REPO: pocpk-api
+  TARGET_PORT: '3001'
+  KEY_VAULT_NAME: ssd-pocpk-kv-dev-ae
+
 jobs:
-  note:
-    name: Document API preview Path A
+  deploy:
+    name: Build and deploy ACA preview
+    # Require open state (not only action != closed) so a late synchronize
+    # cannot recreate the app after cleanup on a closed/merged PR.
+    if: github.event.pull_request.state == 'open'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
       pull-requests: write
     steps:
-      - name: Comment API preview status
+      - uses: actions/checkout@v4
+
+      - name: Confirm PR still open
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
+          if [ "$state" = "open" ]; then
+            echo "open=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "open=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR is '$state' — skipping ACA deploy to avoid orphaned preview after close."
+          fi
+
+      - name: Require Azure OIDC Variables
+        if: steps.open.outputs.open == 'true'
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${AZURE_CLIENT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_TENANT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure federated OIDC for this repo and set Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            exit 1
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.open.outputs.open == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve ACR login server
+        if: steps.open.outputs.open == 'true'
+        id: acr
+        run: |
+          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" -g "$AZURE_RESOURCE_GROUP" --query loginServer -o tsv)
+          echo "login_server=$LOGIN_SERVER" >> "$GITHUB_OUTPUT"
+          echo "image=$LOGIN_SERVER/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          APP_NAME="ssd-pocpk-aca-pr-${{ github.event.pull_request.number }}-ae"
+          if [ ${#APP_NAME} -gt 32 ]; then
+            echo "Container App name exceeds 32 chars: $APP_NAME" >&2
+            exit 1
+          fi
+          echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        if: steps.open.outputs.open == 'true'
+        run: |
+          set -euo pipefail
+          # OIDC → Key Vault ACR admin (not az acr login / AcrPush). Same locked
+          # pattern as preview-web.yml (OIDC → KV swa-deployment-token).
+          ACR_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-username --query value -o tsv)
+          ACR_PASS=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-password --query value -o tsv)
+          echo "::add-mask::$ACR_PASS"
+          echo "$ACR_PASS" | docker login "${{ steps.acr.outputs.login_server }}" -u "$ACR_USER" --password-stdin
+          docker build -f apps/api/Dockerfile \
+            -t "${{ steps.acr.outputs.image }}" \
+            -t "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}" \
+            .
+          docker push "${{ steps.acr.outputs.image }}"
+          docker push "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}"
+
+      - name: Deploy ephemeral Container App
+        if: steps.open.outputs.open == 'true'
+        id: deploy
+        env:
+          APP_NAME: ${{ steps.acr.outputs.app_name }}
+          IMAGE: ${{ steps.acr.outputs.image }}
+        run: |
+          set -euo pipefail
+          ACR_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-username --query value -o tsv)
+          ACR_PASS=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-password --query value -o tsv)
+          LOGIN_SERVER="${{ steps.acr.outputs.login_server }}"
+
+          EXISTS=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query name -o tsv 2>/dev/null || true)
+          if [ -z "$EXISTS" ]; then
+            # CAE is workload-profiles (v2); create must name the Consumption profile.
+            az containerapp create \
+              --name "$APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --environment "$ACA_ENV_NAME" \
+              --workload-profile-name Consumption \
+              --image "$IMAGE" \
+              --target-port "$TARGET_PORT" \
+              --ingress external \
+              --registry-server "$LOGIN_SERVER" \
+              --registry-username "$ACR_USER" \
+              --registry-password "$ACR_PASS" \
+              --cpu 0.25 --memory 0.5Gi \
+              --min-replicas 0 --max-replicas 1 \
+              --env-vars "PORT=$TARGET_PORT" "NODE_ENV=production" \
+              --tags "project=poc-plattform-kit" "purpose=pr-preview" "pr=${{ github.event.pull_request.number }}"
+          else
+            az containerapp registry set \
+              --name "$APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --server "$LOGIN_SERVER" \
+              --username "$ACR_USER" \
+              --password "$ACR_PASS"
+            az containerapp update \
+              --name "$APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --image "$IMAGE" \
+              --set-env-vars "PORT=$TARGET_PORT" "NODE_ENV=production" \
+              --min-replicas 0 --max-replicas 1
+          fi
+
+          FQDN=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "fqdn=$FQDN" >> "$GITHUB_OUTPUT"
+          echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        if: steps.open.outputs.open == 'true'
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          APP_NAME: ${{ steps.acr.outputs.app_name }}
+          IMAGE_REF: ${{ steps.acr.outputs.image }}
+        with:
+          script: |
+            const marker = '<!-- api-preview-aca -->';
+            const url = process.env.PREVIEW_URL;
+            const app = process.env.APP_NAME;
+            const image = process.env.IMAGE_REF;
+            const body = [
+              marker,
+              '### API preview (Container Apps Consumption)',
+              '',
+              `**Preview URL:** ${url}`,
+              '',
+              `- App: \`${app}\` (scale-to-zero)`,
+              `- Image: \`${image}\``,
+              '- Path B: ephemeral ACA per PR — not F1 overwrite, not S1 slots',
+              '- Cleanup runs when this PR is closed',
+              '',
+              'Web SWA PR previews remain via `preview-web.yml`; production API/web via `deploy-api.yml` / `deploy-web.yml` on `main`.',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  cleanup:
+    name: Delete ephemeral ACA preview
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Require Azure OIDC Variables
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${AZURE_CLIENT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_TENANT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure federated OIDC for this repo and set Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            exit 1
+          fi
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Delete Container App
+        env:
+          APP_NAME: ssd-pocpk-aca-pr-${{ github.event.pull_request.number }}-ae
+        run: |
+          EXISTS=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query name -o tsv 2>/dev/null || true)
+          if [ -n "$EXISTS" ]; then
+            az containerapp delete -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --yes
+            echo "Deleted $APP_NAME"
+          else
+            echo "No app $APP_NAME to delete"
+          fi
+
+      - name: Comment cleanup on PR
         uses: actions/github-script@v7
         with:
           script: |
-            const marker = '<!-- api-preview-path-a -->';
+            const marker = '<!-- api-preview-aca -->';
+            const app = `ssd-pocpk-aca-pr-${context.issue.number}-ae`;
             const body = [
               marker,
-              '### API preview (Path A — cheapest PoC)',
+              '### API preview (Container Apps Consumption)',
               '',
-              '**No live App Service slot** on this PR.',
-              '',
-              '- **CI:** `ci-api.yml` runs lint / test / build when `apps/api/**`, `pillars/**`, or `packages/**` change.',
-              '- **Production on `main`:** `deploy-api.yml` zip-deploys Nest to App Service F1 (`pocpk-api-si5fhs6dvxiha`) via OIDC.',
-              '- **Why no PR slot:** Deployment slots need App Service **Standard (S1)+**. PoC plan is **F1 Free**.',
-              '- **Optional later (still Path A):** shared overwrite app `pocpk-api-preview` (one PR at a time).',
-              '- **Path B (better DX, costs more):** Container Apps Consumption per-PR previews (OIDC → KV) — see Architecture Doc.',
-              '',
-              'Web SWA PR previews remain available via `preview-web.yml` (Free SKU); production via `deploy-web.yml`.',
+              `Ephemeral app \`${app}\` was **deleted** on PR close.`,
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
