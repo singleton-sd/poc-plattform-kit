@@ -10,8 +10,10 @@
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | Path A stub comment only |
+| `deploy-web.yml` | `apps/web/**`, `packages/**` on **`main`** | SWA **production** via OIDC → Key Vault |
+| `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** | Nest zip → App Service F1 via OIDC |
 
-**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI.
+**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. Push to `main` with the same paths also runs the matching **deploy-*** workflow.
 
 Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 
@@ -24,7 +26,9 @@ Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge
 
 Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
 
-If OIDC Variables are missing, `preview-web.yml` **skips** deploy/close (job succeeds) so CI is not blocked forever. Set the three Variables when ready.
+If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. Set the three Variables when ready.
+
+`deploy-api.yml` also needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (SWA production uses the KV deploy token only).
 
 ### OIDC subject forms (Entra FIC)
 
@@ -59,7 +63,19 @@ True **deployment slots** need App Service **Standard (S1)+**. PoC uses **F1 Fre
 | Path A optional | Second F1 app `pocpk-api-preview` | Overwrite per PR; concurrency risk |
 | **Path B** | Container Apps (or S1 slots) | Must use **OIDC → KV / App Config** — same locked secret model |
 
-Until Path B: treat API preview as **CI green + local/App Service main** unless a shared preview app is provisioned.
+Until Path B: treat API **PR** preview as **CI green + local**. **Production** API on `main` is deployed by `deploy-api.yml` to App Service F1 (`pocpk-api-si5fhs6dvxiha`).
+
+## Production deploy on `main` (locked)
+
+| Workflow | Host | Auth |
+| --- | --- | --- |
+| `deploy-web.yml` | SWA Free production (`kind-rock-0f409fe00.7.azurestaticapps.net`) | OIDC → KV `swa-deployment-token` |
+| `deploy-api.yml` | App Service F1 (`pocpk-api-si5fhs6dvxiha.azurewebsites.net`) | OIDC → `azure/webapps-deploy` (needs **Website Contributor**) |
+
+- Triggers: `push` to `main` with the same path filters as CI/preview.
+- Builds in the job (web → `apps/web/out`; API → staged `.deploy/api` with `dist/` + prod `node_modules`).
+- API startup: `node dist/main.js` (set each deploy; `package.json` `"start"` matches).
+- No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
 ## Root scripts
 

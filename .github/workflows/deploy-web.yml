@@ -1,0 +1,96 @@
+# Azure Static Web Apps — production deploy on merge to main.
+# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
+# Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
+# If those Variables are missing, deploy steps SKIP (job succeeds) so main CI is not blocked.
+# See SETUP.md / docs/pr-pipelines.md.
+name: Deploy Web (SWA production)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-web.yml'
+
+concurrency:
+  group: deploy-web-production
+  cancel-in-progress: false
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    name: Build + SWA production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        run: pnpm --filter @poc-plattform-kit/web... run build
+
+      - name: Check OIDC Variables
+        id: oidc
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OIDC Variables not set (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) — skipping SWA production deploy."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read SWA deploy token from Key Vault
+        if: steps.oidc.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          token=$(az keyvault secret show \
+            --vault-name ssd-pocpk-kv-dev-ae \
+            --name swa-deployment-token \
+            --query value -o tsv)
+          echo "::add-mask::$token"
+          echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Deploy SWA production
+        id: deploy
+        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
+        uses: Azure/static-web-apps-deploy@v1
+        env:
+          SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+          action: upload
+          # Next `output: 'export'` emits under apps/web/out
+          app_location: apps/web/out
+          skip_app_build: true
+          # Push to main → production environment (not a PR staging URL)
+          production_branch: main
+
+      - name: Skip notice (OIDC not configured)
+        if: steps.oidc.outputs.configured != 'true'
+        run: |
+          echo "SWA production deploy skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC IDs only; token stays in Key Vault)."
