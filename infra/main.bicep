@@ -1,8 +1,9 @@
 // poc-plattform-kit — cheapest-that-works PoC Azure resources
 // Deploy: pwsh ./infra/deploy.ps1
-// Cost: Free/Basic/Standard-min only (see SETUP.md). Secrets: Key Vault (CAF name).
+// Cost: Free/Basic/Standard-min only (see SETUP.md).
+// Secrets: Key Vault only. App config: Azure App Configuration (+ KV refs).
+// Pipelines: GitHub OIDC → Azure → KV/App Config. No secrets in GitHub Secrets.
 // Existing resources keep legacy uniqueString names; new resources use CAF names.
-// Do not leave long-lived secrets only in GitHub Secrets.
 
 @description('Azure region for most resources')
 param location string = resourceGroup().location
@@ -19,6 +20,13 @@ param namePrefix string = 'pocpk'
 @minLength(3)
 @maxLength(24)
 param keyVaultName string = 'ssd-pocpk-kv-dev-ae'
+
+@description('CAF App Configuration store name')
+param appConfigName string = 'ssd-pocpk-appcs-dev-ae'
+
+@description('App Configuration SKU — Free preferred for PoC')
+@allowed(['Free', 'Standard'])
+param appConfigSku string = 'Free'
 
 @description('Object ID of deployer/user to grant Key Vault Administrator (empty skips role)')
 param deployerObjectId string = ''
@@ -160,6 +168,10 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'AZURE_SERVICEBUS_NAMESPACE'
           value: serviceBusName
         }
+        {
+          name: 'AZURE_APPCONFIGURATION_ENDPOINT'
+          value: appConfig.properties.endpoint
+        }
       ]
     }
   }
@@ -264,6 +276,56 @@ resource kvApiSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   }
 }
 
+// CAF App Configuration — non-secret config + Key Vault references for secret values.
+// Free SKU for PoC. Apps load via managed identity + App Configuration provider.
+resource appConfig 'Microsoft.AppConfiguration/configurationStores@2024-05-01' = {
+  name: appConfigName
+  location: location
+  sku: {
+    name: appConfigSku
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    publicNetworkAccess: 'Enabled'
+    disableLocalAuth: false
+  }
+}
+
+var roleAppConfigDataReader = '516239f1-63e1-4d78-a4de-a74fb236a071'
+var roleAppConfigDataOwner = '5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b'
+
+resource appConfigApiDataReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(appConfig.id, webApp.id, roleAppConfigDataReader)
+  scope: appConfig
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAppConfigDataReader)
+    principalId: webApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource kvAppConfigSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, appConfig.id, roleKeyVaultSecretsUser)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleKeyVaultSecretsUser)
+    principalId: appConfig.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource appConfigDeployerOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerObjectId)) {
+  name: guid(appConfig.id, deployerObjectId, roleAppConfigDataOwner)
+  scope: appConfig
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAppConfigDataOwner)
+    principalId: deployerObjectId
+    principalType: 'User'
+  }
+}
+
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output swaLocation string = swaLocation
@@ -282,3 +344,6 @@ output appServicePlanName string = appPlan.name
 output subscriptionModuleName string = topicSubs.name
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
+output appConfigName string = appConfig.name
+output appConfigEndpoint string = appConfig.properties.endpoint
+output appConfigPrincipalId string = appConfig.identity.principalId

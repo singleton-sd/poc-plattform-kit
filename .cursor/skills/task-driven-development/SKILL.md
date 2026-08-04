@@ -29,11 +29,18 @@ Use this skill when implementing work from a project-management list or workflow
      resolve the current Cursor/ClickUp identity). Do not leave assignee empty.
      Never assign when merely browsing or reading tickets.
    - **Implementer:** On pick-up from **READY FOR AI**, assign self → set
-     status **IN PROGRESS** → then implement.
+     status **IN PROGRESS** → then implement → open PR → **PR hygiene**
+     (CI green + mergeable) → ClickUp comment with PR URL → **READY FOR REVIEW**.
    - **Reviewer:** On pick-up from **READY FOR REVIEW**, assign self as the
      reviewer for the review phase (prefer set assignee to the reviewer). If
      the implementer must remain visible, comment their identity on the ticket
-     before/when reassigning.
+     before/when reassigning. Before **READY FOR HUMAN**, re-check mergeable,
+     required CI, and all PR feedback (Bugbot + human issue/review comments).
+     On conflict / CI red / actionable feedback → **READY FOR AI** + blockers.
+   - **Steward:** When asked to check open PRs after READY FOR HUMAN, re-poll
+     mergeable / CI / new comments; bounce to READY FOR AI when agent-fixable.
+   - Labels to watch: `needs-rebase`, `ci-failed`, `has-feedback` (see
+     `docs/pr-pipelines.md` / `AGENTS.md` § PR hygiene).
    - When starting a task, set that task to `in progress` / **IN PROGRESS**.
    - When the task implementation is finished, do **not** mark it complete yet.
    - Mark a finished task complete only when the user explicitly asks, or when the user says to move to the next task.

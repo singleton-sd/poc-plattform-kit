@@ -34,3 +34,12 @@ Finish with a one-paragraph summary verdict.
 - Only comment on what is in scope (the diff or the specified file)
 - Do not suggest style changes unless a linter config is provided
 - Distinguish between blocking issues and suggestions
+
+## PR hygiene before READY FOR HUMAN
+
+For ClickUp/GitHub reviews in this repo, also run **PR hygiene** (see `AGENTS.md`):
+
+1. Confirm `mergeable` is clean (`gh pr view --json mergeable,mergeStateStatus`).
+2. Confirm required checks are green on the PR tip.
+3. Fetch Bugbot + human feedback via PR review comments and issue comments (not Cursor chat).
+4. If conflicts, red CI, or actionable feedback remain → set ClickUp **READY FOR AI** with blockers; do not set **READY FOR HUMAN**.

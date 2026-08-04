@@ -1,0 +1,190 @@
+# Azure Static Web Apps PR preview (Free SKU — no extra cost).
+# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
+# Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
+# If those Variables are missing, deploy steps SKIP (job succeeds) so CI is not blocked forever.
+# See SETUP.md / docs/pr-pipelines.md.
+name: Preview Web (SWA)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/preview-web.yml'
+
+concurrency:
+  group: preview-web-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    name: Build + SWA preview
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        run: pnpm --filter @poc-plattform-kit/web... run build
+
+      - name: Check OIDC Variables
+        id: oidc
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OIDC Variables not set (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) — skipping SWA deploy."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read SWA deploy token from Key Vault
+        if: steps.oidc.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          token=$(az keyvault secret show \
+            --vault-name ssd-pocpk-kv-dev-ae \
+            --name swa-deployment-token \
+            --query value -o tsv)
+          echo "::add-mask::$token"
+          echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Deploy SWA preview
+        id: deploy
+        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
+        uses: Azure/static-web-apps-deploy@v1
+        env:
+          SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          # Next `output: 'export'` emits the runnable site under apps/web/out
+          # (public/ assets are copied there). Deploy the export, not public/.
+          app_location: apps/web/out
+          skip_app_build: true
+
+      - name: Comment preview URL
+        if: steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- swa-preview-web -->';
+            const body = [
+              marker,
+              '### Web preview (SWA Free)',
+              '',
+              'Static Web Apps created a **PR preview environment** for `apps/web`.',
+              '',
+              '- Check the **Azure Static Web Apps** bot / deployment summary for the URL.',
+              '- Production SWA: `pocpk-web-si5fhs6dvxiha` (Free) — PR previews are included.',
+              '- Deploy token loaded at runtime via **OIDC → Key Vault** (`swa-deployment-token`).',
+              '',
+              '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path A)._',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Skip notice (OIDC not configured)
+        if: steps.oidc.outputs.configured != 'true'
+        run: |
+          echo "SWA preview skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC IDs only; token stays in Key Vault)."
+
+  close_preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close SWA preview
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check OIDC Variables
+        id: oidc
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OIDC Variables not set — skipping SWA preview close."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read SWA deploy token from Key Vault
+        if: steps.oidc.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          token=$(az keyvault secret show \
+            --vault-name ssd-pocpk-kv-dev-ae \
+            --name swa-deployment-token \
+            --query value -o tsv)
+          echo "::add-mask::$token"
+          echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Close Static Web App preview
+        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
+        uses: Azure/static-web-apps-deploy@v1
+        env:
+          SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+          action: close
+
+      - name: Skip notice (OIDC not configured)
+        if: steps.oidc.outputs.configured != 'true'
+        run: echo "SWA preview close skipped — OIDC Variables not configured."

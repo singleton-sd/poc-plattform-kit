@@ -20,7 +20,7 @@ Platform kit PoC: nine NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus,
 | AuthZ | Permissions pillar — OpenFGA (ReBAC) on ACA Consumption |
 | Notifications | Forward Email · android-sms-gateway · Meta WhatsApp Cloud API |
 | Secrets / config | Azure Key Vault · Azure App Configuration (KV refs) |
-| CI | GitHub Actions |
+| CI | GitHub Actions — split `ci-web` / `ci-api` (path filters); SWA PR previews |
 | Agents | READY FOR AI → REVIEW → HUMAN → COMPLETE; worktrees; humans merge |
 
 ## Pillars
@@ -36,4 +36,4 @@ pnpm dev:api
 pnpm dev:web
 ```
 
-See [SETUP.md](./SETUP.md) and [AGENTS.md](./AGENTS.md).
+See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md), and [docs/pr-pipelines.md](./docs/pr-pipelines.md).
