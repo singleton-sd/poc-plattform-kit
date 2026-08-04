@@ -109,3 +109,14 @@ Read curated skills under `.cursor/skills/` before coding (backend, frontend, te
 - Update Swagger with API changes.
 - Forward-only Prisma migrations.
 - UI: token CSS vars + Tailwind only — no hardcoded palette hex.
+
+## Cursor Cloud specific instructions
+
+pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scripts (`package.json`) fan out with `pnpm -r`, so `pnpm lint`/`test`/`build` results depend on which feature PRs have merged — several `pillars/*` and `apps/web` may still be placeholder `echo` stubs on a given checkout (real coverage today is `apps/api` Jest + `packages/db` `prisma validate`). The update script's `pnpm install` picks up new deps automatically as that work lands. Note: multiple foundation PRs are in flight (tracked in ClickUp) and touch `AGENTS.md`, tooling, `apps/web`, and pillars; expect this repo to evolve and don't treat the current stub state as final.
+
+- **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. No DB/Prisma wiring yet, so it runs without live Azure resources.
+- **Web:** `pnpm dev:web` becomes a Next.js PWA once the web-foundation PR lands; until then it just prints a stub message.
+- **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
+- **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
+- **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.
+- **ClickUp access (cloud):** no ClickUp MCP is wired up here; use the REST API v2 with the `CLICKUP_API_TOKEN` secret, e.g. `curl -H "Authorization: $CLICKUP_API_TOKEN" https://api.clickup.com/api/v2/list/901616287298/task` (workspace `90161394355`, ops/tickets list `901616287298`, docs folder `901610744236`). `api.clickup.com` is reachable from the VM. Per the AI-loop rules above, don't assign/move/merge tickets unless explicitly asked.
