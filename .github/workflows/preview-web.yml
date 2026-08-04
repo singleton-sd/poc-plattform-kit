@@ -106,7 +106,7 @@ jobs:
               '- Production SWA: `pocpk-web-si5fhs6dvxiha` (Free) — PR previews are included.',
               '- Deploy token loaded at runtime via **OIDC → Key Vault** (`swa-deployment-token`).',
               '',
-              '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path A)._',
+              '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path B ACA)._',
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
