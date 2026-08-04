@@ -8,7 +8,8 @@ export type PillarName =
   | 'contact'
   | 'support'
   | 'audit'
-  | 'reporting';
+  | 'reporting'
+  | 'notifications';
 
 export type DomainEventType =
   | 'tenant.created'
@@ -21,7 +22,9 @@ export type DomainEventType =
   | 'subscription.changed'
   | 'contact.created'
   | 'contact.name_changed'
-  | 'support.ops_action';
+  | 'support.ops_action'
+  | 'notification.sent'
+  | 'notification.failed';
 
 export interface DomainEvent<TPayload = Record<string, unknown>> {
   id: string;

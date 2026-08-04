@@ -74,6 +74,12 @@ var eventTopics = [
   'support.events'
   'audit.events'
   'reporting.events'
+  'notifications.events'
+]
+
+// Explicit send-notification commands from other pillars (competing consumers)
+var jobQueues = [
+  'notifications.send'
 ]
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
@@ -209,7 +215,20 @@ resource topics 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview' = [
   }
 ]
 
-// Consumer subscriptions on publishing pillars (Audit / Reporting / Support)
+resource queues 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview' = [
+  for queueName in jobQueues: {
+    parent: serviceBusNamespace
+    name: queueName
+    properties: {
+      deadLetteringOnMessageExpiration: true
+      maxDeliveryCount: 10
+      lockDuration: 'PT1M'
+      defaultMessageTimeToLive: 'P14D'
+    }
+  }
+]
+
+// Consumer subscriptions on publishing pillars (Audit / Reporting / Support / Notifications)
 module topicSubs 'servicebus-subscriptions.bicep' = {
   name: 'servicebus-subscriptions'
   params: {

@@ -79,17 +79,17 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | https://ssd-pocpk-appcs-dev-ae.azconfig.io | Free |
 
-Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
+Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`, `notifications.events`. Consumers `audit` / `reporting` / `support` / `notifications` on publishing topics; trail consumers `audit` / `reporting` / `support` on `notifications.events`. Queue: `notifications.send` (explicit send commands).
 
 ### Secrets + configuration (locked)
 
 | Layer | Store | Rule |
 | --- | --- | --- |
-| **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, Entra client secrets. **Never** in git or GitHub Actions secrets. |
+| **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, Entra client secrets, notification provider keys. **Never** in git or GitHub Actions secrets. |
 | **App configuration** | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | Non-secret settings + **Key Vault references** for secret values (not inline secrets). |
 | **CI/CD** | GitHub Actions **OIDC** → Azure | Workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. |
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`  
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`  
 *(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
 
 **GitHub Actions — allowed identifiers only (repository Variables, not Secrets):**
@@ -103,6 +103,16 @@ Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `conta
 App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG, **Key Vault Secrets User**, **App Configuration Data Reader**.
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, connection strings, passwords, or deploy tokens in GitHub Secrets.
+
+### Notifications pillar (locked)
+
+| Channel | Provider | Adapter |
+| --- | --- | --- |
+| Email | [Forward Email API](https://forwardemail.net/en/email-api) | `EmailProvider` |
+| SMS | [android-sms-gateway](https://github.com/capcom6/android-sms-gateway) | `SmsProvider` |
+| WhatsApp | Meta WhatsApp Cloud API (default; swappable) | `WhatsAppProvider` |
+
+Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`. Non-secret App Config: provider base URLs, WhatsApp phone-number-id, Graph API version (secrets only as KV references).
 
 | Surface | Rule |
 | --- | --- |

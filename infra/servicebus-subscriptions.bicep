@@ -31,14 +31,28 @@ resource contactTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview
   name: 'contact.events'
 }
 
-var consumers = [
+resource notificationsTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview' existing = {
+  parent: serviceBusNamespace
+  name: 'notifications.events'
+}
+
+// Domain event consumers (incl. Notifications for outbound triggers)
+var domainConsumers = [
+  'audit'
+  'reporting'
+  'support'
+  'notifications'
+]
+
+// Trail / projection consumers on Notifications' own events
+var notificationsTrailConsumers = [
   'audit'
   'reporting'
   'support'
 ]
 
 resource tenantSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
-  for consumer in consumers: {
+  for consumer in domainConsumers: {
     parent: tenantTopic
     name: consumer
     properties: {
@@ -50,7 +64,7 @@ resource tenantSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-1
 ]
 
 resource ssoSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
-  for consumer in consumers: {
+  for consumer in domainConsumers: {
     parent: ssoTopic
     name: consumer
     properties: {
@@ -62,7 +76,7 @@ resource ssoSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-0
 ]
 
 resource permissionsSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
-  for consumer in consumers: {
+  for consumer in domainConsumers: {
     parent: permissionsTopic
     name: consumer
     properties: {
@@ -74,7 +88,7 @@ resource permissionsSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2
 ]
 
 resource subscriptionsSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
-  for consumer in consumers: {
+  for consumer in domainConsumers: {
     parent: subscriptionsTopic
     name: consumer
     properties: {
@@ -86,7 +100,7 @@ resource subscriptionsSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions
 ]
 
 resource contactSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
-  for consumer in consumers: {
+  for consumer in domainConsumers: {
     parent: contactTopic
     name: consumer
     properties: {
@@ -97,4 +111,16 @@ resource contactSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-
   }
 ]
 
-output createdSubscriptionCount int = length(consumers) * 5
+resource notificationsTrailSubs 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
+  for consumer in notificationsTrailConsumers: {
+    parent: notificationsTopic
+    name: consumer
+    properties: {
+      deadLetteringOnMessageExpiration: true
+      maxDeliveryCount: 10
+      lockDuration: 'PT1M'
+    }
+  }
+]
+
+output createdSubscriptionCount int = (length(domainConsumers) * 5) + length(notificationsTrailConsumers)

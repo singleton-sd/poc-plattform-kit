@@ -53,6 +53,10 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `database-url` | `DATABASE_URL` |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
 | `swa-deployment-token` | (from `az staticwebapp secrets list`) |
+| `forwardemail-api-key` | `FORWARDEMAIL_API_KEY` |
+| `sms-gateway-username` | `SMS_GATEWAY_USERNAME` |
+| `sms-gateway-password` | `SMS_GATEWAY_PASSWORD` |
+| `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` |
 | *(future)* `auth-secret` | `AUTH_SECRET` |
 | *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
@@ -73,15 +77,37 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `secret:swa-deployment-token` | Key Vault reference |
 | `secret:sql-admin-password` | Key Vault reference |
 
+Also: non-secret notification provider URLs / WhatsApp phone-number-id / Graph API version (plain); notification secrets only as Key Vault references.
+
 **How apps load config:** use the Azure App Configuration provider (or SDK) with **managed identity**. Resolve Key Vault references with the same (or app) identity that has **Key Vault Secrets User**. Do not embed secret values in App Config.
 
-**How CI loads secrets:** GitHub Actions OIDC (`azure/login` + Variables `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID) → `az keyvault secret show`. Never GitHub Secrets for tokens/passwords.
+**How CI loads secrets:** GitHub Actions OIDC (`azure/login` + Variables `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`) → `az keyvault secret show`. Never GitHub Secrets for tokens/passwords.
 
 ### Service Bus topics
 
-`tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`
+`tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`, `notifications.events`
 
-Subscriptions `audit`, `reporting`, `support` on each publishing topic (`tenant` / `single-sign-on` / `subscriptions` / `contact`).
+Subscriptions `audit`, `reporting`, `support`, `notifications` on each publishing topic (`tenant` / `single-sign-on` / `permissions` / `subscriptions` / `contact`).
+
+Subscriptions `audit`, `reporting`, `support` on `notifications.events`.
+
+### Service Bus queues
+
+| Queue | Purpose |
+| --- | --- |
+| `notifications.send` | Explicit “send notification” commands from other pillars |
+
+### Notifications / channels (locked)
+
+| Channel | Provider | Adapter |
+| --- | --- | --- |
+| Email | Forward Email API | `EmailProvider` |
+| SMS | android-sms-gateway (self-hosted) | `SmsProvider` |
+| WhatsApp | Meta WhatsApp Cloud API (default; swappable) | `WhatsAppProvider` |
+
+### Permissions / OpenFGA (locked)
+
+Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** hosted on **Azure Container Apps Consumption** (CAF name e.g. `ssd-pocpk-openfga-dev-ae` when provisioned). Azure RBAC/Entra are not used for per-item domain ACL.
 
 ## Prerequisites
 
