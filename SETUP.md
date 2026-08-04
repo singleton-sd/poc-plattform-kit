@@ -4,9 +4,21 @@
 
 - [x] Repo exists: `https://github.com/singleton-sd/poc-plattform-kit` (SSH: `git@github-personal:singleton-sd/poc-plattform-kit.git`; personal remotes use the `github-personal` SSH host alias)
 - [x] Push `main` from `C:\00Personal\singleton-sd\poc-plattform-kit`
-- [ ] Branch protection on `main`: require PR, **require human approval**, disallow AI/bot merge if possible
+- [ ] Branch protection on `main` (solo-repo policy — see below)
 - [ ] Optional ruleset for `feature/*` branch naming (see below)
 - [ ] Connect repo in [Cursor Integrations](https://cursor.com/dashboard/integrations)
+
+### Solo-repo branch protection (locked)
+
+This is a **solo** GitHub identity repo. GitHub forbids self-approve, so **do not** require approving reviews.
+
+**Protect `main`:**
+
+1. Open the repo → **Settings** → **Rules** → **Rulesets** (or classic **Branches**).
+2. Require a pull request before merging; **require status checks** (CI workflows) to pass.
+3. **Do not** require approving reviews (blocks the same human/AI identity that authored the PR).
+4. Block force pushes and deletions; disallow direct pushes to `main`.
+5. **Human merge only** — agents never merge. AI reviews are **comments only** when the reviewer shares the author’s GitHub identity.
 
 ### Branch naming (agents + optional GitHub rules)
 
@@ -20,10 +32,10 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 **Where to click in GitHub (optional enforcement):**
 
-1. Open the repo → **Settings** → **Rules** → **Rulesets** (or **Branches** for classic branch protection).
-2. **Protect `main`:** New ruleset targeting `refs/heads/main` — require a pull request before merging, require at least one **human** approving review, block force pushes and deletions, disallow direct pushes to `main`.
-3. **Optional `feature/*` pattern:** New ruleset targeting `refs/heads/feature/*` (and/or restrict which refs can be created). Branch name patterns in rulesets can limit create/push depending on GitHub plan; they do not always force the create pattern globally. Prefer documenting the convention in `AGENTS.md` and using rulesets as a safety net.
-4. Ensure PRs into `main` come from feature/hotfix branches only (agents never merge; humans approve).
+1. Open the repo → **Settings** → **Rules** → **Rulesets**.
+2. **Protect `main`:** as above (CI + human merge; no required approvals).
+3. **Optional `feature/*` pattern:** New ruleset targeting `refs/heads/feature/*`. Prefer documenting the convention in `AGENTS.md` and using rulesets as a safety net.
+4. Ensure PRs into `main` come from feature/hotfix branches only (agents never merge; humans merge).
 
 ## 2. ClickUp (workspace `90161394355`) — locked locations
 
@@ -38,7 +50,7 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 ## 3. Agent automations
 
 - [ ] Implementer: pick tickets in **READY FOR AI** → **assign self** (`assignees: ["me"]`) → **IN PROGRESS** → PR → **READY FOR REVIEW**
-- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → **assign self** for the review phase (comment prior implementer if they must stay visible) → **READY FOR HUMAN**
+- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → **assign self** for the review phase (comment prior implementer if they must stay visible) → post review **comments** → **READY FOR HUMAN**
 - [ ] Assignment only when claiming work — not when browsing
 - [ ] Humans only: merge PR when **READY FOR HUMAN**, then set **COMPLETE**
 
@@ -51,8 +63,8 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**.
-- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`.
+- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**.
+- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
 
 ### Provisioned (2026-08-04)
@@ -64,45 +76,84 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 | Static Web App | `pocpk-web-si5fhs6dvxiha` | https://kind-rock-0f409fe00.7.azurestaticapps.net | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
+| App Configuration | `ssd-pocpk-appcs-dev-ae` | https://ssd-pocpk-appcs-dev-ae.azconfig.io | Free |
 
-Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
+Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`. Consumers `audit` / `reporting` / `support` on publishing topics.
 
-### AuthZ: Permissions pillar (locked)
+### Secrets + configuration (locked)
 
-Azure does **not** offer a first-class app-data authZ service for “user X / action Y / resource Z” on domain items (Azure RBAC / Entra app roles are Azure resources + coarse app roles only).
+| Layer | Store | Rule |
+| --- | --- | --- |
+| **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, Entra client secrets. **Never** in git or GitHub Actions secrets. |
+| **App configuration** | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | Non-secret settings + **Key Vault references** for secret values (not inline secrets). |
+| **CI/CD** | GitHub Actions **OIDC** → Azure | Workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. |
 
-| Layer | Choice |
-| --- | --- |
-| AuthN + coarse roles | Entra via **SingleSignOn** (e.g. tenant-admin, support-agent) |
-| Fine-grained authZ | **Permissions** pillar — `Check(subject, action, resource)` |
-| Engine (PoC) | **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption** |
-| Avoid unless insisted | Auth0 FGA / Permit.io (extra vendor); flat SQL ACLs alone (harder to scale relationships) |
-
-Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
-
-### Secrets: Azure Key Vault (locked)
-
-**Vault:** `ssd-pocpk-kv-dev-ae`  
-**Secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`  
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`  
 *(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
+
+**GitHub Actions — allowed identifiers only (repository Variables, not Secrets):**
+
+| Variable | Purpose |
+| --- | --- |
+| `AZURE_CLIENT_ID` | OIDC app registration application (client) ID |
+| `AZURE_TENANT_ID` | Entra tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG, **Key Vault Secrets User**, **App Configuration Data Reader**.
+
+**Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 
 | Surface | Rule |
 | --- | --- |
-| Local | Pull from KV. Do not commit secrets. `.env` is optional gitignored cache. |
-| GitHub Actions | OIDC → fetch from KV. |
-| App Service / SWA | Key Vault references for app settings where possible. |
+| Local | Pull from KV / App Config. Do not commit secrets. `.env` is optional gitignored cache. |
+| GitHub Actions | OIDC → Azure login → Key Vault / App Config at runtime. |
+| App Service / SWA / Container Apps | Prefer App Configuration provider + KV references for secrets. |
 
 - [x] CLI identity can see the subscription
 - [x] Core deploy succeeded — SQL, App Service (F1), SWA Free, Service Bus Standard
-- [x] Key Vault `ssd-pocpk-kv-dev-ae` provisioned; SQL/SB secrets migrated from `.env`
+- [x] Key Vault `ssd-pocpk-kv-dev-ae` provisioned; SQL/SB/SWA secrets in KV
+- [x] App Configuration `ssd-pocpk-appcs-dev-ae` (Free) + KV references seeded
+- [x] GitHub OIDC app + federated credentials + Variables set; **no** deploy tokens in GitHub Secrets
 - [x] Local `.env` written by deploy (gitignored); `.env.example` has placeholders
-- [ ] Entra app registration (SPA + API) — secrets in KV
+- [ ] Entra app registration (SPA + API) — secrets in KV; config keys in App Config
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
-- [ ] GitHub Actions OIDC → Key Vault; App Service/SWA use KV references
-- [ ] Connect SWA ↔ GitHub for deploys
+- [ ] Wire App Service / SWA / ACA to App Configuration provider + managed identity
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
+- [ ] (Optional Path B) Container Apps API preview — same OIDC → KV/App Config pattern (no GH secrets)
 
-## 5. Skills
+### OIDC bootstrap (if Variables missing / admin consent)
+
+1. App registration `ssd-pocpk-gha-oidc-dev` already created in tenant `9a0e57d7-e58e-4e8b-814d-037cd7d9015c`.
+2. Federated credentials (issuer `https://token.actions.githubusercontent.com`). **Entra FIC `subject` must match the JWT `sub` exactly.**
+   - **ID-form (current GitHub default for many orgs):** `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` and `repo:ORG@ORG_ID/REPO@REPO_ID:ref:refs/heads/main` (numeric org/repo IDs). Example shape: `repo:singleton-sd@NNNN/poc-plattform-kit@MMMM:pull_request`.
+   - **Classic (optional compatibility):** keep `repo:singleton-sd/poc-plattform-kit:pull_request` and `repo:singleton-sd/poc-plattform-kit:ref:refs/heads/main` if tokens still emit that form.
+   - Tip: decode a failed job's OIDC token / check the Azure login error for the exact `sub`, then set FIC subjects to match (both forms can coexist on the app registration).
+3. Ensure repo **Variables** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` match the app/sub/tenant.
+4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
+5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
+
+
+### GitHub Actions runtime (Node)
+
+Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
+
+## 5. PR pipelines & previews
+
+See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
+
+| Workflow | Paths | What it does |
+| --- | --- | --- |
+| `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test |
+| `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
+| `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
+| `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | Path A stub comment (no slot on F1) |
+
+- **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
+- **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
+- **BE preview (Path A locked):** no deployment slots on F1; CI validates API. Path B (Container Apps) must also use OIDC → KV/App Config — never GitHub secret tokens.
+- Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
+
+## 6. Skills
 
 Curated skills are committed under `.cursor/skills/`. Refresh from local source:
 
