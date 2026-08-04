@@ -2,12 +2,12 @@
 #
 # Per-PR ephemeral app: ssd-pocpk-aca-pr-<n>-ae (scale to zero).
 # Shared F1 overwrite and S1 slots are rejected for per-PR preview need.
-# FE SWA previews stay in preview-web.yml (when that workflow lands).
+# FE SWA previews stay in preview-web.yml.
 #
 # Requires (human):
 #   - infra/deploy-aca-preview.ps1 already run (CAE + ACR Basic)
-#   - GitHub OIDC secrets only: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
-#     (AZURE_CREDENTIALS / SP-JSON is not supported)
+#   - GitHub Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#     (AZURE_CREDENTIALS / SP-JSON is not supported; never GitHub Secrets for tokens)
 #   - Identity: Contributor on rg-poc-plattform-kit + AcrPush on ssdpocpkacrdevae
 #     + Key Vault Secrets User on ssd-pocpk-kv-dev-ae
 #
@@ -47,37 +47,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Require Azure OIDC secrets
+      - name: Require Azure OIDC Variables
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
           missing=0
           if [ -z "${AZURE_CLIENT_ID}" ]; then
-            echo "::error::Missing GitHub secret AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            echo "::error::Missing GitHub Variable AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
             missing=1
           fi
           if [ -z "${AZURE_TENANT_ID}" ]; then
-            echo "::error::Missing GitHub secret AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            echo "::error::Missing GitHub Variable AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
             missing=1
           fi
           if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
-            echo "::error::Missing GitHub secret AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            echo "::error::Missing GitHub Variable AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
             missing=1
           fi
           if [ "$missing" -ne 0 ]; then
-            echo "::error::Configure federated OIDC for this repo and set AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            echo "::error::Configure federated OIDC for this repo and set Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
             exit 1
           fi
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Resolve ACR login server
         id: acr
@@ -171,7 +171,7 @@ jobs:
               '- Path B: ephemeral ACA per PR — not F1 overwrite, not S1 slots',
               '- Cleanup runs when this PR is closed',
               '',
-              'Web SWA PR previews remain via `preview-web.yml` when enabled.',
+              'Web SWA PR previews remain via `preview-web.yml`.',
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
@@ -205,37 +205,37 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
-      - name: Require Azure OIDC secrets
+      - name: Require Azure OIDC Variables
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
           missing=0
           if [ -z "${AZURE_CLIENT_ID}" ]; then
-            echo "::error::Missing GitHub secret AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            echo "::error::Missing GitHub Variable AZURE_CLIENT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
             missing=1
           fi
           if [ -z "${AZURE_TENANT_ID}" ]; then
-            echo "::error::Missing GitHub secret AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            echo "::error::Missing GitHub Variable AZURE_TENANT_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
             missing=1
           fi
           if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
-            echo "::error::Missing GitHub secret AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            echo "::error::Missing GitHub Variable AZURE_SUBSCRIPTION_ID. API previews require OIDC only (AZURE_CREDENTIALS is not supported)."
             missing=1
           fi
           if [ "$missing" -ne 0 ]; then
-            echo "::error::Configure federated OIDC for this repo and set AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            echo "::error::Configure federated OIDC for this repo and set Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
             exit 1
           fi
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Delete Container App
         env:

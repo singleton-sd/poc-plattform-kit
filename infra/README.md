@@ -2,7 +2,7 @@
 
 Idempotent Bicep for the PoC stack. **No secrets in git.**
 
-**Subscription:** `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`  
+**Subscription:** `ssd-poc-plattform-kit` / `7b8343d7-969f-4b71-8864-b7925e7fae30`
 **Resource group:** `rg-poc-plattform-kit` (`australiaeast`)
 
 ## Locked constraints
@@ -16,6 +16,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Static Web Apps | **Free** | Region often `eastasia` for Free |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
+| App Configuration | **Free** | Non-secret config + KV references |
 | ACR | **Basic** | API PR images; alphanumeric name only |
 | Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
 | Container Apps (OpenFGA) | **Consumption** | Permissions pillar authZ engine — not an Azure product name |
@@ -24,7 +25,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 
 **New resources (CAF):** `{org}-{app}-{resource}-{env}-{region}`
 
-Example: `ssd-pocpk-kv-dev-ae`
+Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 
 | Token | Value |
 | --- | --- |
@@ -41,6 +42,7 @@ Example: `ssd-pocpk-kv-dev-ae`
 | --- | --- | --- | --- |
 | Resource group | `rg-poc-plattform-kit` | — | — |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | (CAF) | Standard |
+| App Configuration | `ssd-pocpk-appcs-dev-ae` | (CAF) | Free |
 | SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `ssd-pocpk-sql-dev-ae` | Basic |
 | App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | F1 Free |
 | Static Web App | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
@@ -57,6 +59,7 @@ Example: `ssd-pocpk-kv-dev-ae`
 | `sql-admin-password` | `AZURE_SQL_ADMIN_PASSWORD` |
 | `database-url` | `DATABASE_URL` |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
+| `swa-deployment-token` | (from `az staticwebapp secrets list`) |
 | `acr-admin-username` | (from `az acr credential show`) |
 | `acr-admin-password` | (from `az acr credential show`) |
 | `acr-login-server` | e.g. `ssdpocpkacrdevae.azurecr.io` |
@@ -64,6 +67,25 @@ Example: `ssd-pocpk-kv-dev-ae`
 | *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
+
+### App Configuration
+
+Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
+
+| Key | Type |
+| --- | --- |
+| `app:api:baseUrl` | plain |
+| `app:web:swaName` | plain |
+| `app:azure:resourceGroup` | plain |
+| `app:azure:keyVaultName` | plain |
+| `secret:database-url` | Key Vault reference |
+| `secret:servicebus-connection-string` | Key Vault reference |
+| `secret:swa-deployment-token` | Key Vault reference |
+| `secret:sql-admin-password` | Key Vault reference |
+
+**How apps load config:** use the Azure App Configuration provider (or SDK) with **managed identity**. Resolve Key Vault references with the same (or app) identity that has **Key Vault Secrets User**. Do not embed secret values in App Config.
+
+**How CI loads secrets:** GitHub Actions OIDC (`azure/login` + Variables `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`) → `az keyvault secret show`. Never GitHub Secrets for tokens/passwords.
 
 ### API PR previews (Container Apps)
 
@@ -77,19 +99,15 @@ Bicep: `container-apps-preview.bicep`. Workflow: `.github/workflows/preview-api.
 
 ### Service Bus topics
 
-`tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`
+`tenant.events`, `single-sign-on.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`
 
-Subscriptions `audit`, `reporting`, `support` on each publishing topic (`tenant` / `single-sign-on` / `permissions` / `subscriptions` / `contact`).
-
-### Permissions / OpenFGA (locked)
-
-Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** hosted on **Azure Container Apps Consumption** (CAF name e.g. `ssd-pocpk-openfga-dev-ae` when provisioned). Azure RBAC/Entra are not used for per-item domain ACL.
+Subscriptions `audit`, `reporting`, `support` on each publishing topic (`tenant` / `single-sign-on` / `subscriptions` / `contact`).
 
 ## Prerequisites
 
 - Azure CLI (`az`) logged in with access to subscription `7b8343d7-969f-4b71-8864-b7925e7fae30`
 - PowerShell 7+
-- `Microsoft.KeyVault` provider registered on the subscription
+- Providers registered: `Microsoft.KeyVault`, `Microsoft.AppConfiguration`
 
 ```powershell
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
@@ -98,15 +116,15 @@ pwsh ./infra/deploy.ps1           # create / update (idempotent)
 powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR previews
 ```
 
-`deploy.ps1` upserts SQL/SB secrets into Key Vault and mirrors non-secret + secret cache into local `.env` (gitignored).  
+`deploy.ps1` upserts SQL/SB/SWA secrets into Key Vault, seeds App Config plain keys + KV refs, and mirrors non-secret + secret cache into local `.env` (gitignored).
 `deploy-aca-preview.ps1` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
 
-## Secrets surfaces
+## Secrets & config surfaces
 
 | Surface | How |
 | --- | --- |
-| Local | `az keyvault secret show` (optional `.env` cache) |
-| GitHub Actions | OIDC → Azure login → Key Vault / ACR / ACA |
-| App Service / SWA / ACA | Prefer KV references or CI-injected settings |
+| Local | `az keyvault secret show` / App Config (optional `.env` cache) |
+| GitHub Actions | OIDC → Azure login → Key Vault / App Config / ACR / ACA at runtime |
+| App Service / SWA / ACA | App Configuration provider + `@Microsoft.KeyVault(...)` / KV refs via MI |
 
-Do not paste secrets into ClickUp or git.
+Do not paste secrets into ClickUp, GitHub Secrets, or git.

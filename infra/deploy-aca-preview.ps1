@@ -142,12 +142,11 @@ Write-Step 'Deployment summary (no secrets)'
 
 Write-Host @'
 
-Next (human / GitHub):
-  1. Create Entra app + federated credential for GitHub OIDC (preferred), or
-     store AZURE_CREDENTIALS service-principal JSON as a repo secret.
-  2. Grant the identity: Contributor (or narrower) on RG + AcrPush on ACR.
-  3. Repo secrets/vars: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
-     (OIDC) — or AZURE_CREDENTIALS. Optional: pull ACR password from KV in CI.
-  4. Open an API PR; preview-api.yml builds, pushes, and deploys ssd-pocpk-aca-pr-<n>-ae.
+Next (human / GitHub) — OIDC only (AZURE_CREDENTIALS / SP-JSON is not supported):
+  1. Entra app + federated credential for pull_request (and ID-form subject if needed).
+  2. Grant the identity: Contributor on RG + AcrPush on ACR + Key Vault Secrets User.
+  3. Repo Variables (not Secrets): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
+  4. Open an API PR; preview-api.yml builds, pushes, and deploys ssd-pocpk-aca-pr-<n>-ae
+     (ACR admin username/password are read from this Key Vault at deploy time).
 
 '@ -ForegroundColor Green

@@ -2,5 +2,9 @@
   "name": "@poc-plattform-kit/pillar-tenant",
   "version": "0.0.0",
   "private": true,
-  "scripts": { "build": "echo stub", "lint": "echo stub", "test": "echo stub" }
+  "scripts": {
+    "build": "echo stub",
+    "lint": "echo stub",
+    "test": "echo stub"
+  }
 }

@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "echo \"Next PWA SPA stub — implement via foundation tickets\"",
-    "build": "echo \"build:web stub\"",
+    "dev": "echo \"Next PWA SPA stub — serve apps/web/public for SWA preview\"",
+    "build": "echo \"build:web stub — static public/ used by SWA preview\"",
     "lint": "echo \"lint:web stub\"",
     "test": "echo \"test:web stub\""
   }
