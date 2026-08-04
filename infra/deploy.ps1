@@ -6,8 +6,10 @@
   Creates RG (if missing), generates a SQL admin password once (saved to local .env),
   and deploys infra/main.bicep into the target subscription.
 
-  Secrets are written to Azure Key Vault (locked store) and mirrored to repo-root
-  .env (gitignored) for local convenience. Never commit .env or secret values.
+  Secrets are written to Azure Key Vault (locked store). Non-secret config and
+  Key Vault references go to Azure App Configuration. Local .env is an optional
+  gitignored cache. Never commit .env or secret values. Never put secrets in
+  GitHub Actions secrets — pipelines use OIDC → Azure → KV/App Config.
 
 .EXAMPLE
   pwsh ./infra/deploy.ps1
@@ -22,6 +24,7 @@ param(
   [string]$SwaLocation = 'eastasia',
   [string]$NamePrefix = 'pocpk',
   [string]$KeyVaultName = 'ssd-pocpk-kv-dev-ae',
+  [string]$AppConfigName = 'ssd-pocpk-appcs-dev-ae',
   [string]$DeploymentName = 'pocpk-infra',
   [switch]$WhatIf
 )
@@ -126,6 +129,8 @@ $deployArgs = @(
   "swaLocation=$SwaLocation",
   "namePrefix=$NamePrefix",
   "keyVaultName=$KeyVaultName",
+  "appConfigName=$AppConfigName",
+  "appConfigSku=Free",
   "deployerObjectId=$deployerObjectId",
   "appServiceSku=F1",
   "sqlAdminLogin=$sqlLogin",
@@ -237,34 +242,82 @@ Set-KvSecret 'sql-admin-password' $sqlPassword
 Set-KvSecret 'database-url' $databaseUrl
 if ($sbCs) { Set-KvSecret 'servicebus-connection-string' $sbCs }
 
+# SWA deployment token → KV only (never GitHub Secrets)
+Write-Step 'Upserting SWA deployment token into Key Vault (if available)'
+$swaToken = az staticwebapp secrets list --name $swaName --resource-group $ResourceGroup --query 'properties.apiKey' -o tsv 2>$null
+if ($swaToken) {
+  Set-KvSecret 'swa-deployment-token' $swaToken
+  Remove-Variable swaToken -ErrorAction SilentlyContinue
+} else {
+  Write-Host '  skipped swa-deployment-token (CLI could not read SWA apiKey)'
+}
+
+$appConfigOut = Get-Out 'appConfigName'
+if (-not $appConfigOut) { $appConfigOut = $AppConfigName }
+$appConfigEndpoint = Get-Out 'appConfigEndpoint'
+
+Write-Step "Seeding App Configuration $appConfigOut (plain keys + KV refs)"
+function Set-AppConfigPlain([string]$Key, [string]$Value) {
+  if ([string]::IsNullOrWhiteSpace($Value)) { return }
+  az appconfig kv set --name $appConfigOut --key $Key --value $Value --yes -o none
+  if ($LASTEXITCODE -eq 0) { Write-Host "  set $Key" }
+}
+function Set-AppConfigKvRef([string]$Key, [string]$SecretName) {
+  $secretId = "https://$kvNameOut.vault.azure.net/secrets/$SecretName"
+  az appconfig kv set-keyvault --name $appConfigOut --key $Key --secret-identifier $secretId --yes -o none
+  if ($LASTEXITCODE -eq 0) { Write-Host "  kv-ref $Key -> $SecretName" }
+}
+Set-AppConfigPlain 'app:api:baseUrl' "https://$apiHost"
+Set-AppConfigPlain 'app:web:swaName' $swaName
+Set-AppConfigPlain 'app:azure:resourceGroup' $ResourceGroup
+Set-AppConfigPlain 'app:azure:keyVaultName' $kvNameOut
+Set-AppConfigKvRef 'secret:database-url' 'database-url'
+Set-AppConfigKvRef 'secret:servicebus-connection-string' 'servicebus-connection-string'
+Set-AppConfigKvRef 'secret:sql-admin-password' 'sql-admin-password'
+Set-AppConfigKvRef 'secret:swa-deployment-token' 'swa-deployment-token'
+
+if (Test-Path $envFile) {
+  $envRaw = Get-Content $envFile -Raw
+  if ($envRaw -notmatch '(?m)^\s*AZURE_APPCONFIGURATION_ENDPOINT=') {
+    Add-Content -Path $envFile -Value "AZURE_APPCONFIGURATION_ENDPOINT=$appConfigEndpoint" -Encoding utf8
+  } else {
+    (Get-Content $envFile) | ForEach-Object {
+      if ($_ -match '^AZURE_APPCONFIGURATION_ENDPOINT=') { "AZURE_APPCONFIGURATION_ENDPOINT=$appConfigEndpoint" } else { $_ }
+    } | Set-Content $envFile -Encoding utf8
+  }
+}
+
 if (-not (Test-Path $envExample)) {
   Write-Host 'Note: .env.example missing — create from template in repo.'
 }
 
 Write-Step 'Deployment summary (no secrets)'
 [pscustomobject]@{
-  SubscriptionId          = $SubscriptionId
-  ResourceGroup           = $ResourceGroup
-  Location                = $Location
-  SqlServer               = $sqlServerName
-  SqlFqdn                 = $sqlFqdn
-  SqlDatabase             = $dbName
-  AppService              = $webAppName
-  AppServiceUrl           = "https://$apiHost"
-  StaticWebApp            = $swaName
-  StaticWebAppUrl         = "https://$swaHost"
-  ServiceBusNamespace     = $sbNs
-  KeyVault                = $kvNameOut
-  LocalEnvFile            = $envFile
+  SubscriptionId           = $SubscriptionId
+  ResourceGroup            = $ResourceGroup
+  Location                 = $Location
+  SqlServer                = $sqlServerName
+  SqlFqdn                  = $sqlFqdn
+  SqlDatabase              = $dbName
+  AppService               = $webAppName
+  AppServiceUrl            = "https://$apiHost"
+  StaticWebApp             = $swaName
+  StaticWebAppUrl          = "https://$swaHost"
+  ServiceBusNamespace      = $sbNs
+  KeyVault                 = $kvNameOut
+  AppConfiguration         = $appConfigOut
+  AppConfigurationEndpoint = $appConfigEndpoint
+  LocalEnvFile             = $envFile
 } | Format-List
 
 Write-Host @'
 
 Next steps:
-  1. Entra app registration (SPA + API) — store secrets in Key Vault
+  1. Entra app registration (SPA + API) — secrets in Key Vault; config in App Config
   2. Tighten SQL firewall rule AllowAllDevPoC to your IP
-  3. Connect SWA to GitHub for CI deploy (or az staticwebapp deploy)
-  4. GitHub Actions OIDC → Key Vault; App Service KV references
+  3. Confirm GitHub Variables AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID (OIDC)
+  4. Wire App Service / SWA / ACA to App Configuration provider + managed identity
   5. pnpm install && pull DATABASE_URL from Key Vault for Prisma migrate
+  6. Never store deploy tokens or connection strings in GitHub Secrets
 
 '@ -ForegroundColor Green
