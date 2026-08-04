@@ -87,3 +87,13 @@ Read curated skills under `.cursor/skills/` before coding (backend, frontend, te
 - Update Swagger with API changes.
 - Forward-only Prisma migrations.
 - UI: token CSS vars + Tailwind only — no hardcoded palette hex.
+
+## Cursor Cloud specific instructions
+
+pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scripts (`package.json`) fan out with `pnpm -r`. Most `pillars/*`, `apps/web`, `packages/config` scripts are placeholder `echo` stubs, so a green `pnpm lint`/`pnpm test` mostly means "stubs ran"; the only real coverage today is `apps/api` (Jest) and `packages/db` (`prisma validate`).
+
+- **API (the only fully-runnable app):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health at `/health`, Swagger UI at `/docs`, OpenAPI JSON at `/docs-json`. The API has no DB/Prisma wiring yet, so it runs without any live Azure resources.
+- **Web + pillars are scaffolding:** `pnpm dev:web` just prints a stub message — there is no Next.js app to serve yet. Same for most `pillars/*`.
+- **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, run via `pnpm test`/`pnpm build`) fail without it. Prisma loads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env`. The real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder is only good for schema validation/generation, not live queries.
+- **Known gap on `main`: `pnpm build` fails at `packages/events`** — its build runs `tsc -p tsconfig.json` but the package declares no `typescript` dep and ships no `tsconfig.json`. This is a pre-existing repo bug (fix pending on an unmerged branch), not an environment problem. Build the real app with `pnpm --filter @poc-plattform-kit/api build`.
+- **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.
