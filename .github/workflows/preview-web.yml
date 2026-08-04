@@ -87,7 +87,9 @@ jobs:
           azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: apps/web/public
+          # Next `output: 'export'` emits the runnable site under apps/web/out
+          # (public/ assets are copied there). Deploy the export, not public/.
+          app_location: apps/web/out
           skip_app_build: true
 
       - name: Comment preview URL

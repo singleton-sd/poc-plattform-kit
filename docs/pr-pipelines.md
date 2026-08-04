@@ -46,7 +46,7 @@ Azure Static Web Apps **Free** includes PR preview environments.
 
 - Workflow: `.github/workflows/preview-web.yml`
 - Action: `Azure/static-web-apps-deploy@v1`
-- App location (stub): `apps/web/public`
+- App location: `apps/web/out` (Next.js static export; workflow builds first)
 - Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
 
 ### BE — no slots on F1 (Path A)
