@@ -114,7 +114,7 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (SWA preview), **Contributor** on RG (ACA preview deploy), **AcrPush** on `ssdpocpkacrdevae`, **Key Vault Secrets User**, **App Configuration Data Reader**.
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (SWA preview), **Contributor** on RG (ACA preview deploy), **Key Vault Secrets User**, **App Configuration Data Reader**. ACR push uses OIDC → KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 
@@ -135,7 +135,7 @@ App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] Wire App Service / SWA / ACA to App Configuration provider + managed identity
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
-- [ ] Grant OIDC app **Contributor** + **AcrPush** (plus existing KV Secrets User) for ACA previews
+- [ ] Confirm OIDC app has **Contributor** on RG + **Key Vault Secrets User** (ACR push uses KV `acr-admin-*`, not AcrPush)
 - [ ] ~~S1 slots for API PR previews~~ — **deprecated**; use Container Apps Path B
 
 ### OIDC bootstrap (if Variables missing / admin consent)

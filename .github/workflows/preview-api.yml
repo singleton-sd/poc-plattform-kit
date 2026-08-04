@@ -5,11 +5,12 @@
 # FE SWA previews stay in preview-web.yml.
 #
 # Requires (human):
-#   - infra/deploy-aca-preview.ps1 already run (CAE + ACR Basic)
+#   - infra/deploy-aca-preview.ps1 already run (CAE + ACR Basic + KV acr-admin-*)
 #   - GitHub Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
 #     (AZURE_CREDENTIALS / SP-JSON is not supported; never GitHub Secrets for tokens)
-#   - Identity: Contributor on rg-poc-plattform-kit + AcrPush on ssdpocpkacrdevae
-#     + Key Vault Secrets User on ssd-pocpk-kv-dev-ae
+#   - Identity: Contributor on rg-poc-plattform-kit
+#     + Key Vault Secrets User on ssd-pocpk-kv-dev-ae (ACR admin + future secrets)
+#   - Push/deploy use OIDC → KV acr-admin-* (same pattern as SWA → swa-deployment-token)
 #
 # See docs/pr-pipelines.md and SETUP.md.
 name: Preview API (Container Apps)
@@ -114,7 +115,13 @@ jobs:
       - name: Build and push image
         if: steps.open.outputs.open == 'true'
         run: |
-          az acr login -n "$ACR_NAME"
+          set -euo pipefail
+          # OIDC → Key Vault ACR admin (not az acr login / AcrPush). Same locked
+          # pattern as preview-web.yml (OIDC → KV swa-deployment-token).
+          ACR_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-username --query value -o tsv)
+          ACR_PASS=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-password --query value -o tsv)
+          echo "::add-mask::$ACR_PASS"
+          echo "$ACR_PASS" | docker login "${{ steps.acr.outputs.login_server }}" -u "$ACR_USER" --password-stdin
           docker build -f apps/api/Dockerfile \
             -t "${{ steps.acr.outputs.image }}" \
             -t "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}" \

@@ -88,9 +88,10 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 **OIDC only** (`AZURE_CREDENTIALS` / SP-JSON is not supported):
 
 1. Entra app + federated credential for `repo:singleton-sd/poc-plattform-kit:pull_request` (and ID-form subject if tokens use it).
-2. RBAC: Contributor on `rg-poc-plattform-kit`, AcrPush on `ssdpocpkacrdevae`, Key Vault Secrets User on `ssd-pocpk-kv-dev-ae`.
+2. RBAC: Contributor on `rg-poc-plattform-kit`, Key Vault Secrets User on `ssd-pocpk-kv-dev-ae` (ACR admin secrets already in KV from `deploy-aca-preview.ps1`).
 3. Repository **Variables** (not Secrets): `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
 4. Workflow fails fast if any OIDC Variable is missing.
+5. Image push + ACA registry attach use OIDC → KV `acr-admin-*` (never GitHub Secrets / `AZURE_CREDENTIALS`).
 
 Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health`.
 

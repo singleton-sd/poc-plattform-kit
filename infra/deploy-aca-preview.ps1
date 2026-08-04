@@ -144,9 +144,8 @@ Write-Host @'
 
 Next (human / GitHub) — OIDC only (AZURE_CREDENTIALS / SP-JSON is not supported):
   1. Entra app + federated credential for pull_request (and ID-form subject if needed).
-  2. Grant the identity: Contributor on RG + AcrPush on ACR + Key Vault Secrets User.
+  2. Grant the identity: Contributor on RG + Key Vault Secrets User (ACR admin lives in KV).
   3. Repo Variables (not Secrets): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
-  4. Open an API PR; preview-api.yml builds, pushes, and deploys ssd-pocpk-aca-pr-<n>-ae
-     (ACR admin username/password are read from this Key Vault at deploy time).
+  4. Open an API PR; preview-api.yml OIDC → KV acr-admin-* → docker push + ACA deploy.
 
 '@ -ForegroundColor Green
