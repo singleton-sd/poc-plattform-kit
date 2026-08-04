@@ -1,0 +1,73 @@
+# API PR preview — Path A (cheapest PoC).
+#
+# Live App Service deployment slots need Standard (S1)+ and conflict with
+# F1 Free / B1 cheapest SKUs. Until the plan is upgraded:
+#   - ci-api.yml runs lint / test / build on API PRs (authoritative check)
+#   - This workflow only posts a PR comment documenting the preview strategy
+# Optional later (still Path A): deploy to a shared F1 app `pocpk-api-preview`
+# (overwrite per PR — note concurrency). Path B: upgrade plan to S1 + staging slot.
+#
+# See SETUP.md → "PR pipelines & previews".
+name: Preview API (stub)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/api/**'
+      - 'pillars/**'
+      - 'packages/**'
+      - '.github/workflows/preview-api.yml'
+
+concurrency:
+  group: preview-api-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  note:
+    name: Document API preview Path A
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Comment API preview status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- api-preview-path-a -->';
+            const body = [
+              marker,
+              '### API preview (Path A — cheapest PoC)',
+              '',
+              '**No live App Service slot** on this PR.',
+              '',
+              '- **CI:** `ci-api.yml` runs lint / test / build when `apps/api/**`, `pillars/**`, or `packages/**` change.',
+              '- **Why:** Deployment slots need App Service **Standard (S1)+**. PoC plan is **F1 Free** (`pocpk-plan` / `pocpk-api-si5fhs6dvxiha`).',
+              '- **Optional later (still Path A):** shared overwrite app `pocpk-api-preview` (one PR at a time).',
+              '- **Path B (better DX, costs more):** upgrade plan to **S1**, add a **staging** slot, wire deploy in this workflow.',
+              '',
+              'Web SWA PR previews remain available via `preview-web.yml` (Free SKU).',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
