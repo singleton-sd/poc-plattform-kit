@@ -24,11 +24,40 @@
 
 ## AI loop (mandatory)
 
-1. **Implementer** picks tickets in **READY FOR AI** → **assigns itself** to the task (ClickUp MCP `assignees: ["me"]` / resolve current identity) → set **IN PROGRESS** → implement in a **git worktree** → open PR → comment PR URL on ticket → set **READY FOR REVIEW**. Do not leave assignee empty when claiming.
-2. **Reviewer** (different AI) picks **READY FOR REVIEW** → **assigns itself** as assignee for the review phase (prefer set assignee to the reviewer; if the implementer must stay visible, comment their identity on the ticket before/when reassigning) → review PR in a **worktree** → post review **comments** → set **READY FOR HUMAN**.
+1. **Implementer** picks tickets in **READY FOR AI** → **assigns itself** to the task (ClickUp MCP `assignees: ["me"]` / resolve current identity) → set **IN PROGRESS** → implement in a **git worktree** → open PR → run **PR hygiene (implementer)** → comment PR URL + CI status on ticket → set **READY FOR REVIEW**. Do not leave assignee empty when claiming.
+2. **Reviewer** (different AI) picks **READY FOR REVIEW** → **assigns itself** as assignee for the review phase (prefer set assignee to the reviewer; if the implementer must stay visible, comment their identity on the ticket before/when reassigning) → review PR in a **worktree** → run **PR hygiene (reviewer)** → post review **comments** → set **READY FOR HUMAN** only if hygiene passes.
 3. **Human only** merges the PR and sets **COMPLETE**.
 4. Agents never approve or merge PRs. No self-review / self-approve (GitHub forbids it on solo identity).
 5. **Assignment = claiming work.** Never assign when merely browsing or reading tickets. Only assign when starting implement or review work.
+
+### PR hygiene (mandatory)
+
+Agents do **not** get push notifications for conflicts, Bugbot/human PR comments, or CI. Poll GitHub before every handoff. Labels from `pr-hygiene.yml`: `needs-rebase`, `ci-failed`, `has-feedback` (filter with `gh pr list --label …`). Bounce agent-fixable issues to **READY FOR AI**; leave **READY FOR HUMAN** only when mergeable + required checks green + no open actionable feedback. See `docs/pr-pipelines.md`.
+
+#### Implementer (before READY FOR REVIEW)
+
+After push / PR open:
+
+1. `gh pr checks --watch` (or loop-on-ci) until required checks green (or document skip-only failures).
+2. `gh pr view --json mergeable,mergeStateStatus` → must be `MERGEABLE` / not `DIRTY`.
+3. If dirty: merge/rebase `main` in the worktree, resolve conflicts, push, re-check CI.
+4. Comment ClickUp with PR URL + CI status.
+5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): comment on ClickUp and stop — do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
+
+#### Reviewer (before READY FOR HUMAN)
+
+1. Re-fetch PR tip; confirm `mergeable` still clean.
+2. Confirm required checks green on tip.
+3. Pull **all** feedback (Bugbot does not appear in Cursor chat — treat it as a GitHub commenter):
+   - `gh api repos/singleton-sd/poc-plattform-kit/pulls/{n}/comments`
+   - `gh api repos/singleton-sd/poc-plattform-kit/issues/{n}/comments`
+   - `gh pr view {n} --comments` as fallback
+4. If actionable Bugbot/human feedback, red CI, or conflicts: set ClickUp **READY FOR AI**, comment blockers; do **not** set READY FOR HUMAN.
+5. Only then READY FOR HUMAN.
+
+#### Steward / after READY FOR HUMAN
+
+When asked to “check open PRs” (or on a scheduled prompt): for each open PR on READY FOR HUMAN tickets, re-check mergeable + checks + new comments since last handoff. On conflict / CI red / new human or Bugbot comments → ClickUp comment + **READY FOR AI** (or keep HUMAN and comment if informational only).
 
 ### Solo-repo merge (locked)
 
