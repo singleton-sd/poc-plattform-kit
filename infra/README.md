@@ -20,6 +20,8 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | ACR | **Basic** | API PR images; alphanumeric name only |
 | Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
 | Container Apps (OpenFGA) | **Consumption** | Permissions pillar authZ engine — not an Azure product name |
+| Log Analytics | **PerGB2018** | 30-day retention; shared by CAE + App Insights |
+| Application Insights | **Workspace-based** | Shared BE+FE sink |
 
 ### Naming
 
@@ -48,7 +50,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Static Web App | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `ssd-pocpk-sb-dev-ae` | Standard |
 | Container Apps Env | `ssd-pocpk-cae-dev-ae` | (CAF) | Consumption |
-| Log Analytics | `ssd-pocpk-law-dev-ae` | (CAF) | PerGB2018 (CAE required) |
+| Log Analytics | `ssd-pocpk-law-dev-ae` | (CAF) | PerGB2018 (CAE + App Insights) |
+| Application Insights | `ssd-pocpk-appi-dev-ae` | (CAF) | Workspace-based |
 | ACR | `ssdpocpkacrdevae` | CAF would be `ssd-pocpk-acr-dev-ae` (hyphens illegal) | Basic |
 | Ephemeral ACA (PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
 
@@ -66,7 +69,9 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `forwardemail-api-key` | `FORWARDEMAIL_API_KEY` |
 | `sms-gateway-username` | `SMS_GATEWAY_USERNAME` |
 | `sms-gateway-password` | `SMS_GATEWAY_PASSWORD` |
-| `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` || *(future)* `auth-secret` | `AUTH_SECRET` |
+| `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` |
+| `appinsights-connection-string` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
+| *(future)* `auth-secret` | `AUTH_SECRET` |
 | *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
@@ -85,6 +90,9 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `secret:servicebus-connection-string` | Key Vault reference |
 | `secret:swa-deployment-token` | Key Vault reference |
 | `secret:sql-admin-password` | Key Vault reference |
+| `secret:appinsights-connection-string` | Key Vault reference |
+| `app:telemetry:cloudRoleName:api` | plain (`api`) |
+| `app:telemetry:cloudRoleName:web` | plain (`web`) |
 
 Also: non-secret notification provider URLs / WhatsApp phone-number-id / Graph API version (plain); notification secrets only as Key Vault references.
 
@@ -132,7 +140,7 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 
 - Azure CLI (`az`) logged in with access to subscription `7b8343d7-969f-4b71-8864-b7925e7fae30`
 - PowerShell 7+
-- Providers registered: `Microsoft.KeyVault`, `Microsoft.AppConfiguration`
+- Providers registered: `Microsoft.KeyVault`, `Microsoft.AppConfiguration`, `Microsoft.Insights`, `Microsoft.OperationalInsights`
 
 ```powershell
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "15128230687660928747"
+      "templateHash": "16298252535797654662"
     }
   },
   "parameters": {
@@ -39,6 +39,24 @@
       "maxLength": 24,
       "metadata": {
         "description": "CAF Key Vault name (org-app-resource-env-region), max 24 chars"
+      }
+    },
+    "appConfigName": {
+      "type": "string",
+      "defaultValue": "ssd-pocpk-appcs-dev-ae",
+      "metadata": {
+        "description": "CAF App Configuration store name"
+      }
+    },
+    "appConfigSku": {
+      "type": "string",
+      "defaultValue": "Free",
+      "allowedValues": [
+        "Free",
+        "Standard"
+      ],
+      "metadata": {
+        "description": "App Configuration SKU — Free preferred for PoC"
       }
     },
     "deployerObjectId": {
@@ -99,6 +117,34 @@
       "metadata": {
         "description": "Azure SQL database name"
       }
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "defaultValue": "ssd-pocpk-law-dev-ae",
+      "metadata": {
+        "description": "CAF Log Analytics workspace name"
+      }
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "defaultValue": "ssd-pocpk-appi-dev-ae",
+      "metadata": {
+        "description": "CAF Application Insights name"
+      }
+    },
+    "errorActionGroupName": {
+      "type": "string",
+      "defaultValue": "ssd-pocpk-ag-errors-dev-ae",
+      "metadata": {
+        "description": "CAF action group name for error alerts"
+      }
+    },
+    "alertEmail": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Email for error alerts (empty skips action group receivers and alert rules)"
+      }
     }
   },
   "variables": {
@@ -110,6 +156,7 @@
     "webAppName": "[format('{0}-api-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "swaName": "[format('{0}-web-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "serviceBusName": "[format('{0}-sb-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
+    "deployAlerts": "[not(empty(parameters('alertEmail')))]",
     "eventTopics": [
       "tenant.events",
       "single-sign-on.events",
@@ -123,7 +170,9 @@
     ],
     "jobQueues": [
       "notifications.send"
-    ]
+    ],
+    "roleAppConfigDataReader": "516239f1-63e1-4d78-a4de-a74fb236a071",
+    "roleAppConfigDataOwner": "5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b"
   },
   "resources": [
     {
@@ -195,6 +244,135 @@
       }
     },
     {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[parameters('logAnalyticsWorkspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[parameters('applicationInsightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]",
+        "IngestionMode": "LogAnalytics",
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]"
+      ]
+    },
+    {
+      "condition": "[variables('deployAlerts')]",
+      "type": "Microsoft.Insights/actionGroups",
+      "apiVersion": "2023-01-01",
+      "name": "[parameters('errorActionGroupName')]",
+      "location": "Global",
+      "properties": {
+        "groupShortName": "pocpkerr",
+        "enabled": true,
+        "emailReceivers": [
+          {
+            "name": "primary",
+            "emailAddress": "[parameters('alertEmail')]",
+            "useCommonAlertSchema": true
+          }
+        ]
+      }
+    },
+    {
+      "condition": "[variables('deployAlerts')]",
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2023-12-01",
+      "name": "ssd-pocpk-alert-exceptions-dev-ae",
+      "location": "[parameters('location')]",
+      "properties": {
+        "displayName": "pocpk AppExceptions",
+        "description": "Alert when Application Insights records any exceptions in a 15-minute window",
+        "enabled": true,
+        "severity": 2,
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT15M",
+        "scopes": [
+          "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]"
+        ],
+        "criteria": {
+          "allOf": [
+            {
+              "query": "exceptions",
+              "timeAggregation": "Count",
+              "operator": "GreaterThanOrEqual",
+              "threshold": 1,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "actions": {
+          "actionGroups": [
+            "[resourceId('Microsoft.Insights/actionGroups', parameters('errorActionGroupName'))]"
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]",
+        "[resourceId('Microsoft.Insights/actionGroups', parameters('errorActionGroupName'))]"
+      ]
+    },
+    {
+      "condition": "[variables('deployAlerts')]",
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2023-12-01",
+      "name": "ssd-pocpk-alert-failed-requests-dev-ae",
+      "location": "[parameters('location')]",
+      "properties": {
+        "displayName": "pocpk failed AppRequests",
+        "description": "Alert when Application Insights records 5+ failed requests in a 15-minute window",
+        "enabled": true,
+        "severity": 3,
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT15M",
+        "scopes": [
+          "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]"
+        ],
+        "criteria": {
+          "allOf": [
+            {
+              "query": "requests\n| where success == false",
+              "timeAggregation": "Count",
+              "operator": "GreaterThanOrEqual",
+              "threshold": 5,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "actions": {
+          "actionGroups": [
+            "[resourceId('Microsoft.Insights/actionGroups', parameters('errorActionGroupName'))]"
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]",
+        "[resourceId('Microsoft.Insights/actionGroups', parameters('errorActionGroupName'))]"
+      ]
+    },
+    {
       "type": "Microsoft.Web/sites",
       "apiVersion": "2023-12-01",
       "name": "[variables('webAppName')]",
@@ -224,11 +402,25 @@
             {
               "name": "AZURE_SERVICEBUS_NAMESPACE",
               "value": "[variables('serviceBusName')]"
+            },
+            {
+              "name": "AZURE_APPCONFIGURATION_ENDPOINT",
+              "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01').endpoint]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName')), '2020-02-02').ConnectionString]"
+            },
+            {
+              "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+              "value": "~3"
             }
           ]
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+        "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]",
         "[resourceId('Microsoft.Web/serverfarms', variables('appPlanName'))]"
       ]
     },
@@ -340,6 +532,67 @@
       "dependsOn": [
         "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
         "[resourceId('Microsoft.Web/sites', variables('webAppName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.AppConfiguration/configurationStores",
+      "apiVersion": "2024-05-01",
+      "name": "[parameters('appConfigName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('appConfigSku')]"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "publicNetworkAccess": "Enabled",
+        "disableLocalAuth": false
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+      "name": "[guid(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), resourceId('Microsoft.Web/sites', variables('webAppName')), variables('roleAppConfigDataReader'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleAppConfigDataReader'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+        "[resourceId('Microsoft.Web/sites', variables('webAppName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), variables('roleKeyVaultSecretsUser'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleKeyVaultSecretsUser'))]",
+        "principalId": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+      ]
+    },
+    {
+      "condition": "[not(empty(parameters('deployerObjectId')))]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+      "name": "[guid(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), parameters('deployerObjectId'), variables('roleAppConfigDataOwner'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleAppConfigDataOwner'))]",
+        "principalId": "[parameters('deployerObjectId')]",
+        "principalType": "User"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]"
       ]
     },
     {
@@ -559,6 +812,34 @@
     "keyVaultUri": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), '2023-07-01').vaultUri]"
+    },
+    "appConfigName": {
+      "type": "string",
+      "value": "[parameters('appConfigName')]"
+    },
+    "appConfigEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01').endpoint]"
+    },
+    "appConfigPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01', 'full').identity.principalId]"
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "value": "[parameters('logAnalyticsWorkspaceName')]"
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]"
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "value": "[parameters('applicationInsightsName')]"
+    },
+    "applicationInsightsId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]"
     }
   }
 }

@@ -2,11 +2,16 @@
   "name": "@poc-plattform-kit/web",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "lint": "echo \"lint:web stub\"",
     "test": "jest"
+  },
+  "exports": {
+    "./telemetry": "./src/telemetry/client.ts",
+    "./telemetry/report-boundary-error": "./src/telemetry/report-boundary-error.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",

@@ -53,6 +53,18 @@ param serviceBusSku string = 'Standard'
 @description('Azure SQL database name')
 param sqlDatabaseName string = 'pocpk'
 
+@description('CAF Log Analytics workspace name')
+param logAnalyticsWorkspaceName string = 'ssd-pocpk-law-dev-ae'
+
+@description('CAF Application Insights name')
+param applicationInsightsName string = 'ssd-pocpk-appi-dev-ae'
+
+@description('CAF action group name for error alerts')
+param errorActionGroupName string = 'ssd-pocpk-ag-errors-dev-ae'
+
+@description('Email for error alerts (empty skips action group receivers and alert rules)')
+param alertEmail string = ''
+
 // Built-in role definition IDs
 var roleKeyVaultAdministrator = '00482a5a-887f-4fb3-b363-3b7fe8e74483'
 var roleKeyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
@@ -63,6 +75,7 @@ var appPlanName = '${namePrefix}-plan'
 var webAppName = '${namePrefix}-api-${uniqueSuffix}'
 var swaName = '${namePrefix}-web-${uniqueSuffix}'
 var serviceBusName = '${namePrefix}-sb-${uniqueSuffix}'
+var deployAlerts = !empty(alertEmail)
 
 // Aligns with packages/events topicForPillar(): `{pillar}.events`
 var eventTopics = [
@@ -140,6 +153,116 @@ resource appPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   }
 }
 
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+  name: logAnalyticsWorkspaceName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: applicationInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
+    IngestionMode: 'LogAnalytics'
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+  }
+}
+
+resource errorActionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (deployAlerts) {
+  name: errorActionGroupName
+  location: 'Global'
+  properties: {
+    groupShortName: 'pocpkerr'
+    enabled: true
+    emailReceivers: [
+      {
+        name: 'primary'
+        emailAddress: alertEmail
+        useCommonAlertSchema: true
+      }
+    ]
+  }
+}
+
+resource exceptionAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (deployAlerts) {
+  name: 'ssd-pocpk-alert-exceptions-dev-ae'
+  location: location
+  properties: {
+    displayName: 'pocpk AppExceptions'
+    description: 'Alert when Application Insights records any exceptions in a 15-minute window'
+    enabled: true
+    severity: 2
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    scopes: [
+      applicationInsights.id
+    ]
+    criteria: {
+      allOf: [
+        {
+          query: 'exceptions'
+          timeAggregation: 'Count'
+          operator: 'GreaterThanOrEqual'
+          threshold: 1
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: [
+        errorActionGroup.id
+      ]
+    }
+  }
+}
+
+resource failedRequestAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (deployAlerts) {
+  name: 'ssd-pocpk-alert-failed-requests-dev-ae'
+  location: location
+  properties: {
+    displayName: 'pocpk failed AppRequests'
+    description: 'Alert when Application Insights records 5+ failed requests in a 15-minute window'
+    enabled: true
+    severity: 3
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    scopes: [
+      applicationInsights.id
+    ]
+    criteria: {
+      allOf: [
+        {
+          query: 'requests\n| where success == false'
+          timeAggregation: 'Count'
+          operator: 'GreaterThanOrEqual'
+          threshold: 5
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: [
+        errorActionGroup.id
+      ]
+    }
+  }
+}
+
 resource webApp 'Microsoft.Web/sites@2023-12-01' = {
   name: webAppName
   location: location
@@ -174,6 +297,14 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AZURE_APPCONFIGURATION_ENDPOINT'
           value: appConfig.properties.endpoint
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsights.properties.ConnectionString
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
         }
       ]
     }
@@ -350,3 +481,7 @@ output keyVaultUri string = keyVault.properties.vaultUri
 output appConfigName string = appConfig.name
 output appConfigEndpoint string = appConfig.properties.endpoint
 output appConfigPrincipalId string = appConfig.identity.principalId
+output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
+output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.id
+output applicationInsightsName string = applicationInsights.name
+output applicationInsightsId string = applicationInsights.id

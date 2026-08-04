@@ -26,6 +26,7 @@ param(
   [string]$KeyVaultName = 'ssd-pocpk-kv-dev-ae',
   [string]$AppConfigName = 'ssd-pocpk-appcs-dev-ae',
   [string]$DeploymentName = 'pocpk-infra',
+  [string]$AlertEmail = '',
   [switch]$WhatIf
 )
 
@@ -135,6 +136,7 @@ $deployArgs = @(
   "appServiceSku=F1",
   "sqlAdminLogin=$sqlLogin",
   "sqlAdminPassword=$sqlPassword",
+  "alertEmail=$AlertEmail",
   '--output', 'json'
 )
 
@@ -242,6 +244,30 @@ Set-KvSecret 'sql-admin-password' $sqlPassword
 Set-KvSecret 'database-url' $databaseUrl
 if ($sbCs) { Set-KvSecret 'servicebus-connection-string' $sbCs }
 
+$appInsightsNameOut = Get-Out 'applicationInsightsName'
+if (-not $appInsightsNameOut) { $appInsightsNameOut = 'ssd-pocpk-appi-dev-ae' }
+Write-Step "Upserting App Insights connection string into Key Vault (name only logged)"
+$appInsightsCs = az monitor app-insights component show `
+  --app $appInsightsNameOut `
+  --resource-group $ResourceGroup `
+  --query connectionString -o tsv 2>$null
+if ($appInsightsCs) {
+  Set-KvSecret 'appinsights-connection-string' $appInsightsCs
+  if (Test-Path $envFile) {
+    $envRawAi = Get-Content $envFile -Raw
+    if ($envRawAi -notmatch '(?m)^\s*APPLICATIONINSIGHTS_CONNECTION_STRING=') {
+      Add-Content -Path $envFile -Value "APPLICATIONINSIGHTS_CONNECTION_STRING=$appInsightsCs" -Encoding utf8
+    } else {
+      (Get-Content $envFile) | ForEach-Object {
+        if ($_ -match '^APPLICATIONINSIGHTS_CONNECTION_STRING=') { "APPLICATIONINSIGHTS_CONNECTION_STRING=$appInsightsCs" } else { $_ }
+      } | Set-Content $envFile -Encoding utf8
+    }
+  }
+  Remove-Variable appInsightsCs -ErrorAction SilentlyContinue
+} else {
+  Write-Host '  skipped appinsights-connection-string (component not found yet)'
+}
+
 # SWA deployment token → KV only (never GitHub Secrets)
 Write-Step 'Upserting SWA deployment token into Key Vault (if available)'
 $swaToken = az staticwebapp secrets list --name $swaName --resource-group $ResourceGroup --query 'properties.apiKey' -o tsv 2>$null
@@ -275,6 +301,9 @@ Set-AppConfigKvRef 'secret:database-url' 'database-url'
 Set-AppConfigKvRef 'secret:servicebus-connection-string' 'servicebus-connection-string'
 Set-AppConfigKvRef 'secret:sql-admin-password' 'sql-admin-password'
 Set-AppConfigKvRef 'secret:swa-deployment-token' 'swa-deployment-token'
+Set-AppConfigKvRef 'secret:appinsights-connection-string' 'appinsights-connection-string'
+Set-AppConfigPlain 'app:telemetry:cloudRoleName:api' 'api'
+Set-AppConfigPlain 'app:telemetry:cloudRoleName:web' 'web'
 
 if (Test-Path $envFile) {
   $envRaw = Get-Content $envFile -Raw
@@ -307,6 +336,7 @@ Write-Step 'Deployment summary (no secrets)'
   KeyVault                 = $kvNameOut
   AppConfiguration         = $appConfigOut
   AppConfigurationEndpoint = $appConfigEndpoint
+  ApplicationInsights      = $appInsightsNameOut
   LocalEnvFile             = $envFile
 } | Format-List
 
