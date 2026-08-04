@@ -38,7 +38,9 @@ env:
 jobs:
   deploy:
     name: Build and deploy ACA preview
-    if: github.event.action != 'closed'
+    # Require open state (not only action != closed) so a late synchronize
+    # cannot recreate the app after cleanup on a closed/merged PR.
+    if: github.event.pull_request.state == 'open'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,7 +49,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Confirm PR still open
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
+          if [ "$state" = "open" ]; then
+            echo "open=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "open=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR is '$state' — skipping ACA deploy to avoid orphaned preview after close."
+          fi
+
       - name: Require Azure OIDC Variables
+        if: steps.open.outputs.open == 'true'
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
@@ -73,6 +90,7 @@ jobs:
           fi
 
       - name: Azure login (OIDC)
+        if: steps.open.outputs.open == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -80,6 +98,7 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Resolve ACR login server
+        if: steps.open.outputs.open == 'true'
         id: acr
         run: |
           LOGIN_SERVER=$(az acr show -n "$ACR_NAME" -g "$AZURE_RESOURCE_GROUP" --query loginServer -o tsv)
@@ -93,6 +112,7 @@ jobs:
           echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
+        if: steps.open.outputs.open == 'true'
         run: |
           az acr login -n "$ACR_NAME"
           docker build -f apps/api/Dockerfile \
@@ -103,6 +123,7 @@ jobs:
           docker push "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}"
 
       - name: Deploy ephemeral Container App
+        if: steps.open.outputs.open == 'true'
         id: deploy
         env:
           APP_NAME: ${{ steps.acr.outputs.app_name }}
@@ -115,10 +136,12 @@ jobs:
 
           EXISTS=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query name -o tsv 2>/dev/null || true)
           if [ -z "$EXISTS" ]; then
+            # CAE is workload-profiles (v2); create must name the Consumption profile.
             az containerapp create \
               --name "$APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --environment "$ACA_ENV_NAME" \
+              --workload-profile-name Consumption \
               --image "$IMAGE" \
               --target-port "$TARGET_PORT" \
               --ingress external \
@@ -149,6 +172,7 @@ jobs:
           echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview URL on PR
+        if: steps.open.outputs.open == 'true'
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.deploy.outputs.url }}

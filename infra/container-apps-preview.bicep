@@ -78,7 +78,8 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2025-01-01'
         sharedKey: logAnalytics.listKeys().primarySharedKey
       }
     }
-    // Consumption workload profile — scale-to-zero, no dedicated nodes
+    // Consumption workload profile — scale-to-zero, no dedicated nodes.
+    // Ephemeral PR apps (preview-api.yml) must pass --workload-profile-name Consumption.
     workloadProfiles: [
       {
         name: 'Consumption'
