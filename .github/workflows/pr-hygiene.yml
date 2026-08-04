@@ -3,6 +3,11 @@
 # Labels (create if missing): needs-rebase, ci-failed, has-feedback
 # Agents filter with: gh pr list --label needs-rebase
 # ClickUp bridge is phase 2 (OIDC → KV → ClickUp); v1 uses PR labels/comments only.
+#
+# Label lifecycle:
+# - needs-rebase: set when mergeable_state=dirty; cleared only when state is known and not dirty
+# - ci-failed: set on watched workflow failure; cleared when no FAILURE checks remain on the PR
+# - has-feedback: set on Bugbot/collaborator comments; cleared on PR synchronize (new push)
 
 name: PR hygiene
 
@@ -27,6 +32,7 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  actions: read
 
 concurrency:
   group: pr-hygiene-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
@@ -62,10 +68,17 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          # mergeable_state can be unknown briefly after synchronize
-          sleep 15
-          STATE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.mergeable_state')
+          # mergeable_state is often "unknown" briefly after synchronize — poll until known
+          STATE="unknown"
+          for _ in 1 2 3 4 5 6; do
+            sleep 5
+            STATE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.mergeable_state')
+            if [ "$STATE" != "unknown" ] && [ "$STATE" != "null" ] && [ -n "$STATE" ]; then
+              break
+            fi
+          done
           MARKER="<!-- pr-hygiene:needs-rebase -->"
+          echo "mergeable_state=${STATE}"
           if [ "$STATE" = "dirty" ]; then
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-rebase || true
             if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].body' | grep -Fq "$MARKER"; then
@@ -78,9 +91,27 @@ jobs:
           EOF
           )"
             fi
+          elif [ "$STATE" = "unknown" ] || [ "$STATE" = "null" ] || [ -z "$STATE" ]; then
+            echo "Mergeability still unknown; leave needs-rebase unchanged"
           else
+            # clean | unstable | blocked | behind | has_hooks — known non-conflict states
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label needs-rebase || true
           fi
+
+  clear-feedback-on-sync:
+    needs: ensure-labels
+    if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clear has-feedback after new push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # New commits are treated as addressing prior review feedback.
+          # Fresh Bugbot/human comments after this push will re-apply the label.
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label has-feedback || true
 
   conflict-after-main:
     needs: ensure-labels
@@ -111,11 +142,12 @@ jobs:
             fi
           done
 
-  ci-failed:
+  ci-status:
     if: >
       github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.event == 'pull_request'
+      github.event.workflow_run.event == 'pull_request' &&
+      (github.event.workflow_run.conclusion == 'failure' ||
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Ensure labels
@@ -132,22 +164,30 @@ jobs:
           ensure "needs-rebase" "d93f0b" "PR has merge conflicts with base"
           ensure "has-feedback" "0e8a16" "Bugbot or human feedback on the PR"
 
-      - name: Label PR and comment once
+      - name: Sync ci-failed label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          NAME: ${{ github.event.workflow_run.name }}
+          EVENT_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
           set -euo pipefail
-          PR=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${{ github.event.workflow_run.id }}" --jq '.pull_requests[0].number // empty')
+          PR="${EVENT_PR:-}"
+          if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+            PR=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.pull_requests[0].number // empty')
+          fi
           if [ -z "$PR" ] || [ "$PR" = "null" ]; then
             echo "No PR linked to workflow run; skip"
             exit 0
           fi
-          RUN_URL="${{ github.event.workflow_run.html_url }}"
-          NAME="${{ github.event.workflow_run.name }}"
-          MARKER="<!-- pr-hygiene:ci-failed:${{ github.event.workflow_run.id }} -->"
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ci-failed || true
-          if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].body' | grep -Fq "$MARKER"; then
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$(cat <<EOF
+
+          if [ "$CONCLUSION" = "failure" ]; then
+            MARKER="<!-- pr-hygiene:ci-failed:${RUN_ID} -->"
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ci-failed || true
+            if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].body' | grep -Fq "$MARKER"; then
+              gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$(cat <<EOF
           $MARKER
           **PR hygiene:** workflow **${NAME}** failed.
 
@@ -155,6 +195,18 @@ jobs:
           Label: \`ci-failed\` → ClickUp should bounce to **READY FOR AI** after investigating.
           EOF
           )"
+            fi
+            exit 0
+          fi
+
+          # success: clear ci-failed only when no FAILURE checks remain on the PR
+          FAILING=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json statusCheckRollup --jq \
+            '[.statusCheckRollup[]? | select((.conclusion // "") | ascii_upcase == "FAILURE")] | length')
+          echo "failing_checks=${FAILING}"
+          if [ "${FAILING:-0}" = "0" ]; then
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ci-failed || true
+          else
+            echo "Other checks still failing; keep ci-failed"
           fi
 
   has-feedback:
