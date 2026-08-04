@@ -7,7 +7,7 @@ describe('TenantService', () => {
     id: 't1',
     name: 'Acme',
     slug: 'acme',
-    settings: null,
+    settings: null as string | null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
@@ -40,15 +40,26 @@ describe('TenantService', () => {
     prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
       fn(prisma),
     );
-    prisma.tenant.create.mockResolvedValue(tenantRow);
+    prisma.tenant.create.mockResolvedValue({
+      ...tenantRow,
+      settings: JSON.stringify({ plan: 'pro' }),
+    });
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
 
-    const result = await service.create({ name: 'Acme', slug: 'acme' });
+    const result = await service.create({
+      name: 'Acme',
+      slug: 'acme',
+      settings: { plan: 'pro' },
+    });
 
-    expect(result).toEqual(tenantRow);
+    expect(result).toEqual({ ...tenantRow, settings: { plan: 'pro' } });
     expect(prisma.tenant.create).toHaveBeenCalledWith({
-      data: { name: 'Acme', slug: 'acme', settings: null },
+      data: {
+        name: 'Acme',
+        slug: 'acme',
+        settings: JSON.stringify({ plan: 'pro' }),
+      },
     });
     expect(prisma.tenantAudit.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -78,7 +89,10 @@ describe('TenantService', () => {
     });
 
     await tenancy.run('t1', async () => {
-      await expect(service.findOne('t1')).resolves.toEqual(tenantRow);
+      await expect(service.findOne('t1')).resolves.toEqual({
+        ...tenantRow,
+        settings: null,
+      });
     });
   });
 
@@ -103,6 +117,7 @@ describe('TenantService', () => {
     await tenancy.run('t1', async () => {
       const result = await service.update('t1', { name: 'Acme Corp' });
       expect(result.name).toBe('Acme Corp');
+      expect(result.settings).toBeNull();
     });
 
     expect(prisma.tenantOutbox.create).toHaveBeenCalledWith(

@@ -11,11 +11,20 @@ import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenancyContext } from './tenancy.context';
 
-export type TenantRecord = {
+type TenantRow = {
   id: string;
   name: string;
   slug: string;
   settings: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type TenantRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  settings: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -29,6 +38,24 @@ function isUniqueConflict(error: unknown): boolean {
   );
 }
 
+function parseSettings(raw: string | null): Record<string, unknown> | null {
+  if (raw === null) {
+    return null;
+  }
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+function toTenantRecord(row: TenantRow): TenantRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    settings: parseSettings(row.settings),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 @Injectable()
 export class TenantService {
   constructor(
@@ -40,8 +67,8 @@ export class TenantService {
     const settings = dto.settings ? JSON.stringify(dto.settings) : null;
 
     try {
-      return await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const tenant = await tx.tenant.create({
+      const tenant = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const created = await tx.tenant.create({
           data: {
             name: dto.name,
             slug: dto.slug,
@@ -52,12 +79,12 @@ export class TenantService {
         await tx.tenantAudit.create({
           data: {
             entityType: 'Tenant',
-            entityId: tenant.id,
+            entityId: created.id,
             action: 'created',
             changes: JSON.stringify({
-              name: tenant.name,
-              slug: tenant.slug,
-              settings: tenant.settings,
+              name: created.name,
+              slug: created.slug,
+              settings: created.settings,
             }),
           },
         });
@@ -66,9 +93,9 @@ export class TenantService {
           id: crypto.randomUUID(),
           type: 'tenant.created',
           pillar: 'tenant',
-          tenantId: tenant.id,
+          tenantId: created.id,
           occurredAt: new Date().toISOString(),
-          payload: { name: tenant.name, slug: tenant.slug },
+          payload: { name: created.name, slug: created.slug },
         };
 
         await tx.tenantOutbox.create({
@@ -79,8 +106,10 @@ export class TenantService {
           },
         });
 
-        return tenant;
+        return created;
       });
+
+      return toTenantRecord(tenant);
     } catch (error: unknown) {
       if (isUniqueConflict(error)) {
         throw new ConflictException('Tenant slug already exists');
@@ -95,7 +124,7 @@ export class TenantService {
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
     }
-    return tenant;
+    return toTenantRecord(tenant);
   }
 
   async update(id: string, dto: UpdateTenantDto): Promise<TenantRecord> {
@@ -113,8 +142,8 @@ export class TenantService {
           ? null
           : JSON.stringify(dto.settings);
 
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const tenant = await tx.tenant.update({
+    const tenant = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const updated = await tx.tenant.update({
         where: { id },
         data: {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -125,7 +154,7 @@ export class TenantService {
       await tx.tenantAudit.create({
         data: {
           entityType: 'Tenant',
-          entityId: tenant.id,
+          entityId: updated.id,
           action: 'updated',
           changes: JSON.stringify(dto),
         },
@@ -135,9 +164,9 @@ export class TenantService {
         id: crypto.randomUUID(),
         type: 'tenant.updated',
         pillar: 'tenant',
-        tenantId: tenant.id,
+        tenantId: updated.id,
         occurredAt: new Date().toISOString(),
-        payload: { name: tenant.name, slug: tenant.slug },
+        payload: { name: updated.name, slug: updated.slug },
       };
 
       await tx.tenantOutbox.create({
@@ -148,8 +177,10 @@ export class TenantService {
         },
       });
 
-      return tenant;
+      return updated;
     });
+
+    return toTenantRecord(tenant);
   }
 
   private assertTenantAccess(id: string): void {
