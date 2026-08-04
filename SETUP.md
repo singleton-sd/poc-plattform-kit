@@ -113,7 +113,7 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (SWA preview), **Contributor** on RG (ACA preview deploy), **Key Vault Secrets User**, **App Configuration Data Reader**. ACR push uses OIDC → KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (SWA preview), **Contributor** on RG (ACA preview deploy), **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (`deploy-api.yml`), **Key Vault Secrets User**, **App Configuration Data Reader**. ACR push uses OIDC → KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 
@@ -145,7 +145,9 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 - [ ] Wire App Service / SWA / ACA to App Configuration provider + managed identity
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
 - [x] Confirm OIDC app has **Contributor** on RG + **Key Vault Secrets User** (ACR push uses KV `acr-admin-*`, not AcrPush)
+- [x] Grant **Website Contributor** on `pocpk-api-si5fhs6dvxiha` to `ssd-pocpk-gha-oidc-dev` (needed once for `deploy-api.yml`)
 - [ ] ~~S1 slots for API PR previews~~ — **deprecated**; use Container Apps Path B
+
 
 ### OIDC bootstrap (if Variables missing / admin consent)
 
@@ -158,11 +160,19 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
 5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
 6. ACR admin username/password live only in KV as `acr-admin-*` (written by `deploy-aca-preview.ps1`).
+7. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
+
+```bash
+az role assignment create \
+  --assignee <ssd-pocpk-gha-oidc-dev-app-id> \
+  --role "Website Contributor" \
+  --scope /subscriptions/7b8343d7-969f-4b71-8864-b7925e7fae30/resourceGroups/rg-poc-plattform-kit/providers/Microsoft.Web/sites/pocpk-api-si5fhs6dvxiha
+```
 
 
 ### GitHub Actions runtime (Node)
 
-Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
+Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`, `deploy-web`, `deploy-api`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
 
 ## 5. PR pipelines & previews
 
@@ -174,9 +184,12 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
+| `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
+| `deploy-api.yml` | same as ci-api, **`push` `main`** | Nest → App Service F1 via OIDC |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
 - **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
+- **Production on merge:** `deploy-web.yml` / `deploy-api.yml` publish to the live SWA hostname and App Service URL (same OIDC skip behaviour).
 - **BE preview (Path B locked):** Container Apps Consumption per PR (scale to zero). F1 stays prod/dev only. Shared F1 overwrite and S1 slots rejected/deprecated for per-PR need. OIDC Variables → KV ACR secrets — never GitHub secret tokens / `AZURE_CREDENTIALS`. Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
 - Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
 

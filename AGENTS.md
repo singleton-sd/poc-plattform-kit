@@ -122,16 +122,17 @@ Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus
 
 Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 
-| Change set | CI | Preview |
-| --- | --- | --- |
-| `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV |
-| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC → KV |
-| `packages/**` | **both** CI workflows | web preview if web deps change; ACA preview if api/pillars touch packages |
+| Change set | CI | Preview (PR) | Production (`main`) |
+| --- | --- | --- | --- |
+| `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV | `deploy-web.yml` → SWA production |
+| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC → KV | `deploy-api.yml` → App Service F1 |
+| `packages/**` | **both** CI workflows | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 
 - **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
 - ACA auth: OIDC Variables only — `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
 - Local checks: `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`.
 - Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
+- Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.
 
 ## Skills
 

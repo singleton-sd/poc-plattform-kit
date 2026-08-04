@@ -202,7 +202,7 @@ jobs:
               '- Path B: ephemeral ACA per PR — not F1 overwrite, not S1 slots',
               '- Cleanup runs when this PR is closed',
               '',
-              'Web SWA PR previews remain via `preview-web.yml`.',
+              'Web SWA PR previews remain via `preview-web.yml`; production API/web via `deploy-api.yml` / `deploy-web.yml` on `main`.',
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({

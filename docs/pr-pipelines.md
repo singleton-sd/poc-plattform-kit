@@ -10,8 +10,10 @@
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
+| `deploy-web.yml` | `apps/web/**`, `packages/**` on **`main`** | SWA **production** via OIDC → Key Vault |
+| `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** | Nest zip → App Service F1 via OIDC |
 
-**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI.
+**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. Push to `main` with the same paths also runs the matching **deploy-*** workflow.
 
 Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 
@@ -24,7 +26,9 @@ Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge
 
 Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
 
-If OIDC Variables are missing, `preview-web.yml` **skips** deploy/close (job succeeds). `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
+If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
+
+`deploy-api.yml` also needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (SWA production uses the KV deploy token only).
 
 ### OIDC subject forms (Entra FIC)
 
@@ -94,6 +98,18 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 5. Image push + ACA registry attach use OIDC → KV `acr-admin-*` (never GitHub Secrets / `AZURE_CREDENTIALS`).
 
 Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health`.
+
+## Production deploy on `main` (locked)
+
+| Workflow | Host | Auth |
+| --- | --- | --- |
+| `deploy-web.yml` | SWA Free production (`kind-rock-0f409fe00.7.azurestaticapps.net`) | OIDC → KV `swa-deployment-token` |
+| `deploy-api.yml` | App Service F1 (`pocpk-api-si5fhs6dvxiha.azurewebsites.net`) | OIDC → `azure/webapps-deploy` (needs **Website Contributor**) |
+
+- Triggers: `push` to `main` with the same path filters as CI/preview.
+- Builds in the job (web → `apps/web/out`; API → staged `.deploy/api` with `dist/` + prod `node_modules`).
+- API startup: `node dist/main.js` (set each deploy; `package.json` `"start"` matches).
+- No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
 ## Root scripts
 
