@@ -1,0 +1,103 @@
+# NestJS → App Service (F1) — production deploy on merge to main.
+# Auth: OIDC Variables only (no publish profile / AZURE_CREDENTIALS in GitHub Secrets).
+# SP needs Website Contributor on pocpk-api-si5fhs6dvxiha (plus Key Vault Secrets User for other jobs).
+# If OIDC Variables are missing, deploy SKIP (job succeeds). See SETUP.md / docs/pr-pipelines.md.
+name: Deploy API (App Service)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'pillars/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-api.yml'
+
+concurrency:
+  group: deploy-api-production
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: rg-poc-plattform-kit
+  AZURE_WEBAPP_NAME: pocpk-api-si5fhs6dvxiha
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    name: Build + App Service deploy
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: pnpm --filter @poc-plattform-kit/api... run build
+
+      - name: Stage deploy package
+        run: |
+          set -euo pipefail
+          mkdir -p .deploy/api
+          cp apps/api/package.json .deploy/api/package.json
+          cp -r apps/api/dist .deploy/api/dist
+          # Production node_modules only (Nest CLI stays in devDependencies)
+          npm install --omit=dev --prefix .deploy/api
+          # Disable Oryx remote build — package is already built + npm-installed
+          printf '%s\n' \
+            '[config]' \
+            'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
+            > .deploy/api/.deployment
+
+      - name: Check OIDC Variables
+        id: oidc
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OIDC Variables not set — skipping App Service deploy."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Node startup command
+        if: steps.oidc.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          az webapp config set \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --startup-file "node dist/main.js" \
+            --output none
+
+      - name: Deploy to App Service
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: .deploy/api
+
+      - name: Skip notice (OIDC not configured)
+        if: steps.oidc.outputs.configured != 'true'
+        run: |
+          echo "API production deploy skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID."
+          echo "Also grant Website Contributor on $AZURE_WEBAPP_NAME to ssd-pocpk-gha-oidc-dev (see SETUP.md)."

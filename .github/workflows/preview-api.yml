@@ -43,11 +43,12 @@ jobs:
               '**No live App Service slot** on this PR.',
               '',
               '- **CI:** `ci-api.yml` runs lint / test / build when `apps/api/**`, `pillars/**`, or `packages/**` change.',
-              '- **Why:** Deployment slots need App Service **Standard (S1)+**. PoC plan is **F1 Free** (`pocpk-plan` / `pocpk-api-si5fhs6dvxiha`).',
+              '- **Production on `main`:** `deploy-api.yml` zip-deploys Nest to App Service F1 (`pocpk-api-si5fhs6dvxiha`) via OIDC.',
+              '- **Why no PR slot:** Deployment slots need App Service **Standard (S1)+**. PoC plan is **F1 Free**.',
               '- **Optional later (still Path A):** shared overwrite app `pocpk-api-preview` (one PR at a time).',
-              '- **Path B (better DX, costs more):** upgrade plan to **S1**, add a **staging** slot, wire deploy in this workflow.',
+              '- **Path B (better DX, costs more):** Container Apps Consumption per-PR previews (OIDC → KV) — see Architecture Doc.',
               '',
-              'Web SWA PR previews remain available via `preview-web.yml` (Free SKU).',
+              'Web SWA PR previews remain available via `preview-web.yml` (Free SKU); production via `deploy-web.yml`.',
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({

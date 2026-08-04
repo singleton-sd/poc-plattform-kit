@@ -119,14 +119,15 @@ Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus
 
 Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 
-| Change set | CI | Preview |
-| --- | --- | --- |
-| `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV |
-| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path A stub (`preview-api.yml`); Path B ACA must use OIDC → KV/App Config |
-| `packages/**` | **both** CI workflows | web preview if web deps change; API comment if api/pillars touch packages |
+| Change set | CI | Preview (PR) | Production (`main`) |
+| --- | --- | --- | --- |
+| `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV | `deploy-web.yml` → SWA production |
+| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path A stub (`preview-api.yml`); Path B ACA must use OIDC → KV/App Config | `deploy-api.yml` → App Service F1 |
+| `packages/**` | **both** CI workflows | web preview if web deps change; API comment if api/pillars touch packages | matching deploy workflows when paths hit |
 
 - Local checks: `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`.
 - Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
+- Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.
 
 ## Skills
 

@@ -100,7 +100,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `subscriptions.events`, `conta
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG, **Key Vault Secrets User**, **App Configuration Data Reader**.
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG, **Key Vault Secrets User**, **App Configuration Data Reader**, and **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (required for `deploy-api.yml`).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 
@@ -120,6 +120,7 @@ App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] Wire App Service / SWA / ACA to App Configuration provider + managed identity
 - [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
+- [x] Grant **Website Contributor** on `pocpk-api-si5fhs6dvxiha` to `ssd-pocpk-gha-oidc-dev` (needed once for `deploy-api.yml`)
 - [ ] (Optional Path B) Container Apps API preview — same OIDC → KV/App Config pattern (no GH secrets)
 
 ### OIDC bootstrap (if Variables missing / admin consent)
@@ -132,11 +133,19 @@ App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **
 3. Ensure repo **Variables** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` match the app/sub/tenant.
 4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
 5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
+6. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
+
+```bash
+az role assignment create \
+  --assignee <ssd-pocpk-gha-oidc-dev-app-id> \
+  --role "Website Contributor" \
+  --scope /subscriptions/7b8343d7-969f-4b71-8864-b7925e7fae30/resourceGroups/rg-poc-plattform-kit/providers/Microsoft.Web/sites/pocpk-api-si5fhs6dvxiha
+```
 
 
 ### GitHub Actions runtime (Node)
 
-Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
+Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`, `deploy-web`, `deploy-api`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
 
 ## 5. PR pipelines & previews
 
@@ -148,10 +157,13 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | Path A stub comment (no slot on F1) |
+| `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
+| `deploy-api.yml` | same as ci-api, **`push` `main`** | Nest → App Service F1 via OIDC |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
 - **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
-- **BE preview (Path A locked):** no deployment slots on F1; CI validates API. Path B (Container Apps) must also use OIDC → KV/App Config — never GitHub secret tokens.
+- **Production on merge:** `deploy-web.yml` / `deploy-api.yml` publish to the live SWA hostname and App Service URL (same OIDC skip behaviour).
+- **BE preview (Path A locked):** no deployment slots on F1; CI validates API on PRs. Path B (Container Apps) must also use OIDC → KV/App Config — never GitHub secret tokens.
 - Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
 
 ## 6. Skills
