@@ -106,6 +106,6 @@ gh api repos/singleton-sd/poc-plattform-kit/issues/<n>/comments --jq '.[].body'
 gh api repos/singleton-sd/poc-plattform-kit/pulls/<n>/comments --jq '.[].body'
 ```
 
-Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI/preview workflows (set/clear `ci-failed`), issue/review comments from Bugbot or collaborators.
+Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI/preview workflows (set/clear `ci-failed`), issue/review comments from Bugbot or collaborators. The hygiene workflow needs `checks: read` so the success path can query `statusCheckRollup` (with a check-runs API fallback) when clearing `ci-failed`.
 
 **READY FOR HUMAN** only when mergeable, required checks green, and no open actionable feedback. ClickUp API bridge from Actions is phase 2; v1 uses labels + PR comments.
