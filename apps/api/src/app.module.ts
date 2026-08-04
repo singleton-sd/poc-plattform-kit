@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '@poc-plattform-kit/db';
+import { TenantModule } from '@poc-plattform-kit/pillar-tenant';
 import { HealthModule } from './health/health.module';
 
-// Pillar modules (Tenant, SingleSignOn, Subscriptions, Contact, Support,
-// Audit, Reporting) register here as their foundation tickets land.
 @Module({
-  imports: [HealthModule],
+  imports: [PrismaModule, HealthModule, TenantModule],
 })
 export class AppModule {}
