@@ -17,15 +17,15 @@ export interface WhatsAppSendResult {
 }
 
 export interface WhatsAppProvider {
-  readonly name: "meta-whatsapp-cloud";
+  readonly name: 'meta-whatsapp-cloud';
   send(request: WhatsAppSendRequest): Promise<WhatsAppSendResult>;
 }
 
 /** Stub — access token in Key Vault; phone-number-id / API version in App Config. */
 export class MetaWhatsAppCloudProvider implements WhatsAppProvider {
-  readonly name = "meta-whatsapp-cloud" as const;
+  readonly name = 'meta-whatsapp-cloud' as const;
 
   async send(_request: WhatsAppSendRequest): Promise<WhatsAppSendResult> {
-    throw new Error("MetaWhatsAppCloudProvider not configured (stub)");
+    throw new Error('MetaWhatsAppCloudProvider not configured (stub)');
   }
 }

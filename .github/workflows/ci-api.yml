@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # prisma validate/generate read schema url; no live DB in CI
-      DATABASE_URL: "sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true"
+      DATABASE_URL: 'sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true'
     steps:
       - uses: actions/checkout@v4
 

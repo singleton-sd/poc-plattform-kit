@@ -15,15 +15,15 @@ export interface SmsSendResult {
 }
 
 export interface SmsProvider {
-  readonly name: "android-sms-gateway";
+  readonly name: 'android-sms-gateway';
   send(request: SmsSendRequest): Promise<SmsSendResult>;
 }
 
 /** Stub — base URL in App Config; username/password in Key Vault. */
 export class AndroidSmsGatewayProvider implements SmsProvider {
-  readonly name = "android-sms-gateway" as const;
+  readonly name = 'android-sms-gateway' as const;
 
   async send(_request: SmsSendRequest): Promise<SmsSendResult> {
-    throw new Error("AndroidSmsGatewayProvider not configured (stub)");
+    throw new Error('AndroidSmsGatewayProvider not configured (stub)');
   }
 }

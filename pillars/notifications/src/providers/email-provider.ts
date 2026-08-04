@@ -15,15 +15,15 @@ export interface EmailSendResult {
 }
 
 export interface EmailProvider {
-  readonly name: "forward-email";
+  readonly name: 'forward-email';
   send(request: EmailSendRequest): Promise<EmailSendResult>;
 }
 
 /** Stub — real HTTP client wired when credentials exist in Key Vault. */
 export class ForwardEmailProvider implements EmailProvider {
-  readonly name = "forward-email" as const;
+  readonly name = 'forward-email' as const;
 
   async send(_request: EmailSendRequest): Promise<EmailSendResult> {
-    throw new Error("ForwardEmailProvider not configured (stub)");
+    throw new Error('ForwardEmailProvider not configured (stub)');
   }
 }
