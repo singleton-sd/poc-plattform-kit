@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "3897013834269703327"
+      "templateHash": "15128230687660928747"
     }
   },
   "parameters": {
@@ -118,7 +118,11 @@
       "contact.events",
       "support.events",
       "audit.events",
-      "reporting.events"
+      "reporting.events",
+      "notifications.events"
+    ],
+    "jobQueues": [
+      "notifications.send"
     ]
   },
   "resources": [
@@ -273,6 +277,24 @@
       ]
     },
     {
+      "copy": {
+        "name": "queues",
+        "count": "[length(variables('jobQueues'))]"
+      },
+      "type": "Microsoft.ServiceBus/namespaces/queues",
+      "apiVersion": "2022-10-01-preview",
+      "name": "[format('{0}/{1}', variables('serviceBusName'), variables('jobQueues')[copyIndex()])]",
+      "properties": {
+        "deadLetteringOnMessageExpiration": true,
+        "maxDeliveryCount": 10,
+        "lockDuration": "PT1M",
+        "defaultMessageTimeToLive": "P14D"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusName'))]"
+      ]
+    },
+    {
       "type": "Microsoft.KeyVault/vaults",
       "apiVersion": "2023-07-01",
       "name": "[parameters('keyVaultName')]",
@@ -340,7 +362,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.45.15.27210",
-              "templateHash": "9845290760102456163"
+              "templateHash": "7015084776436157906"
             }
           },
           "parameters": {
@@ -352,7 +374,13 @@
             }
           },
           "variables": {
-            "consumers": [
+            "domainConsumers": [
+              "audit",
+              "reporting",
+              "support",
+              "notifications"
+            ],
+            "notificationsTrailConsumers": [
               "audit",
               "reporting",
               "support"
@@ -362,11 +390,11 @@
             {
               "copy": {
                 "name": "tenantSubs",
-                "count": "[length(variables('consumers'))]"
+                "count": "[length(variables('domainConsumers'))]"
               },
               "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
               "apiVersion": "2022-10-01-preview",
-              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'tenant.events', variables('consumers')[copyIndex()])]",
+              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'tenant.events', variables('domainConsumers')[copyIndex()])]",
               "properties": {
                 "deadLetteringOnMessageExpiration": true,
                 "maxDeliveryCount": 10,
@@ -376,11 +404,25 @@
             {
               "copy": {
                 "name": "ssoSubs",
-                "count": "[length(variables('consumers'))]"
+                "count": "[length(variables('domainConsumers'))]"
               },
               "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
               "apiVersion": "2022-10-01-preview",
-              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'single-sign-on.events', variables('consumers')[copyIndex()])]",
+              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'single-sign-on.events', variables('domainConsumers')[copyIndex()])]",
+              "properties": {
+                "deadLetteringOnMessageExpiration": true,
+                "maxDeliveryCount": 10,
+                "lockDuration": "PT1M"
+              }
+            },
+            {
+              "copy": {
+                "name": "permissionsSubs",
+                "count": "[length(variables('domainConsumers'))]"
+              },
+              "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'permissions.events', variables('domainConsumers')[copyIndex()])]",
               "properties": {
                 "deadLetteringOnMessageExpiration": true,
                 "maxDeliveryCount": 10,
@@ -390,11 +432,11 @@
             {
               "copy": {
                 "name": "subscriptionsSubs",
-                "count": "[length(variables('consumers'))]"
+                "count": "[length(variables('domainConsumers'))]"
               },
               "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
               "apiVersion": "2022-10-01-preview",
-              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'subscriptions.events', variables('consumers')[copyIndex()])]",
+              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'subscriptions.events', variables('domainConsumers')[copyIndex()])]",
               "properties": {
                 "deadLetteringOnMessageExpiration": true,
                 "maxDeliveryCount": 10,
@@ -404,11 +446,25 @@
             {
               "copy": {
                 "name": "contactSubs",
-                "count": "[length(variables('consumers'))]"
+                "count": "[length(variables('domainConsumers'))]"
               },
               "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
               "apiVersion": "2022-10-01-preview",
-              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'contact.events', variables('consumers')[copyIndex()])]",
+              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'contact.events', variables('domainConsumers')[copyIndex()])]",
+              "properties": {
+                "deadLetteringOnMessageExpiration": true,
+                "maxDeliveryCount": 10,
+                "lockDuration": "PT1M"
+              }
+            },
+            {
+              "copy": {
+                "name": "notificationsTrailSubs",
+                "count": "[length(variables('notificationsTrailConsumers'))]"
+              },
+              "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('serviceBusNamespaceName'), 'notifications.events', variables('notificationsTrailConsumers')[copyIndex()])]",
               "properties": {
                 "deadLetteringOnMessageExpiration": true,
                 "maxDeliveryCount": 10,
@@ -419,7 +475,7 @@
           "outputs": {
             "createdSubscriptionCount": {
               "type": "int",
-              "value": "[mul(length(variables('consumers')), 4)]"
+              "value": "[add(mul(length(variables('domainConsumers')), 5), length(variables('notificationsTrailConsumers')))]"
             }
           }
         }
