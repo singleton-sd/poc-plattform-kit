@@ -185,11 +185,12 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
-| `deploy-api.yml` | same as ci-api, **`push` `main`** | Nest → App Service F1 via OIDC |
+| `deploy-api.yml` | same as ci-api, **`push` `main`** (+ `workflow_dispatch`) | Nest → App Service via OIDC (prebuilt `dist`; Oryx off) |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
 - **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
 - **Production on merge:** `deploy-web.yml` / `deploy-api.yml` publish to the live SWA hostname and App Service URL (same OIDC skip behaviour).
+- **API zip deploy:** set `SCM_DO_BUILD_DURING_DEPLOYMENT=false` on the web app (app setting overrides `.deployment`). Package is CI-built `dist/` + prod `node_modules` only — see issue #16.
 - **BE preview (Path B locked):** Container Apps Consumption per PR (scale to zero). F1 stays prod/dev only. Shared F1 overwrite and S1 slots rejected/deprecated for per-PR need. OIDC Variables → KV ACR secrets — never GitHub secret tokens / `AZURE_CREDENTIALS`. Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
 - Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
 

@@ -1,7 +1,10 @@
-# NestJS → App Service (F1) — production deploy on merge to main.
+# NestJS → App Service — production deploy on merge to main.
 # Auth: OIDC Variables only (no publish profile / AZURE_CREDENTIALS in GitHub Secrets).
 # SP needs Website Contributor on pocpk-api-si5fhs6dvxiha (plus Key Vault Secrets User for other jobs).
 # If OIDC Variables are missing, deploy SKIP (job succeeds). See SETUP.md / docs/pr-pipelines.md.
+#
+# Important: App setting SCM_DO_BUILD_DURING_DEPLOYMENT=true overrides package `.deployment`
+# and re-runs Oryx `nest build` without tsconfig → zip deploy fails (see #16).
 name: Deploy API (App Service)
 
 on:
@@ -12,6 +15,7 @@ on:
       - 'pillars/**'
       - 'packages/**'
       - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
 
 concurrency:
   group: deploy-api-production
@@ -50,15 +54,22 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .deploy/api
-          cp apps/api/package.json .deploy/api/package.json
+          # Runtime package only: dist + prod deps. Strip build scripts so a
+          # misconfigured Oryx rebuild cannot run `nest build` without tsconfig.
+          node <<'EOF'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('apps/api/package.json', 'utf8'));
+          delete pkg.devDependencies;
+          pkg.scripts = { start: 'node dist/main.js' };
+          fs.writeFileSync('.deploy/api/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          EOF
           cp -r apps/api/dist .deploy/api/dist
-          # Production node_modules only (Nest CLI stays in devDependencies)
           npm install --omit=dev --prefix .deploy/api
-          # Disable Oryx remote build — package is already built + npm-installed
           printf '%s\n' \
             '[config]' \
             'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
             > .deploy/api/.deployment
+          test -f .deploy/api/dist/main.js
 
       - name: Check OIDC Variables
         id: oidc
@@ -79,10 +90,16 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Ensure Node startup command
+      - name: Disable Oryx + set startup
         if: steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
+          # App setting wins over `.deployment` — must clear before zip deploy.
+          az webapp config appsettings set \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+            --output none
           az webapp config set \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_WEBAPP_NAME" \
@@ -95,6 +112,29 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: .deploy/api
+
+      - name: Verify /health
+        if: steps.oidc.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          # F1 Linux zip deploy often needs ~60s before the new worker serves;
+          # cold starts under resource pressure can run longer. Poll ~3 minutes.
+          url="https://${AZURE_WEBAPP_NAME}.azurewebsites.net/health"
+          deadline=$((SECONDS + 180))
+          attempt=0
+          while (( SECONDS < deadline )); do
+            attempt=$((attempt + 1))
+            code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$url" || true)
+            echo "attempt $attempt → HTTP $code"
+            if [ "$code" = "200" ]; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "health check failed after deploy (~3m poll window)"
+          cat /tmp/health.json || true
+          exit 1
 
       - name: Skip notice (OIDC not configured)
         if: steps.oidc.outputs.configured != 'true'
