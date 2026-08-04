@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import type { DomainEvent } from '@poc-plattform-kit/events';
 import { PrismaService } from '@poc-plattform-kit/db';
 import { CreateTenantDto } from './dto/create-tenant.dto';
@@ -20,6 +20,15 @@ export type TenantRecord = {
   updatedAt: Date;
 };
 
+function isUniqueConflict(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'P2002'
+  );
+}
+
 @Injectable()
 export class TenantService {
   constructor(
@@ -31,7 +40,7 @@ export class TenantService {
     const settings = dto.settings ? JSON.stringify(dto.settings) : null;
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const tenant = await tx.tenant.create({
           data: {
             name: dto.name,
@@ -72,8 +81,8 @@ export class TenantService {
 
         return tenant;
       });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    } catch (error: unknown) {
+      if (isUniqueConflict(error)) {
         throw new ConflictException('Tenant slug already exists');
       }
       throw error;
@@ -104,7 +113,7 @@ export class TenantService {
           ? null
           : JSON.stringify(dto.settings);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const tenant = await tx.tenant.update({
         where: { id },
         data: {

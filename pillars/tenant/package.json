@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"lint:tenant stub\"",
-    "test": "jest"
+    "pretest": "pnpm --filter @poc-plattform-kit/db run build",
+    "test": "jest",
+    "prebuild": "pnpm --filter @poc-plattform-kit/db run build"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
@@ -39,6 +41,10 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/../../packages/db/dist/"
+    ],
     "testEnvironment": "node"
   }
 }
