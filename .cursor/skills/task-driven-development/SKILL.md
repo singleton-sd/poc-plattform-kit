@@ -23,25 +23,42 @@ Use this skill when implementing work from a project-management list or workflow
    - Do not mix files for different tickets in the same staged set.
    - Do not start the next task until the current task is staged and summarized.
 
-3. Status transitions and assignment (claiming work):
-   - **Assignment = claiming.** When starting implement or review work, assign
-     yourself to the ClickUp task (`assignees: ["me"]` via ClickUp MCP, or
-     resolve the current Cursor/ClickUp identity). Do not leave assignee empty.
-     Never assign when merely browsing or reading tickets.
-   - **Implementer:** On pick-up from **READY FOR AI**, assign self → set
-     status **IN PROGRESS** → then implement → open PR → **PR hygiene**
-     (CI green + mergeable) → ClickUp comment with PR URL → **READY FOR REVIEW**.
-   - **Reviewer:** On pick-up from **READY FOR REVIEW**, assign self as the
-     reviewer for the review phase (prefer set assignee to the reviewer). If
-     the implementer must remain visible, comment their identity on the ticket
-     before/when reassigning. Before **READY FOR HUMAN**, re-check mergeable,
-     required CI, and all PR feedback (Bugbot + human issue/review comments).
-     On conflict / CI red / actionable feedback → **READY FOR AI** + blockers.
+3. Status transitions and exclusive claim (Claim Token):
+   - Agents often share one ClickUp identity, so **assignee alone is not a
+     lock**. Follow `AGENTS.md` § **Exclusive claim protocol**.
+   - **Claim Token** field id (ops list): `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`
+     (also listed in `AGENTS.md` with Preview URL / Token Estimate / Token Spent).
+   - **Browse ≠ claim.** Listing or reading tickets must not set Claim Token,
+     assignee, or status.
+   - **Claim before plan/implement/review** (including Plan mode when asked to
+     pick up a task):
+     1. Candidates: target status (**READY FOR AI** / **READY FOR REVIEW**),
+        Claim Token empty, prefer unassigned; oldest updated first.
+     2. `claimToken` = chat/session id or `agent-<uuid>`.
+     3. One update: Claim Token = `claimToken`, `assignees: ["me"]`,
+        implementers also set **IN PROGRESS**. Optionally set Token Estimate
+        when planning.
+     4. Re-fetch with `custom_fields`; if Claim Token ≠ `claimToken`, abort
+        and pick another ticket.
+     5. Only then read details / implement / review.
+   - **Handoff:** clear Claim Token when moving to **READY FOR REVIEW**,
+     **READY FOR HUMAN**, or bouncing to **READY FOR AI**. Set Token Spent
+     when finishing; set Preview URL when a preview exists.
+   - **Implementer:** claim → implement → PR → **PR hygiene** → comment PR
+     URL → clear Claim Token → **READY FOR REVIEW**.
+   - **Reviewer:** claim on **READY FOR REVIEW** → review in a worktree →
+     **PR hygiene** → comments. Prefer assignee = reviewer; if the
+     implementer must stay visible, comment their identity before
+     reassigning. Before **READY FOR HUMAN**, re-check mergeable, required
+     CI, and all PR feedback. On conflict / CI red / actionable feedback →
+     clear Claim Token → **READY FOR AI** + blockers.
    - **Steward:** When asked to check open PRs after READY FOR HUMAN, re-poll
-     mergeable / CI / new comments; bounce to READY FOR AI when agent-fixable.
+     mergeable / CI / new comments; bounce to READY FOR AI (clear Claim
+     Token) when agent-fixable. May clear a Claim Token older than ~4h with
+     no PR comment; agents must not clear another session’s token unless the
+     user asks.
    - Labels to watch: `needs-rebase`, `ci-failed`, `has-feedback` (see
      `docs/pr-pipelines.md` / `AGENTS.md` § PR hygiene).
-   - When starting a task, set that task to `in progress` / **IN PROGRESS**.
    - When the task implementation is finished, do **not** mark it complete yet.
    - Mark a finished task complete only when the user explicitly asks, or when the user says to move to the next task.
    - If a requested status is rejected, inspect valid task/list statuses and use the closest valid equivalent.
@@ -104,7 +121,8 @@ Only say the task is complete if the project-management status was actually upda
 When the user says "next", "next task", or similar:
 
 1. Mark the previous staged task complete if it was finished and the user is moving on.
-2. Read the next task details.
-3. Assign yourself to the next task (`assignees: ["me"]`) and set it to `in progress` / **IN PROGRESS**.
-4. Implement, verify, and stage the files for that task.
+2. Clear Claim Token on the previous task if handoff status requires it.
+3. Run the exclusive claim protocol on the next **READY FOR AI** task (Claim
+   Token + assignee + **IN PROGRESS**, then re-fetch verify).
+4. Only after a successful claim, read details, implement, verify, and stage.
 5. Leave the task in progress until the user asks to complete it or move on again.
