@@ -104,12 +104,12 @@ Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health
 | Workflow | Host | Auth |
 | --- | --- | --- |
 | `deploy-web.yml` | SWA Free production (`kind-rock-0f409fe00.7.azurestaticapps.net`) | OIDC → KV `swa-deployment-token` |
-| `deploy-api.yml` | App Service F1 (`pocpk-api-si5fhs6dvxiha.azurewebsites.net`) | OIDC → `azure/webapps-deploy` (needs **Website Contributor**) |
+| `deploy-api.yml` | App Service (`pocpk-api-si5fhs6dvxiha.azurewebsites.net`) | OIDC → `az webapp deploy --type zip` (needs **Website Contributor**) |
 
 - Triggers: `push` to `main` with the same path filters as CI/preview; `deploy-api.yml` also supports `workflow_dispatch`.
 - Builds in the job (web → `apps/web/out`; API → staged `.deploy/api` with `dist/` + prod `node_modules`).
 - API startup: `node dist/main.js` (set each deploy; staged `package.json` `"start"` matches).
-- **API must not Oryx-build on App Service:** set app setting `SCM_DO_BUILD_DURING_DEPLOYMENT=false` before zip deploy (app setting overrides package `.deployment`). Shipping source/`nest build` without `tsconfig.json` caused `/health` **503** (#16).
+- **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` ships a CI-built zip via `az webapp deploy --type zip` (no remote `nest build`).
 - No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
 ## Root scripts
