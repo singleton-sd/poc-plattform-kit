@@ -3,8 +3,10 @@
 # SP needs Website Contributor on pocpk-api-si5fhs6dvxiha (plus Key Vault Secrets User for other jobs).
 # If OIDC Variables are missing, deploy SKIP (job succeeds). See SETUP.md / docs/pr-pipelines.md.
 #
-# Important: App setting SCM_DO_BUILD_DURING_DEPLOYMENT=true overrides package `.deployment`
-# and re-runs Oryx `nest build` without tsconfig → zip deploy fails (see #16).
+# Do NOT call `az webapp config appsettings set` / `az webapp config set` in the same job
+# immediately before zip deploy — that restarts the SCM container and aborts OneDeploy
+# ("Deployment has been stopped due to SCM container restart"). Keep Oryx off in Bicep /
+# existing app settings; deploy with `az webapp deploy --type zip` (no remote build).
 name: Deploy API (App Service)
 
 on:
@@ -50,12 +52,11 @@ jobs:
       - name: Build API
         run: pnpm --filter @poc-plattform-kit/api... run build
 
-      - name: Stage deploy package
+      - name: Stage deploy zip
         run: |
           set -euo pipefail
           mkdir -p .deploy/api
-          # Runtime package only: dist + prod deps. Strip build scripts so a
-          # misconfigured Oryx rebuild cannot run `nest build` without tsconfig.
+          # Runtime package only: dist + prod deps. No build scripts → Oryx cannot nest build.
           node <<'EOF'
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('apps/api/package.json', 'utf8'));
@@ -70,6 +71,10 @@ jobs:
             'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
             > .deploy/api/.deployment
           test -f .deploy/api/dist/main.js
+          # Single zip for az webapp deploy (faster than folder OneDeploy + Oryx).
+          (cd .deploy/api && zip -r -q ../../api-deploy.zip .)
+          ls -lh api-deploy.zip
+          echo "hypothesisId=F message=staged zip ready (no appsettings mutation in this job)"
 
       - name: Check OIDC Variables
         id: oidc
@@ -90,49 +95,70 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Disable Oryx + set startup
+      - name: Assert Oryx-off settings (read-only)
         if: steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
-          # App setting wins over `.deployment` — must clear before zip deploy.
-          az webapp config appsettings set \
+          # Read-only check — never write app settings here (SCM restart kills zip deploy).
+          scm=$(az webapp config appsettings list \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_WEBAPP_NAME" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false \
-            --output none
-          az webapp config set \
+            --query "[?name=='SCM_DO_BUILD_DURING_DEPLOYMENT'].value | [0]" -o tsv)
+          oryx=$(az webapp config appsettings list \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_WEBAPP_NAME" \
-            --startup-file "node dist/main.js" \
-            --output none
+            --query "[?name=='ENABLE_ORYX_BUILD'].value | [0]" -o tsv)
+          startup=$(az webapp config show \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --query appCommandLine -o tsv)
+          echo "hypothesisId=E SCM_DO_BUILD_DURING_DEPLOYMENT=$scm ENABLE_ORYX_BUILD=$oryx startup=$startup"
+          if [ "$scm" != "false" ] || [ "$oryx" != "false" ]; then
+            echo "::error::Oryx must be disabled on the web app before deploy (Bicep / one-time az). Do not set appsettings in this job."
+            echo "Expected SCM_DO_BUILD_DURING_DEPLOYMENT=false and ENABLE_ORYX_BUILD=false."
+            echo "Got SCM=$scm ENABLE_ORYX_BUILD=$oryx"
+            exit 1
+          fi
+          if [ "$startup" != "node dist/main.js" ]; then
+            echo "::error::Startup command must be 'node dist/main.js' (set once via Bicep / az). Got: $startup"
+            exit 1
+          fi
 
-      - name: Deploy to App Service
+      - name: Deploy zip (az webapp deploy)
         if: steps.oidc.outputs.configured == 'true'
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: .deploy/api
+        run: |
+          set -euo pipefail
+          echo "hypothesisId=F message=starting az webapp deploy --type zip (no management ops)"
+          # --clean true replaces wwwroot; remote build stays off via app settings.
+          az webapp deploy \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --src-path api-deploy.zip \
+            --type zip \
+            --clean true \
+            --async false \
+            --track-status true
+          echo "hypothesisId=F message=az webapp deploy finished"
 
       - name: Verify /health
         if: steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
-          # F1 Linux zip deploy often needs ~60s before the new worker serves;
-          # cold starts under resource pressure can run longer. Poll ~3 minutes.
           url="https://${AZURE_WEBAPP_NAME}.azurewebsites.net/health"
           deadline=$((SECONDS + 180))
           attempt=0
           while (( SECONDS < deadline )); do
             attempt=$((attempt + 1))
             code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$url" || true)
-            echo "attempt $attempt → HTTP $code"
+            echo "hypothesisId=A attempt=$attempt http=$code"
             if [ "$code" = "200" ]; then
               cat /tmp/health.json
+              echo "hypothesisId=A message=health ok"
               exit 0
             fi
-            sleep 15
+            sleep 10
           done
-          echo "health check failed after deploy (~3m poll window)"
+          echo "hypothesisId=A message=health check failed after deploy"
           cat /tmp/health.json || true
           exit 1
 

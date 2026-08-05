@@ -222,6 +222,10 @@
               "value": "false"
             },
             {
+              "name": "ENABLE_ORYX_BUILD",
+              "value": "false"
+            },
+            {
               "name": "AZURE_SERVICEBUS_NAMESPACE",
               "value": "[variables('serviceBusName')]"
             }

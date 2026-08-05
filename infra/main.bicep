@@ -168,6 +168,12 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           value: 'false'
         }
         {
+          // Belt-and-suspenders with SCM_DO_BUILD_DURING_DEPLOYMENT — set in IaC only.
+          // Never flip these in deploy-api.yml right before zip (SCM restart aborts deploy).
+          name: 'ENABLE_ORYX_BUILD'
+          value: 'false'
+        }
+        {
           name: 'AZURE_SERVICEBUS_NAMESPACE'
           value: serviceBusName
         }
