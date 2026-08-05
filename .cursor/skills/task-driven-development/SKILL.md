@@ -21,7 +21,7 @@ Use this skill when implementing work from a project-management list or workflow
 When planning a ticket, every **Out of scope** item that is real follow-up work must have a ClickUp task. Emit a **Pending / out-of-scope backlog** table (Title, Depends on, Token Estimate, Notes), then file each missing row:
 
 1. Search the ops list (`list_id=901616287298`) by **title** / intent — do not invent duplicates.
-2. Create missing tasks in **TO DO** with `[repo=singleton-sd/poc-plattform-kit]`, acceptance criteria, and a dependency note naming the parent **by title**.
+2. Create missing tasks in **TO DO** with acceptance criteria.
 3. Set **Token Estimate** on create (`custom_fields` id `ab22f8d4-df04-435e-849a-9ca6c23489be`, value as a number string). Leave Token Spent, Claim token, and Preview URL empty.
 4. Call `clickup_add_task_dependency` with `type: "waiting_on"` so the new task waits on the parent or named blocker (resolve titles to ids at file time).
 5. Leave backlog tickets **unassigned**; do **not** set Claim Token (browse/create ≠ claim).

@@ -56,7 +56,7 @@ When a plan or ticket lists **Out of scope** follow-up work, create missing Clic
 Include a **Pending / out-of-scope backlog** table (Title, Depends on, Token Estimate, Notes), then for each missing row on the Platform Kit ops list (`list_id=901616287298`):
 
 1. Search by title/intent first (no duplicates).
-2. Create with `[repo=singleton-sd/poc-plattform-kit]` and acceptance criteria.
+2. Create with acceptance criteria.
 3. Set **Token Estimate** custom field `ab22f8d4-df04-435e-849a-9ca6c23489be` to the estimate number (string). Leave Token Spent (`be7b08e9-b094-4578-bd0a-49f20af85f3c`), Claim token (`50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`), and Preview URL (`978d43d5-e404-4262-98a2-0193ade4736d`) unset.
 4. Wire `clickup_add_task_dependency` with `type: "waiting_on"` so the new task depends on the parent or named blocker.
 5. Leave **unassigned**; do not set Claim Token (browse/create ≠ claim).

@@ -61,7 +61,7 @@ When planning or refining a ticket, every **Out of scope** item that is real fol
 
 1. Search the ops list for an equivalent ticket (match by **title** / intent — do not invent duplicates).
 2. If missing, create it on the Platform Kit ops list (`list_id=901616287298`) with status **TO DO** (this list’s backlog / not-started status; if a list literally has `BACKLOG`, use that instead).
-3. Include `[repo=singleton-sd/poc-plattform-kit]`, clear acceptance criteria, and a dependency note naming the parent ticket **by title**.
+3. Include clear acceptance criteria.
 4. Set **Token Estimate** on create via custom field `ab22f8d4-df04-435e-849a-9ca6c23489be` (`custom_fields: [{id, value: "<number>"}]`). Leave **Token Spent**, **Claim token**, and **Preview URL** empty.
 5. After create, call `clickup_add_task_dependency` with `type: "waiting_on"` so the new task waits on the parent (or named blocker). Resolve **Depends on** titles to task ids at file time.
 6. Leave new backlog tickets **unassigned** and do **not** set Claim Token (browse/create ≠ claim).
