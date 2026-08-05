@@ -5,7 +5,6 @@
  * Config sources (first wins):
  * - window.__APP_INSIGHTS_CONNECTION_STRING__
  * - meta[name="applicationinsights-connection-string"] content
- * - ?ai= query param (local demos only; do not use in production URLs)
  */
 (function initWebTelemetry() {
   function readConnectionString() {
@@ -15,13 +14,6 @@
     var meta = document.querySelector('meta[name="applicationinsights-connection-string"]');
     if (meta && meta.getAttribute('content')) {
       return String(meta.getAttribute('content')).trim();
-    }
-    try {
-      var params = new URLSearchParams(window.location.search);
-      var fromQuery = params.get('ai');
-      if (fromQuery) return fromQuery.trim();
-    } catch (_) {
-      /* ignore */
     }
     return '';
   }

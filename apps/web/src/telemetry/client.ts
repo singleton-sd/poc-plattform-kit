@@ -1,5 +1,5 @@
 export type AppInsightsLike = {
-  trackException: (payload: { exception: Error }) => void;
+  trackException: (payload: { exception: Error; properties?: Record<string, string> }) => void;
   trackTrace?: (payload: { message: string; severityLevel?: number }) => void;
 };
 
@@ -11,13 +11,7 @@ export function getAppInsights(): AppInsightsLike | null {
 export function trackClientException(error: Error, properties?: Record<string, string>): void {
   const ai = getAppInsights();
   if (!ai) return;
-  ai.trackException({ exception: error });
-  if (properties && ai.trackTrace) {
-    ai.trackTrace({
-      message: `client-exception:${error.message}`,
-      severityLevel: 3,
-    });
-  }
+  ai.trackException({ exception: error, properties });
 }
 
 export function trackFailedApiCall(response: Response, bodySnippet?: string): void {

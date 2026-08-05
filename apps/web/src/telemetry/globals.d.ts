@@ -6,7 +6,7 @@ declare global {
   interface Window {
     __APP_INSIGHTS_CONNECTION_STRING__?: string;
     appInsights?: {
-      trackException: (payload: { exception: Error }) => void;
+      trackException: (payload: { exception: Error; properties?: Record<string, string> }) => void;
       trackTrace?: (payload: { message: string; severityLevel?: number }) => void;
       trackPageView?: () => void;
     };
