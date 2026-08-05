@@ -65,7 +65,11 @@ jobs:
           fs.writeFileSync('.deploy/api/package.json', JSON.stringify(pkg, null, 2) + '\n');
           EOF
           cp -r apps/api/dist .deploy/api/dist
-          npm install --omit=dev --prefix .deploy/api
+          # IMPORTANT: run npm inside the staging folder so it reads
+          # `.deploy/api/package.json` (so npm doesn't accidentally parse
+          # the repo root, which may contain `workspace:*` deps).
+          node -e "const p=require('./.deploy/api/package.json'); const deps=p.dependencies||{}; const ws=Object.entries(deps).filter(([k,v])=>String(v).startsWith('workspace:')); console.log('hypothesisId=H1 staging package.json workspace:* deps', ws.map(([k])=>k));"
+          (cd .deploy/api && npm install --omit=dev --no-audit --no-fund)
           printf '%s\n' \
             '[config]' \
             'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
