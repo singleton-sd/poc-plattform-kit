@@ -1,10 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PinoLogger } from 'nestjs-pino';
 
@@ -20,9 +14,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const correlationId =
       (request.headers['x-correlation-id'] as string | undefined) ??
@@ -47,10 +39,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.warn(logCtx, 'Request failed');
     }
 
-    response.status(status).json(
-      typeof payload === 'string'
-        ? { statusCode: status, message: payload, correlationId }
-        : { ...(payload as object), correlationId },
-    );
+    response
+      .status(status)
+      .json(
+        typeof payload === 'string'
+          ? { statusCode: status, message: payload, correlationId }
+          : { ...(payload as object), correlationId },
+      );
   }
 }

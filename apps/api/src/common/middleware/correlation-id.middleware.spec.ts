@@ -1,8 +1,5 @@
 import type { NextFunction, Response } from 'express';
-import {
-  correlationIdMiddleware,
-  type RequestWithCorrelation,
-} from './correlation-id.middleware';
+import { correlationIdMiddleware, type RequestWithCorrelation } from './correlation-id.middleware';
 
 describe('correlationIdMiddleware', () => {
   it('reuses inbound x-correlation-id', () => {
@@ -31,10 +28,7 @@ describe('correlationIdMiddleware', () => {
     expect(req.correlationId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
-    expect(setHeader).toHaveBeenCalledWith(
-      'x-correlation-id',
-      req.correlationId,
-    );
+    expect(setHeader).toHaveBeenCalledWith('x-correlation-id', req.correlationId);
     expect(next).toHaveBeenCalled();
   });
 });

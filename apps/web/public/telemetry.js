@@ -9,15 +9,10 @@
  */
 (function initWebTelemetry() {
   function readConnectionString() {
-    if (
-      typeof window !== 'undefined' &&
-      window.__APP_INSIGHTS_CONNECTION_STRING__
-    ) {
+    if (typeof window !== 'undefined' && window.__APP_INSIGHTS_CONNECTION_STRING__) {
       return String(window.__APP_INSIGHTS_CONNECTION_STRING__).trim();
     }
-    var meta = document.querySelector(
-      'meta[name="applicationinsights-connection-string"]',
-    );
+    var meta = document.querySelector('meta[name="applicationinsights-connection-string"]');
     if (meta && meta.getAttribute('content')) {
       return String(meta.getAttribute('content')).trim();
     }
@@ -37,8 +32,7 @@
   }
 
   var script = document.createElement('script');
-  script.src =
-    'https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js';
+  script.src = 'https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js';
   script.async = true;
   script.onload = function () {
     try {
@@ -75,8 +69,7 @@
       window.addEventListener('unhandledrejection', function (event) {
         var reason = event.reason;
         appInsights.trackException({
-          exception:
-            reason instanceof Error ? reason : new Error(String(reason)),
+          exception: reason instanceof Error ? reason : new Error(String(reason)),
         });
       });
     } catch (err) {
