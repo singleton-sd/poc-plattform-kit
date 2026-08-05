@@ -56,16 +56,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .deploy/api
-          # Runtime package only: dist + prod deps. No build scripts → Oryx cannot nest build.
-          node <<'EOF'
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('apps/api/package.json', 'utf8'));
-          delete pkg.devDependencies;
-          pkg.scripts = { start: 'node dist/main.js' };
-          fs.writeFileSync('.deploy/api/package.json', JSON.stringify(pkg, null, 2) + '\n');
-          EOF
+          # Avoid `npm install` entirely: it chokes on `workspace:*` protocol in this repo.
+          # Instead, ship the prebuilt pnpm-managed runtime:
+          # - apps/api/dist (compiled)
+          # - node_modules (includes all external + workspace package links)
+          # - packages/ + pillars/ (workspace link targets)
           cp -r apps/api/dist .deploy/api/dist
-          npm install --omit=dev --prefix .deploy/api
+          cp apps/api/package.json .deploy/api/package.json
+          cp -r node_modules .deploy/api/node_modules
+          cp -r packages .deploy/api/packages
+          cp -r pillars .deploy/api/pillars
           printf '%s\n' \
             '[config]' \
             'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
@@ -74,7 +74,7 @@ jobs:
           # Single zip for az webapp deploy (faster than folder OneDeploy + Oryx).
           (cd .deploy/api && zip -r -q ../../api-deploy.zip .)
           ls -lh api-deploy.zip
-          echo "hypothesisId=F message=staged zip ready (no appsettings mutation in this job)"
+          echo "hypothesisId=H2 message=staged zip with pnpm node_modules + workspace link targets (no npm install)"
 
       - name: Check OIDC Variables
         id: oidc
