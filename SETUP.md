@@ -203,3 +203,5 @@ pnpm sync:skills
 ```
 
 Source: `C:\00Personal\singleton-sd\ai-plattform\skills` (also on GitHub `singleton-sd/ai-plattform-skills`).
+
+Habit: edit skills in `ai-plattform/skills`, then run `pnpm sync:skills` and commit the updated `.cursor/skills/*`. (`~/.cursor/skills` is personal-only.)
