@@ -10,6 +10,25 @@ status: stable
 
 Use this skill when implementing work from a project-management list or workflow document.
 
+## Ticket and chat titles
+
+- When talking about tickets (chat, plans, PR/ClickUp comments, summaries), use the **ticket title**, not the raw ClickUp id as the primary label.
+- Ids are fine in URLs, branch names (`feature/<id>-<kebab-title>`), and as a secondary reference after the title.
+- When picking up a ticket, set the Cursor **chat title** to that ticket’s title.
+
+## Out of scope → backlog tickets
+
+When planning a ticket, every **Out of scope** item that is real follow-up work must have a ClickUp task. Emit a **Pending / out-of-scope backlog** table (Title, Depends on, Token Estimate, Notes), then file each missing row:
+
+1. Search the ops list (`list_id=901616287298`) by **title** / intent — do not invent duplicates.
+2. Create missing tasks in **TO DO** with acceptance criteria.
+3. Set **Token Estimate** on create (`custom_fields` id `ab22f8d4-df04-435e-849a-9ca6c23489be`, value as a number string). Leave Token Spent, Claim token, and Preview URL empty.
+4. Call `clickup_add_task_dependency` with `type: "waiting_on"` so the new task waits on the parent or named blocker (resolve titles to ids at file time).
+5. Leave backlog tickets **unassigned**; do **not** set Claim Token (browse/create ≠ claim).
+6. Comment or link the new titles on the parent ticket / plan.
+
+Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000. See also `backlog-refinement`.
+
 ## Core rules
 
 1. Gather context first:
