@@ -9,7 +9,7 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:telemetry:cloudRoleName:api': 'APPLICATIONINSIGHTS_CLOUD_ROLE_NAME',
   'secret:appinsights-connection-string': 'APPLICATIONINSIGHTS_CONNECTION_STRING',
   'secret:database-url': 'DATABASE_URL',
-  'secret:servicebus-connection-string': 'SERVICEBUS_CONNECTION_STRING',
+  'secret:servicebus-connection-string': 'AZURE_SERVICEBUS_CONNECTION_STRING',
 };
 
 type AppConfigurationDependencies = {

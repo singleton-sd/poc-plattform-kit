@@ -23,26 +23,32 @@ describe('loadAppConfiguration', () => {
   it('maps plain settings and Key Vault references to environment variables', async () => {
     process.env.AZURE_APPCONFIGURATION_ENDPOINT = 'https://example.azconfig.io';
 
-    const listSettings = jest
-      .fn()
-      .mockReturnValue(
-        settings(
-          setting('app:cors:origins', 'https://app.example.com'),
-          setting(
-            'secret:database-url',
-            JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/database-url' }),
-            'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
-          ),
-          setting('unmapped:key', 'ignored'),
+    const listSettings = jest.fn().mockReturnValue(
+      settings(
+        setting('app:cors:origins', 'https://app.example.com'),
+        setting(
+          'secret:database-url',
+          JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/database-url' }),
+          'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
         ),
-      );
+        setting(
+          'secret:servicebus-connection-string',
+          JSON.stringify({
+            uri: 'https://vault.vault.azure.net/secrets/servicebus-connection-string',
+          }),
+          'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
+        ),
+        setting('unmapped:key', 'ignored'),
+      ),
+    );
     const getSecret = jest.fn().mockResolvedValue({ value: 'sqlserver://secret' });
 
     await loadAppConfiguration({ listSettings, getSecret });
 
     expect(process.env.CORS_ORIGINS).toBe('https://app.example.com');
     expect(process.env.DATABASE_URL).toBe('sqlserver://secret');
-    expect(getSecret).toHaveBeenCalledWith('https://vault.vault.azure.net/secrets/database-url');
+    expect(process.env.AZURE_SERVICEBUS_CONNECTION_STRING).toBe('sqlserver://secret');
+    expect(getSecret).toHaveBeenCalledTimes(2);
     expect(process.env.UNMAPPED_KEY).toBeUndefined();
   });
 
