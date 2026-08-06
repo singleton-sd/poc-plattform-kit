@@ -16,6 +16,8 @@
     "stage:api-deploy": "bash ./scripts/stage-api-deploy.sh",
     "stage:api-deploy:docker": "bash ./scripts/stage-api-deploy-docker.sh",
     "sync:skills": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-skills.ps1",
+    "release": "node ./scripts/release-changed.mjs",
+    "release:ci": "node ./scripts/release-changed.mjs --ci",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -24,11 +26,14 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
+    "@release-it/conventional-changelog": "^10.0.0",
     "eslint": "^9.22.0",
     "globals": "^16.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "release-it": "^18.0.0",
+    "semver": "^7.7.0"
   },
   "engines": {
     "node": ">=20"

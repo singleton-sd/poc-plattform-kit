@@ -1,4 +1,6 @@
-# Azure Static Web Apps — production deploy on merge to main.
+# Azure Static Web Apps — production deploy on release commits to main
+# (or workflow_dispatch). Version bumps land via release.yml first so the
+# SWA build embeds apps/web package.json version in the footer.
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
 # If those Variables are missing, deploy steps SKIP (job succeeds) so main CI is not blocked.
@@ -12,6 +14,7 @@ on:
       - 'apps/web/**'
       - 'packages/**'
       - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
 
 concurrency:
   group: deploy-web-production
@@ -19,6 +22,8 @@ concurrency:
 
 jobs:
   build_and_deploy:
+    # Production ships from release commits (version bumps) or manual dispatch.
+    if: "${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore: Release') }}"
     runs-on: ubuntu-latest
     name: Build + SWA production
     permissions:

@@ -37,7 +37,7 @@ chore: SSDOP-99 Update dependencies to latest versions
 | Ticket format | `[A-Z]{1,5}-[0-9]{1,5}` — e.g. `SSDOP-42`, `PROJ-7` |
 | Body separator | Blank line between subject and body (if body is present) |
 | Body line length | Max 72 characters per line |
-| Release commits | Skipped — format is `chore: Release vX.Y.Z` (auto-generated) |
+| Release commits | Skipped — format is `chore: Release package versions` (auto-generated; body lists `@scope/name@version` tags) |
 
 ### Commit body: 72-character lines
 
@@ -142,7 +142,11 @@ Versions follow **semver** and are bumped automatically by `release-it` based on
 | `feat:` | Minor (`1.2.3` → `1.3.0`) |
 | `BREAKING CHANGE:` in footer | Major (`1.2.3` → `2.0.0`) |
 
-Never manually edit the version in `package.json`. Run `yarn release` (dry-run) or `yarn release:ci` (CI/CD) instead.
+Never manually edit the version in `package.json`. Run `pnpm release` (dry-run)
+or `pnpm release:ci` (CI on `main`) instead. Releases are **path-aware and
+independent** per workspace package; tags look like
+`@poc-plattform-kit/api@0.1.0`. Production deploys run from the aggregated
+`chore: Release package versions` commit.
 
 ---
 
