@@ -23,9 +23,9 @@ When planning a ticket, every **Out of scope** item that is real follow-up work 
 1. Search the ops list (`list_id=901616287298`) by **title** / intent — do not invent duplicates.
 2. Create missing tasks in **TO DO** with acceptance criteria.
 3. Set **Token Estimate** on create (`custom_fields` id `ab22f8d4-df04-435e-849a-9ca6c23489be`, value as a number string). Leave Token Spent, Claim token, and Preview URL empty.
-4. Call `clickup_add_task_dependency` with `type: "waiting_on"` so the new task waits on the parent or named blocker (resolve titles to ids at file time).
+4. Wire dependency: `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` (resolve titles to ids at file time).
 5. Leave backlog tickets **unassigned**; do **not** set Claim Token (browse/create ≠ claim).
-6. Comment or link the new titles on the parent ticket / plan.
+6. Mention new titles on the parent ticket description / plan (avoid extra ClickUp comment spam when possible).
 
 Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000. See also `backlog-refinement`.
 
@@ -45,26 +45,26 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
 3. Status transitions and exclusive claim (Claim Token):
    - Agents often share one ClickUp identity, so **assignee alone is not a
      lock**. Follow `AGENTS.md` § **Exclusive claim protocol**.
+   - **ClickUp transport:** use `powershell -File scripts/clickup.ps1 …`
+     with `CLICKUP_API_TOKEN` — **not** ClickUp MCP (MCP rate-limits easily).
    - **Claim Token** field id (ops list): `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`
      (also listed in `AGENTS.md` with Preview URL / Token Estimate / Token Spent).
    - **Browse ≠ claim.** Listing or reading tickets must not set Claim Token,
      assignee, or status.
    - **Claim before plan/implement/review** (including Plan mode when asked to
      pick up a task):
-     1. Candidates: target status (**READY FOR AI** / **READY FOR REVIEW**),
-        Claim Token empty, prefer unassigned; oldest updated first.
+     1. `scripts/clickup.ps1 list -Status "READY FOR AI"` (or REVIEW).
      2. `claimToken` = chat/session id or `agent-<uuid>`.
-     3. One update: Claim Token = `claimToken`, `assignees: ["me"]`,
-        implementers also set **IN PROGRESS**. Optionally set Token Estimate
-        when planning.
-     4. Re-fetch with `custom_fields`; if Claim Token ≠ `claimToken`, abort
-        and pick another ticket.
+     3. `scripts/clickup.ps1 claim -TaskId <id> -ClaimToken <claimToken>
+        -Status "IN PROGRESS"` (implementers; Claim Token only by default —
+        add `-AssignMe` only when an owner must show). Reviewers omit `-Status`.
+     4. On claim race error, abort and pick another ticket.
      5. Only then read details / implement / review.
-   - **Handoff:** clear Claim Token when moving to **READY FOR REVIEW**,
-     **READY FOR HUMAN**, or bouncing to **READY FOR AI**. Set Token Spent
-     when finishing; set Preview URL when a preview exists.
-   - **Implementer:** claim → implement → PR → **PR hygiene** → comment PR
-     URL → clear Claim Token → **READY FOR REVIEW**.
+   - **Handoff:** `scripts/clickup.ps1 status -TaskId <id> -Status "…"
+     -ClearClaim`. Prefer `preview -Url <pr>` over a comment when the only
+     payload is the PR link. Set Token Spent via `field` when finishing.
+   - **Implementer:** claim → implement → PR → **PR hygiene** → Preview URL
+     (or one handoff comment) → clear Claim Token → **READY FOR REVIEW**.
    - **Reviewer:** claim on **READY FOR REVIEW** → review in a worktree →
      **PR hygiene** → comments. Prefer assignee = reviewer; if the
      implementer must stay visible, comment their identity before
@@ -97,7 +97,8 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
      terminal/done status rather than an open status.
    - For duplicate or covered work, prefer the native `Delivered by` custom
      field over a generic task link when that field exists. Verify with
-     `clickup_get_task` that the field value points to the delivering task.
+     `scripts/clickup.ps1 get -TaskId <id>` that the field value points to
+     the delivering task.
 
 4. Staging and commits:
    - Stage only files changed for the current task.

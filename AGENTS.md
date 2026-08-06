@@ -12,7 +12,7 @@
 - **Architecture Doc:** https://app.clickup.com/90161394355/docs/2kz0kcnk-1416
 - **Docs folder:** https://app.clickup.com/90161394355/v/f/901610744236/90165834867 (`folder_id=901610744236`)
 - Do **not** create a separate Platform Kit space/list.
-- **Custom fields** on ops list `901616287298` (set via `clickup_update_task` `custom_fields: [{ id, value }]`):
+- **Custom fields** on ops list `901616287298`:
 
 | Field | Type | UUID | Usage |
 | --- | --- | --- | --- |
@@ -21,7 +21,7 @@
 | **Token Estimate** | number | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set when the task is planned |
 | **Token Spent** | number | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Set when the task is finished |
 
-- Bootstrap / verify Claim Token: [`scripts/ensure-claim-token-field.ps1`](scripts/ensure-claim-token-field.ps1) (`CLICKUP_API_TOKEN` required).
+- **Access (locked):** use REST via [`scripts/clickup.ps1`](scripts/clickup.ps1) + system env `CLICKUP_API_TOKEN` (process / User / Machine). **Do not use ClickUp MCP** for routine list/get/claim/status/comment — MCP burns a shared rate budget and can lock the workspace for ~10h. On HTTP 429, stop ClickUp calls in that chat (no retries/spin). Bootstrap Claim Token field: [`scripts/ensure-claim-token-field.ps1`](scripts/ensure-claim-token-field.ps1).
 
 ## ClickUp statuses
 
@@ -38,20 +38,19 @@ Agents often share one ClickUp identity (`assignees: ["me"]`), so **assignee alo
 
 ### Exclusive claim protocol
 
-1. Filter candidates: status **READY FOR AI** (implementer) or **READY FOR REVIEW** (reviewer), **Claim Token** empty/unset, prefer unassigned. Prefer oldest `date_updated` first.
+1. Filter candidates via REST: `powershell -File scripts/clickup.ps1 list -Status "READY FOR AI"` (or `"READY FOR REVIEW"`). Script already drops rows with a Claim Token. Prefer oldest / unassigned.
 2. Generate `claimToken` = Cursor chat/session id, or `agent-<uuid>` if unknown.
-3. Single update via `clickup_update_task`: set `custom_fields: [{ id: "50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7", value: claimToken }]`, `assignees: ["me"]`, and for implementers `status: "IN PROGRESS"` (reviewers claim without forcing implementer status; keep **READY FOR REVIEW** unless the review flow requires otherwise). Optionally set **Token Estimate** (`ab22f8d4-df04-435e-849a-9ca6c23489be`) when planning.
-4. Immediately re-fetch the task with `include: ["custom_fields"]`.
-5. If **Claim Token** ≠ `claimToken` → abort (lost race); pick a different ticket.
-6. Only then read description / plan / implement or review.
-7. On handoff clear **Claim Token** (empty value) when moving to **READY FOR REVIEW**, **READY FOR HUMAN**, or bouncing to **READY FOR AI**, so the next agent can claim. Set **Token Spent** (`be7b08e9-b094-4578-bd0a-49f20af85f3c`) when finishing; set **Preview URL** (`978d43d5-e404-4262-98a2-0193ade4736d`) when a preview exists.
+3. Claim in one call: `powershell -File scripts/clickup.ps1 claim -TaskId <id> -ClaimToken <claimToken> -Status "IN PROGRESS"` (implementer). Reviewers omit `-Status` (stay **READY FOR REVIEW**) or pass it only if the review flow requires otherwise. Prefer Claim Token only (default); add `-AssignMe` only when an owner must show on the ticket. Optionally set **Token Estimate** with `field -FieldId ab22f8d4-… -Value <n>`.
+4. `claim` re-fetches and verifies **Claim Token**; on mismatch it throws — abort and pick another ticket.
+5. Only then read description / plan / implement or review.
+6. On handoff: `powershell -File scripts/clickup.ps1 status -TaskId <id> -Status "READY FOR REVIEW" -ClearClaim` (or **READY FOR HUMAN** / bounce **READY FOR AI**). Set **Token Spent** / **Preview URL** via `field` / `preview` when applicable. Prefer **Preview URL** over a ClickUp comment when the only payload is the PR link.
 
 **Browse ≠ claim.** Listing or reading tickets for triage must not set Claim Token, assignee, or status.
 
 **Stale claims.** If a ticket is **IN PROGRESS** with a Claim Token older than ~4h and no PR comment, steward/human may clear the token. Agents must not clear another session’s token unless the user asks.
 
-1. **Implementer** runs the exclusive claim protocol on **READY FOR AI** → implement in a **git worktree** → open PR → run **PR hygiene (implementer)** → comment PR URL + CI status on ticket → clear **Claim Token** → set **READY FOR REVIEW**.
-2. **Reviewer** (different AI) runs the exclusive claim protocol on **READY FOR REVIEW** → review PR in a **worktree** → run **PR hygiene (reviewer)** → post review **comments** → clear **Claim Token** → set **READY FOR HUMAN** only if hygiene passes. If the implementer must stay visible, comment their identity on the ticket before/when reassigning.
+1. **Implementer** runs the exclusive claim protocol on **READY FOR AI** → implement in a **git worktree** → open PR → run **PR hygiene (implementer)** → set **Preview URL** (PR) → clear **Claim Token** → set **READY FOR REVIEW**.
+2. **Reviewer** (different AI) runs the exclusive claim protocol on **READY FOR REVIEW** → review PR in a **worktree** → run **PR hygiene (reviewer)** → post review on the **GitHub PR** (not ClickUp chatter) → clear **Claim Token** → set **READY FOR HUMAN** only if hygiene passes.
 3. **Human only** merges the PR and sets **COMPLETE**.
 4. Agents never approve or merge PRs. No self-review / self-approve (GitHub forbids it on solo identity).
 5. **Claim Token + assignment = claiming work.** Never set Claim Token or assignee when merely browsing. Only claim when starting implement or review work.
@@ -67,8 +66,8 @@ After push / PR open:
 1. `gh pr checks --watch` (or loop-on-ci) until required checks green (or document skip-only failures).
 2. `gh pr view --json mergeable,mergeStateStatus` → must be `MERGEABLE` / not `DIRTY`.
 3. If dirty: follow **Shared hub files / conflict playbook** below (`git merge origin/main` then `pnpm resolve:conflicts`), push, re-check CI.
-4. Comment ClickUp with PR URL + CI status.
-5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): comment on ClickUp and stop — do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
+4. Set **Preview URL** (`preview` / `status -Url`) to the PR; comment on ClickUp only if needed for blockers (avoid duplicate PR-link comments).
+5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop — do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
 
 #### Reviewer (before READY FOR HUMAN)
 
@@ -242,4 +241,4 @@ pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scri
 - **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
 - **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.
-- **ClickUp access (cloud):** no ClickUp MCP is wired up here; use the REST API v2 with the `CLICKUP_API_TOKEN` secret, e.g. `curl -H "Authorization: $CLICKUP_API_TOKEN" https://api.clickup.com/api/v2/list/901616287298/task` (workspace `90161394355`, ops/tickets list `901616287298`, docs folder `901610744236`). `api.clickup.com` is reachable from the VM. Per the AI-loop rules above, don't assign/move/merge tickets unless explicitly asked.
+- **ClickUp access:** prefer [`scripts/clickup.ps1`](scripts/clickup.ps1) + `CLICKUP_API_TOKEN` (same as local). Raw REST: `Authorization: $env:CLICKUP_API_TOKEN` against `https://api.clickup.com/api/v2/...` (workspace `90161394355`, ops list `901616287298`). Do **not** use ClickUp MCP for routine ops. On 429, stop. Per the AI-loop rules above, don't assign/move/merge tickets unless claiming or handing off.
