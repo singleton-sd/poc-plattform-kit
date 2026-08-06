@@ -7,7 +7,8 @@ Nest Swagger is the **contract of record**. Consumers generate typed clients fro
 1. Decorate Nest controllers/DTOs (`@ApiProperty`, `@ApiOkResponse({ type: … })`, etc.).
 2. `pnpm openapi:export` — offline Nest bootstrap writes [`packages/api-client/openapi.json`](../packages/api-client/openapi.json) (no HTTP listen).
 3. `pnpm openapi:generate` — Orval emits TanStack Query + fetch hooks under `packages/api-client/src/generated/`.
-4. `apps/web` depends on `@poc-plattform-kit/api-client`. Call `createApiClient({ baseUrl, headers })` once at app startup.
+4. `apps/web` depends on `@poc-plattform-kit/api-client`. `Providers` calls `configureApiClient()` (wraps `createApiClient` + `setApiClientTenantId` with `NEXT_PUBLIC_API_BASE_URL`). Tenant UI at `/tenants` uses Orval hooks; create/update fields use Zod → JSON Forms via `@poc-plattform-kit/forms`.
+5. `NEXT_PUBLIC_API_BASE_URL` must be present at **Next build time** (inlined into the static export). Local: `.env` / `.env.example`. CI: `preview-web.yml` / `deploy-web.yml` set it (override with GitHub Variable `NEXT_PUBLIC_API_BASE_URL`). The API enables CORS `credentials: true` so the client’s default `credentials: 'include'` works cross-origin when the SPA origin is listed in `CORS_ORIGINS`.
 
 ## Scripts
 
