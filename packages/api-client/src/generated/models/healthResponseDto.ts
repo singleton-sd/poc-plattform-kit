@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Platform Kit API
  * poc-plattform-kit API
- * OpenAPI spec version: 0.3.0
+ * OpenAPI spec version: 0.4.0
  */
 
 export interface HealthResponseDto {

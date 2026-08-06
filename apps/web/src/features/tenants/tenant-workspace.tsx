@@ -12,10 +12,19 @@ import { CreateTenantForm } from './create-tenant-form';
 import { UpdateTenantForm } from './update-tenant-form';
 import type { CreateTenantInput, UpdateTenantInput } from './schemas';
 
-function tenantPayload(
-  response: { data: TenantResponseDto } | undefined,
-): TenantResponseDto | null {
-  return response?.data ?? null;
+function tenantPayload(response: unknown): TenantResponseDto | null {
+  if (!response || typeof response !== 'object') return null;
+  const data = (response as { data?: unknown }).data;
+  if (!data || typeof data !== 'object') return null;
+  const tenant = data as Partial<TenantResponseDto>;
+  if (
+    typeof tenant.id !== 'string' ||
+    typeof tenant.name !== 'string' ||
+    typeof tenant.slug !== 'string'
+  ) {
+    return null;
+  }
+  return tenant as TenantResponseDto;
 }
 
 export function TenantWorkspace() {

@@ -51,7 +51,7 @@ export function UpdateTenantForm({
         data={data}
         renderers={tokenRenderers}
         cells={tokenCells}
-        enabled={!disabled}
+        readonly={disabled}
         validationMode="ValidateAndHide"
         onChange={({ data: next }) => {
           const record = next as Record<string, unknown>;
