@@ -202,6 +202,8 @@ $envLines = @(
   'AZURE_SERVICEBUS_CONNECTION_STRING=',
   "NEXT_PUBLIC_API_BASE_URL=$publicApiUrl",
   "CORS_ORIGINS=$corsOrigins",
+  "AUTH_URL=$publicApiUrl",
+  "AUTH_COOKIE_DOMAIN=.plattform-kit.poc.singletonsd.com",
   'AUTH_SECRET=',
   'AZURE_AD_CLIENT_ID=',
   'AZURE_AD_CLIENT_SECRET=',
@@ -211,7 +213,7 @@ $envLines = @(
 # Preserve existing AUTH / Entra values if present
 if (Test-Path $envFile) {
   $existing = Get-Content $envFile -Raw
-  foreach ($key in @('AUTH_SECRET', 'AZURE_AD_CLIENT_ID', 'AZURE_AD_CLIENT_SECRET', 'AZURE_AD_TENANT_ID', 'AZURE_SERVICEBUS_CONNECTION_STRING')) {
+  foreach ($key in @('AUTH_SECRET', 'AUTH_URL', 'AUTH_COOKIE_DOMAIN', 'AZURE_AD_CLIENT_ID', 'AZURE_AD_CLIENT_SECRET', 'AZURE_AD_TENANT_ID', 'AZURE_SERVICEBUS_CONNECTION_STRING')) {
     if ($existing -match "(?m)^\s*$key=(.*)$") {
       $val = $Matches[1].Trim()
       if ($val) {
@@ -315,6 +317,8 @@ Set-AppConfigPlain 'app:api:baseUrl' $publicApiUrl
 Set-AppConfigPlain 'app:web:baseUrl' $publicAppUrl
 Set-AppConfigPlain 'app:marketing:baseUrl' $publicMarketingUrl
 Set-AppConfigPlain 'app:cors:origins' $corsOrigins
+Set-AppConfigPlain 'app:auth:url' $publicApiUrl
+Set-AppConfigPlain 'app:auth:cookieDomain' '.plattform-kit.poc.singletonsd.com'
 Set-AppConfigPlain 'app:web:swaName' $swaName
 Set-AppConfigPlain 'app:marketing:swaName' $marketingSwaName
 Set-AppConfigPlain 'app:azure:resourceGroup' $ResourceGroup

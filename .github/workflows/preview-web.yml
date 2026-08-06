@@ -45,6 +45,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build web
+        env:
+          # Option B: SPA calls API host (prod default). Preview→ACA / Bearer is follow-up.
+          NEXT_PUBLIC_API_BASE_URL: https://api.plattform-kit.poc.singletonsd.com
         run: pnpm --filter @poc-plattform-kit/web... run build
 
       - name: Check OIDC Variables

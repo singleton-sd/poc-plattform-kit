@@ -24,8 +24,10 @@ export async function bootstrap() {
     }),
   );
 
+  // Option B SSO: SPA on app.* calls api.* with credentials (shared cookie domain).
   app.enableCors({
     origin: parseCorsOrigins(process.env.CORS_ORIGINS),
+    credentials: true,
   });
 
   configureSingleSignOnAuth(app.getHttpAdapter().getInstance() as Express);

@@ -6,6 +6,8 @@ const keyVaultReferenceContentType = 'application/vnd.microsoft.appconfig.keyvau
 
 const environmentKeys: Readonly<Record<string, string>> = {
   'app:cors:origins': 'CORS_ORIGINS',
+  'app:auth:url': 'AUTH_URL',
+  'app:auth:cookieDomain': 'AUTH_COOKIE_DOMAIN',
   'app:telemetry:cloudRoleName:api': 'APPLICATIONINSIGHTS_CLOUD_ROLE_NAME',
   'secret:appinsights-connection-string': 'APPLICATIONINSIGHTS_CONNECTION_STRING',
   'secret:database-url': 'DATABASE_URL',

@@ -76,6 +76,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | *(future)* `auth-secret` | `AUTH_SECRET` |
 | *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
+Auth.js Option B (Free SWA): set App Config `app:auth:url` + `app:auth:cookieDomain` and wire `AUTH_*` / `AZURE_AD_*` on App Service (secrets from KV). Do **not** require SWA Standard linked backends for SSO cookies — see `docs/sso.md`.
+
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
 
 ### App Configuration
@@ -90,6 +92,8 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:web:swaName` | plain |
 | `app:marketing:swaName` | plain — `ssd-pocpk-mkt-dev-ae` |
 | `app:cors:origins` | plain — comma-separated allowed browser origins |
+| `app:auth:url` | plain — Auth.js `AUTH_URL` (API public origin) |
+| `app:auth:cookieDomain` | plain — Auth.js cookie Domain (Option B; e.g. `.plattform-kit.poc.singletonsd.com`) |
 | `app:azure:resourceGroup` | plain |
 | `app:azure:keyVaultName` | plain |
 | `secret:database-url` | Key Vault reference |
