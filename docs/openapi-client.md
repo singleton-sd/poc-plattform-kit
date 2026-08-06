@@ -20,6 +20,8 @@ Nest Swagger is the **contract of record**. Consumers generate typed clients fro
 
 After API contract changes: update Swagger → `pnpm openapi:export && pnpm openapi:generate` → commit both the spec and generated sources.
 
+**API version bumps:** Nest Swagger `info.version` is read from `apps/api/package.json`. The path-aware release script (`pnpm release:ci` / `scripts/release-changed.mjs`) re-exports and regenerates the client whenever `@poc-plattform-kit/api` is released, and includes those files in the `chore: Release package versions` commit so `pnpm openapi:check` stays green on `main`.
+
 ## Other platforms (e.g. Android)
 
 Use the same committed file:
