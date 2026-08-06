@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Platform Kit API
  * poc-plattform-kit API
- * OpenAPI spec version: 0.0.0
+ * OpenAPI spec version: 0.1.0
  */
 import type { TenantResponseDtoSettings } from './tenantResponseDtoSettings';
 
