@@ -38,13 +38,16 @@ param sqlAdminLogin string = 'pocpkadmin'
 @secure()
 param sqlAdminPassword string
 
-@description('App Service Plan SKU — prefer F1 Free for PoC; B1 if Nest needs always-on wake')
+@description('App Service Plan SKU — B1 required for custom-domain managed TLS + always-on')
 @allowed(['F1', 'B1'])
-param appServiceSku string = 'F1'
+param appServiceSku string = 'B1'
 
 @description('Static Web Apps SKU')
 @allowed(['Free', 'Standard'])
 param staticWebAppSku string = 'Free'
+
+@description('CAF marketing Static Web App name')
+param marketingSwaName string = 'ssd-pocpk-mkt-dev-ae'
 
 @description('Service Bus SKU (Standard required for topics; never Premium for PoC)')
 @allowed(['Standard'])
@@ -63,6 +66,7 @@ var appPlanName = '${namePrefix}-plan'
 var webAppName = '${namePrefix}-api-${uniqueSuffix}'
 var swaName = '${namePrefix}-web-${uniqueSuffix}'
 var serviceBusName = '${namePrefix}-sb-${uniqueSuffix}'
+var enableAlwaysOn = appServiceSku == 'B1'
 
 // Aligns with packages/events topicForPillar(): `{pillar}.events`
 var eventTopics = [
@@ -155,7 +159,7 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
       // Prebuilt zip from deploy-api.yml (CI builds dist). Oryx remote nest
       // build fails without tsconfig in the package — keep this false.
       appCommandLine: 'node dist/main.js'
-      alwaysOn: false
+      alwaysOn: enableAlwaysOn
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       appSettings: [
@@ -181,6 +185,14 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'AZURE_APPCONFIGURATION_ENDPOINT'
           value: appConfig.properties.endpoint
         }
+        {
+          name: 'CORS_ORIGINS'
+          value: 'https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com'
+        }
+        {
+          name: 'NEXT_PUBLIC_API_BASE_URL'
+          value: 'https://api.plattform-kit.poc.singletonsd.com'
+        }
       ]
     }
   }
@@ -196,6 +208,19 @@ resource staticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
   properties: {
     allowConfigFileUpdates: true
     stagingEnvironmentPolicy: 'Enabled'
+  }
+}
+
+resource marketingStaticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
+  name: marketingSwaName
+  location: swaLocation
+  sku: {
+    name: staticWebAppSku
+    tier: staticWebAppSku
+  }
+  properties: {
+    allowConfigFileUpdates: true
+    stagingEnvironmentPolicy: 'Disabled'
   }
 }
 
@@ -347,6 +372,8 @@ output webAppHostname string = webApp.properties.defaultHostName
 output webAppPrincipalId string = webApp.identity.principalId
 output staticWebAppName string = staticWebApp.name
 output staticWebAppHostname string = staticWebApp.properties.defaultHostname
+output marketingStaticWebAppName string = marketingStaticWebApp.name
+output marketingStaticWebAppHostname string = marketingStaticWebApp.properties.defaultHostname
 output serviceBusNamespaceName string = serviceBusNamespace.name
 output serviceBusTopics array = eventTopics
 output appServicePlanName string = appPlan.name
