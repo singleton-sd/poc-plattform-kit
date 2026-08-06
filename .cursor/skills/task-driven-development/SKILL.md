@@ -78,6 +78,17 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
      user asks.
    - Labels to watch: `needs-rebase`, `ci-failed`, `has-feedback` (see
      `docs/pr-pipelines.md` / `AGENTS.md` § PR hygiene).
+   - **Dirty PR / `needs-rebase`:** follow `AGENTS.md` § **Shared hub files /
+     conflict playbook**. Prefer `git merge origin/main`, then
+     `pnpm resolve:conflicts`. Do not hand-merge `pnpm-lock.yaml` or
+     `infra/main.json`. Hand-fix only paths the script lists
+     (`infra/main.bicep`, Nest `main.ts` / `app.module.ts`, workflows).
+     After fixing `main.bicep`, rebuild JSON with
+     `az bicep build -f infra/main.bicep --outfile infra/main.json`.
+   - **Hub ownership:** do not edit `.cursor/skills/**`, root `package.json`,
+     `AGENTS.md` / `SETUP.md` / `docs/pr-pipelines.md`, or workflows unless
+     the ticket requires it. Skills sync = dedicated chore PR only. Reviewers
+     bounce incidental hub churn to **READY FOR AI**.
    - When the task implementation is finished, do **not** mark it complete yet.
    - Mark a finished task complete only when the user explicitly asks, or when the user says to move to the next task.
    - If a requested status is rejected, inspect valid task/list statuses and use the closest valid equivalent.
