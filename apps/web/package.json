@@ -8,6 +8,10 @@
     "lint": "echo \"lint:web stub\"",
     "test": "jest"
   },
+  "exports": {
+    "./telemetry": "./src/telemetry/client.ts",
+    "./telemetry/report-boundary-error": "./src/telemetry/report-boundary-error.ts"
+  },
   "dependencies": {
     "@poc-plattform-kit/api-client": "workspace:*",
     "@tanstack/react-query": "^5.62.7",

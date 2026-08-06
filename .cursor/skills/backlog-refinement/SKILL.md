@@ -1,7 +1,7 @@
 ---
 name: Backlog Refinement
-description: Refine raw backlog items into well-structured, actionable stories with clear acceptance criteria; file out-of-scope follow-ups as TO DO tickets with Token Estimate and waiting_on dependencies; refer to tickets by title.
-tags: [product, planning, agile, writing]
+description: Refine raw backlog items into well-structured, actionable stories with clear acceptance criteria; file out-of-scope follow-ups as TO DO tickets with Token Estimate and waiting_on dependencies; for architecture/design plans, document decisions in ClickUp before or with ticket creation; refer to tickets by title.
+tags: [product, planning, agile, writing, clickup]
 audience: [product-managers, engineers, tech-leads]
 status: draft
 ---
@@ -54,6 +54,38 @@ When producing a Cursor plan or refining a ticket, always include the **Pending 
 - If the input is a bug, add: **Steps to reproduce**, **Expected behavior**, **Actual behavior**
 - If the item is too large to be a single story, split it and output multiple refined items
 - Sizing hint is a hint, not a commitment — flag high uncertainty explicitly
+
+## ClickUp documentation (mandatory for architecture / design plans)
+
+When the work is an **architecture**, **design**, or **cross-cutting platform** plan (not a single tiny bugfix), do **not** leave the decision only in chat or a local plan file.
+
+### For `poc-plattform-kit` (locked)
+
+| Concern | Target |
+| --- | --- |
+| Architecture decisions | [Architecture Doc](https://app.clickup.com/90161394355/docs/2kz0kcnk-1416) (`document_id=2kz0kcnk-1416`) — add or update a page/section |
+| Supporting docs | [Docs folder](https://app.clickup.com/90161394355/v/f/901610744236/90165834867) (`folder_id=901610744236`) when a standalone doc is better than an Architecture page |
+| Implementation work | Ops/tickets list only: `list_id=901616287298` (workspace `90161394355`) |
+| Ticket title tag | Include `[repo=singleton-sd/poc-plattform-kit]` in the task name or description |
+
+### Required steps (planning → ClickUp)
+
+1. **Write the Architecture Doc page** (or update an existing page) with: goal, chosen approach, where to log, alert rules, out of scope, and links to related tickets.
+2. **Create ClickUp tasks** in list `901616287298` from the refined stories — one task per delivery slice — status `TO DO` (or `READY FOR AI` if already approved for agents).
+3. **Link** each task to the Architecture Doc page (task description + `clickup_add_task_link` / comment with the doc URL).
+4. **Repo mirror (optional):** a short `docs/*.md` in git may summarize the same decisions for engineers; **ClickUp Architecture Doc is the source of truth** for platform architecture.
+
+### What counts as “architecture / design”
+
+- New Azure resources, observability, auth, messaging patterns, pillar boundaries, secrets/config layout, CI/CD topology
+- Multi-ticket epics that need a shared design before coding
+
+### What does not require a new Architecture page
+
+- Single-file bugfixes already covered by an existing doc section
+- Pure chore tickets with no design choice (e.g. bump a patch dependency)
+
+If unsure, add a short section to the Architecture Doc rather than skipping.
 
 ## Out of scope → backlog tickets
 

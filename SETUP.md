@@ -138,8 +138,10 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`
 *(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
+
+**Telemetry:** shared App Insights + LAW — see [`docs/telemetry.md`](docs/telemetry.md) / ClickUp Architecture Doc.
 
 **GitHub Actions — allowed identifiers only (repository Variables, not Secrets):**
 

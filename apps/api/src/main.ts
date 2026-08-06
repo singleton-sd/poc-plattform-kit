@@ -1,14 +1,21 @@
+import './telemetry';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import type { Express } from 'express';
+import { Logger, PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { correlationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { parseCorsOrigins } from './cors-origins';
 import { configureSingleSignOnAuth } from './single-sign-on/configure-auth';
 import { buildOpenApiDocumentConfig } from './swagger.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
+  app.use(correlationIdMiddleware);
+  app.useGlobalFilters(new AllExceptionsFilter(await app.resolve(PinoLogger)));
 
   app.useGlobalPipes(
     new ValidationPipe({
