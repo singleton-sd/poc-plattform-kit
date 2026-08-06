@@ -2,6 +2,12 @@
 
 ## 2026-08-06
 
+- **@poc-plattform-kit/api** `0.6.0` → `0.7.0` (minor)
+- **@poc-plattform-kit/web** `0.5.0` → `0.6.0` (minor)
+- **@poc-plattform-kit/api-client** `0.5.0` → `0.6.0` (minor)
+- **@poc-plattform-kit/forms** `0.3.0` → `0.4.0` (minor)
+## 2026-08-06
+
 - **@poc-plattform-kit/api** `0.5.0` → `0.6.0` (minor)
 - **@poc-plattform-kit/web** `0.4.0` → `0.5.0` (minor)
 - **@poc-plattform-kit/api-client** `0.4.0` → `0.5.0` (minor)
