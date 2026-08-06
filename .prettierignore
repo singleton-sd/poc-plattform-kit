@@ -6,3 +6,5 @@ pnpm-lock.yaml
 *.md
 .worktrees
 infra/main.json
+packages/api-client/src/generated
+packages/api-client/openapi.json
