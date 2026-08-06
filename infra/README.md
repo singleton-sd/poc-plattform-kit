@@ -160,6 +160,7 @@ powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR preview
 
 `deploy.ps1` upserts SQL/SB/SWA secrets into Key Vault, seeds App Config plain keys + KV refs, and mirrors non-secret + secret cache into local `.env` (gitignored).
 `deploy-aca-preview.ps1` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
+`refresh-database-url.ps1` rebuilds KV `database-url` from `sql-admin-password`, resets the SQL admin password to match, and restarts the API App Service (use when Prisma reports auth failure for `pocpkadmin`).
 
 ## Secrets & config surfaces
 
