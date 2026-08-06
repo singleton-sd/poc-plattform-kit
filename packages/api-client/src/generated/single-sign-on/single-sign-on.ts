@@ -4,9 +4,7 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
-import {
-  useQuery
-} from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -16,132 +14,157 @@ import type {
   QueryKey,
   UndefinedInitialDataOptions,
   UseQueryOptions,
-  UseQueryResult
+  UseQueryResult,
 } from '@tanstack/react-query';
 
 import { customFetch } from '../../custom-fetch';
 
-
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * @summary Current authenticated user (cookie session or Bearer JWT)
  */
 export type singleSignOnControllerMeResponse200 = {
-  data: void
-  status: 200
-}
+  data: void;
+  status: 200;
+};
 
 export type singleSignOnControllerMeResponse401 = {
-  data: void
-  status: 401
-}
-    
-export type singleSignOnControllerMeResponseSuccess = (singleSignOnControllerMeResponse200) & {
+  data: void;
+  status: 401;
+};
+
+export type singleSignOnControllerMeResponseSuccess = singleSignOnControllerMeResponse200 & {
   headers: Headers;
 };
-export type singleSignOnControllerMeResponseError = (singleSignOnControllerMeResponse401) & {
+export type singleSignOnControllerMeResponseError = singleSignOnControllerMeResponse401 & {
   headers: Headers;
 };
 
-export type singleSignOnControllerMeResponse = (singleSignOnControllerMeResponseSuccess | singleSignOnControllerMeResponseError)
+export type singleSignOnControllerMeResponse =
+  singleSignOnControllerMeResponseSuccess | singleSignOnControllerMeResponseError;
 
 export const getSingleSignOnControllerMeUrl = () => {
+  return `/api/me`;
+};
 
-
-  
-
-  return `/api/me`
-}
-
-export const singleSignOnControllerMe = async ( options?: RequestInit): Promise<singleSignOnControllerMeResponse> => {
-  
-  return customFetch<singleSignOnControllerMeResponse>(getSingleSignOnControllerMeUrl(),
-  {      
+export const singleSignOnControllerMe = async (
+  options?: RequestInit,
+): Promise<singleSignOnControllerMeResponse> => {
+  return customFetch<singleSignOnControllerMeResponse>(getSingleSignOnControllerMeUrl(), {
     ...options,
-    method: 'GET'
-    
-    
-  }
-);}
-
-
-
-
+    method: 'GET',
+  });
+};
 
 export const getSingleSignOnControllerMeQueryKey = () => {
-    return [
-    `/api/me`
-    ] as const;
-    }
+  return [`/api/me`] as const;
+};
 
-    
-export const getSingleSignOnControllerMeQueryOptions = <TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError = void>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-) => {
+export const getSingleSignOnControllerMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>,
+  TError = void,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getSingleSignOnControllerMeQueryKey();
 
-  const queryKey =  queryOptions?.queryKey ?? getSingleSignOnControllerMeQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof singleSignOnControllerMe>>> = ({
+    signal,
+  }) => singleSignOnControllerMe({ signal, ...requestOptions });
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof singleSignOnControllerMe>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof singleSignOnControllerMe>>> = ({ signal }) => singleSignOnControllerMe({ signal, ...requestOptions });
+export type SingleSignOnControllerMeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof singleSignOnControllerMe>>
+>;
+export type SingleSignOnControllerMeQueryError = void;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type SingleSignOnControllerMeQueryResult = NonNullable<Awaited<ReturnType<typeof singleSignOnControllerMe>>>
-export type SingleSignOnControllerMeQueryError = void
-
-
-export function useSingleSignOnControllerMe<TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError = void>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>> & Pick<
+export function useSingleSignOnControllerMe<
+  TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof singleSignOnControllerMe>>,
           TError,
           Awaited<ReturnType<typeof singleSignOnControllerMe>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useSingleSignOnControllerMe<TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError = void>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>> & Pick<
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSingleSignOnControllerMe<
+  TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof singleSignOnControllerMe>>,
           TError,
           Awaited<ReturnType<typeof singleSignOnControllerMe>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useSingleSignOnControllerMe<TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError = void>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSingleSignOnControllerMe<
+  TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Current authenticated user (cookie session or Bearer JWT)
  */
 
-export function useSingleSignOnControllerMe<TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError = void>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useSingleSignOnControllerMe<
+  TData = Awaited<ReturnType<typeof singleSignOnControllerMe>>,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof singleSignOnControllerMe>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSingleSignOnControllerMeQueryOptions(options);
 
-  const queryOptions = getSingleSignOnControllerMeQueryOptions(options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

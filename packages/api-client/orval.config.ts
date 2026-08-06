@@ -21,7 +21,8 @@ export default defineConfig({
       client: 'react-query',
       httpClient: 'fetch',
       clean: true,
-      prettier: false,
+      // Keep generated output identical to the format enforced by lint-staged.
+      prettier: true,
       override: {
         header: generatedFileHeader,
         mutator: {
