@@ -1,6 +1,6 @@
 {
   "name": "@poc-plattform-kit/web",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,11 +13,15 @@
     "./telemetry/report-boundary-error": "./src/telemetry/report-boundary-error.ts"
   },
   "dependencies": {
+    "@jsonforms/core": "^3.5.1",
+    "@jsonforms/react": "^3.5.1",
     "@poc-plattform-kit/api-client": "workspace:*",
+    "@poc-plattform-kit/forms": "workspace:*",
     "@tanstack/react-query": "^5.62.7",
     "next": "^14.2.18",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

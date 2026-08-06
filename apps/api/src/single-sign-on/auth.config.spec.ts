@@ -99,5 +99,6 @@ describe('buildAuthConfig', () => {
       secure: true,
       httpOnly: true,
     });
+    expect(config?.cookies?.csrfToken).toBeUndefined();
   });
 });

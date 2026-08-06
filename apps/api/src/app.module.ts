@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '@poc-plattform-kit/db';
+import { PermissionsModule } from '@poc-plattform-kit/pillar-permissions';
 import { TenantModule } from '@poc-plattform-kit/pillar-tenant';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
@@ -9,7 +10,7 @@ const usePrettyTransport =
   process.env.LOG_PRETTY === 'true' || process.env.NODE_ENV === 'development';
 
 // Pillar modules (Tenant, SingleSignOn, Subscriptions, Contact, Support,
-// Audit, Reporting) register here as their foundation tickets land.
+// Audit, Reporting, Permissions) register here as their foundation tickets land.
 @Module({
   imports: [
     LoggerModule.forRoot({
@@ -36,6 +37,7 @@ const usePrettyTransport =
     }),
     PrismaModule,
     HealthModule,
+    PermissionsModule,
     TenantModule,
     SingleSignOnModule,
   ],

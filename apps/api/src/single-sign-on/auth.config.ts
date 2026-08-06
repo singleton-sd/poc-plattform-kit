@@ -43,7 +43,10 @@ export function buildAuthConfig(): ExpressAuthConfig | null {
   }
 
   const cookieDomain = resolveAuthCookieDomain();
-  const cookieOptions = {
+  // Domain-scoped cookies for session/callback only. Do not set Domain on
+  // csrfToken — Auth.js defaults to `__Host-authjs.csrf-token`, and browsers
+  // reject `__Host-` cookies that carry a Domain attribute.
+  const domainCookieOptions = {
     httpOnly: true,
     sameSite: 'lax' as const,
     path: '/',
@@ -57,9 +60,8 @@ export function buildAuthConfig(): ExpressAuthConfig | null {
     // Shared across app.* and api.* under the PoC parent domain (not SWA link).
     cookies: cookieDomain
       ? {
-          sessionToken: { options: cookieOptions },
-          callbackUrl: { options: cookieOptions },
-          csrfToken: { options: { ...cookieOptions, httpOnly: false } },
+          sessionToken: { options: domainCookieOptions },
+          callbackUrl: { options: domainCookieOptions },
         }
       : undefined,
     providers: [

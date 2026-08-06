@@ -9,10 +9,15 @@
  * Override at build time with `NEXT_PUBLIC_API_BASE_URL` (SWA previews will
  * point at prod or ACA — see preview follow-up tickets).
  */
+
+/**
+ * Runtime path must read `process.env.NEXT_PUBLIC_API_BASE_URL` statically so
+ * Next.js can inline it into the client bundle. Optional `env` is for tests only.
+ */
 export function resolveApiBaseUrl(
-  env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>,
 ): string {
-  const raw = env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const raw = (env ? env.NEXT_PUBLIC_API_BASE_URL : process.env.NEXT_PUBLIC_API_BASE_URL)?.trim();
   if (!raw) {
     return '';
   }
