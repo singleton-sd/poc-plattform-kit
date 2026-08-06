@@ -16,9 +16,7 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@poc-plattform-kit/pillar-single-sign-on": [
-        "../../pillars/single-sign-on/src/index.ts"
-      ]
+      "@poc-plattform-kit/pillar-single-sign-on": ["../../pillars/single-sign-on/src/index.ts"]
     }
   }
 }

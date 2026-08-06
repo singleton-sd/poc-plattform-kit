@@ -17,9 +17,7 @@ export function configureSingleSignOnAuth(expressApp: Express): void {
       const session = await getSession(req, config);
       const user = session?.user;
       if (user && typeof user === 'object') {
-        const authUser = mapAuthJsUserToAuthenticatedUser(
-          user as Record<string, unknown>,
-        );
+        const authUser = mapAuthJsUserToAuthenticatedUser(user as Record<string, unknown>);
         if (authUser) {
           (req as Request & { authUser?: unknown }).authUser = authUser;
         }
