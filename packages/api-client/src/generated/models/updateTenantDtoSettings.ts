@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Platform Kit API
  * poc-plattform-kit API
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 
 export type UpdateTenantDtoSettings = { [key: string]: unknown };
