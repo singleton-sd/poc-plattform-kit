@@ -2,12 +2,14 @@
 # Exposes PORT (default 3001). Build from repo root:
 #   docker build -f apps/api/Dockerfile -t api-preview .
 #
-# Runtime packaging mirrors deploy-api.yml: `pnpm deploy --prod` so workspace
-# packages (db/pillars) and generated Prisma client land in the image. Nest must
-# emit flat `dist/main.js` (see tsconfig.build.json rootDir + cleared paths).
+# Runtime packaging mirrors scripts/stage-api-deploy.sh:
+#   - hoisted pnpm deploy --prod
+#   - copy flat dist/main.js (tsconfig.build.json rootDir + cleared paths)
+#   - prisma generate into the deploy tree (deploy's node_modules is a stub)
 
 FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+RUN apk add --no-cache openssl \
+  && corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
 FROM base AS deps
@@ -20,14 +22,26 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY apps/api ./apps/api
 RUN pnpm --filter @poc-plattform-kit/api build
-# Absolute deploy target (relative paths resolve under apps/api and mis-stage).
-RUN pnpm --filter @poc-plattform-kit/api deploy --prod /out \
+# Match App Service staging: hoisted deploy tree + generate into /out.
+RUN printf '%s\n' \
+      'inject-workspace-packages=true' \
+      'node-linker=hoisted' \
+      'shamefully-hoist=true' \
+      > /app/.npmrc \
+  && pnpm --filter @poc-plattform-kit/api deploy --prod /out \
   && rm -rf /out/dist \
   && cp -r /app/apps/api/dist /out/dist \
-  && test -f /out/dist/main.js
+  && test -f /out/dist/main.js \
+  && mkdir -p /out/prisma \
+  && cp /app/packages/db/prisma/schema.prisma /out/prisma/schema.prisma \
+  && cd /out \
+  && DATABASE_URL="sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true" \
+     /app/node_modules/.bin/prisma generate --schema=/out/prisma/schema.prisma \
+  && node -e "const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('prisma generate ok')"
 
 FROM node:20-alpine AS runner
-RUN addgroup -S app && adduser -S app -G app
+RUN apk add --no-cache openssl \
+  && addgroup -S app && adduser -S app -G app
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001

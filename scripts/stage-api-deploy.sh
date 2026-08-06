@@ -109,9 +109,17 @@ echo "==> prisma generate into $DEPLOY_DIR (schema=$DEPLOY_DIR/prisma/schema.pri
   export DATABASE_URL="${DATABASE_URL:-sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true}"
   "$PRISMA_CLI" generate --schema "$DEPLOY_DIR/prisma/schema.prisma"
 )
-# Stub default.js exists before generate; real client ships index.js + engines.
-test -f "$DEPLOY_DIR/node_modules/.prisma/client/index.js"
-test -f "$DEPLOY_DIR/node_modules/.prisma/client/default.js"
+# Hoisted + pnpm layouts place the generated client under @prisma/client and/or
+# .prisma/client — do not require a single filesystem path. Instantiating the
+# client fails on the pre-generate stub ("did not initialize yet").
+if ! (
+  cd "$DEPLOY_DIR"
+  node -e "const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('prisma generate ok')"
+); then
+  echo "::error::prisma generate did not produce a usable @prisma/client in $DEPLOY_DIR" >&2
+  find "$DEPLOY_DIR/node_modules" -path '*prisma*' \( -name 'index.js' -o -name 'default.js' \) 2>/dev/null | head -40 >&2 || true
+  exit 1
+fi
 
 # Shrink: drop non-Linux Prisma engines + source maps (App Service is Linux).
 # Run AFTER generate so the Linux query engine is present first.
