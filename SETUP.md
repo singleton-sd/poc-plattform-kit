@@ -138,8 +138,9 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`
-*(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`
+
+**Entra / Auth.js (App Config → Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` → `AUTH_SECRET`, `secret:azure-ad-client-secret` → `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
 
 **Telemetry:** shared App Insights + LAW — see [`docs/telemetry.md`](docs/telemetry.md) / ClickUp Architecture Doc.
 

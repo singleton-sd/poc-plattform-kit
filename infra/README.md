@@ -73,8 +73,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `sms-gateway-password` | `SMS_GATEWAY_PASSWORD` |
 | `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` |
 | `appinsights-connection-string` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
-| *(future)* `auth-secret` | `AUTH_SECRET` |
-| *(future)* `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
+| `auth-secret` | `AUTH_SECRET` |
+| `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 
 Auth.js Option B (Free SWA): set App Config `app:auth:url` + `app:auth:cookieDomain` and wire `AUTH_*` / `AZURE_AD_*` on App Service (secrets from KV). Do **not** require SWA Standard linked backends for SSO cookies — see `docs/sso.md`.
 
@@ -96,12 +96,17 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:auth:cookieDomain` | plain — Auth.js cookie Domain (Option B; e.g. `.plattform-kit.poc.singletonsd.com`) |
 | `app:azure:resourceGroup` | plain |
 | `app:azure:keyVaultName` | plain |
+| `app:azureAd:clientId` | plain — Entra SPA/API client ID → `AZURE_AD_CLIENT_ID` |
+| `app:azureAd:tenantId` | plain — Entra tenant ID → `AZURE_AD_TENANT_ID` |
+| `app:azureAd:apiAudience` | plain — API app ID URI → `AZURE_AD_API_AUDIENCE` |
 | `secret:database-url` | Key Vault reference |
 | `secret:servicebus-connection-string` | Key Vault reference |
 | `secret:swa-deployment-token` | Key Vault reference |
 | `secret:swa-marketing-deployment-token` | Key Vault reference |
 | `secret:sql-admin-password` | Key Vault reference |
 | `secret:appinsights-connection-string` | Key Vault reference |
+| `secret:auth-secret` | Key Vault reference → `AUTH_SECRET` |
+| `secret:azure-ad-client-secret` | Key Vault reference → `AZURE_AD_CLIENT_SECRET` |
 | `app:telemetry:cloudRoleName:api` | plain (`api`) |
 | `app:telemetry:cloudRoleName:web` | plain (`web`) |
 

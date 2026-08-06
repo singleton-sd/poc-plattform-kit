@@ -5,11 +5,16 @@ import { SecretClient } from '@azure/keyvault-secrets';
 const keyVaultReferenceContentType = 'application/vnd.microsoft.appconfig.keyvaultref+json';
 
 const environmentKeys: Readonly<Record<string, string>> = {
+  'app:azureAd:apiAudience': 'AZURE_AD_API_AUDIENCE',
+  'app:azureAd:clientId': 'AZURE_AD_CLIENT_ID',
+  'app:azureAd:tenantId': 'AZURE_AD_TENANT_ID',
   'app:cors:origins': 'CORS_ORIGINS',
   'app:auth:url': 'AUTH_URL',
   'app:auth:cookieDomain': 'AUTH_COOKIE_DOMAIN',
   'app:telemetry:cloudRoleName:api': 'APPLICATIONINSIGHTS_CLOUD_ROLE_NAME',
   'secret:appinsights-connection-string': 'APPLICATIONINSIGHTS_CONNECTION_STRING',
+  'secret:auth-secret': 'AUTH_SECRET',
+  'secret:azure-ad-client-secret': 'AZURE_AD_CLIENT_SECRET',
   'secret:database-url': 'DATABASE_URL',
   'secret:servicebus-connection-string': 'AZURE_SERVICEBUS_CONNECTION_STRING',
 };
