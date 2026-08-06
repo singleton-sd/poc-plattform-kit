@@ -30,6 +30,37 @@ jest.mock('@poc-plattform-kit/api-client', () => ({
   }),
 }));
 
+jest.mock('@jsonforms/react', () => {
+  const actual = jest.requireActual('@jsonforms/react') as typeof import('@jsonforms/react');
+  return {
+    ...actual,
+    JsonForms: ({
+      data,
+      onChange,
+    }: {
+      data: Record<string, unknown>;
+      onChange: (event: { data: Record<string, unknown> }) => void;
+    }) => (
+      <div data-testid="jsonforms-stub">
+        {'name' in data ? (
+          <input
+            aria-label="Name"
+            value={String(data.name ?? '')}
+            onChange={(event) => onChange({ data: { ...data, name: event.target.value } })}
+          />
+        ) : null}
+        {'slug' in data ? (
+          <input
+            aria-label="Slug"
+            value={String(data.slug ?? '')}
+            onChange={(event) => onChange({ data: { ...data, slug: event.target.value } })}
+          />
+        ) : null}
+      </div>
+    ),
+  };
+});
+
 function renderWorkspace() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -48,15 +79,22 @@ describe('TenantWorkspace', () => {
     configureApiClient.mockReset();
   });
 
-  it('creates a tenant via the generated mutation hook', () => {
+  it('creates a tenant via Zod + generated mutation hook', async () => {
     renderWorkspace();
 
-    fireEvent.change(screen.getByTestId('tenant-name'), { target: { value: 'Acme' } });
-    fireEvent.change(screen.getByTestId('tenant-slug'), { target: { value: 'acme' } });
-    fireEvent.submit(screen.getByTestId('tenant-create-form'));
+    const createForm = screen.getByTestId('tenant-create-form');
+    fireEvent.change(createForm.querySelector('[aria-label="Name"]') as HTMLInputElement, {
+      target: { value: 'Acme' },
+    });
+    fireEvent.change(createForm.querySelector('[aria-label="Slug"]') as HTMLInputElement, {
+      target: { value: 'acme' },
+    });
+    fireEvent.click(screen.getByTestId('tenant-create'));
 
-    expect(mutateCreate).toHaveBeenCalledWith({
-      data: { name: 'Acme', slug: 'acme' },
+    await waitFor(() => {
+      expect(mutateCreate).toHaveBeenCalledWith({
+        data: { name: 'Acme', slug: 'acme' },
+      });
     });
   });
 

@@ -8,6 +8,9 @@ import {
 } from '@poc-plattform-kit/api-client';
 import { useEffect, useState, type FormEvent } from 'react';
 import { configureApiClient } from '@/lib/api-client';
+import { CreateTenantForm } from './create-tenant-form';
+import { UpdateTenantForm } from './update-tenant-form';
+import type { CreateTenantInput, UpdateTenantInput } from './schemas';
 
 function tenantPayload(
   response: { data: TenantResponseDto } | undefined,
@@ -17,8 +20,6 @@ function tenantPayload(
 
 export function TenantWorkspace() {
   const [tenantId, setTenantId] = useState('');
-  const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
   const [lookupId, setLookupId] = useState('');
 
   useEffect(() => {
@@ -39,20 +40,11 @@ export function TenantWorkspace() {
   useEffect(() => {
     if (!created) return;
     setTenantId(created.id);
-    setName(created.name);
-    setSlug(created.slug);
     setLookupId(created.id);
   }, [created]);
 
-  useEffect(() => {
-    if (!loaded) return;
-    setName(loaded.name);
-    setSlug(loaded.slug);
-  }, [loaded]);
-
-  function onCreate(event: FormEvent) {
-    event.preventDefault();
-    createMutation.mutate({ data: { name: name.trim(), slug: slug.trim() } });
+  function onCreate(data: CreateTenantInput) {
+    createMutation.mutate({ data });
   }
 
   function onLoad(event: FormEvent) {
@@ -62,11 +54,11 @@ export function TenantWorkspace() {
     setLookupId(id);
   }
 
-  function onUpdate() {
+  function onUpdate(data: UpdateTenantInput) {
     const id = (display?.id ?? tenantId).trim();
-    if (!id || !name.trim()) return;
+    if (!id) return;
     configureApiClient({ tenantId: id });
-    updateMutation.mutate({ id, data: { name: name.trim() } });
+    updateMutation.mutate({ id, data });
   }
 
   return (
@@ -75,49 +67,19 @@ export function TenantWorkspace() {
         <h1 className="font-heading text-2xl font-semibold text-fg">Tenants</h1>
         <p className="text-sm text-fg-muted">
           Reads and writes go through the generated <code>@poc-plattform-kit/api-client</code>{' '}
-          hooks. Set tenant id to send <code>x-tenant-id</code> on get/update.
+          hooks. Create/update fields use Zod → JSON Forms. Set tenant id to send{' '}
+          <code>x-tenant-id</code> on get/update.
         </p>
       </header>
 
-      <form className="flex flex-col gap-3" onSubmit={onCreate} data-testid="tenant-create-form">
-        <h2 className="font-heading text-lg font-medium text-fg">Create</h2>
-        <label className="flex flex-col gap-1 text-sm text-fg">
-          Name
-          <input
-            className="rounded border border-fg-subtle bg-bg px-3 py-2 text-fg"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            data-testid="tenant-name"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-fg">
-          Slug
-          <input
-            className="rounded border border-fg-subtle bg-bg px-3 py-2 text-fg"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            required
-            data-testid="tenant-slug"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
-          disabled={createMutation.isPending}
-          data-testid="tenant-create"
-        >
-          {createMutation.isPending ? 'Creating…' : 'Create tenant'}
-        </button>
-        {createMutation.isError ? (
-          <p className="text-sm text-fg" data-testid="tenant-create-error">
-            Create failed.
-          </p>
-        ) : null}
-      </form>
+      <CreateTenantForm
+        pending={createMutation.isPending}
+        error={createMutation.isError}
+        onSubmit={onCreate}
+      />
 
       <form className="flex flex-col gap-3" onSubmit={onLoad} data-testid="tenant-load-form">
-        <h2 className="font-heading text-lg font-medium text-fg">Load / update</h2>
+        <h2 className="font-heading text-lg font-medium text-fg">Load</h2>
         <label className="flex flex-col gap-1 text-sm text-fg">
           Tenant id
           <input
@@ -127,36 +89,28 @@ export function TenantWorkspace() {
             data-testid="tenant-id"
           />
         </label>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="submit"
-            className="rounded border border-fg-subtle px-3 py-2 text-sm text-fg disabled:opacity-50"
-            disabled={!tenantId.trim() || findQuery.isFetching}
-            data-testid="tenant-load"
-          >
-            {findQuery.isFetching ? 'Loading…' : 'Load tenant'}
-          </button>
-          <button
-            type="button"
-            className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
-            disabled={!tenantId.trim() || !name.trim() || updateMutation.isPending}
-            onClick={onUpdate}
-            data-testid="tenant-update"
-          >
-            {updateMutation.isPending ? 'Updating…' : 'Update name'}
-          </button>
-        </div>
+        <button
+          type="submit"
+          className="rounded border border-fg-subtle px-3 py-2 text-sm text-fg disabled:opacity-50"
+          disabled={!tenantId.trim() || findQuery.isFetching}
+          data-testid="tenant-load"
+        >
+          {findQuery.isFetching ? 'Loading…' : 'Load tenant'}
+        </button>
         {findQuery.isError ? (
           <p className="text-sm text-fg" data-testid="tenant-load-error">
             Load failed.
           </p>
         ) : null}
-        {updateMutation.isError ? (
-          <p className="text-sm text-fg" data-testid="tenant-update-error">
-            Update failed.
-          </p>
-        ) : null}
       </form>
+
+      <UpdateTenantForm
+        initialName={display?.name ?? ''}
+        pending={updateMutation.isPending}
+        error={updateMutation.isError}
+        disabled={!tenantId.trim() && !display?.id}
+        onSubmit={onUpdate}
+      />
 
       {display ? (
         <section
