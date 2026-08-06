@@ -58,51 +58,57 @@ jobs:
           # Full monorepo node_modules zip was ~746MB → Kudu HTTP 504 on B1.
           # `pnpm deploy --prod` builds a portable API tree (needs
           # inject-workspace-packages=true in .npmrc; CI pins pnpm 9.15 — no --legacy).
-          rm -rf .deploy/api api-deploy.zip
-          pnpm --filter @poc-plattform-kit/api deploy --prod .deploy/api
+          # IMPORTANT: deploy target must be absolute. A relative path is resolved
+          # from apps/api (the filtered package), which produced apps/api/.deploy/api
+          # and left repo-root .deploy/api incomplete → smoke require('@nestjs/common') failed.
+          DEPLOY_DIR="${GITHUB_WORKSPACE}/.deploy/api"
+          FLAT_DIR="${GITHUB_WORKSPACE}/.deploy/api-flat"
+          rm -rf "${GITHUB_WORKSPACE}/.deploy" "${GITHUB_WORKSPACE}/apps/api/.deploy" api-deploy.zip
+          pnpm --filter @poc-plattform-kit/api deploy --prod "$DEPLOY_DIR"
           # dist/ is gitignored; pnpm deploy may omit it — copy explicitly.
-          rm -rf .deploy/api/dist
-          cp -r apps/api/dist .deploy/api/dist
+          rm -rf "$DEPLOY_DIR/dist"
+          cp -r apps/api/dist "$DEPLOY_DIR/dist"
           # Drop non-runtime paths copied from the package (src/tsconfig/Dockerfile).
-          rm -rf .deploy/api/src .deploy/api/Dockerfile \
-            .deploy/api/tsconfig.json .deploy/api/tsconfig.build.json \
-            .deploy/api/nest-cli.json .deploy/api/jest.config.* \
-            .deploy/api/test .deploy/api/coverage
+          rm -rf "$DEPLOY_DIR/src" "$DEPLOY_DIR/Dockerfile" \
+            "$DEPLOY_DIR/tsconfig.json" "$DEPLOY_DIR/tsconfig.build.json" \
+            "$DEPLOY_DIR/nest-cli.json" "$DEPLOY_DIR"/jest.config.* \
+            "$DEPLOY_DIR/test" "$DEPLOY_DIR/coverage"
           # Shrink: drop non-Linux Prisma engines + source maps (App Service is Linux).
-          find .deploy/api/node_modules -type f \( \
+          find "$DEPLOY_DIR/node_modules" -type f \( \
             -name '*darwin*' -o -name '*windows*' -o -name '*.exe' -o \
             -name '*debian-openssl-1.1*' -o -name '*.map' \
           \) -delete
-          find .deploy/api/node_modules -type f -name '*.md' -delete
-          node <<'EOF'
+          find "$DEPLOY_DIR/node_modules" -type f -name '*.md' -delete
+          node <<EOF
           const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('.deploy/api/package.json', 'utf8'));
+          const pkg = JSON.parse(fs.readFileSync('${DEPLOY_DIR}/package.json', 'utf8'));
           pkg.scripts = { start: 'node dist/main.js' };
           delete pkg.devDependencies;
           delete pkg.jest;
-          fs.writeFileSync('.deploy/api/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          fs.writeFileSync('${DEPLOY_DIR}/package.json', JSON.stringify(pkg, null, 2) + '\n');
           EOF
           printf '%s\n' \
             '[config]' \
             'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
-            > .deploy/api/.deployment
+            > "$DEPLOY_DIR/.deployment"
           # App Service OneDeploy re-tars node_modules and extracts to /node_modules.
           # pnpm's symlink/.pnpm layout then fails require() (e.g. missing tslib under
           # @nestjs/common). Dereference symlinks into a real tree before zip.
-          rm -rf .deploy/api-flat
-          mkdir -p .deploy/api-flat
-          rsync -aL .deploy/api/ .deploy/api-flat/
-          test -f .deploy/api-flat/dist/main.js
-          test -d .deploy/api-flat/node_modules/@nestjs/common
-          test -d .deploy/api-flat/node_modules/@poc-plattform-kit/db
-          test -d .deploy/api-flat/node_modules/@poc-plattform-kit/pillar-tenant
+          rm -rf "$FLAT_DIR"
+          mkdir -p "$FLAT_DIR"
+          rsync -aL "$DEPLOY_DIR/" "$FLAT_DIR/"
+          test -f "$FLAT_DIR/dist/main.js"
+          test -d "$FLAT_DIR/node_modules/@nestjs/common"
+          test -d "$FLAT_DIR/node_modules/@poc-plattform-kit/db"
+          test -d "$FLAT_DIR/node_modules/@poc-plattform-kit/pillar-tenant"
           # Smoke: Nest + transitive deps must resolve without pnpm symlinks
           # (App Service extracts node_modules.tar.gz to /node_modules).
-          node -e "process.chdir('.deploy/api-flat'); require('@nestjs/common'); require('tslib'); console.log('hypothesisId=G message=flattened module resolve ok')"
-          (cd .deploy/api-flat && zip -r -q -9 ../../api-deploy.zip .)
+          (cd "$FLAT_DIR" && node -e "require('@nestjs/common'); require('tslib'); console.log('hypothesisId=G message=flattened module resolve ok')")
+          (cd "$FLAT_DIR" && zip -r -q -9 "${GITHUB_WORKSPACE}/api-deploy.zip" .)
           ls -lh api-deploy.zip
           size_bytes=$(stat -c%s api-deploy.zip)
           echo "hypothesisId=H3 zipBytes=$size_bytes"
+          echo "hypothesisId=G deployDir=$DEPLOY_DIR flatDir=$FLAT_DIR"
           # Guard against accidental full-monorepo packaging (746MB failed with 504).
           if [ "$size_bytes" -gt 314572800 ]; then
             echo "::error::Deploy zip is ${size_bytes} bytes (>300MB). Refusing upload — likely to 504 on B1."
