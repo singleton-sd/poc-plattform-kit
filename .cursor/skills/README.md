@@ -7,4 +7,4 @@ pnpm sync:skills
 ```
 
 Source: `C:\00Personal\singleton-sd\ai-plattform\skills`  
-Expected: task-driven-development, task-management, backend, frontend, test-generation, code-review, git-conventions, repo-init, backlog-refinement
+Expected: task-driven-development, task-management, backend, frontend, schema-driven-forms, test-generation, code-review, git-conventions, repo-init, backlog-refinement
