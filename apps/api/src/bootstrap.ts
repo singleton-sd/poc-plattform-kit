@@ -26,6 +26,8 @@ export async function bootstrap() {
 
   app.enableCors({
     origin: parseCorsOrigins(process.env.CORS_ORIGINS),
+    // Required for browser credentialed fetches (api-client defaults to credentials: 'include').
+    credentials: true,
   });
 
   configureSingleSignOnAuth(app.getHttpAdapter().getInstance() as Express);

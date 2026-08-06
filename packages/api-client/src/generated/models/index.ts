@@ -5,9 +5,12 @@
  * poc-plattform-kit API
  */
 
+export * from './checkPermissionDto';
+export * from './checkPermissionResponseDto';
 export * from './createTenantDto';
 export * from './createTenantDtoSettings';
 export * from './healthResponseDto';
+export * from './permissionsHealthResponseDto';
 export * from './tenantResponseDto';
 export * from './tenantResponseDtoSettings';
 export * from './updateTenantDto';
