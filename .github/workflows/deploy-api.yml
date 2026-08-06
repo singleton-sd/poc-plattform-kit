@@ -86,11 +86,20 @@ jobs:
             '[config]' \
             'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
             > .deploy/api/.deployment
-          test -f .deploy/api/dist/main.js
-          test -d .deploy/api/node_modules
-          test -d .deploy/api/node_modules/@poc-plattform-kit/db
-          test -d .deploy/api/node_modules/@poc-plattform-kit/pillar-tenant
-          (cd .deploy/api && zip -r -q -9 ../../api-deploy.zip .)
+          # App Service OneDeploy re-tars node_modules and extracts to /node_modules.
+          # pnpm's symlink/.pnpm layout then fails require() (e.g. missing tslib under
+          # @nestjs/common). Dereference symlinks into a real tree before zip.
+          rm -rf .deploy/api-flat
+          mkdir -p .deploy/api-flat
+          rsync -aL .deploy/api/ .deploy/api-flat/
+          test -f .deploy/api-flat/dist/main.js
+          test -d .deploy/api-flat/node_modules/@nestjs/common
+          test -d .deploy/api-flat/node_modules/@poc-plattform-kit/db
+          test -d .deploy/api-flat/node_modules/@poc-plattform-kit/pillar-tenant
+          # Smoke: Nest + transitive deps must resolve without pnpm symlinks
+          # (App Service extracts node_modules.tar.gz to /node_modules).
+          node -e "process.chdir('.deploy/api-flat'); require('@nestjs/common'); require('tslib'); console.log('hypothesisId=G message=flattened module resolve ok')"
+          (cd .deploy/api-flat && zip -r -q -9 ../../api-deploy.zip .)
           ls -lh api-deploy.zip
           size_bytes=$(stat -c%s api-deploy.zip)
           echo "hypothesisId=H3 zipBytes=$size_bytes"
@@ -99,7 +108,7 @@ jobs:
             echo "::error::Deploy zip is ${size_bytes} bytes (>300MB). Refusing upload — likely to 504 on B1."
             exit 1
           fi
-          echo "hypothesisId=H3 message=staged lean pnpm deploy zip"
+          echo "hypothesisId=H3 message=staged flattened pnpm deploy zip"
 
       - name: Check OIDC Variables
         id: oidc
