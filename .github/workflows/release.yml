@@ -75,21 +75,28 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # release:ci committed + pushed from this working tree
-          REF=$(git rev-parse HEAD)
-          mapfile -t files < <(git show --name-only --pretty=format: "$REF")
-          echo "Release commit $REF files:"
+          # release:ci committed + pushed to origin/main from this working tree.
+          # gh workflow run --ref must be a branch or tag name (not a raw SHA).
+          git fetch origin main
+          HEAD_SHA=$(git rev-parse HEAD)
+          MAIN_SHA=$(git rev-parse origin/main)
+          if [ "$HEAD_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Local HEAD ($HEAD_SHA) does not match origin/main ($MAIN_SHA) after release push."
+            exit 1
+          fi
+          mapfile -t files < <(git show --name-only --pretty=format: "$HEAD_SHA")
+          echo "Release commit $HEAD_SHA on main — files:"
           printf '%s\n' "${files[@]}"
           dispatch=false
           for f in "${files[@]}"; do
             if [ "$f" = 'apps/api/package.json' ]; then
-              echo "Dispatching deploy-api.yml @ $REF"
-              gh workflow run deploy-api.yml --ref "$REF"
+              echo "Dispatching deploy-api.yml @ main ($HEAD_SHA)"
+              gh workflow run deploy-api.yml --ref main
               dispatch=true
             fi
             if [ "$f" = 'apps/web/package.json' ]; then
-              echo "Dispatching deploy-web.yml @ $REF"
-              gh workflow run deploy-web.yml --ref "$REF"
+              echo "Dispatching deploy-web.yml @ main ($HEAD_SHA)"
+              gh workflow run deploy-web.yml --ref main
               dispatch=true
             fi
           done
