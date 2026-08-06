@@ -11,6 +11,7 @@ $Skills = @(
   @{ Src = "operations\task-management"; Name = "task-management" },
   @{ Src = "engineering\backend"; Name = "backend" },
   @{ Src = "engineering\frontend"; Name = "frontend" },
+  @{ Src = "engineering\schema-driven-forms"; Name = "schema-driven-forms" },
   @{ Src = "engineering\test-generation"; Name = "test-generation" },
   @{ Src = "engineering\code-review"; Name = "code-review" },
   @{ Src = "engineering\git-conventions"; Name = "git-conventions" },
