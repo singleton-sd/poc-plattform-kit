@@ -174,6 +174,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - Mutations: same transaction → entity + **local Audit** + **Outbox** (when others must be notified)
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
+- Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) — see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); SWA Free `ssd-pocpk-mkt-dev-ae`
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest → committed `packages/api-client/openapi.json` → Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` — public allowlist in `docs/sso.md`
@@ -210,7 +211,7 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 | --- | --- | --- | --- |
 | `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV | `deploy-web.yml` → SWA production |
 | `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC → KV | `deploy-api.yml` → App Service B1 |
-| `apps/marketing/**` | `ci-web.yml` (marketing filter) | — (no PR preview) | `deploy-marketing.yml` → marketing SWA |
+| `apps/marketing/**` | `ci-web.yml` (marketing filter) | — (no PR preview) | `deploy-marketing.yml` → marketing SWA (`apps/marketing/dist`) |
 | `packages/**` | **both** CI workflows | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 
 - **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
@@ -238,7 +239,8 @@ Read curated skills under `.cursor/skills/` before coding (backend, frontend, te
 pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scripts (`package.json`) fan out with `pnpm -r`, so `pnpm lint`/`test`/`build` results depend on which feature PRs have merged — several `pillars/*` and `apps/web` may still be placeholder `echo` stubs on a given checkout (real coverage today is `apps/api` Jest + `packages/db` `prisma validate`). The update script's `pnpm install` picks up new deps automatically as that work lands. Note: multiple foundation PRs are in flight (tracked in ClickUp) and touch `AGENTS.md`, tooling, `apps/web`, and pillars; expect this repo to evolve and don't treat the current stub state as final.
 
 - **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. No DB/Prisma wiring yet, so it runs without live Azure resources.
-- **Web:** `pnpm dev:web` becomes a Next.js PWA once the web-foundation PR lands; until then it just prints a stub message.
+- **Web:** `pnpm dev:web` — Next.js PWA SPA (see `apps/web`).
+- **Marketing:** `pnpm dev:marketing` — Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (OAuth proxy follow-up). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
 - **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
 - **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.

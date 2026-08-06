@@ -49,7 +49,7 @@
       "name": "marketing",
       "vaultName": "ssd-pocpk-kv-dev-ae",
       "secretName": "swa-marketing-deployment-token",
-      "appLocation": "apps/marketing/public"
+      "appLocation": "apps/marketing/dist"
     }
   ]
 }

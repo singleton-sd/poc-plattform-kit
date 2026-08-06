@@ -232,7 +232,7 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
 | `deploy-api.yml` | same as ci-api, **`push` `main`** (+ `workflow_dispatch`) | Nest → App Service **B1** via OIDC (prebuilt `dist`; Oryx off) |
-| `deploy-marketing.yml` | `apps/marketing/**`, **`push` `main`** | Marketing SWA production via OIDC → KV |
+| `deploy-marketing.yml` | `apps/marketing/**`, **`push` `main`** | Astro build → Marketing SWA production (`apps/marketing/dist`) via OIDC → KV |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
 - **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).

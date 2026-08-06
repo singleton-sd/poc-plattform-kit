@@ -1,131 +1,10 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Privacy Policy - Platform Kit</title>
-    <style>
-      :root {
-        color-scheme: light;
-        --bg: #0f1419;
-        --fg: #f4f1ea;
-        --muted: #a8a29e;
-        --accent: #e8c547;
-        --glow: rgba(232, 197, 71, 0.18);
-        --callout-bg: rgba(232, 197, 71, 0.08);
-        --border: rgba(168, 162, 158, 0.25);
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
-        color: var(--fg);
-        background:
-          radial-gradient(ellipse 80% 60% at 50% -10%, var(--glow), transparent 55%),
-          radial-gradient(circle at 85% 80%, rgba(68, 64, 60, 0.45), transparent 40%), var(--bg);
-      }
-      .page {
-        max-width: 42rem;
-        margin: 0 auto;
-        padding: clamp(2rem, 8vh, 4rem) 1.5rem 4rem;
-      }
-      .back {
-        display: inline-block;
-        margin-bottom: 1.5rem;
-        color: var(--muted);
-        text-decoration: none;
-        font-size: 0.95rem;
-      }
-      .back:hover {
-        color: var(--accent);
-      }
-      .back:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 3px;
-      }
-      h1 {
-        margin: 0 0 0.35rem;
-        font-size: clamp(1.75rem, 4vw, 2.25rem);
-        font-weight: 700;
-        letter-spacing: -0.03em;
-      }
-      .meta {
-        margin: 0 0 1.5rem;
-        color: var(--muted);
-        font-size: 0.95rem;
-      }
-      .callout {
-        margin: 0 0 2rem;
-        padding: 0.9rem 1rem;
-        border: 1px solid var(--border);
-        border-radius: 0.35rem;
-        background: var(--callout-bg);
-        color: var(--muted);
-        font-size: 0.95rem;
-        line-height: 1.5;
-      }
-      h2 {
-        margin: 2rem 0 0.65rem;
-        font-size: 1.15rem;
-        font-weight: 600;
-      }
-      h3 {
-        margin: 1.25rem 0 0.5rem;
-        font-size: 1.02rem;
-        font-weight: 600;
-      }
-      p,
-      li {
-        color: var(--muted);
-        line-height: 1.6;
-        font-size: 1rem;
-      }
-      p {
-        margin: 0 0 0.85rem;
-      }
-      ul {
-        margin: 0 0 0.85rem;
-        padding-left: 1.25rem;
-      }
-      li {
-        margin-bottom: 0.35rem;
-      }
-      a {
-        color: var(--accent);
-      }
-      a:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 0 0 1rem;
-        font-size: 0.92rem;
-      }
-      th,
-      td {
-        border: 1px solid var(--border);
-        padding: 0.55rem 0.65rem;
-        text-align: left;
-        vertical-align: top;
-        color: var(--muted);
-      }
-      th {
-        color: var(--fg);
-        font-weight: 600;
-      }
-    </style>
-  </head>
-  <body>
-    <article class="page">
-      <a class="back" href="/">← Platform Kit</a>
-      <h1>Privacy Policy</h1>
-      <p class="meta">Last updated: 6 August 2026</p>
-      <p class="callout">
+---
+title: Privacy Policy
+description: Platform Kit Privacy Policy
+updated: "6 August 2026"
+---
+
+<p class="callout">
         This is a PoC sample policy adapted from an open MIT SaaS template. It is not
         lawyer-reviewed legal advice and may be replaced with counsel-approved terms later.
       </p>
@@ -306,6 +185,3 @@
         Singleton SD · Platform Kit ·
         <a href="https://plattform-kit.poc.singletonsd.com">plattform-kit.poc.singletonsd.com</a>
       </p>
-    </article>
-  </body>
-</html>

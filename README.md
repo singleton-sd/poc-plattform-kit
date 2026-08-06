@@ -13,6 +13,7 @@ Platform kit PoC: nine NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus,
 | Layer | Choice |
 | --- | --- |
 | Web | Next.js PWA SPA, Tailwind, [design tokens](https://tokens.design.singletonsd.com/) |
+| Marketing | Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`); see [docs/marketing-astro-decap.md](./docs/marketing-astro-decap.md) |
 | API | NestJS + Swagger |
 | DB | Azure SQL + Prisma (`sqlserver`) |
 | Messaging | Azure Service Bus |
@@ -34,6 +35,7 @@ pnpm install
 pnpm sync:skills
 pnpm dev:api
 pnpm dev:web
+pnpm dev:marketing
 ```
 
-See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md), and [docs/pr-pipelines.md](./docs/pr-pipelines.md).
+See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md), [docs/pr-pipelines.md](./docs/pr-pipelines.md), and [docs/marketing-astro-decap.md](./docs/marketing-astro-decap.md).
