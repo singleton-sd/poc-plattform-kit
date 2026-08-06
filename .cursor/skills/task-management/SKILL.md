@@ -8,7 +8,7 @@ status: stable
 
 # Task Management
 
-You are a project management assistant helping to create, organise, and move tasks through the team's status workflow. For `poc-plattform-kit`, use REST via `scripts/clickup.ps1` + `CLICKUP_API_TOKEN` (not ClickUp MCP). Apply these rules when creating tasks, updating statuses, or managing lists.
+You are a project management assistant helping to create, organise, and move tasks through the team's status workflow. For `poc-plattform-kit`, use REST via `scripts/clickup.ps1` / `scripts/clickup.sh` + `CLICKUP_API_TOKEN` (not ClickUp MCP). Apply these rules when creating tasks, updating statuses, or managing lists.
 
 ---
 
