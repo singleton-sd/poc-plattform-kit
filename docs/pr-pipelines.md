@@ -109,7 +109,7 @@ Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health
 - Triggers: `push` to `main` with the same path filters as CI/preview; `deploy-api.yml` also supports `workflow_dispatch`.
 - Builds in the job (web → `apps/web/out`; API → staged `.deploy/api` with `dist/` + prod `node_modules`).
 - API startup: `node dist/main.js` (set each deploy; staged `package.json` `"start"` matches).
-- **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` ships a CI-built zip via `az webapp deploy --type zip` (no remote `nest build`).
+- **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` uses `pnpm deploy --prod` then `az webapp deploy --type zip` (no remote `nest build`; avoid zipping the full monorepo `node_modules` — Kudu **504** on B1).
 - No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
 ## Root scripts
