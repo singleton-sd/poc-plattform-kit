@@ -133,7 +133,7 @@ Agents do **not** get push notifications. Poll GitHub before ClickUp handoffs (`
 
 | Label | Meaning | Cleared when | Agent action |
 | --- | --- | --- | --- |
-| `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Mergeability is known and not `dirty` (never cleared while `unknown`) | Merge/rebase `main`, fix, push, re-check CI → ClickUp **READY FOR AI** |
+| `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Mergeability is known and not `dirty` (never cleared while `unknown`) | `git merge origin/main` → `pnpm resolve:conflicts` → hand-fix leftovers → push → re-check CI → ClickUp **READY FOR AI** |
 | `ci-failed` | A watched PR workflow failed | No `FAILURE` checks remain on the PR after a success | Diagnose via linked run; fix or document human blocker → **READY FOR AI** |
 | `has-feedback` | Bugbot or human (non-author) comment | PR `synchronize` (new push); re-applied if new feedback arrives | Fetch issue + review comments; address or bounce → **READY FOR AI** |
 
@@ -149,3 +149,38 @@ gh api repos/singleton-sd/poc-plattform-kit/pulls/<n>/comments --jq '.[].body'
 Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI/preview workflows (set/clear `ci-failed`), issue/review comments from Bugbot or collaborators. The hygiene workflow needs `checks: read` so the success path can query `statusCheckRollup` (with a check-runs API fallback) when clearing `ci-failed`.
 
 **READY FOR HUMAN** only when mergeable, required checks green, and no open actionable feedback. ClickUp API bridge from Actions is phase 2; v1 uses labels + PR comments.
+
+## Shared hub conflicts (agent playbook)
+
+Do **not** hand-merge `pnpm-lock.yaml` or `infra/main.json`. Prefer merge over rebase. Full hub ownership table: `AGENTS.md` § **Shared hub files**.
+
+```text
+1. git fetch origin main
+2. git merge origin/main
+3. pnpm resolve:conflicts
+4. Hand-fix only paths the script still lists
+5. If you fixed infra/main.bicep:
+   az bicep build -f infra/main.bicep --outfile infra/main.json
+   git add infra/main.json
+   (or re-run pnpm resolve:conflicts)
+6. Commit the merge, push
+7. gh pr checks --watch; confirm mergeable
+```
+
+Script: `scripts/resolve-merge-conflicts.ps1` (`pnpm resolve:conflicts`).
+
+| Path | Mechanical action |
+| --- | --- |
+| `pnpm-lock.yaml` | Take main → `pnpm install` → stage |
+| `**/package.json` | JSON-merge deps/scripts keys from both sides |
+| `infra/main.json` | `az bicep build` after `main.bicep` is clean |
+| `.cursor/skills/**` | Take main (`-SkillsSync` only for skills-sync tickets) |
+| `AGENTS.md`, `SETUP.md`, `docs/pr-pipelines.md`, `infra/README.md` | Take main (`-ForceKeepFeatureDocs` to hand-merge) |
+| `.env.example` | Union unique `KEY=` lines |
+
+Hand-fix leftovers: `infra/main.bicep`, `apps/api/src/main.ts`, `app.module.ts`, `.github/workflows/**`.
+
+| Situation | main | feature |
+| --- | --- | --- |
+| Merging `main` into feature | `--theirs` | `--ours` |
+| Rebasing onto `main` | `--ours` | `--theirs` |

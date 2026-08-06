@@ -66,7 +66,7 @@ After push / PR open:
 
 1. `gh pr checks --watch` (or loop-on-ci) until required checks green (or document skip-only failures).
 2. `gh pr view --json mergeable,mergeStateStatus` → must be `MERGEABLE` / not `DIRTY`.
-3. If dirty: merge/rebase `main` in the worktree, resolve conflicts, push, re-check CI.
+3. If dirty: follow **Shared hub files / conflict playbook** below (`git merge origin/main` then `pnpm resolve:conflicts`), push, re-check CI.
 4. Comment ClickUp with PR URL + CI status.
 5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): comment on ClickUp and stop — do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
 
@@ -110,6 +110,61 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 - Every implementer/reviewer subagent **must** use its own `git worktree` (and branch named per **Branch naming** above).
 - Never share a dirty `main` working tree across parallel agents.
 - Remove the worktree when the run finishes.
+
+## Shared hub files (conflict prevention)
+
+Parallel PRs collide on shared “hub” paths. **Do not touch a hub unless the ticket requires it.** Reviewers bounce incidental hub churn to **READY FOR AI**.
+
+| Hub | Touch only when | Notes |
+| --- | --- | --- |
+| `pnpm-lock.yaml` | Dep change via `pnpm install` | Never hand-edit; never line-merge |
+| Root `package.json` / `pnpm-workspace.yaml` | Root tooling ticket | Prefer deps/scripts in `apps/*`, `packages/*`, `pillars/*` |
+| Workspace `**/package.json` | That package’s ticket | Keep diffs minimal |
+| `.cursor/skills/**` | Dedicated skills-sync chore PR | Do not run `pnpm sync:skills` inside feature PRs |
+| `AGENTS.md`, `SETUP.md`, `docs/pr-pipelines.md`, `infra/README.md` | Docs/ops ticket | Otherwise file a ClickUp follow-up |
+| `infra/main.bicep` + `infra/main.json` | Infra ticket | Always regenerate JSON: `az bicep build -f infra/main.bicep --outfile infra/main.json` and commit both |
+| `apps/api/src/main.ts`, `app.module.ts` | API feature wiring | Minimal diffs (register module/provider only) |
+| `.github/workflows/**` | CI/CD ticket | — |
+| `.env.example` | New env keys required by ticket | Add keys only; no secrets |
+
+High-churn hubs from recent PR history: workflows, `docs/**`, `SETUP.md`, skills, workspace `package.json`, `infra/main.*`, `AGENTS.md`, Nest entrypoints, `pnpm-lock.yaml`.
+
+### Conflict playbook (mandatory on dirty / `needs-rebase`)
+
+Agents must **not** reason through lockfiles or ARM JSON. Prefer **merge** over rebase (simpler ours/theirs):
+
+```text
+1. git fetch origin main
+2. git merge origin/main
+3. pnpm resolve:conflicts
+4. Hand-fix only paths the script lists as remaining
+5. If infra/main.bicep was fixed: az bicep build -f infra/main.bicep --outfile infra/main.json
+   then re-run pnpm resolve:conflicts (or git add infra/main.json)
+6. Commit the merge, push
+7. gh pr checks --watch; confirm mergeable
+```
+
+Script: [`scripts/resolve-merge-conflicts.ps1`](scripts/resolve-merge-conflicts.ps1) (`pnpm resolve:conflicts`).
+
+| Conflict path | Script action |
+| --- | --- |
+| `pnpm-lock.yaml` | Take main’s lock → `pnpm install` → stage |
+| Any `package.json` | JSON-merge `dependencies` / `devDependencies` / `scripts` (both sides’ keys) |
+| `infra/main.json` | After `main.bicep` is clean: `az bicep build` → stage |
+| `.cursor/skills/**` | Take main (use `-SkillsSync` only on skills-sync tickets) |
+| Docs hubs above | Take main (use `-ForceKeepFeatureDocs` to hand-merge) |
+| `.env.example` | Union unique `KEY=` lines |
+
+**Hand-fix leftovers** (script lists these; do not auto-take): `infra/main.bicep`, `apps/api/src/main.ts`, `app.module.ts`, `.github/workflows/**`.
+
+Merge vs rebase checkout map (encoded in the script):
+
+| Situation | main side | feature side |
+| --- | --- | --- |
+| Merging `main` into feature | `--theirs` | `--ours` |
+| Rebasing feature onto `main` | `--ours` | `--theirs` |
+
+Ops tip: merge foundation/hub PRs (CI, hooks, skills sync, SETUP) before long-lived feature PRs when possible.
 
 ## Architecture
 
