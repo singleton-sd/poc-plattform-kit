@@ -2,6 +2,12 @@ import { PermissionsController } from './permissions.controller';
 import { PermissionsService } from './permissions.service';
 
 describe('PermissionsController', () => {
+  it('returns the documented 200 status for authorization checks', () => {
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, PermissionsController.prototype.check)).toBe(
+      HttpStatus.OK,
+    );
+  });
+
   it('delegates authorization checks to the permissions service', async () => {
     const permissions = {
       check: jest.fn().mockResolvedValue({ allowed: false }),
@@ -23,3 +29,5 @@ describe('PermissionsController', () => {
     expect(controller.health()).toEqual({ status: 'ok', pillar: 'permissions' });
   });
 });
+import { HttpStatus } from '@nestjs/common';
+import { HTTP_CODE_METADATA } from '@nestjs/common/constants';

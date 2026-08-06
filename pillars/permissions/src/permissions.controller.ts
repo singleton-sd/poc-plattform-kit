@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -18,6 +18,7 @@ export class PermissionsController {
   constructor(private readonly permissions: PermissionsService) {}
 
   @Post('check')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Check a fine-grained authorization decision',
     description:
