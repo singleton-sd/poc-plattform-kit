@@ -2,7 +2,7 @@
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
 # If those Variables are missing, deploy steps SKIP (job succeeds) so CI is not blocked forever.
-# See SETUP.md / docs/pr-pipelines.md.
+# See SETUP.md / docs/pr-pipelines.md. Touching this file retriggers previews.
 name: Preview Web (SWA)
 
 on:
