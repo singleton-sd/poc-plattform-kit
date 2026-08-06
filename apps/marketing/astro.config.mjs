@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
 
-// https://astro.build/config
+// Astro static marketing site (SWA Free)
 export default defineConfig({
   output: 'static',
   integrations: [
