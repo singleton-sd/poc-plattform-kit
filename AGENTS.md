@@ -12,6 +12,16 @@
 - **Architecture Doc:** https://app.clickup.com/90161394355/docs/2kz0kcnk-1416
 - **Docs folder:** https://app.clickup.com/90161394355/v/f/901610744236/90165834867 (`folder_id=901610744236`)
 - Do **not** create a separate Platform Kit space/list.
+- **Custom fields** on ops list `901616287298` (set via `clickup_update_task` `custom_fields: [{ id, value }]`):
+
+| Field | Type | UUID | Usage |
+| --- | --- | --- | --- |
+| **Claim Token** | text | `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` | Exclusive agent lock: empty = available; non-empty = claimed by that session |
+| **Preview URL** | website/link | `978d43d5-e404-4262-98a2-0193ade4736d` | PR / SWA / API preview link when available |
+| **Token Estimate** | number | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set when the task is planned |
+| **Token Spent** | number | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Set when the task is finished |
+
+- Bootstrap / verify Claim Token: [`scripts/ensure-claim-token-field.ps1`](scripts/ensure-claim-token-field.ps1) (`CLICKUP_API_TOKEN` required).
 
 ## ClickUp statuses
 
@@ -24,11 +34,27 @@
 
 ## AI loop (mandatory)
 
-1. **Implementer** picks tickets in **READY FOR AI** → **assigns itself** to the task (ClickUp MCP `assignees: ["me"]` / resolve current identity) → set **IN PROGRESS** → implement in a **git worktree** → open PR → run **PR hygiene (implementer)** → comment PR URL + CI status on ticket → set **READY FOR REVIEW**. Do not leave assignee empty when claiming.
-2. **Reviewer** (different AI) picks **READY FOR REVIEW** → **assigns itself** as assignee for the review phase (prefer set assignee to the reviewer; if the implementer must stay visible, comment their identity on the ticket before/when reassigning) → review PR in a **worktree** → run **PR hygiene (reviewer)** → post review **comments** → set **READY FOR HUMAN** only if hygiene passes.
+Agents often share one ClickUp identity (`assignees: ["me"]`), so **assignee alone is not a lock**. Use **Claim Token** for exclusive pickup. Claim **before** deep research, planning, or coding (including Plan mode when the user asks to pick up a task).
+
+### Exclusive claim protocol
+
+1. Filter candidates: status **READY FOR AI** (implementer) or **READY FOR REVIEW** (reviewer), **Claim Token** empty/unset, prefer unassigned. Prefer oldest `date_updated` first.
+2. Generate `claimToken` = Cursor chat/session id, or `agent-<uuid>` if unknown.
+3. Single update via `clickup_update_task`: set `custom_fields: [{ id: "50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7", value: claimToken }]`, `assignees: ["me"]`, and for implementers `status: "IN PROGRESS"` (reviewers claim without forcing implementer status; keep **READY FOR REVIEW** unless the review flow requires otherwise). Optionally set **Token Estimate** (`ab22f8d4-df04-435e-849a-9ca6c23489be`) when planning.
+4. Immediately re-fetch the task with `include: ["custom_fields"]`.
+5. If **Claim Token** ≠ `claimToken` → abort (lost race); pick a different ticket.
+6. Only then read description / plan / implement or review.
+7. On handoff clear **Claim Token** (empty value) when moving to **READY FOR REVIEW**, **READY FOR HUMAN**, or bouncing to **READY FOR AI**, so the next agent can claim. Set **Token Spent** (`be7b08e9-b094-4578-bd0a-49f20af85f3c`) when finishing; set **Preview URL** (`978d43d5-e404-4262-98a2-0193ade4736d`) when a preview exists.
+
+**Browse ≠ claim.** Listing or reading tickets for triage must not set Claim Token, assignee, or status.
+
+**Stale claims.** If a ticket is **IN PROGRESS** with a Claim Token older than ~4h and no PR comment, steward/human may clear the token. Agents must not clear another session’s token unless the user asks.
+
+1. **Implementer** runs the exclusive claim protocol on **READY FOR AI** → implement in a **git worktree** → open PR → run **PR hygiene (implementer)** → comment PR URL + CI status on ticket → clear **Claim Token** → set **READY FOR REVIEW**.
+2. **Reviewer** (different AI) runs the exclusive claim protocol on **READY FOR REVIEW** → review PR in a **worktree** → run **PR hygiene (reviewer)** → post review **comments** → clear **Claim Token** → set **READY FOR HUMAN** only if hygiene passes. If the implementer must stay visible, comment their identity on the ticket before/when reassigning.
 3. **Human only** merges the PR and sets **COMPLETE**.
 4. Agents never approve or merge PRs. No self-review / self-approve (GitHub forbids it on solo identity).
-5. **Assignment = claiming work.** Never assign when merely browsing or reading tickets. Only assign when starting implement or review work.
+5. **Claim Token + assignment = claiming work.** Never set Claim Token or assignee when merely browsing. Only claim when starting implement or review work.
 
 ### PR hygiene (mandatory)
 
@@ -52,12 +78,12 @@ After push / PR open:
    - `gh api repos/singleton-sd/poc-plattform-kit/pulls/{n}/comments`
    - `gh api repos/singleton-sd/poc-plattform-kit/issues/{n}/comments`
    - `gh pr view {n} --comments` as fallback
-4. If actionable Bugbot/human feedback, red CI, or conflicts: set ClickUp **READY FOR AI**, comment blockers; do **not** set READY FOR HUMAN.
-5. Only then READY FOR HUMAN.
+4. If actionable Bugbot/human feedback, red CI, or conflicts: clear **Claim Token**, set ClickUp **READY FOR AI**, comment blockers; do **not** set READY FOR HUMAN.
+5. Only then clear **Claim Token** and set READY FOR HUMAN.
 
 #### Steward / after READY FOR HUMAN
 
-When asked to “check open PRs” (or on a scheduled prompt): for each open PR on READY FOR HUMAN tickets, re-check mergeable + checks + new comments since last handoff. On conflict / CI red / new human or Bugbot comments → ClickUp comment + **READY FOR AI** (or keep HUMAN and comment if informational only).
+When asked to “check open PRs” (or on a scheduled prompt): for each open PR on READY FOR HUMAN tickets, re-check mergeable + checks + new comments since last handoff. On conflict / CI red / new human or Bugbot comments → ClickUp comment + clear **Claim Token** + **READY FOR AI** (or keep HUMAN and comment if informational only).
 
 ### Solo-repo merge (locked)
 
@@ -100,7 +126,8 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - **Secrets:** Azure Key Vault only (`ssd-pocpk-kv-dev-ae`)
 - **App configuration:** Azure App Configuration (`ssd-pocpk-appcs-dev-ae`) with **Key Vault references** for secret values
 - **CI/CD:** GitHub Actions **OIDC** → Azure → Key Vault / App Config (no deploy tokens or connection strings in GitHub Secrets)
-- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App F1/Free, SWA Free, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
+- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App **B1** for custom-domain HTTPS, SWA Free ×2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA); new resources use CAF `ssd-pocpk-{resource}-dev-ae` — see `SETUP.md` / `infra/README.md`
+- **Public hostnames (locked):** `plattform-kit.poc.singletonsd.com` (marketing), `app.plattform-kit.poc.singletonsd.com` (web), `api.plattform-kit.poc.singletonsd.com` (API). DNS in AWS Route53 → Azure CNAMEs.
 
 ## Secrets + configuration (locked)
 
@@ -111,7 +138,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 | Secrets (passwords, connection strings, SWA deploy token, ACR admin, Entra secrets, notification provider keys) | Key Vault `ssd-pocpk-kv-dev-ae` |
 | Non-secret app settings + KV references | App Configuration `ssd-pocpk-appcs-dev-ae` |
 
-Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`.
+Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`.
 
 - **Local:** pull from KV / App Config. Never commit secrets. `.env` only as optional gitignored cache.
 - **CI (GitHub Actions):** OIDC login using repo **Variables** `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (IDs only) → `az keyvault secret show` or App Config at job runtime. **Never** put `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, or other secrets in GitHub Secrets.
@@ -125,12 +152,16 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 | Change set | CI | Preview (PR) | Production (`main`) |
 | --- | --- | --- | --- |
 | `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV | `deploy-web.yml` → SWA production |
-| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC → KV | `deploy-api.yml` → App Service F1 |
+| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC → KV | `deploy-api.yml` → App Service B1 |
+| `apps/marketing/**` | `ci-web.yml` (marketing filter) | — (no PR preview) | `deploy-marketing.yml` → marketing SWA |
 | `packages/**` | **both** CI workflows | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 
 - **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
 - ACA auth: OIDC Variables only — `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
-- Local checks: `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`.
+- Local checks: pre-commit runs Prettier + ESLint on **staged files only** via
+  `lint-staged` (never bypass with `--no-verify` for format/lint). Full-repo
+  `pnpm format:check` / `pnpm lint` remain for humans/CI; also `pnpm test`,
+  `pnpm build`. Manual staged check: `pnpm lint:staged`.
 - Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
 - Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.
 

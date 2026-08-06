@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { Express } from 'express';
 import { AppModule } from './app.module';
+import { parseCorsOrigins } from './cors-origins';
 import { configureSingleSignOnAuth } from './single-sign-on/configure-auth';
 
 async function bootstrap() {
@@ -15,6 +16,10 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.enableCors({
+    origin: parseCorsOrigins(process.env.CORS_ORIGINS),
+  });
 
   configureSingleSignOnAuth(app.getHttpAdapter().getInstance() as Express);
 

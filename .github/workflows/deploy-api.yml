@@ -17,6 +17,8 @@ on:
       - 'pillars/**'
       - 'packages/**'
       - '.github/workflows/deploy-api.yml'
+      - 'scripts/stage-api-deploy.sh'
+      - 'scripts/stage-api-deploy-docker.sh'
   workflow_dispatch:
 
 concurrency:
@@ -53,28 +55,7 @@ jobs:
         run: pnpm --filter @poc-plattform-kit/api... run build
 
       - name: Stage deploy zip
-        run: |
-          set -euo pipefail
-          mkdir -p .deploy/api
-          # Avoid `npm install` entirely: it chokes on `workspace:*` protocol in this repo.
-          # Instead, ship the prebuilt pnpm-managed runtime:
-          # - apps/api/dist (compiled)
-          # - node_modules (includes all external + workspace package links)
-          # - packages/ + pillars/ (workspace link targets)
-          cp -r apps/api/dist .deploy/api/dist
-          cp apps/api/package.json .deploy/api/package.json
-          cp -r node_modules .deploy/api/node_modules
-          cp -r packages .deploy/api/packages
-          cp -r pillars .deploy/api/pillars
-          printf '%s\n' \
-            '[config]' \
-            'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
-            > .deploy/api/.deployment
-          test -f .deploy/api/dist/main.js
-          # Single zip for az webapp deploy (faster than folder OneDeploy + Oryx).
-          (cd .deploy/api && zip -r -q ../../api-deploy.zip .)
-          ls -lh api-deploy.zip
-          echo "hypothesisId=H2 message=staged zip with pnpm node_modules + workspace link targets (no npm install)"
+        run: bash ./scripts/stage-api-deploy.sh --kudu
 
       - name: Check OIDC Variables
         id: oidc
@@ -128,7 +109,9 @@ jobs:
         if: steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
-          echo "hypothesisId=F message=starting az webapp deploy --type zip (no management ops)"
+          echo "hypothesisId=F message=starting az webapp deploy --type zip async (no management ops)"
+          # Sync zip deploy on B1 hit HTTP 504 (~5m gateway) on large packages.
+          # Async + long timeout lets Kudu finish extract without gateway kill.
           # --clean true replaces wwwroot; remote build stays off via app settings.
           az webapp deploy \
             --resource-group "$AZURE_RESOURCE_GROUP" \
@@ -136,7 +119,8 @@ jobs:
             --src-path api-deploy.zip \
             --type zip \
             --clean true \
-            --async false \
+            --async true \
+            --timeout 900000 \
             --track-status true
           echo "hypothesisId=F message=az webapp deploy finished"
 

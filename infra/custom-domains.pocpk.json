@@ -1,0 +1,55 @@
+{
+  "$schema": "./custom-domains.schema.json",
+  "comment": "poc-plattform-kit custom domains under singletonsd.com",
+  "zoneDomain": "singletonsd.com",
+  "resourceGroup": "rg-poc-plattform-kit",
+  "ttlSeconds": 300,
+  "records": [
+    {
+      "name": "plattform-kit.poc",
+      "type": "CNAME",
+      "value": "purple-field-05048bf00.7.azurestaticapps.net"
+    },
+    {
+      "name": "app.plattform-kit.poc",
+      "type": "CNAME",
+      "value": "kind-rock-0f409fe00.7.azurestaticapps.net"
+    },
+    {
+      "name": "api.plattform-kit.poc",
+      "type": "CNAME",
+      "value": "pocpk-api-si5fhs6dvxiha.azurewebsites.net"
+    },
+    {
+      "name": "asuid.api.plattform-kit.poc",
+      "type": "TXT",
+      "value": "57b0b845c0477561d54fb97248c6b216a009f60cd996bc5613c024a2ee4e58f9"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "swa",
+      "resourceName": "pocpk-web-si5fhs6dvxiha",
+      "hostname": "app.plattform-kit.poc.singletonsd.com"
+    },
+    {
+      "kind": "swa",
+      "resourceName": "ssd-pocpk-mkt-dev-ae",
+      "hostname": "plattform-kit.poc.singletonsd.com"
+    },
+    {
+      "kind": "appservice",
+      "resourceName": "pocpk-api-si5fhs6dvxiha",
+      "hostname": "api.plattform-kit.poc.singletonsd.com",
+      "managedCert": true
+    }
+  ],
+  "deploys": [
+    {
+      "name": "marketing",
+      "vaultName": "ssd-pocpk-kv-dev-ae",
+      "secretName": "swa-marketing-deployment-token",
+      "appLocation": "apps/marketing/public"
+    }
+  ]
+}
