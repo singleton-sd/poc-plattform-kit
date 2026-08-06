@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# After App Service zip upload: poll /health and fail-fast on container crash logs.
+# After App Service zip upload: poll /health and fail-fast on *hard* container crashes.
 # Avoids `az webapp deploy --track-status true`, which sits forever on
-# "Starting the site…" while Nest crash-loops (exit 1) without surfacing logs.
+# "Starting the site..." while Nest crash-loops (exit 1) without surfacing logs.
+#
+# Important: App Service docker.log keeps echoing LastError: ContainerStartupFailure
+# on later INFO lines ("container is running", warmup probe, etc.). Matching that
+# string alone is a false positive — /health can be fine while logs still mention it.
 #
 # Requires: az CLI logged in, curl, unzip.
 # Env:
@@ -10,6 +14,8 @@
 #   VERIFY_TIMEOUT_SEC    (default 240)  total wait for /health 200
 #   VERIFY_POLL_SEC       (default 15)   health + log poll interval
 #   VERIFY_LOG_EVERY      (default 1)    download logs every N polls (1 = each poll)
+#   VERIFY_CURL_MAX_TIME  (default 45)   curl --max-time for /health (cold start is slow)
+#   VERIFY_LOG_GRACE_SEC  (default 45)   only warn on crashes until this many seconds elapsed
 set -euo pipefail
 
 RG="${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP required}"
@@ -17,6 +23,8 @@ APP="${AZURE_WEBAPP_NAME:?AZURE_WEBAPP_NAME required}"
 TIMEOUT_SEC="${VERIFY_TIMEOUT_SEC:-240}"
 POLL_SEC="${VERIFY_POLL_SEC:-15}"
 LOG_EVERY="${VERIFY_LOG_EVERY:-1}"
+CURL_MAX_TIME="${VERIFY_CURL_MAX_TIME:-45}"
+LOG_GRACE_SEC="${VERIFY_LOG_GRACE_SEC:-45}"
 HEALTH_URL="https://${APP}.azurewebsites.net/health"
 WORKDIR="${RUNNER_TEMP:-/tmp}/api-appservice-verify-$$"
 LOG_ZIP="$WORKDIR/webapp_logs.zip"
@@ -33,9 +41,13 @@ trap cleanup EXIT
 echo "==> Verify App Service startup: $APP (timeout ${TIMEOUT_SEC}s, poll ${POLL_SEC}s)"
 echo "    health: $HEALTH_URL"
 echo "    crash log floor (UTC epoch): $RECENT_FLOOR_EPOCH"
+echo "    log fail-fast grace: ${LOG_GRACE_SEC}s; curl max-time: ${CURL_MAX_TIME}s"
 
-# Patterns that mean the site will not become healthy by waiting longer.
-CRASH_REGEX='Container has finished running with exit code: [1-9]|ContainerStartupFailure|Site startup probe failed|did not initialize yet|Cannot find module |Error: @prisma|\[Nest\].*ERROR'
+# Hard crash only — NOT bare "ContainerStartupFailure" (stale LastError on healthy starts).
+HARD_CRASH_REGEX='Container has finished running with exit code: [1-9]|Failed to start site\.|terminated during site startup|Site startup probe failed|did not initialize yet|Cannot find module |Error: @prisma|\[Nest\].*ERROR|ContainerStream:.*Error:'
+
+# Lines that look scary but are platform noise / mid-warmup (do not fail-fast).
+NOISE_REGEX='LastError: ContainerStartupFailure|Site is blocked due to multiple, consecutive cold start failures|successfully created and is running|WaitingForSiteWarmUpProbeSuccess|Pinging warmup path|InitiatingSiteWarmUpProbe|DetailsLevel: INFO'
 
 line_epoch() {
   local line="$1"
@@ -46,6 +58,19 @@ line_epoch() {
   else
     echo 0
   fi
+}
+
+is_hard_crash_line() {
+  local line="$1"
+  # Drop platform state lines that only echo a previous LastError while starting OK.
+  if echo "$line" | grep -Eiq "$NOISE_REGEX"; then
+    # Still allow Nest/process errors even if the same line mentions LastError.
+    if echo "$line" | grep -Eiq 'ContainerStream:.*Error:|did not initialize yet|Cannot find module |Error: @prisma|\[Nest\].*ERROR|Container has finished running with exit code: [1-9]|Failed to start site\.|terminated during site startup|Site startup probe failed'; then
+      return 0
+    fi
+    return 1
+  fi
+  echo "$line" | grep -Eiq "$HARD_CRASH_REGEX"
 }
 
 extract_crash_excerpt() {
@@ -69,14 +94,17 @@ extract_crash_excerpt() {
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
       epoch="$(line_epoch "$line")"
-      if (( epoch >= RECENT_FLOOR_EPOCH )); then
+      if (( epoch < RECENT_FLOOR_EPOCH )); then
+        continue
+      fi
+      if is_hard_crash_line "$line"; then
         recent_matches+=("$line")
       fi
-    done < <(grep -Ein "$CRASH_REGEX" "$f" || true)
+    done < <(grep -Ein "$HARD_CRASH_REGEX|ContainerStartupFailure" "$f" || true)
 
     if (( ${#recent_matches[@]} > 0 )); then
       hit=0
-      echo "---- crash evidence (recent): $f ----"
+      echo "---- hard crash evidence (recent): $f ----"
       printf '%s\n' "${recent_matches[@]}" | tail -n 40
       echo "---- tail: $f ----"
       tail -n 40 "$f" || true
@@ -113,9 +141,10 @@ last_http="000"
 
 while (( SECONDS < deadline )); do
   attempt=$((attempt + 1))
-  code="$(curl -sS -o "$WORKDIR/health.json" -w '%{http_code}' --max-time 20 "$HEALTH_URL" || true)"
+  elapsed=$((TIMEOUT_SEC - (deadline - SECONDS)))
+  code="$(curl -sS -o "$WORKDIR/health.json" -w '%{http_code}' --max-time "$CURL_MAX_TIME" "$HEALTH_URL" || true)"
   last_http="$code"
-  echo "hypothesisId=A attempt=$attempt http=$code elapsed=$((TIMEOUT_SEC - (deadline - SECONDS)))s"
+  echo "hypothesisId=A attempt=$attempt http=$code elapsed=${elapsed}s"
 
   if [[ "$code" == "200" ]]; then
     cat "$WORKDIR/health.json" || true
@@ -125,14 +154,19 @@ while (( SECONDS < deadline )); do
   fi
 
   if (( attempt % LOG_EVERY == 0 )); then
-    echo "==> Fetching App Service logs (fail-fast on recent container crash)"
+    echo "==> Fetching App Service logs (fail-fast on hard container crash only)"
     if download_logs; then
       if extract_crash_excerpt "$LOG_DIR"; then
-        echo "::error::App Service container crashed during startup (see log excerpt above). Not waiting out the full timeout — Nest/Kudu is crash-looping."
-        echo "hypothesisId=A message=startup crash detected via logs http=$last_http"
-        exit 1
+        if (( elapsed < LOG_GRACE_SEC )); then
+          echo "warning: hard crash signature seen during grace (${elapsed}s < ${LOG_GRACE_SEC}s) — keep polling /health"
+        else
+          echo "::error::App Service container crashed during startup (see log excerpt above). Not waiting out the full timeout — Nest/Kudu is crash-looping."
+          echo "hypothesisId=A message=startup crash detected via logs http=$last_http"
+          exit 1
+        fi
+      else
+        echo "    no hard crash signature in recent logs (http=$code; stale LastError ignored)"
       fi
-      echo "    no recent crash signature in logs yet (http=$code)"
     fi
   fi
 
