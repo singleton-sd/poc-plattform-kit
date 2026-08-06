@@ -46,10 +46,18 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
           }
         },
         "tags": [
           "tenants"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -68,7 +76,8 @@
           {
             "name": "x-tenant-id",
             "in": "header",
-            "required": true,
+            "description": "Legacy/dev tenancy escape when the token has no tenant_id claim. Claim wins when both are present.",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -76,7 +85,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Tenant by id (requires matching x-tenant-id).",
+            "description": "Tenant by id (requires matching tenancy context).",
             "content": {
               "application/json": {
                 "schema": {
@@ -84,10 +93,18 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
           }
         },
         "tags": [
           "tenants"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -104,7 +121,8 @@
           {
             "name": "x-tenant-id",
             "in": "header",
-            "required": true,
+            "description": "Legacy/dev tenancy escape when the token has no tenant_id claim. Claim wins when both are present.",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -122,7 +140,7 @@
         },
         "responses": {
           "200": {
-            "description": "Tenant updated (requires matching x-tenant-id).",
+            "description": "Tenant updated (requires matching tenancy context).",
             "content": {
               "application/json": {
                 "schema": {
@@ -130,10 +148,18 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
           }
         },
         "tags": [
           "tenants"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },

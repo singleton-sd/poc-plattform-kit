@@ -176,7 +176,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest → committed `packages/api-client/openapi.json` → Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
-- AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent)
+- AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` — public allowlist in `docs/sso.md`
 - AuthZ (fine-grained): **Permissions** pillar — `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Azure has no first-class app-data authZ for domain items. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events → Audit.
 - Outbound messaging: **Notifications** pillar — email (Forward Email API), SMS (android-sms-gateway), WhatsApp (Meta Cloud API default; adapter swappable). Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`.
 - **Secrets:** Azure Key Vault only (`ssd-pocpk-kv-dev-ae`)

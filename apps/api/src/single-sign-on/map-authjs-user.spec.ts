@@ -8,6 +8,7 @@ describe('mapAuthJsUserToAuthenticatedUser', () => {
         email: 'agent@example.com',
         name: 'Agent',
         roles: ['support-agent'],
+        tenant_id: 'tenant-1',
       }),
     ).toEqual({
       entraOid: 'sub-1',
@@ -15,6 +16,7 @@ describe('mapAuthJsUserToAuthenticatedUser', () => {
       name: 'Agent',
       role: 'support-agent',
       id: 'sub-1',
+      tenantId: 'tenant-1',
     });
   });
 

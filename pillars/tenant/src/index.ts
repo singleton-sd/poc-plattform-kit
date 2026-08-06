@@ -1,6 +1,8 @@
 export { CreateTenantDto } from './dto/create-tenant.dto';
 export { TenantResponseDto } from './dto/tenant-response.dto';
 export { UpdateTenantDto } from './dto/update-tenant.dto';
+export { ClaimTenancyInterceptor } from './claim-tenancy.interceptor';
+export { Roles, ROLES_KEY } from './roles.decorator';
 export { TenancyContext } from './tenancy.context';
 export type { TenancyStore } from './tenancy.context';
 export { TenancyMiddleware } from './tenancy.middleware';
