@@ -208,10 +208,9 @@ jobs:
             local scope="$2"
             local count
             count=$(az role assignment list \
-              --assignee-object-id "$PRINCIPAL_ID" \
-              --role "$role" \
               --scope "$scope" \
-              --query 'length(@)' -o tsv)
+              --query "[?principalId == '$PRINCIPAL_ID' && roleDefinitionName == '$role'] | length(@)" \
+              -o tsv)
             if [ "$count" = "0" ]; then
               az role assignment create \
                 --assignee-object-id "$PRINCIPAL_ID" \
