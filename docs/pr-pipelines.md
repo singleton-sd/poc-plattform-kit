@@ -6,12 +6,13 @@
 
 | Workflow | Triggers when paths change | Checks |
 | --- | --- | --- |
-| `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test (web + packages) |
+| `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `packages/**` | prettier check, lint, build, test (web + marketing + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `apps/web/**`, `packages/**` on **`main`** | SWA **production** via OIDC → Key Vault |
-| `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** | Nest zip → App Service F1 via OIDC |
+| `deploy-marketing.yml` | `apps/marketing/**` on **`main`** | Marketing SWA **production** via OIDC → Key Vault |
+| `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** | Nest zip → App Service **B1** via OIDC |
 
 **Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. Push to `main` with the same paths also runs the matching **deploy-*** workflow.
 

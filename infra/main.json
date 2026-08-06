@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "15128230687660928747"
+      "templateHash": "9002009693881614430"
     }
   },
   "parameters": {
@@ -41,6 +41,24 @@
         "description": "CAF Key Vault name (org-app-resource-env-region), max 24 chars"
       }
     },
+    "appConfigName": {
+      "type": "string",
+      "defaultValue": "ssd-pocpk-appcs-dev-ae",
+      "metadata": {
+        "description": "CAF App Configuration store name"
+      }
+    },
+    "appConfigSku": {
+      "type": "string",
+      "defaultValue": "Free",
+      "allowedValues": [
+        "Free",
+        "Standard"
+      ],
+      "metadata": {
+        "description": "App Configuration SKU — Free preferred for PoC"
+      }
+    },
     "deployerObjectId": {
       "type": "string",
       "defaultValue": "",
@@ -63,13 +81,13 @@
     },
     "appServiceSku": {
       "type": "string",
-      "defaultValue": "F1",
+      "defaultValue": "B1",
       "allowedValues": [
         "F1",
         "B1"
       ],
       "metadata": {
-        "description": "App Service Plan SKU — prefer F1 Free for PoC; B1 if Nest needs always-on wake"
+        "description": "App Service Plan SKU — B1 required for custom-domain managed TLS + always-on"
       }
     },
     "staticWebAppSku": {
@@ -81,6 +99,13 @@
       ],
       "metadata": {
         "description": "Static Web Apps SKU"
+      }
+    },
+    "marketingSwaName": {
+      "type": "string",
+      "defaultValue": "ssd-pocpk-mkt-dev-ae",
+      "metadata": {
+        "description": "CAF marketing Static Web App name"
       }
     },
     "serviceBusSku": {
@@ -110,6 +135,7 @@
     "webAppName": "[format('{0}-api-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "swaName": "[format('{0}-web-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "serviceBusName": "[format('{0}-sb-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
+    "enableAlwaysOn": "[equals(parameters('appServiceSku'), 'B1')]",
     "eventTopics": [
       "tenant.events",
       "single-sign-on.events",
@@ -123,7 +149,9 @@
     ],
     "jobQueues": [
       "notifications.send"
-    ]
+    ],
+    "roleAppConfigDataReader": "516239f1-63e1-4d78-a4de-a74fb236a071",
+    "roleAppConfigDataOwner": "5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b"
   },
   "resources": [
     {
@@ -209,7 +237,7 @@
         "siteConfig": {
           "linuxFxVersion": "NODE|20-lts",
           "appCommandLine": "node dist/main.js",
-          "alwaysOn": false,
+          "alwaysOn": "[variables('enableAlwaysOn')]",
           "ftpsState": "Disabled",
           "minTlsVersion": "1.2",
           "appSettings": [
@@ -228,11 +256,24 @@
             {
               "name": "AZURE_SERVICEBUS_NAMESPACE",
               "value": "[variables('serviceBusName')]"
+            },
+            {
+              "name": "AZURE_APPCONFIGURATION_ENDPOINT",
+              "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01').endpoint]"
+            },
+            {
+              "name": "CORS_ORIGINS",
+              "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com"
+            },
+            {
+              "name": "NEXT_PUBLIC_API_BASE_URL",
+              "value": "https://api.plattform-kit.poc.singletonsd.com"
             }
           ]
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
         "[resourceId('Microsoft.Web/serverfarms', variables('appPlanName'))]"
       ]
     },
@@ -248,6 +289,20 @@
       "properties": {
         "allowConfigFileUpdates": true,
         "stagingEnvironmentPolicy": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Web/staticSites",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('marketingSwaName')]",
+      "location": "[parameters('swaLocation')]",
+      "sku": {
+        "name": "[parameters('staticWebAppSku')]",
+        "tier": "[parameters('staticWebAppSku')]"
+      },
+      "properties": {
+        "allowConfigFileUpdates": true,
+        "stagingEnvironmentPolicy": "Disabled"
       }
     },
     {
@@ -344,6 +399,67 @@
       "dependsOn": [
         "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
         "[resourceId('Microsoft.Web/sites', variables('webAppName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.AppConfiguration/configurationStores",
+      "apiVersion": "2024-05-01",
+      "name": "[parameters('appConfigName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('appConfigSku')]"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "publicNetworkAccess": "Enabled",
+        "disableLocalAuth": false
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+      "name": "[guid(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), resourceId('Microsoft.Web/sites', variables('webAppName')), variables('roleAppConfigDataReader'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleAppConfigDataReader'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+        "[resourceId('Microsoft.Web/sites', variables('webAppName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), variables('roleKeyVaultSecretsUser'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleKeyVaultSecretsUser'))]",
+        "principalId": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+      ]
+    },
+    {
+      "condition": "[not(empty(parameters('deployerObjectId')))]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
+      "name": "[guid(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), parameters('deployerObjectId'), variables('roleAppConfigDataOwner'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleAppConfigDataOwner'))]",
+        "principalId": "[parameters('deployerObjectId')]",
+        "principalType": "User"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]"
       ]
     },
     {
@@ -540,6 +656,14 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Web/staticSites', variables('swaName')), '2022-09-01').defaultHostname]"
     },
+    "marketingStaticWebAppName": {
+      "type": "string",
+      "value": "[parameters('marketingSwaName')]"
+    },
+    "marketingStaticWebAppHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('marketingSwaName')), '2022-09-01').defaultHostname]"
+    },
     "serviceBusNamespaceName": {
       "type": "string",
       "value": "[variables('serviceBusName')]"
@@ -563,6 +687,18 @@
     "keyVaultUri": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), '2023-07-01').vaultUri]"
+    },
+    "appConfigName": {
+      "type": "string",
+      "value": "[parameters('appConfigName')]"
+    },
+    "appConfigEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01').endpoint]"
+    },
+    "appConfigPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01', 'full').identity.principalId]"
     }
   }
 }

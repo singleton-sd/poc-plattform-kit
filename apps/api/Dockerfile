@@ -25,12 +25,15 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate \
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV HUSKY=0
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 COPY pillars ./pillars
-RUN pnpm install --frozen-lockfile --prod
+# Skip lifecycle scripts (root prepare=husky). husky is a devDependency and is
+# not installed under --prod, so invoking it fails even with HUSKY=0.
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 
