@@ -228,6 +228,31 @@ jobs:
           echo "fqdn=$FQDN" >> "$GITHUB_OUTPUT"
           echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
 
+      - name: Smoke preview /health
+        if: steps.open.outputs.open == 'true'
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          APP_NAME: ${{ steps.acr.outputs.app_name }}
+        run: |
+          set -euo pipefail
+          # Consumption scale-from-zero + image pull can take several minutes.
+          for i in $(seq 1 36); do
+            code=$(curl -sS -o /tmp/aca-health.json -w "%{http_code}" --max-time 25 \
+              "${PREVIEW_URL}/health" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "Preview /health OK (attempt $i)"
+              cat /tmp/aca-health.json || true
+              exit 0
+            fi
+            echo "attempt $i: HTTP $code — waiting for replica"
+            sleep 10
+          done
+          echo "::error::Preview ${PREVIEW_URL}/health did not return 200 within ~6m"
+          az containerapp logs show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" \
+            --type console --tail 80 || true
+          az containerapp replica list -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" -o json || true
+          exit 1
+
       - name: Comment preview URL on PR
         if: steps.open.outputs.open == 'true'
         uses: actions/github-script@v7
