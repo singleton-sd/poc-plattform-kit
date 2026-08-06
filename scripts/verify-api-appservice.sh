@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# After App Service zip upload: poll /health and fail-fast on container crash logs.
+# Avoids `az webapp deploy --track-status true`, which sits forever on
+# "Starting the site…" while Nest crash-loops (exit 1) without surfacing logs.
+#
+# Requires: az CLI logged in, curl, unzip.
+# Env:
+#   AZURE_RESOURCE_GROUP  (required)
+#   AZURE_WEBAPP_NAME     (required)
+#   VERIFY_TIMEOUT_SEC    (default 240)  total wait for /health 200
+#   VERIFY_POLL_SEC       (default 15)   health + log poll interval
+#   VERIFY_LOG_EVERY      (default 1)    download logs every N polls (1 = each poll)
+set -euo pipefail
+
+RG="${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP required}"
+APP="${AZURE_WEBAPP_NAME:?AZURE_WEBAPP_NAME required}"
+TIMEOUT_SEC="${VERIFY_TIMEOUT_SEC:-240}"
+POLL_SEC="${VERIFY_POLL_SEC:-15}"
+LOG_EVERY="${VERIFY_LOG_EVERY:-1}"
+HEALTH_URL="https://${APP}.azurewebsites.net/health"
+WORKDIR="${RUNNER_TEMP:-/tmp}/api-appservice-verify-$$"
+LOG_ZIP="$WORKDIR/webapp_logs.zip"
+LOG_DIR="$WORKDIR/logs"
+# Ignore crash lines older than this (avoids sticky failures from prior deploys).
+# Allow 2 minutes before verify start so logs from the just-finished zip push count.
+START_EPOCH="$(date -u +%s)"
+RECENT_FLOOR_EPOCH=$((START_EPOCH - 120))
+
+mkdir -p "$WORKDIR"
+cleanup() { rm -rf "$WORKDIR"; }
+trap cleanup EXIT
+
+echo "==> Verify App Service startup: $APP (timeout ${TIMEOUT_SEC}s, poll ${POLL_SEC}s)"
+echo "    health: $HEALTH_URL"
+echo "    crash log floor (UTC epoch): $RECENT_FLOOR_EPOCH"
+
+# Patterns that mean the site will not become healthy by waiting longer.
+CRASH_REGEX='Container has finished running with exit code: [1-9]|ContainerStartupFailure|Site startup probe failed|did not initialize yet|Cannot find module |Error: @prisma|\[Nest\].*ERROR'
+
+line_epoch() {
+  local line="$1"
+  local ts=""
+  if [[ "$line" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}) ]]; then
+    ts="${BASH_REMATCH[1]}"
+    date -u -d "$ts" +%s 2>/dev/null || echo 0
+  else
+    echo 0
+  fi
+}
+
+extract_crash_excerpt() {
+  local search_root="$1"
+  local files=()
+  local f
+  while IFS= read -r -d '' f; do
+    files+=("$f")
+    if (( ${#files[@]} >= 30 )); then
+      break
+    fi
+  done < <(find "$search_root" -type f \( \
+    -name '*docker*.log' -o -name '*failure*.log' -o -name '*default_docker.log' -o -name '*.log' \
+  \) -print0 2>/dev/null)
+
+  local hit=1
+  local line epoch
+  for f in "${files[@]+"${files[@]}"}"; do
+    [[ -f "$f" ]] || continue
+    local recent_matches=()
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      epoch="$(line_epoch "$line")"
+      if (( epoch >= RECENT_FLOOR_EPOCH )); then
+        recent_matches+=("$line")
+      fi
+    done < <(grep -Ein "$CRASH_REGEX" "$f" || true)
+
+    if (( ${#recent_matches[@]} > 0 )); then
+      hit=0
+      echo "---- crash evidence (recent): $f ----"
+      printf '%s\n' "${recent_matches[@]}" | tail -n 40
+      echo "---- tail: $f ----"
+      tail -n 40 "$f" || true
+    fi
+  done
+  return "$hit"
+}
+
+download_logs() {
+  rm -rf "$LOG_DIR" "$LOG_ZIP"
+  mkdir -p "$LOG_DIR"
+  # May warn on Linux apps; this resource still returns docker/failure logs.
+  if ! az webapp log download \
+    --resource-group "$RG" \
+    --name "$APP" \
+    --log-file "$LOG_ZIP" \
+    --only-show-errors 2>"$WORKDIR/log-download.err"
+  then
+    echo "warning: az webapp log download failed:"
+    cat "$WORKDIR/log-download.err" || true
+    return 1
+  fi
+  if [[ ! -s "$LOG_ZIP" ]]; then
+    echo "warning: log zip empty"
+    return 1
+  fi
+  unzip -qo "$LOG_ZIP" -d "$LOG_DIR" 2>/dev/null || true
+  return 0
+}
+
+deadline=$((SECONDS + TIMEOUT_SEC))
+attempt=0
+last_http="000"
+
+while (( SECONDS < deadline )); do
+  attempt=$((attempt + 1))
+  code="$(curl -sS -o "$WORKDIR/health.json" -w '%{http_code}' --max-time 20 "$HEALTH_URL" || true)"
+  last_http="$code"
+  echo "hypothesisId=A attempt=$attempt http=$code elapsed=$((TIMEOUT_SEC - (deadline - SECONDS)))s"
+
+  if [[ "$code" == "200" ]]; then
+    cat "$WORKDIR/health.json" || true
+    echo
+    echo "hypothesisId=A message=health ok"
+    exit 0
+  fi
+
+  if (( attempt % LOG_EVERY == 0 )); then
+    echo "==> Fetching App Service logs (fail-fast on recent container crash)"
+    if download_logs; then
+      if extract_crash_excerpt "$LOG_DIR"; then
+        echo "::error::App Service container crashed during startup (see log excerpt above). Not waiting out the full timeout — Nest/Kudu is crash-looping."
+        echo "hypothesisId=A message=startup crash detected via logs http=$last_http"
+        exit 1
+      fi
+      echo "    no recent crash signature in logs yet (http=$code)"
+    fi
+  fi
+
+  sleep "$POLL_SEC"
+done
+
+echo "==> /health did not return 200 within ${TIMEOUT_SEC}s (last http=$last_http)"
+echo "==> Final log pull for diagnosis"
+if download_logs; then
+  extract_crash_excerpt "$LOG_DIR" || true
+  echo "---- log tree (newest first) ----"
+  find "$LOG_DIR" -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 20 | while read -r _ path; do
+    echo "  $path"
+  done || find "$LOG_DIR" -type f | head -n 20
+fi
+echo "::error::App Service /health not 200 after deploy (last http=$last_http). See log excerpt above."
+echo "hypothesisId=A message=health check failed after deploy"
+cat "$WORKDIR/health.json" 2>/dev/null || true
+exit 1
