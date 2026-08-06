@@ -18,10 +18,15 @@ export function mapAuthJsUserToAuthenticatedUser(
       ? user.roles.filter((r): r is string => typeof r === 'string')
       : undefined,
     role: typeof user.role === 'string' ? user.role : undefined,
+    tenant_id: typeof user.tenant_id === 'string' ? user.tenant_id : undefined,
   };
 
   if (!claims.oid && !claims.sub && typeof user.id === 'string') {
     claims.sub = user.id;
+  }
+
+  if (!claims.tenant_id && typeof user.tenantId === 'string') {
+    claims.tenant_id = user.tenantId;
   }
 
   try {
