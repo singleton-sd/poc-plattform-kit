@@ -4,10 +4,7 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
-import {
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -20,218 +17,259 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
+  UseQueryResult,
 } from '@tanstack/react-query';
 
 import type {
   CheckPermissionDto,
   CheckPermissionResponseDto,
-  PermissionsHealthResponseDto
+  PermissionsHealthResponseDto,
 } from '.././models';
 
 import { customFetch } from '../../custom-fetch';
 
-
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Evaluates a subject, action, and resource tuple. The stub fails closed until OpenFGA is configured.
  * @summary Check a fine-grained authorization decision
  */
 export type permissionsControllerCheckResponse200 = {
-  data: CheckPermissionResponseDto
-  status: 200
-}
+  data: CheckPermissionResponseDto;
+  status: 200;
+};
 
 export type permissionsControllerCheckResponse401 = {
-  data: void
-  status: 401
-}
-
-export type permissionsControllerCheckResponseSuccess = (permissionsControllerCheckResponse200) & {
-  headers: Headers;
-};
-export type permissionsControllerCheckResponseError = (permissionsControllerCheckResponse401) & {
-  headers: Headers;
+  data: void;
+  status: 401;
 };
 
-export type permissionsControllerCheckResponse = (permissionsControllerCheckResponseSuccess | permissionsControllerCheckResponseError)
+export type permissionsControllerCheckResponseSuccess = permissionsControllerCheckResponse200 & {
+  headers: Headers;
+};
+export type permissionsControllerCheckResponseError = permissionsControllerCheckResponse401 & {
+  headers: Headers;
+};
+
+export type permissionsControllerCheckResponse =
+  permissionsControllerCheckResponseSuccess | permissionsControllerCheckResponseError;
 
 export const getPermissionsControllerCheckUrl = () => {
+  return `/permissions/check`;
+};
 
-
-
-
-  return `/permissions/check`
-}
-
-export const permissionsControllerCheck = async (checkPermissionDto: CheckPermissionDto, options?: RequestInit): Promise<permissionsControllerCheckResponse> => {
-
-  return customFetch<permissionsControllerCheckResponse>(getPermissionsControllerCheckUrl(),
-  {
+export const permissionsControllerCheck = async (
+  checkPermissionDto: CheckPermissionDto,
+  options?: RequestInit,
+): Promise<permissionsControllerCheckResponse> => {
+  return customFetch<permissionsControllerCheckResponse>(getPermissionsControllerCheckUrl(), {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      checkPermissionDto,)
-  }
-);}
+    body: JSON.stringify(checkPermissionDto),
+  });
+};
 
+export const getPermissionsControllerCheckMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof permissionsControllerCheck>>,
+    TError,
+    { data: CheckPermissionDto },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof permissionsControllerCheck>>,
+  TError,
+  { data: CheckPermissionDto },
+  TContext
+> => {
+  const mutationKey = ['permissionsControllerCheck'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof permissionsControllerCheck>>,
+    { data: CheckPermissionDto }
+  > = (props) => {
+    const { data } = props ?? {};
 
+    return permissionsControllerCheck(data, requestOptions);
+  };
 
-export const getPermissionsControllerCheckMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof permissionsControllerCheck>>, TError,{data: CheckPermissionDto}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof permissionsControllerCheck>>, TError,{data: CheckPermissionDto}, TContext> => {
+  return { mutationFn, ...mutationOptions };
+};
 
-const mutationKey = ['permissionsControllerCheck'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+export type PermissionsControllerCheckMutationResult = NonNullable<
+  Awaited<ReturnType<typeof permissionsControllerCheck>>
+>;
+export type PermissionsControllerCheckMutationBody = CheckPermissionDto;
+export type PermissionsControllerCheckMutationError = void;
 
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof permissionsControllerCheck>>, {data: CheckPermissionDto}> = (props) => {
-          const {data} = props ?? {};
-
-          return  permissionsControllerCheck(data,requestOptions)
-        }
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type PermissionsControllerCheckMutationResult = NonNullable<Awaited<ReturnType<typeof permissionsControllerCheck>>>
-    export type PermissionsControllerCheckMutationBody = CheckPermissionDto
-    export type PermissionsControllerCheckMutationError = void
-
-    /**
+/**
  * @summary Check a fine-grained authorization decision
  */
-export const usePermissionsControllerCheck = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof permissionsControllerCheck>>, TError,{data: CheckPermissionDto}, TContext>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof permissionsControllerCheck>>,
-        TError,
-        {data: CheckPermissionDto},
-        TContext
-      > => {
+export const usePermissionsControllerCheck = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof permissionsControllerCheck>>,
+      TError,
+      { data: CheckPermissionDto },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof permissionsControllerCheck>>,
+  TError,
+  { data: CheckPermissionDto },
+  TContext
+> => {
+  const mutationOptions = getPermissionsControllerCheckMutationOptions(options);
 
-      const mutationOptions = getPermissionsControllerCheckMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * @summary Report Permissions pillar health
  */
 export type permissionsControllerHealthResponse200 = {
-  data: PermissionsHealthResponseDto
-  status: 200
-}
+  data: PermissionsHealthResponseDto;
+  status: 200;
+};
 
-export type permissionsControllerHealthResponseSuccess = (permissionsControllerHealthResponse200) & {
+export type permissionsControllerHealthResponseSuccess = permissionsControllerHealthResponse200 & {
   headers: Headers;
 };
-;
-
-export type permissionsControllerHealthResponse = (permissionsControllerHealthResponseSuccess)
+export type permissionsControllerHealthResponse = permissionsControllerHealthResponseSuccess;
 
 export const getPermissionsControllerHealthUrl = () => {
+  return `/permissions/health`;
+};
 
-
-
-
-  return `/permissions/health`
-}
-
-export const permissionsControllerHealth = async ( options?: RequestInit): Promise<permissionsControllerHealthResponse> => {
-
-  return customFetch<permissionsControllerHealthResponse>(getPermissionsControllerHealthUrl(),
-  {
+export const permissionsControllerHealth = async (
+  options?: RequestInit,
+): Promise<permissionsControllerHealthResponse> => {
+  return customFetch<permissionsControllerHealthResponse>(getPermissionsControllerHealthUrl(), {
     ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
+    method: 'GET',
+  });
+};
 
 export const getPermissionsControllerHealthQueryKey = () => {
-    return [
-    `/permissions/health`
-    ] as const;
-    }
+  return [`/permissions/health`] as const;
+};
 
+export const getPermissionsControllerHealthQueryOptions = <
+  TData = Awaited<ReturnType<typeof permissionsControllerHealth>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-export const getPermissionsControllerHealthQueryOptions = <TData = Awaited<ReturnType<typeof permissionsControllerHealth>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-) => {
+  const queryKey = queryOptions?.queryKey ?? getPermissionsControllerHealthQueryKey();
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof permissionsControllerHealth>>> = ({
+    signal,
+  }) => permissionsControllerHealth({ signal, ...requestOptions });
 
-  const queryKey =  queryOptions?.queryKey ?? getPermissionsControllerHealthQueryKey();
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof permissionsControllerHealth>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
+export type PermissionsControllerHealthQueryResult = NonNullable<
+  Awaited<ReturnType<typeof permissionsControllerHealth>>
+>;
+export type PermissionsControllerHealthQueryError = unknown;
 
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof permissionsControllerHealth>>> = ({ signal }) => permissionsControllerHealth({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type PermissionsControllerHealthQueryResult = NonNullable<Awaited<ReturnType<typeof permissionsControllerHealth>>>
-export type PermissionsControllerHealthQueryError = unknown
-
-
-export function usePermissionsControllerHealth<TData = Awaited<ReturnType<typeof permissionsControllerHealth>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>> & Pick<
+export function usePermissionsControllerHealth<
+  TData = Awaited<ReturnType<typeof permissionsControllerHealth>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof permissionsControllerHealth>>,
           TError,
           Awaited<ReturnType<typeof permissionsControllerHealth>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePermissionsControllerHealth<TData = Awaited<ReturnType<typeof permissionsControllerHealth>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>> & Pick<
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function usePermissionsControllerHealth<
+  TData = Awaited<ReturnType<typeof permissionsControllerHealth>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof permissionsControllerHealth>>,
           TError,
           Awaited<ReturnType<typeof permissionsControllerHealth>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePermissionsControllerHealth<TData = Awaited<ReturnType<typeof permissionsControllerHealth>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function usePermissionsControllerHealth<
+  TData = Awaited<ReturnType<typeof permissionsControllerHealth>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Report Permissions pillar health
  */
 
-export function usePermissionsControllerHealth<TData = Awaited<ReturnType<typeof permissionsControllerHealth>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function usePermissionsControllerHealth<
+  TData = Awaited<ReturnType<typeof permissionsControllerHealth>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof permissionsControllerHealth>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getPermissionsControllerHealthQueryOptions(options);
 
-  const queryOptions = getPermissionsControllerHealthQueryOptions(options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
