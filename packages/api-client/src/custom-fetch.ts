@@ -1,16 +1,23 @@
 import { getApiClientConfig } from './client-config';
 
+export type ApiFetchError = Error & {
+  status: number;
+  data: unknown;
+};
+
 /**
  * Orval mutator (fetch + react-query): prefixes baseUrl, merges headers,
  * returns `{ data, status, headers }` matching Orval's fetch client shape.
+ * Non-2xx responses throw so TanStack Query surfaces error state.
  */
 export async function customFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const { baseUrl, headers: defaultHeaders } = getApiClientConfig();
+  const { baseUrl, headers: defaultHeaders, credentials = 'include' } = getApiClientConfig();
   const resolved = url.startsWith('http')
     ? url
     : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 
   const response = await fetch(resolved, {
+    credentials,
     ...options,
     headers: {
       ...(defaultHeaders ? Object.fromEntries(new Headers(defaultHeaders).entries()) : {}),
@@ -26,6 +33,13 @@ export async function customFetch<T>(url: string, options?: RequestInit): Promis
     } else {
       data = await response.text();
     }
+  }
+
+  if (!response.ok) {
+    const error = new Error(`API request failed (${response.status})`) as ApiFetchError;
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   return {
