@@ -43,7 +43,26 @@ When creating a task:
 1. **Name** — use sentence case, action-first: `Add dark mode toggle`, `Fix null pointer in token parser`
 2. **Description** — include: what needs to be done, why it matters, and any acceptance criteria
 3. **List placement** — ask which list/milestone/sprint to place it in if not specified
-4. **Status** — default to `backlog` unless told otherwise
+4. **Status** — default to backlog / not started: on poc-plattform-kit ops list that is **TO DO** (use a list’s literal `BACKLOG` status when it exists)
+
+### Referring to tickets
+
+When talking about tickets (chat, plans, comments), use the **ticket title**, not the raw id as the primary label. Set the Cursor **chat title** to the ticket title when working that ticket. Ids belong in links and `feature/<id>-<kebab-title>` branches.
+
+### Out of scope follow-ups
+
+When a plan or ticket lists **Out of scope** follow-up work, create missing ClickUp tasks in **TO DO** (backlog) on the correct list. Do not leave human/portal/infra follow-ups as plan-only bullets.
+
+Include a **Pending / out-of-scope backlog** table (Title, Depends on, Token Estimate, Notes), then for each missing row on the Platform Kit ops list (`list_id=901616287298`):
+
+1. Search by title/intent first (no duplicates).
+2. Create with acceptance criteria.
+3. Set **Token Estimate** custom field `ab22f8d4-df04-435e-849a-9ca6c23489be` to the estimate number (string). Leave Token Spent (`be7b08e9-b094-4578-bd0a-49f20af85f3c`), Claim token (`50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`), and Preview URL (`978d43d5-e404-4262-98a2-0193ade4736d`) unset.
+4. Wire `clickup_add_task_dependency` with `type: "waiting_on"` so the new task depends on the parent or named blocker.
+5. Leave **unassigned**; do not set Claim Token (browse/create ≠ claim).
+6. Comment new titles on the parent ticket / plan.
+
+Token Estimate scale: XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000.
 
 When creating multiple tasks at once, create them in parallel and confirm all IDs before moving on.
 

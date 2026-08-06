@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '@poc-plattform-kit/db';
+import { TenantModule } from '@poc-plattform-kit/pillar-tenant';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
 
 const usePrettyTransport =
-  process.env.LOG_PRETTY === 'true' ||
-  process.env.NODE_ENV === 'development';
+  process.env.LOG_PRETTY === 'true' || process.env.NODE_ENV === 'development';
 
 // Pillar modules (Tenant, SingleSignOn, Subscriptions, Contact, Support,
 // Audit, Reporting) register here as their foundation tickets land.
@@ -32,7 +33,9 @@ const usePrettyTransport =
         },
       },
     }),
+    PrismaModule,
     HealthModule,
+    TenantModule,
   ],
 })
 export class AppModule {}

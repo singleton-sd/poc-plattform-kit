@@ -3,8 +3,10 @@
 # SP needs Website Contributor on pocpk-api-si5fhs6dvxiha (plus Key Vault Secrets User for other jobs).
 # If OIDC Variables are missing, deploy SKIP (job succeeds). See SETUP.md / docs/pr-pipelines.md.
 #
-# Important: App setting SCM_DO_BUILD_DURING_DEPLOYMENT=true overrides package `.deployment`
-# and re-runs Oryx `nest build` without tsconfig → zip deploy fails (see #16).
+# Do NOT call `az webapp config appsettings set` / `az webapp config set` in the same job
+# immediately before zip deploy — that restarts the SCM container and aborts OneDeploy
+# ("Deployment has been stopped due to SCM container restart"). Keep Oryx off in Bicep /
+# existing app settings; deploy with `az webapp deploy --type zip` (no remote build).
 name: Deploy API (App Service)
 
 on:
@@ -50,26 +52,69 @@ jobs:
       - name: Build API
         run: pnpm --filter @poc-plattform-kit/api... run build
 
-      - name: Stage deploy package
+      - name: Stage deploy zip
         run: |
           set -euo pipefail
-          mkdir -p .deploy/api
-          # Runtime package only: dist + prod deps. Strip build scripts so a
-          # misconfigured Oryx rebuild cannot run `nest build` without tsconfig.
-          node <<'EOF'
+          # Full monorepo node_modules zip was ~746MB → Kudu HTTP 504 on B1.
+          # `pnpm deploy --prod` builds a portable API tree (needs
+          # inject-workspace-packages=true in .npmrc; CI pins pnpm 9.15 — no --legacy).
+          # IMPORTANT: deploy target must be absolute. A relative path is resolved
+          # from apps/api (the filtered package), which produced apps/api/.deploy/api
+          # and left repo-root .deploy/api incomplete → smoke require('@nestjs/common') failed.
+          DEPLOY_DIR="${GITHUB_WORKSPACE}/.deploy/api"
+          FLAT_DIR="${GITHUB_WORKSPACE}/.deploy/api-flat"
+          rm -rf "${GITHUB_WORKSPACE}/.deploy" "${GITHUB_WORKSPACE}/apps/api/.deploy" api-deploy.zip
+          pnpm --filter @poc-plattform-kit/api deploy --prod "$DEPLOY_DIR"
+          # dist/ is gitignored; pnpm deploy may omit it — copy explicitly.
+          rm -rf "$DEPLOY_DIR/dist"
+          cp -r apps/api/dist "$DEPLOY_DIR/dist"
+          # Drop non-runtime paths copied from the package (src/tsconfig/Dockerfile).
+          rm -rf "$DEPLOY_DIR/src" "$DEPLOY_DIR/Dockerfile" \
+            "$DEPLOY_DIR/tsconfig.json" "$DEPLOY_DIR/tsconfig.build.json" \
+            "$DEPLOY_DIR/nest-cli.json" "$DEPLOY_DIR"/jest.config.* \
+            "$DEPLOY_DIR/test" "$DEPLOY_DIR/coverage"
+          # Shrink: drop non-Linux Prisma engines + source maps (App Service is Linux).
+          find "$DEPLOY_DIR/node_modules" -type f \( \
+            -name '*darwin*' -o -name '*windows*' -o -name '*.exe' -o \
+            -name '*debian-openssl-1.1*' -o -name '*.map' \
+          \) -delete
+          find "$DEPLOY_DIR/node_modules" -type f -name '*.md' -delete
+          node <<EOF
           const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('apps/api/package.json', 'utf8'));
-          delete pkg.devDependencies;
+          const pkg = JSON.parse(fs.readFileSync('${DEPLOY_DIR}/package.json', 'utf8'));
           pkg.scripts = { start: 'node dist/main.js' };
-          fs.writeFileSync('.deploy/api/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          delete pkg.devDependencies;
+          delete pkg.jest;
+          fs.writeFileSync('${DEPLOY_DIR}/package.json', JSON.stringify(pkg, null, 2) + '\n');
           EOF
-          cp -r apps/api/dist .deploy/api/dist
-          npm install --omit=dev --prefix .deploy/api
           printf '%s\n' \
             '[config]' \
             'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
-            > .deploy/api/.deployment
-          test -f .deploy/api/dist/main.js
+            > "$DEPLOY_DIR/.deployment"
+          # App Service OneDeploy re-tars node_modules and extracts to /node_modules.
+          # pnpm's symlink/.pnpm layout then fails require() (e.g. missing tslib under
+          # @nestjs/common). Dereference symlinks into a real tree before zip.
+          rm -rf "$FLAT_DIR"
+          mkdir -p "$FLAT_DIR"
+          rsync -aL "$DEPLOY_DIR/" "$FLAT_DIR/"
+          test -f "$FLAT_DIR/dist/main.js"
+          test -d "$FLAT_DIR/node_modules/@nestjs/common"
+          test -d "$FLAT_DIR/node_modules/@poc-plattform-kit/db"
+          test -d "$FLAT_DIR/node_modules/@poc-plattform-kit/pillar-tenant"
+          # Smoke: Nest + transitive deps must resolve without pnpm symlinks
+          # (App Service extracts node_modules.tar.gz to /node_modules).
+          (cd "$FLAT_DIR" && node -e "require('@nestjs/common'); require('tslib'); console.log('hypothesisId=G message=flattened module resolve ok')")
+          (cd "$FLAT_DIR" && zip -r -q -9 "${GITHUB_WORKSPACE}/api-deploy.zip" .)
+          ls -lh api-deploy.zip
+          size_bytes=$(stat -c%s api-deploy.zip)
+          echo "hypothesisId=H3 zipBytes=$size_bytes"
+          echo "hypothesisId=G deployDir=$DEPLOY_DIR flatDir=$FLAT_DIR"
+          # Guard against accidental full-monorepo packaging (746MB failed with 504).
+          if [ "$size_bytes" -gt 314572800 ]; then
+            echo "::error::Deploy zip is ${size_bytes} bytes (>300MB). Refusing upload — likely to 504 on B1."
+            exit 1
+          fi
+          echo "hypothesisId=H3 message=staged flattened pnpm deploy zip"
 
       - name: Check OIDC Variables
         id: oidc
@@ -90,49 +135,73 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Disable Oryx + set startup
+      - name: Assert Oryx-off settings (read-only)
         if: steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
-          # App setting wins over `.deployment` — must clear before zip deploy.
-          az webapp config appsettings set \
+          # Read-only check — never write app settings here (SCM restart kills zip deploy).
+          scm=$(az webapp config appsettings list \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_WEBAPP_NAME" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false \
-            --output none
-          az webapp config set \
+            --query "[?name=='SCM_DO_BUILD_DURING_DEPLOYMENT'].value | [0]" -o tsv)
+          oryx=$(az webapp config appsettings list \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_WEBAPP_NAME" \
-            --startup-file "node dist/main.js" \
-            --output none
+            --query "[?name=='ENABLE_ORYX_BUILD'].value | [0]" -o tsv)
+          startup=$(az webapp config show \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --query appCommandLine -o tsv)
+          echo "hypothesisId=E SCM_DO_BUILD_DURING_DEPLOYMENT=$scm ENABLE_ORYX_BUILD=$oryx startup=$startup"
+          if [ "$scm" != "false" ] || [ "$oryx" != "false" ]; then
+            echo "::error::Oryx must be disabled on the web app before deploy (Bicep / one-time az). Do not set appsettings in this job."
+            echo "Expected SCM_DO_BUILD_DURING_DEPLOYMENT=false and ENABLE_ORYX_BUILD=false."
+            echo "Got SCM=$scm ENABLE_ORYX_BUILD=$oryx"
+            exit 1
+          fi
+          if [ "$startup" != "node dist/main.js" ]; then
+            echo "::error::Startup command must be 'node dist/main.js' (set once via Bicep / az). Got: $startup"
+            exit 1
+          fi
 
-      - name: Deploy to App Service
+      - name: Deploy zip (az webapp deploy)
         if: steps.oidc.outputs.configured == 'true'
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: .deploy/api
+        run: |
+          set -euo pipefail
+          echo "hypothesisId=F message=starting az webapp deploy --type zip async (no management ops)"
+          # Sync zip deploy on B1 hit HTTP 504 (~5m gateway) on large packages.
+          # Async + long timeout lets Kudu finish extract without gateway kill.
+          # --clean true replaces wwwroot; remote build stays off via app settings.
+          az webapp deploy \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --src-path api-deploy.zip \
+            --type zip \
+            --clean true \
+            --async true \
+            --timeout 900000 \
+            --track-status true
+          echo "hypothesisId=F message=az webapp deploy finished"
 
       - name: Verify /health
         if: steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
-          # F1 Linux zip deploy often needs ~60s before the new worker serves;
-          # cold starts under resource pressure can run longer. Poll ~3 minutes.
           url="https://${AZURE_WEBAPP_NAME}.azurewebsites.net/health"
           deadline=$((SECONDS + 180))
           attempt=0
           while (( SECONDS < deadline )); do
             attempt=$((attempt + 1))
             code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$url" || true)
-            echo "attempt $attempt → HTTP $code"
+            echo "hypothesisId=A attempt=$attempt http=$code"
             if [ "$code" = "200" ]; then
               cat /tmp/health.json
+              echo "hypothesisId=A message=health ok"
               exit 0
             fi
-            sleep 15
+            sleep 10
           done
-          echo "health check failed after deploy (~3m poll window)"
+          echo "hypothesisId=A message=health check failed after deploy"
           cat /tmp/health.json || true
           exit 1
 

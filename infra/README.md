@@ -12,8 +12,8 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Resource | PoC SKU | Notes |
 | --- | --- | --- |
 | Azure SQL DB | **Basic** (5 DTU) | Do not use Hyperscale / high GP |
-| App Service Plan | **F1 Free** | Use **B1** only if Nest needs more than Free allows |
-| Static Web Apps | **Free** | Region often `eastasia` for Free |
+| App Service Plan | **B1** | Required for custom-domain managed TLS + Nest always-on |
+| Static Web Apps | **Free** ×2 | App (`pocpk-web-…`) + marketing (`ssd-pocpk-mkt-dev-ae`); region often `eastasia` for Free |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
 | App Configuration | **Free** | Non-secret config + KV references |
@@ -46,8 +46,9 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Key Vault | `ssd-pocpk-kv-dev-ae` | (CAF) | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | (CAF) | Free |
 | SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `ssd-pocpk-sql-dev-ae` | Basic |
-| App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | F1 Free |
-| Static Web App | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
+| App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | **B1** |
+| Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
+| Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | (CAF) | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `ssd-pocpk-sb-dev-ae` | Standard |
 | Container Apps Env | `ssd-pocpk-cae-dev-ae` | (CAF) | Consumption |
 | Log Analytics | `ssd-pocpk-law-dev-ae` | (CAF) | PerGB2018 (CAE + App Insights) |
@@ -62,7 +63,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `sql-admin-password` | `AZURE_SQL_ADMIN_PASSWORD` |
 | `database-url` | `DATABASE_URL` |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
-| `swa-deployment-token` | (from `az staticwebapp secrets list`) |
+| `swa-deployment-token` | (from `az staticwebapp secrets list` — app SWA) |
+| `swa-marketing-deployment-token` | (from marketing SWA `ssd-pocpk-mkt-dev-ae`) |
 | `acr-admin-username` | (from `az acr credential show`) |
 | `acr-admin-password` | (from `az acr credential show`) |
 | `acr-login-server` | e.g. `ssdpocpkacrdevae.azurecr.io` |
@@ -82,17 +84,32 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 
 | Key | Type |
 | --- | --- |
-| `app:api:baseUrl` | plain |
+| `app:api:baseUrl` | plain — `https://api.plattform-kit.poc.singletonsd.com` |
+| `app:web:baseUrl` | plain — `https://app.plattform-kit.poc.singletonsd.com` |
+| `app:marketing:baseUrl` | plain — `https://plattform-kit.poc.singletonsd.com` |
 | `app:web:swaName` | plain |
+| `app:marketing:swaName` | plain — `ssd-pocpk-mkt-dev-ae` |
+| `app:cors:origins` | plain — comma-separated allowed browser origins |
 | `app:azure:resourceGroup` | plain |
 | `app:azure:keyVaultName` | plain |
 | `secret:database-url` | Key Vault reference |
 | `secret:servicebus-connection-string` | Key Vault reference |
 | `secret:swa-deployment-token` | Key Vault reference |
+| `secret:swa-marketing-deployment-token` | Key Vault reference |
 | `secret:sql-admin-password` | Key Vault reference |
 | `secret:appinsights-connection-string` | Key Vault reference |
 | `app:telemetry:cloudRoleName:api` | plain (`api`) |
 | `app:telemetry:cloudRoleName:web` | plain (`web`) |
+
+### Custom domains
+
+| Hostname | Resource |
+| --- | --- |
+| `plattform-kit.poc.singletonsd.com` | Marketing SWA `ssd-pocpk-mkt-dev-ae` |
+| `app.plattform-kit.poc.singletonsd.com` | App SWA `pocpk-web-si5fhs6dvxiha` |
+| `api.plattform-kit.poc.singletonsd.com` | App Service `pocpk-api-si5fhs6dvxiha` (B1) |
+
+DNS: AWS Route53 CNAMEs (+ Azure validation TXT). See `SETUP.md`.
 
 Also: non-secret notification provider URLs / WhatsApp phone-number-id / Graph API version (plain); notification secrets only as Key Vault references.
 

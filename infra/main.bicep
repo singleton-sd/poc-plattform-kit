@@ -1,8 +1,8 @@
-// poc-plattform-kit — cheapest-that-works PoC Azure resources
+// poc-plattform-kit â€” cheapest-that-works PoC Azure resources
 // Deploy: pwsh ./infra/deploy.ps1
 // Cost: Free/Basic/Standard-min only (see SETUP.md).
 // Secrets: Key Vault only. App config: Azure App Configuration (+ KV refs).
-// Pipelines: GitHub OIDC → Azure → KV/App Config. No secrets in GitHub Secrets.
+// Pipelines: GitHub OIDC â†’ Azure â†’ KV/App Config. No secrets in GitHub Secrets.
 // Existing resources keep legacy uniqueString names; new resources use CAF names.
 
 @description('Azure region for most resources')
@@ -11,7 +11,7 @@ param location string = resourceGroup().location
 @description('Static Web Apps region (Free SKU is region-limited; eastasia works for AU PoCs)')
 param swaLocation string = 'eastasia'
 
-@description('Legacy short prefix for already-deployed resources (do not change — renames recreate)')
+@description('Legacy short prefix for already-deployed resources (do not change â€” renames recreate)')
 @minLength(3)
 @maxLength(20)
 param namePrefix string = 'pocpk'
@@ -24,7 +24,7 @@ param keyVaultName string = 'ssd-pocpk-kv-dev-ae'
 @description('CAF App Configuration store name')
 param appConfigName string = 'ssd-pocpk-appcs-dev-ae'
 
-@description('App Configuration SKU — Free preferred for PoC')
+@description('App Configuration SKU â€” Free preferred for PoC')
 @allowed(['Free', 'Standard'])
 param appConfigSku string = 'Free'
 
@@ -38,13 +38,16 @@ param sqlAdminLogin string = 'pocpkadmin'
 @secure()
 param sqlAdminPassword string
 
-@description('App Service Plan SKU — prefer F1 Free for PoC; B1 if Nest needs always-on wake')
+@description('App Service Plan SKU â€” B1 required for custom-domain managed TLS + always-on')
 @allowed(['F1', 'B1'])
-param appServiceSku string = 'F1'
+param appServiceSku string = 'B1'
 
 @description('Static Web Apps SKU')
 @allowed(['Free', 'Standard'])
 param staticWebAppSku string = 'Free'
+
+@description('CAF marketing Static Web App name')
+param marketingSwaName string = 'ssd-pocpk-mkt-dev-ae'
 
 @description('Service Bus SKU (Standard required for topics; never Premium for PoC)')
 @allowed(['Standard'])
@@ -76,6 +79,7 @@ var webAppName = '${namePrefix}-api-${uniqueSuffix}'
 var swaName = '${namePrefix}-web-${uniqueSuffix}'
 var serviceBusName = '${namePrefix}-sb-${uniqueSuffix}'
 var deployAlerts = !empty(alertEmail)
+var enableAlwaysOn = appServiceSku == 'B1'
 
 // Aligns with packages/events topicForPillar(): `{pillar}.events`
 var eventTopics = [
@@ -116,7 +120,7 @@ resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01-previe
   }
 }
 
-// PoC convenience — replace with your client IP before production use
+// PoC convenience â€” replace with your client IP before production use
 resource sqlFirewallDev 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
   parent: sqlServer
   name: 'AllowAllDevPoC'
@@ -276,9 +280,9 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
     siteConfig: {
       linuxFxVersion: 'NODE|20-lts'
       // Prebuilt zip from deploy-api.yml (CI builds dist). Oryx remote nest
-      // build fails without tsconfig in the package — keep this false.
+      // build fails without tsconfig in the package â€” keep this false.
       appCommandLine: 'node dist/main.js'
-      alwaysOn: false
+      alwaysOn: enableAlwaysOn
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       appSettings: [
@@ -288,6 +292,12 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
+          value: 'false'
+        }
+        {
+          // Belt-and-suspenders with SCM_DO_BUILD_DURING_DEPLOYMENT â€” set in IaC only.
+          // Never flip these in deploy-api.yml right before zip (SCM restart aborts deploy).
+          name: 'ENABLE_ORYX_BUILD'
           value: 'false'
         }
         {
@@ -301,6 +311,14 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsights.properties.ConnectionString
+        }
+        {
+          name: 'CORS_ORIGINS'
+          value: 'https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com'
+        }
+        {
+          name: 'NEXT_PUBLIC_API_BASE_URL'
+          value: 'https://api.plattform-kit.poc.singletonsd.com'
         }
       ]
     }
@@ -317,6 +335,19 @@ resource staticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
   properties: {
     allowConfigFileUpdates: true
     stagingEnvironmentPolicy: 'Enabled'
+  }
+}
+
+resource marketingStaticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
+  name: marketingSwaName
+  location: swaLocation
+  sku: {
+    name: staticWebAppSku
+    tier: staticWebAppSku
+  }
+  properties: {
+    allowConfigFileUpdates: true
+    stagingEnvironmentPolicy: 'Disabled'
   }
 }
 
@@ -406,7 +437,7 @@ resource kvApiSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   }
 }
 
-// CAF App Configuration — non-secret config + Key Vault references for secret values.
+// CAF App Configuration â€” non-secret config + Key Vault references for secret values.
 // Free SKU for PoC. Apps load via managed identity + App Configuration provider.
 resource appConfig 'Microsoft.AppConfiguration/configurationStores@2024-05-01' = {
   name: appConfigName
@@ -468,6 +499,8 @@ output webAppHostname string = webApp.properties.defaultHostName
 output webAppPrincipalId string = webApp.identity.principalId
 output staticWebAppName string = staticWebApp.name
 output staticWebAppHostname string = staticWebApp.properties.defaultHostname
+output marketingStaticWebAppName string = marketingStaticWebApp.name
+output marketingStaticWebAppHostname string = marketingStaticWebApp.properties.defaultHostname
 output serviceBusNamespaceName string = serviceBusNamespace.name
 output serviceBusTopics array = eventTopics
 output appServicePlanName string = appPlan.name

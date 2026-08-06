@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "7964449607622063805"
+      "templateHash": "2007712180366892303"
     }
   },
   "parameters": {
@@ -29,7 +29,7 @@
       "minLength": 3,
       "maxLength": 20,
       "metadata": {
-        "description": "Legacy short prefix for already-deployed resources (do not change — renames recreate)"
+        "description": "Legacy short prefix for already-deployed resources (do not change â€” renames recreate)"
       }
     },
     "keyVaultName": {
@@ -56,7 +56,7 @@
         "Standard"
       ],
       "metadata": {
-        "description": "App Configuration SKU — Free preferred for PoC"
+        "description": "App Configuration SKU â€” Free preferred for PoC"
       }
     },
     "deployerObjectId": {
@@ -81,13 +81,13 @@
     },
     "appServiceSku": {
       "type": "string",
-      "defaultValue": "F1",
+      "defaultValue": "B1",
       "allowedValues": [
         "F1",
         "B1"
       ],
       "metadata": {
-        "description": "App Service Plan SKU — prefer F1 Free for PoC; B1 if Nest needs always-on wake"
+        "description": "App Service Plan SKU â€” B1 required for custom-domain managed TLS + always-on"
       }
     },
     "staticWebAppSku": {
@@ -99,6 +99,13 @@
       ],
       "metadata": {
         "description": "Static Web Apps SKU"
+      }
+    },
+    "marketingSwaName": {
+      "type": "string",
+      "defaultValue": "ssd-pocpk-mkt-dev-ae",
+      "metadata": {
+        "description": "CAF marketing Static Web App name"
       }
     },
     "serviceBusSku": {
@@ -157,6 +164,7 @@
     "swaName": "[format('{0}-web-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "serviceBusName": "[format('{0}-sb-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "deployAlerts": "[not(empty(parameters('alertEmail')))]",
+    "enableAlwaysOn": "[equals(parameters('appServiceSku'), 'B1')]",
     "eventTopics": [
       "tenant.events",
       "single-sign-on.events",
@@ -387,7 +395,7 @@
         "siteConfig": {
           "linuxFxVersion": "NODE|20-lts",
           "appCommandLine": "node dist/main.js",
-          "alwaysOn": false,
+          "alwaysOn": "[variables('enableAlwaysOn')]",
           "ftpsState": "Disabled",
           "minTlsVersion": "1.2",
           "appSettings": [
@@ -397,6 +405,10 @@
             },
             {
               "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+              "value": "false"
+            },
+            {
+              "name": "ENABLE_ORYX_BUILD",
               "value": "false"
             },
             {
@@ -410,6 +422,14 @@
             {
               "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
               "value": "[reference(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName')), '2020-02-02').ConnectionString]"
+            },
+            {
+              "name": "CORS_ORIGINS",
+              "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com"
+            },
+            {
+              "name": "NEXT_PUBLIC_API_BASE_URL",
+              "value": "https://api.plattform-kit.poc.singletonsd.com"
             }
           ]
         }
@@ -432,6 +452,20 @@
       "properties": {
         "allowConfigFileUpdates": true,
         "stagingEnvironmentPolicy": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Web/staticSites",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('marketingSwaName')]",
+      "location": "[parameters('swaLocation')]",
+      "sku": {
+        "name": "[parameters('staticWebAppSku')]",
+        "tier": "[parameters('staticWebAppSku')]"
+      },
+      "properties": {
+        "allowConfigFileUpdates": true,
+        "stagingEnvironmentPolicy": "Disabled"
       }
     },
     {
@@ -784,6 +818,14 @@
     "staticWebAppHostname": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Web/staticSites', variables('swaName')), '2022-09-01').defaultHostname]"
+    },
+    "marketingStaticWebAppName": {
+      "type": "string",
+      "value": "[parameters('marketingSwaName')]"
+    },
+    "marketingStaticWebAppHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('marketingSwaName')), '2022-09-01').defaultHostname]"
     },
     "serviceBusNamespaceName": {
       "type": "string",
