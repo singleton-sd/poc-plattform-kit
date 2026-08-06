@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "clickup": {
+      "command": "npx",
+      "args": ["-y", "@bcharleson/clickup-cli", "mcp"],
+      "env": {
+        "CLICKUP_API_TOKEN": "${env:CLICKUP_API_TOKEN}",
+        "CLICKUP_TEAM_ID": "90161394355"
+      }
+    },
+    "stitch": {
+      "url": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "${env:GOOGLE_STITCH_TOKEN}"
+      }
+    }
+  }
+}
