@@ -2,14 +2,16 @@
 # Exposes PORT (default 3001). Build from repo root:
 #   docker build -f apps/api/Dockerfile -t api-preview .
 #
-# Multi-stage pnpm monorepo build. Keep the final image small (Alpine + prod deps).
+# Runtime packaging mirrors deploy-api.yml: `pnpm deploy --prod` so workspace
+# packages (db/pillars) and generated Prisma client land in the image. Nest must
+# emit flat `dist/main.js` (see tsconfig.build.json rootDir + cleared paths).
 
 FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 COPY pillars ./pillars
@@ -18,26 +20,20 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY apps/api ./apps/api
 RUN pnpm --filter @poc-plattform-kit/api build
+# Absolute deploy target (relative paths resolve under apps/api and mis-stage).
+RUN pnpm --filter @poc-plattform-kit/api deploy --prod /out \
+  && rm -rf /out/dist \
+  && cp -r /app/apps/api/dist /out/dist \
+  && test -f /out/dist/main.js
 
 FROM node:20-alpine AS runner
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate \
-  && addgroup -S app && adduser -S app -G app
+RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
-ENV HUSKY=0
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY apps/api/package.json ./apps/api/
-COPY packages ./packages
-COPY pillars ./pillars
-# Skip lifecycle scripts (root prepare=husky). husky is a devDependency and is
-# not installed under --prod, so invoking it fails even with HUSKY=0.
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts
-
-COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /out ./
 
 USER app
 EXPOSE 3001
-WORKDIR /app/apps/api
 CMD ["node", "dist/main.js"]
