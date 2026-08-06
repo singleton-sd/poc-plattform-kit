@@ -73,6 +73,30 @@
         outline: 2px solid var(--accent);
         outline-offset: 3px;
       }
+      footer {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 0 1.5rem 2.5rem;
+        text-align: center;
+      }
+      footer nav {
+        display: flex;
+        justify-content: center;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+      }
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.95rem;
+      }
+      footer a:hover {
+        color: var(--accent);
+      }
+      footer a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
     </style>
   </head>
   <body>
@@ -85,5 +109,11 @@
       </p>
       <a class="cta" href="https://app.plattform-kit.poc.singletonsd.com">Open the app</a>
     </main>
+    <footer>
+      <nav aria-label="Legal">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </footer>
   </body>
 </html>
