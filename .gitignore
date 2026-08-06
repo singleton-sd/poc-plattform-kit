@@ -19,3 +19,4 @@ coverage/
 .deploy/
 api-deploy.zip
 api-deploy.tar
+.pnpm-store/
