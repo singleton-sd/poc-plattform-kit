@@ -49,9 +49,10 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## 3. Agent automations
 
-- [ ] Implementer: pick tickets in **READY FOR AI** → **assign self** (`assignees: ["me"]`) → **IN PROGRESS** → PR → **PR hygiene** (CI + mergeable) → **READY FOR REVIEW**
-- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → **assign self** for the review phase (comment prior implementer if they must stay visible) → post review **comments** → hygiene (mergeable + CI + Bugbot/human feedback) → **READY FOR HUMAN**
-- [ ] Assignment only when claiming work — not when browsing
+- [x] Agents use REST [`scripts/clickup.ps1`](scripts/clickup.ps1) + `CLICKUP_API_TOKEN` (not ClickUp MCP for routine ops)
+- [ ] Implementer: pick tickets in **READY FOR AI** → claim via `scripts/clickup.ps1 claim` → **IN PROGRESS** → PR → **PR hygiene** (CI + mergeable) → **READY FOR REVIEW**
+- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → claim via REST → hygiene (mergeable + CI + Bugbot/human feedback) → **READY FOR HUMAN**
+- [ ] Assignment / Claim Token only when claiming work — not when browsing
 - [ ] Humans only: merge PR when **READY FOR HUMAN**, then set **COMPLETE**
 - [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`) from `.github/workflows/pr-hygiene.yml` — see `docs/pr-pipelines.md` / `AGENTS.md`
 

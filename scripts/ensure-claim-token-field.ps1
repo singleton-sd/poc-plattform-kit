@@ -7,9 +7,14 @@ $ErrorActionPreference = 'Stop'
 $listId = '901616287298'
 $fieldName = 'Claim Token'
 $token = $env:CLICKUP_API_TOKEN
-
 if (-not $token) {
-  Write-Error 'Set CLICKUP_API_TOKEN to a ClickUp personal API token, then re-run.'
+  $token = [Environment]::GetEnvironmentVariable('CLICKUP_API_TOKEN', 'User')
+}
+if (-not $token) {
+  $token = [Environment]::GetEnvironmentVariable('CLICKUP_API_TOKEN', 'Machine')
+}
+if (-not $token) {
+  Write-Error 'Set CLICKUP_API_TOKEN (Process/User/Machine) to a ClickUp personal API token, then re-run.'
 }
 
 $headers = @{
