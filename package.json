@@ -6,17 +6,25 @@
   "scripts": {
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint && pnpm exec eslint .",
+    "lint:staged": "lint-staged",
     "test": "pnpm -r run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev:web": "pnpm --filter @poc-plattform-kit/web dev",
     "dev:api": "pnpm --filter @poc-plattform-kit/api start:dev",
-    "sync:skills": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-skills.ps1"
+    "sync:skills": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-skills.ps1",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown",
+    "*.{js,mjs,cjs,ts,tsx}": "eslint --fix --max-warnings=0"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
     "eslint": "^9.22.0",
     "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.5.3"
   },
   "engines": {
