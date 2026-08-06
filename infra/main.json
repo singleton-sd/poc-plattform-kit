@@ -262,6 +262,10 @@
               "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01').endpoint]"
             },
             {
+              "name": "DATABASE_URL",
+              "value": "[format('@Microsoft.KeyVault(SecretUri=https://{0}.vault.azure.net/secrets/database-url/)', parameters('keyVaultName'))]"
+            },
+            {
               "name": "CORS_ORIGINS",
               "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com"
             },

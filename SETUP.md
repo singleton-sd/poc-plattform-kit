@@ -185,7 +185,8 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 - [ ] Entra app registration (SPA + API) — secrets in KV; config keys in App Config
 - [ ] API `/health` on custom domain returns 200 (currently 503 — app runtime, not DNS/TLS)
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
-- [ ] Wire App Service / SWA / ACA to App Configuration provider + managed identity
+- [x] App Service `DATABASE_URL` via `@Microsoft.KeyVault(SecretUri=…/database-url/)` + MI (Bicep; not in `deploy-api.yml`)
+- [ ] Nest / SWA / ACA: App Configuration provider bootstrap (follow-up — map `app:*` / `secret:*`)
 - [x] Confirm OIDC app has **Contributor** on RG + **Key Vault Secrets User** (ACR push uses KV `acr-admin-*`, not AcrPush)
 - [x] Grant **Website Contributor** on `pocpk-api-si5fhs6dvxiha` to `ssd-pocpk-gha-oidc-dev` (needed once for `deploy-api.yml`)
 - [ ] ~~S1 slots for API PR previews~~ — **deprecated**; use Container Apps Path B
