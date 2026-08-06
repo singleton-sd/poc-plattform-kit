@@ -70,6 +70,7 @@ Avoid a new schema per feature unless packaging/ownership truly needs it.
 
 - Prisma only — no parallel hand-script track unless deliberately documented.
 - Schema in git; same path for local/dev/stage/prod.
+- Apply to Azure SQL with `pwsh ./infra/migrate-db.ps1` (OIDC/CLI → Key Vault `database-url` → `prisma migrate deploy`). Do not use `migrate dev` against shared Azure SQL.
 
 ### Data classification
 
