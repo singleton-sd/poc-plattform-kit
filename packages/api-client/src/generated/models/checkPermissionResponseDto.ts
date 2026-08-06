@@ -6,4 +6,7 @@
  * OpenAPI spec version: 0.5.0
  */
 
-export type UpdateTenantDtoSettings = { [key: string]: unknown };
+export interface CheckPermissionResponseDto {
+  /** Whether the subject may perform the action on the resource. */
+  allowed: boolean;
+}

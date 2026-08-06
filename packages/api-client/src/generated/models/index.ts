@@ -3,12 +3,15 @@
  * Do not edit manually.
  * Platform Kit API
  * poc-plattform-kit API
- * OpenAPI spec version: 0.3.0
+ * OpenAPI spec version: 0.5.0
  */
 
+export * from './checkPermissionDto';
+export * from './checkPermissionResponseDto';
 export * from './createTenantDto';
 export * from './createTenantDtoSettings';
 export * from './healthResponseDto';
+export * from './permissionsHealthResponseDto';
 export * from './tenantResponseDto';
 export * from './tenantResponseDtoSettings';
 export * from './updateTenantDto';
