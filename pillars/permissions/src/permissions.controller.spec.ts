@@ -1,3 +1,5 @@
+import { HttpStatus } from '@nestjs/common';
+import { HTTP_CODE_METADATA } from '@nestjs/common/constants';
 import { PermissionsController } from './permissions.controller';
 import { PermissionsService } from './permissions.service';
 
@@ -29,5 +31,3 @@ describe('PermissionsController', () => {
     expect(controller.health()).toEqual({ status: 'ok', pillar: 'permissions' });
   });
 });
-import { HttpStatus } from '@nestjs/common';
-import { HTTP_CODE_METADATA } from '@nestjs/common/constants';
