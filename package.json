@@ -14,7 +14,7 @@
     "dev:api": "pnpm --filter @poc-plattform-kit/api start:dev",
     "dev:marketing": "pnpm --filter @poc-plattform-kit/marketing dev",
     "sync:skills": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-skills.ps1",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*": "prettier --write --ignore-unknown",
