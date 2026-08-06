@@ -1,3 +1,11 @@
+jest.mock('@auth/express/providers/microsoft-entra-id', () => ({
+  __esModule: true,
+  default: jest.fn(() => ({
+    id: 'microsoft-entra-id',
+    name: 'Microsoft Entra ID',
+  })),
+}));
+
 import { buildAuthConfig, extractEntraSessionFields } from './auth.config';
 
 describe('extractEntraSessionFields', () => {
@@ -54,7 +62,6 @@ describe('buildAuthConfig', () => {
         tenant_id: 'tenant-1',
       },
       account: null,
-      // Auth.js callback typing is loose across versions
     } as never);
 
     expect(token).toMatchObject({
