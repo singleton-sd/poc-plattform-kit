@@ -130,7 +130,10 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 
 - **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
 - ACA auth: OIDC Variables only — `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
-- Local checks: `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`.
+- Local checks: pre-commit runs Prettier + ESLint on **staged files only** via
+  `lint-staged` (never bypass with `--no-verify` for format/lint). Full-repo
+  `pnpm format:check` / `pnpm lint` remain for humans/CI; also `pnpm test`,
+  `pnpm build`. Manual staged check: `pnpm lint:staged`.
 - Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
 - Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.
 

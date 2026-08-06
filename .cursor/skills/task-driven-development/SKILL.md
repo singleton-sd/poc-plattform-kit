@@ -76,6 +76,10 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
    - Do not commit unless the user explicitly asks.
    - Provide a review-ready commit message after staging.
    - Use one ticket per commit message.
+   - Format/lint gate is **staged files only**: rely on the husky pre-commit
+     hook (`lint-staged`), or run `pnpm lint:staged` manually before commit.
+     Do not default to full-repo `pnpm format:check` / `pnpm lint` as the
+     agent gate, and never bypass hooks with `--no-verify` for format/lint.
 
 5. Commit type selection:
    - Use `feat` for new user-facing behavior, scripts, workflows, or capabilities.
