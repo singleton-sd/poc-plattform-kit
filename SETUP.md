@@ -176,6 +176,7 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 - [x] GitHub OIDC app + federated credentials + Variables set; **no** deploy tokens in GitHub Secrets
 - [x] Local `.env` written by deploy (gitignored); `.env.example` has placeholders
 - [x] `deploy-aca-preview.ps1` — CAE + ACR Basic + LAW + KV ACR secrets
+- [x] ClickUp ops list custom fields: **Claim Token** (`50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`), **Preview URL**, **Token Estimate**, **Token Spent** — UUIDs cached in `AGENTS.md`
 - [x] App Service plan **B1** + always-on (custom-domain HTTPS ready)
 - [x] Marketing SWA `ssd-pocpk-mkt-dev-ae` provisioned; App Config public URL keys seeded
 - [x] Route53 CNAMEs/TXT (AWS) — applied; re-run via `scripts/apply-route53-dns.ps1`
