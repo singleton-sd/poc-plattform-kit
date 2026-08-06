@@ -7,6 +7,11 @@ export interface EntraClaims {
   roles?: string[];
   /** App roles sometimes appear as a single string. */
   role?: string;
+  /**
+   * Platform Kit tenant id (custom optional claim).
+   * Not Entra directory `tid` — that is the Azure AD tenant, not a SaaS tenant row.
+   */
+  tenant_id?: string;
 }
 
 export interface AuthenticatedUser {
@@ -16,6 +21,8 @@ export interface AuthenticatedUser {
   role: string | null;
   /** Local User.id when known; falls back to entraOid for claims-only sessions. */
   id: string;
+  /** Platform tenant id from token/session when present. */
+  tenantId: string | null;
 }
 
 /**
@@ -36,12 +43,18 @@ export function mapEntraClaims(claims: EntraClaims, localUserId?: string): Authe
   const roleFromArray =
     Array.isArray(claims.roles) && claims.roles.length > 0 ? claims.roles[0] : null;
 
+  const tenantId =
+    typeof claims.tenant_id === 'string' && claims.tenant_id.trim()
+      ? claims.tenant_id.trim()
+      : null;
+
   return {
     entraOid,
     email,
     name: claims.name ?? null,
     role: claims.role ?? roleFromArray,
     id: localUserId ?? entraOid,
+    tenantId,
   };
 }
 

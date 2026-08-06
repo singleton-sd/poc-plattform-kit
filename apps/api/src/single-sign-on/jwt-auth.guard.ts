@@ -1,5 +1,8 @@
 ﻿import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import { IS_PUBLIC_KEY } from './public.decorator';
+import { isPublicPath } from './public-paths';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -13,9 +16,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
 @Injectable()
 export class SessionOrJwtAuthGuard implements CanActivate {
-  constructor(private readonly jwtGuard: JwtAuthGuard) {}
+  constructor(
+    private readonly jwtGuard: JwtAuthGuard,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (this.isPublic(context)) {
+      return true;
+    }
+
     const req = context.switchToHttp().getRequest<{
       headers: { authorization?: string };
       user?: unknown;
@@ -34,5 +44,23 @@ export class SessionOrJwtAuthGuard implements CanActivate {
     }
 
     throw new UnauthorizedException('Unauthorized');
+  }
+
+  private isPublic(context: ExecutionContext): boolean {
+    const metaPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (metaPublic) {
+      return true;
+    }
+
+    const req = context.switchToHttp().getRequest<{
+      originalUrl?: string;
+      url?: string;
+      path?: string;
+    }>();
+    const path = req.originalUrl ?? req.url ?? req.path ?? '';
+    return isPublicPath(path);
   }
 }

@@ -10,14 +10,19 @@ Consumes: —
 
 Other pillars inject `TenancyContext` from `@poc-plattform-kit/pillar-tenant` — do **not** join Tenant tables cross-pillar.
 
-Until SingleSignOn lands, request tenant id is resolved from the `x-tenant-id` header (middleware). SSO will augment/replace this with JWT claims.
+Request tenant id resolution order:
 
-## HTTP stub
+1. Auth.js session / Entra JWT optional claim `tenant_id` (`AuthenticatedUser.tenantId`)
+2. Legacy/dev `x-tenant-id` header when the claim is absent
+
+`ClaimTenancyInterceptor` ensures Bearer JWT claims override a forged header after auth.
+
+## HTTP
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| `POST` | `/tenants` | Bootstrap create (no tenant header required) |
-| `GET` | `/tenants/:id` | Requires `x-tenant-id` matching `:id` |
-| `PATCH` | `/tenants/:id` | Requires `x-tenant-id` matching `:id` |
+| `POST` | `/tenants` | AuthN + `@Roles('support-agent'\|'tenant-admin')` |
+| `GET` | `/tenants/:id` | AuthN; tenancy context must match `:id` |
+| `PATCH` | `/tenants/:id` | AuthN + `@Roles('tenant-admin')`; tenancy must match `:id` |
 
 Mutations write **Tenant** + **TenantAudit** + **TenantOutbox** in one transaction.
