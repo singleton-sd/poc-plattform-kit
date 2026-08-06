@@ -1,17 +1,38 @@
-import { CSRF_URL, ENTRA_PROVIDER_ID, SIGN_OUT_URL, signInUrl, signOut } from './auth-urls';
+import { csrfUrl, ENTRA_PROVIDER_ID, signInUrl, signOut, signOutUrl } from './auth-urls';
 
 describe('auth-urls', () => {
-  it('builds the Entra Auth.js sign-in URL with callbackUrl', () => {
+  const previousBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  afterEach(() => {
+    if (previousBase === undefined) {
+      delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_BASE_URL = previousBase;
+    }
+  });
+
+  it('builds the Entra Auth.js sign-in URL with callbackUrl (same-origin)', () => {
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
     expect(signInUrl('/support')).toBe(
       `/api/auth/signin/${ENTRA_PROVIDER_ID}?callbackUrl=${encodeURIComponent('/support')}`,
     );
   });
 
-  it('defaults callbackUrl to /', () => {
-    expect(signInUrl()).toBe(`/api/auth/signin/${ENTRA_PROVIDER_ID}?callbackUrl=%2F`);
+  it('prefixes sign-in with NEXT_PUBLIC_API_BASE_URL', () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    expect(signInUrl('https://app.example.test/')).toBe(
+      `https://api.example.test/api/auth/signin/${ENTRA_PROVIDER_ID}?callbackUrl=${encodeURIComponent('https://app.example.test/')}`,
+    );
   });
 
-  it('signs out with CSRF then POST', async () => {
+  it('defaults callbackUrl to the current origin when window is available', () => {
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    const expected = encodeURIComponent(`${window.location.origin}/`);
+    expect(signInUrl()).toBe(`/api/auth/signin/${ENTRA_PROVIDER_ID}?callbackUrl=${expected}`);
+  });
+
+  it('signs out with CSRF then POST against the API base', async () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.test';
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce({
@@ -22,12 +43,12 @@ describe('auth-urls', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await signOut('/');
+    await signOut('https://app.example.test/');
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, CSRF_URL, { credentials: 'include' });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, csrfUrl(), { credentials: 'include' });
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      SIGN_OUT_URL,
+      signOutUrl(),
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
@@ -35,6 +56,6 @@ describe('auth-urls', () => {
     );
     const body = (fetchMock.mock.calls[1][1] as RequestInit).body as URLSearchParams;
     expect(body.get('csrfToken')).toBe('csrf-test');
-    expect(body.get('callbackUrl')).toBe('/');
+    expect(body.get('callbackUrl')).toBe('https://app.example.test/');
   });
 });

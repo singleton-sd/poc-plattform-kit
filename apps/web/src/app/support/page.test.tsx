@@ -35,10 +35,10 @@ describe('SupportPage', () => {
     render(<SupportPage />);
 
     expect(screen.getByTestId('support-restricted')).toBeInTheDocument();
-    expect(screen.getByTestId('support-login-link')).toHaveAttribute('href', '/login');
+    expect(screen.getByTestId('support-login-link')).toHaveAttribute('href', '/');
   });
 
-  it('links signed-out users to /login', () => {
+  it('links signed-out users to /', () => {
     mockUseMe.mockReturnValue({
       data: null,
       isLoading: false,
@@ -49,7 +49,7 @@ describe('SupportPage', () => {
 
     expect(screen.getByTestId('support-restricted')).toBeInTheDocument();
     expect(screen.getByTestId('support-login-link')).toHaveTextContent('Sign in');
-    expect(screen.getByTestId('support-login-link')).toHaveAttribute('href', '/login');
+    expect(screen.getByTestId('support-login-link')).toHaveAttribute('href', '/');
   });
 
   it('renders the shell for a support-agent', () => {

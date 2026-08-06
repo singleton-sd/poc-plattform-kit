@@ -1,23 +1,36 @@
+import { apiUrl } from '@/lib/api-base';
+
 /** Auth.js Microsoft Entra ID provider id (`@auth/express/providers/microsoft-entra-id`). */
 export const ENTRA_PROVIDER_ID = 'microsoft-entra-id';
 
-/** Start Entra sign-in via Nest Auth.js (`/api/auth/*`). */
-export function signInUrl(callbackUrl = '/'): string {
-  const params = new URLSearchParams({ callbackUrl });
-  return `/api/auth/signin/${ENTRA_PROVIDER_ID}?${params.toString()}`;
+/** Prefer the SPA origin so Auth.js redirects back to the web app, not the API host. */
+export function defaultCallbackUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/`;
+  }
+  return '/';
 }
 
-/** Auth.js sign-out endpoint (POST + CSRF). */
-export const SIGN_OUT_URL = '/api/auth/signout';
+/** Start Entra sign-in via Nest Auth.js on the API host. */
+export function signInUrl(callbackUrl = defaultCallbackUrl()): string {
+  const params = new URLSearchParams({ callbackUrl });
+  return apiUrl(`/api/auth/signin/${ENTRA_PROVIDER_ID}?${params.toString()}`);
+}
 
-export const CSRF_URL = '/api/auth/csrf';
+export function csrfUrl(): string {
+  return apiUrl('/api/auth/csrf');
+}
+
+export function signOutUrl(): string {
+  return apiUrl('/api/auth/signout');
+}
 
 /**
- * Sign out via Auth.js CSRF + POST. Relies on same-origin cookies
- * (SWA `/api` → App Service — see SSO cookie ticket).
+ * Sign out via Auth.js CSRF + POST.
+ * Uses `NEXT_PUBLIC_API_BASE_URL` until SWA links `/api` → App Service.
  */
-export async function signOut(callbackUrl = '/'): Promise<void> {
-  const csrfRes = await fetch(CSRF_URL, { credentials: 'include' });
+export async function signOut(callbackUrl = defaultCallbackUrl()): Promise<void> {
+  const csrfRes = await fetch(csrfUrl(), { credentials: 'include' });
   if (!csrfRes.ok) {
     throw new Error('Failed to load Auth.js CSRF token');
   }
@@ -32,7 +45,7 @@ export async function signOut(callbackUrl = '/'): Promise<void> {
     callbackUrl,
   });
 
-  const res = await fetch(SIGN_OUT_URL, {
+  const res = await fetch(signOutUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,

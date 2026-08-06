@@ -52,7 +52,7 @@ describe('fetchMe', () => {
       name: 'Agent',
       role: 'support-agent',
     };
-    mockFetch({
+    const fetchMock = mockFetch({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -60,5 +60,28 @@ describe('fetchMe', () => {
     });
 
     await expect(fetchMe()).resolves.toEqual(me);
+    expect(fetchMock).toHaveBeenCalledWith('/api/me', { credentials: 'include' });
+  });
+
+  it('calls NEXT_PUBLIC_API_BASE_URL + /api/me when set', async () => {
+    const previous = process.env.NEXT_PUBLIC_API_BASE_URL;
+    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    const fetchMock = mockFetch({
+      ok: false,
+      status: 401,
+      headers: new Headers(),
+      json: jest.fn(),
+    });
+
+    await expect(fetchMe()).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith('https://api.example.test/api/me', {
+      credentials: 'include',
+    });
+
+    if (previous === undefined) {
+      delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_BASE_URL = previous;
+    }
   });
 });
