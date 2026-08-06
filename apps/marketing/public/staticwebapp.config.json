@@ -1,13 +1,16 @@
 {
   "routes": [
     {
-      "route": "/*",
-      "serve": "/index.html",
-      "statusCode": 200
+      "route": "/privacy",
+      "rewrite": "/privacy.html"
+    },
+    {
+      "route": "/terms",
+      "rewrite": "/terms.html"
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/*.{css,js,ico,png,svg,webmanifest}"]
+    "exclude": ["/privacy*", "/terms*", "/assets/*", "/*.{css,js,ico,png,svg,webmanifest}"]
   }
 }

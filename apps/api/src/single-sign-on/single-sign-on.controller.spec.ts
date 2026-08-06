@@ -1,4 +1,4 @@
-﻿import { Controller, Get, UnauthorizedException, UseGuards } from '@nestjs/common';
+﻿import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
 import { SessionOrJwtAuthGuard } from './jwt-auth.guard';
@@ -33,6 +33,7 @@ describe('SingleSignOnController', () => {
       email: 'agent@example.com',
       name: 'Agent',
       role: 'support-agent',
+      tenantId: null,
     };
     expect(controller.me(user)).toEqual({
       id: '1',

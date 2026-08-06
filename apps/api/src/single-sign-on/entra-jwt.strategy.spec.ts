@@ -45,6 +45,7 @@ describe('EntraJwtStrategy', () => {
       name: 'Agent',
       role: 'support-agent',
       id: 'oid-1',
+      tenantId: null,
     });
   });
 

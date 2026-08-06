@@ -16,7 +16,18 @@ describe('mapEntraClaims', () => {
       name: 'Agent',
       role: 'support-agent',
       id: 'oid-1',
+      tenantId: null,
     });
+  });
+
+  it('maps optional platform tenant_id claim', () => {
+    expect(
+      mapEntraClaims({
+        oid: 'oid-1',
+        email: 'a@b.com',
+        tenant_id: ' tenant-xyz ',
+      }).tenantId,
+    ).toBe('tenant-xyz');
   });
 
   it('falls back to sub and preferred_username', () => {
@@ -31,6 +42,7 @@ describe('mapEntraClaims', () => {
       name: null,
       role: null,
       id: 'sub-1',
+      tenantId: null,
     });
   });
 
@@ -56,6 +68,7 @@ describe('toMeResponse', () => {
         email: 'a@b.com',
         name: 'A',
         role: 'support-agent',
+        tenantId: 'tenant-1',
       }),
     ).toEqual({
       id: '1',

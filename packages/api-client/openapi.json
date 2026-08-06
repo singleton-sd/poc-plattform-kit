@@ -22,6 +22,74 @@
         ]
       }
     },
+    "/permissions/check": {
+      "post": {
+        "operationId": "PermissionsController_check",
+        "summary": "Check a fine-grained authorization decision",
+        "description": "Evaluates a subject, action, and resource tuple. The stub fails closed until OpenFGA is configured.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckPermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckPermissionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/permissions/health": {
+      "get": {
+        "operationId": "PermissionsController_health",
+        "summary": "Report Permissions pillar health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionsHealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/tenants": {
       "post": {
         "operationId": "TenantController_create",
@@ -46,10 +114,18 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
           }
         },
         "tags": [
           "tenants"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -68,7 +144,8 @@
           {
             "name": "x-tenant-id",
             "in": "header",
-            "required": true,
+            "description": "Legacy/dev tenancy escape when the token has no tenant_id claim. Claim wins when both are present.",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -76,7 +153,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Tenant by id (requires matching x-tenant-id).",
+            "description": "Tenant by id (requires matching tenancy context).",
             "content": {
               "application/json": {
                 "schema": {
@@ -84,10 +161,18 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
           }
         },
         "tags": [
           "tenants"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -104,7 +189,8 @@
           {
             "name": "x-tenant-id",
             "in": "header",
-            "required": true,
+            "description": "Legacy/dev tenancy escape when the token has no tenant_id claim. Claim wins when both are present.",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -122,7 +208,7 @@
         },
         "responses": {
           "200": {
-            "description": "Tenant updated (requires matching x-tenant-id).",
+            "description": "Tenant updated (requires matching tenancy context).",
             "content": {
               "application/json": {
                 "schema": {
@@ -130,10 +216,18 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
           }
         },
         "tags": [
           "tenants"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -164,7 +258,7 @@
   "info": {
     "title": "Platform Kit API",
     "description": "poc-plattform-kit API",
-    "version": "0.2.0",
+    "version": "0.5.0",
     "contact": {}
   },
   "tags": [],
@@ -193,6 +287,61 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "CheckPermissionDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "example": "user:alice",
+            "description": "OpenFGA subject identifier."
+          },
+          "action": {
+            "type": "string",
+            "example": "viewer",
+            "description": "OpenFGA relation or permission."
+          },
+          "resource": {
+            "type": "string",
+            "example": "document:quarterly-report",
+            "description": "OpenFGA resource identifier."
+          }
+        },
+        "required": [
+          "subject",
+          "action",
+          "resource"
+        ]
+      },
+      "CheckPermissionResponseDto": {
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the subject may perform the action on the resource."
+          }
+        },
+        "required": [
+          "allowed"
+        ]
+      },
+      "PermissionsHealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "pillar": {
+            "type": "string",
+            "example": "permissions"
+          }
+        },
+        "required": [
+          "status",
+          "pillar"
         ]
       },
       "CreateTenantDto": {

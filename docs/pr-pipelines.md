@@ -10,12 +10,12 @@
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
-| `deploy-web.yml` | `apps/web/**`, `packages/**` on **`main`** **and** commit message starts with `chore: Release` (or `workflow_dispatch`) | SWA **production** via OIDC → Key Vault |
+| `deploy-web.yml` | `workflow_dispatch` from `release.yml` when `apps/web/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | SWA **production** via OIDC → Key Vault |
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** | Marketing SWA **production** via OIDC → Key Vault |
-| `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** **and** commit message starts with `chore: Release` (or `workflow_dispatch`) | Nest zip → App Service **B1** via OIDC |
-| `release.yml` | push to **`main`** (skipped for `chore: Release` commits) | Path-aware `release-it` bumps; commit + tags |
+| `deploy-api.yml` | `workflow_dispatch` from `release.yml` when `apps/api/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | Nest zip → App Service **B1** via OIDC |
+| `release.yml` | push to **`main`** (skipped for `chore: Release` commits) | Path-aware bumps; commit + tags; then `gh workflow run` deploy-api / deploy-web |
 
-**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). Matching **deploy-*** workflows then run on the release commit so shipped builds embed the new `package.json` version (web footer / Swagger).
+**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). It then **dispatches** matching **deploy-*** workflows via `workflow_dispatch` on **`main`** (the release tip; `gh workflow run --ref` requires a branch/tag, not a raw SHA) so shipped builds embed the new `package.json` version in the web footer / Swagger. A plain `GITHUB_TOKEN` push of the release commit does **not** start other workflows — do not rely on the push event alone.
 
 Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 
@@ -108,7 +108,7 @@ Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health
 | `deploy-web.yml` | SWA Free production (`kind-rock-0f409fe00.7.azurestaticapps.net`) | OIDC → KV `swa-deployment-token` |
 | `deploy-api.yml` | App Service (`pocpk-api-si5fhs6dvxiha.azurewebsites.net`) | OIDC → `az webapp deploy --type zip` (needs **Website Contributor**) |
 
-- Triggers: `push` to `main` with the same path filters as CI/preview; `deploy-api.yml` also supports `workflow_dispatch`.
+- Triggers: primarily `workflow_dispatch` from `release.yml` after a version bump (and manual dispatch). Push to `main` with path filters + `chore: Release` message remains as a fallback if a non-`GITHUB_TOKEN` pusher is used.
 - Builds in the job (web → `apps/web/out`; API → staged `.deploy/api` with `dist/` + prod `node_modules`).
 - API startup: `node dist/main.js` (set each deploy; staged `package.json` `"start"` matches).
 - **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` runs [`scripts/stage-api-deploy.sh --kudu`](../scripts/stage-api-deploy.sh) then `az webapp deploy --type zip --async true --track-status false` (absolute deploy dir + `node-linker=hoisted` + `prisma generate`; no `rsync -aL`; no remote `nest build`; avoid full monorepo `node_modules` — Kudu **504**). Do **not** use `--track-status true` — it waits indefinitely on "Starting the site…" while Nest crash-loops. Startup is verified by [`scripts/verify-api-appservice.sh`](../scripts/verify-api-appservice.sh) (`/health` + App Service log download, fail-fast on recent container exit/Nest errors).

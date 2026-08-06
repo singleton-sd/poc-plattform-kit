@@ -1,6 +1,8 @@
-# Azure Static Web Apps — production deploy on release commits to main
-# (or workflow_dispatch). Version bumps land via release.yml first so the
-# SWA build embeds apps/web package.json version in the footer.
+# Azure Static Web Apps — production deploy via workflow_dispatch from
+# release.yml after version bumps (also manual dispatch). Push + `chore: Release`
+# remains a fallback; GITHUB_TOKEN release pushes alone do not start this workflow.
+# Version bumps land via release.yml first so the SWA build embeds
+# apps/web package.json version in the footer.
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
 # If those Variables are missing, deploy steps SKIP (job succeeds) so main CI is not blocked.
@@ -48,6 +50,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build web
+        env:
+          # Baked into the static export; SWA runtime cannot inject this later.
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
         run: pnpm --filter @poc-plattform-kit/web... run build
 
       - name: Check OIDC Variables
