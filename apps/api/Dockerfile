@@ -5,7 +5,7 @@
 # Runtime packaging mirrors scripts/stage-api-deploy.sh:
 #   - hoisted pnpm deploy --prod
 #   - copy flat dist/main.js (tsconfig.build.json rootDir + cleared paths)
-#   - prisma generate into the deploy tree (deploy's node_modules is a stub)
+#   - prisma generate into /out with pinned generator output
 
 FROM node:20-alpine AS base
 RUN apk add --no-cache openssl \
@@ -37,9 +37,11 @@ RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index
   && test -f /out/dist/main.js \
   && mkdir -p /out/prisma \
   && cp /app/packages/db/prisma/schema.prisma /out/prisma/schema.prisma \
+  && node -e "const fs=require('fs'); const p='/out/prisma/schema.prisma'; let s=fs.readFileSync(p,'utf8'); if(!/output\\s*=/.test(s)){s=s.replace(/generator\\s+client\\s*\\{[^}]*provider\\s*=\\s*\\\"prisma-client-js\\\"/,(b)=>b+'\\n  output   = \"../node_modules/.prisma/client\"'); if(!/output\\s*=/.test(s)){console.error('pin failed'); process.exit(1);} fs.writeFileSync(p,s);}" \
   && cd /out \
   && DATABASE_URL="sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true" \
      node "$PRISMA_JS" generate --schema=/out/prisma/schema.prisma \
+  && test -f /out/node_modules/.prisma/client/index.js \
   && node -e "const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('prisma generate ok')"
 
 FROM node:20-alpine AS runner

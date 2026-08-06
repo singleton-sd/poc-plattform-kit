@@ -85,10 +85,33 @@ rm -rf "$DEPLOY_DIR/src" "$DEPLOY_DIR/Dockerfile" \
 #   @prisma/client did not initialize yet. Please run "prisma generate"...
 # Generate MUST use a schema inside DEPLOY_DIR — otherwise Prisma writes into the
 # monorepo .pnpm store (path relative to packages/db) and the zip keeps the stub.
+#
+# Also pin generator output. On Linux, Prisma follows @prisma/client's realpath
+# into node_modules/.pnpm/... and never creates top-level .prisma/client/index.js.
+# That made `test -f .../.prisma/client/index.js` exit 1 right after a "successful"
+# generate (Deploy API run 31101080694). Explicit output keeps the client where
+# App Service / hoisted require('@prisma/client') resolve it.
 SCHEMA_SRC="$ROOT/packages/db/prisma/schema.prisma"
 test -f "$SCHEMA_SRC"
 mkdir -p "$DEPLOY_DIR/prisma"
 cp "$SCHEMA_SRC" "$DEPLOY_DIR/prisma/schema.prisma"
+DEPLOY_SCHEMA="$DEPLOY_DIR/prisma/schema.prisma" node <<'EOF'
+const fs = require('fs');
+const schemaPath = process.env.DEPLOY_SCHEMA;
+let schema = fs.readFileSync(schemaPath, 'utf8');
+if (!/output\s*=/.test(schema)) {
+  schema = schema.replace(
+    /generator\s+client\s*\{[^}]*provider\s*=\s*"prisma-client-js"/,
+    (block) => `${block}\n  output   = "../node_modules/.prisma/client"`,
+  );
+  if (!/output\s*=/.test(schema)) {
+    console.error('::error::Failed to pin prisma generator output in deploy schema');
+    process.exit(1);
+  }
+  fs.writeFileSync(schemaPath, schema);
+  console.log('hypothesisId=G message=pinned prisma generator output for deploy schema');
+}
+EOF
 PRISMA_CLI=""
 for candidate in \
   "$ROOT/node_modules/.bin/prisma" \
@@ -109,17 +132,38 @@ echo "==> prisma generate into $DEPLOY_DIR (schema=$DEPLOY_DIR/prisma/schema.pri
   export DATABASE_URL="${DATABASE_URL:-sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true}"
   "$PRISMA_CLI" generate --schema "$DEPLOY_DIR/prisma/schema.prisma"
 )
-# Hoisted + pnpm layouts place the generated client under @prisma/client and/or
-# .prisma/client — do not require a single filesystem path. Instantiating the
-# client fails on the pre-generate stub ("did not initialize yet").
-if ! (
-  cd "$DEPLOY_DIR"
-  node -e "const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('prisma generate ok')"
-); then
-  echo "::error::prisma generate did not produce a usable @prisma/client in $DEPLOY_DIR" >&2
-  find "$DEPLOY_DIR/node_modules" -path '*prisma*' \( -name 'index.js' -o -name 'default.js' \) 2>/dev/null | head -40 >&2 || true
-  exit 1
-fi
+# Real client ships index.js + engines at the pinned top-level path.
+# If generate still lands beside a pnpm virtual-store realpath, promote it.
+assert_prisma_client() {
+  local index_js="$DEPLOY_DIR/node_modules/.prisma/client/index.js"
+  local default_js="$DEPLOY_DIR/node_modules/.prisma/client/default.js"
+  if [[ -f "$index_js" && -f "$default_js" ]]; then
+    echo "hypothesisId=G message=prisma client at top-level .prisma/client"
+    return 0
+  fi
+
+  local found=""
+  found="$(find "$DEPLOY_DIR/node_modules" -path '*/.prisma/client/index.js' -type f 2>/dev/null | head -n 1 || true)"
+  if [[ -n "$found" ]]; then
+    echo "hypothesisId=G message=promoting prisma client from $found"
+    mkdir -p "$DEPLOY_DIR/node_modules/.prisma"
+    rm -rf "$DEPLOY_DIR/node_modules/.prisma/client"
+    cp -a "$(dirname "$found")" "$DEPLOY_DIR/node_modules/.prisma/client"
+  fi
+
+  if [[ -f "$index_js" && -f "$default_js" ]]; then
+    echo "hypothesisId=G message=prisma client promoted to top-level .prisma/client"
+    return 0
+  fi
+
+  echo "::error::prisma generate did not produce top-level .prisma/client (index.js/default.js)" >&2
+  echo "Expected: $index_js" >&2
+  ls -la "$DEPLOY_DIR/node_modules/.prisma/client" >&2 || true
+  ls -la "$DEPLOY_DIR/node_modules/@prisma/client" >&2 || true
+  find "$DEPLOY_DIR/node_modules" -path '*/.prisma/client/*' 2>/dev/null | head -n 40 >&2 || true
+  return 1
+}
+assert_prisma_client
 
 # Shrink: drop non-Linux Prisma engines + source maps (App Service is Linux).
 # Run AFTER generate so the Linux query engine is present first.
