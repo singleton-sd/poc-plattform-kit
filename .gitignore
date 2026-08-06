@@ -16,3 +16,6 @@ coverage/
 .codex/
 *.tsbuildinfo
 .worktrees/
+.deploy/
+api-deploy.zip
+api-deploy.tar

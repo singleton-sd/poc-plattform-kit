@@ -109,7 +109,7 @@ Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health
 - Triggers: `push` to `main` with the same path filters as CI/preview; `deploy-api.yml` also supports `workflow_dispatch`.
 - Builds in the job (web → `apps/web/out`; API → staged `.deploy/api` with `dist/` + prod `node_modules`).
 - API startup: `node dist/main.js` (set each deploy; staged `package.json` `"start"` matches).
-- **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` uses `pnpm deploy --prod`, flattens symlinks (`rsync -aL`), then `az webapp deploy --type zip` async (no remote `nest build`; avoid full monorepo `node_modules` — Kudu **504**; pnpm symlinks alone → `Cannot find module 'tslib'` after Kudu extract).
+- **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` runs [`scripts/stage-api-deploy.sh --kudu`](../scripts/stage-api-deploy.sh) then `az webapp deploy --type zip` async (absolute deploy dir + `node-linker=hoisted`; no `rsync -aL`; no remote `nest build`; avoid full monorepo `node_modules` — Kudu **504**).
 - No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
 ## Root scripts
@@ -120,6 +120,9 @@ pnpm format
 pnpm lint           # package stubs + root ESLint
 pnpm test
 pnpm build
+pnpm stage:api-deploy           # local App Service zip staging (Linux / WSL + Node)
+pnpm stage:api-deploy -- --kudu # + Kudu node_modules.tar.gz extract smoke
+pnpm stage:api-deploy:docker -- --kudu  # Windows-friendly (copy into Linux container)
 ```
 
 ## PR hygiene (conflicts, CI, feedback)

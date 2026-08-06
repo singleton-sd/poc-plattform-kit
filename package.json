@@ -11,6 +11,8 @@
     "format:check": "prettier --check .",
     "dev:web": "pnpm --filter @poc-plattform-kit/web dev",
     "dev:api": "pnpm --filter @poc-plattform-kit/api start:dev",
+    "stage:api-deploy": "bash ./scripts/stage-api-deploy.sh",
+    "stage:api-deploy:docker": "bash ./scripts/stage-api-deploy-docker.sh",
     "sync:skills": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-skills.ps1"
   },
   "devDependencies": {
