@@ -23,7 +23,10 @@ FROM deps AS build
 COPY apps/api ./apps/api
 RUN pnpm --filter @poc-plattform-kit/api build
 # Match App Service staging: hoisted deploy tree + generate into /out.
-RUN printf '%s\n' \
+# Resolve prisma via node (pnpm .bin shims can vanish after re-linking for deploy).
+RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index.js' | head -n 1)" \
+  && test -n "$PRISMA_JS" \
+  && printf '%s\n' \
       'inject-workspace-packages=true' \
       'node-linker=hoisted' \
       'shamefully-hoist=true' \
@@ -36,7 +39,7 @@ RUN printf '%s\n' \
   && cp /app/packages/db/prisma/schema.prisma /out/prisma/schema.prisma \
   && cd /out \
   && DATABASE_URL="sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true" \
-     /app/node_modules/.bin/prisma generate --schema=/out/prisma/schema.prisma \
+     node "$PRISMA_JS" generate --schema=/out/prisma/schema.prisma \
   && node -e "const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('prisma generate ok')"
 
 FROM node:20-alpine AS runner
