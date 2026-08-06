@@ -11,11 +11,6 @@
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": [
-      "/privacy*",
-      "/terms*",
-      "/assets/*",
-      "/*.{css,js,ico,png,svg,webmanifest}"
-    ]
+    "exclude": ["/privacy*", "/terms*", "/assets/*", "/*.{css,js,ico,png,svg,webmanifest}"]
   }
 }
