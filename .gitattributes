@@ -1,2 +1,4 @@
 .husky/* text eol=lf
 scripts/*.sh text eol=lf
+packages/api-client/openapi.json text eol=lf
+packages/api-client/src/generated/** text eol=lf linguist-generated=true

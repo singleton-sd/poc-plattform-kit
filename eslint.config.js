@@ -14,6 +14,7 @@ export default [
       '.worktrees/**',
       'infra/main.json',
       'apps/web/public/**',
+      'packages/api-client/src/generated/**',
     ],
   },
   js.configs.recommended,
