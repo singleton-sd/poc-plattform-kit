@@ -1,6 +1,8 @@
-# NestJS → App Service — production deploy on release commits to main
-# (or workflow_dispatch). Version bumps land via release.yml first so
-# Swagger reads the bumped apps/api package.json version.
+# NestJS → App Service — production deploy via workflow_dispatch from
+# release.yml after version bumps (also manual dispatch). Push + `chore: Release`
+# remains a fallback; GITHUB_TOKEN release pushes alone do not start this workflow.
+# Version bumps land via release.yml first so Swagger reads the bumped
+# apps/api package.json version.
 # Auth: OIDC Variables only (no publish profile / AZURE_CREDENTIALS in GitHub Secrets).
 # SP needs Website Contributor on pocpk-api-si5fhs6dvxiha (plus Key Vault Secrets User for other jobs).
 # If OIDC Variables are missing, deploy SKIP (job succeeds). See SETUP.md / docs/pr-pipelines.md.
