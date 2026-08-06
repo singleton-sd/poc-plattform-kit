@@ -43,9 +43,9 @@ export function buildAuthConfig(): ExpressAuthConfig | null {
   }
 
   const cookieDomain = resolveAuthCookieDomain();
-  // Domain-scoped cookies for session/callback only. Do not set Domain on
-  // csrfToken — Auth.js defaults to `__Host-authjs.csrf-token`, and browsers
-  // reject `__Host-` cookies that carry a Domain attribute.
+  // Domain-scoped session/callback cookies only. Leave csrfToken host-only —
+  // Auth.js defaults to `__Host-authjs.csrf-token`, and browsers reject
+  // `__Host-` cookies that carry a Domain attribute.
   const domainCookieOptions = {
     httpOnly: true,
     sameSite: 'lax' as const,

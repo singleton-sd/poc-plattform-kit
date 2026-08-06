@@ -11,8 +11,9 @@
  */
 
 /**
- * Runtime path must read `process.env.NEXT_PUBLIC_API_BASE_URL` statically so
- * Next.js can inline it into the client bundle. Optional `env` is for tests only.
+ * Runtime path must read `process.env.NEXT_PUBLIC_API_BASE_URL` as a static
+ * property access so Next.js can inline it into the client bundle. Optional
+ * `env` is for tests only — do not default it to `process.env`.
  */
 export function resolveApiBaseUrl(
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>,
