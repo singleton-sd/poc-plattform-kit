@@ -17,7 +17,19 @@ elif command -v cygpath >/dev/null 2>&1; then
 fi
 IMAGE="${STAGE_API_DOCKER_IMAGE:-node:20-bookworm}"
 
-docker run --rm \
+# Prefer docker.exe on Windows/WSL — the `docker` shim often prints
+# "WSL integration" errors when Desktop integration is off.
+DOCKER_BIN=""
+if command -v docker.exe >/dev/null 2>&1; then
+  DOCKER_BIN=docker.exe
+elif command -v docker >/dev/null 2>&1; then
+  DOCKER_BIN=docker
+else
+  echo "docker not found (install Docker Desktop; enable WSL integration or put docker.exe on PATH)" >&2
+  exit 127
+fi
+
+"$DOCKER_BIN" run --rm \
   -v "${ROOT}:/src:ro" \
   -e DATABASE_URL="${DATABASE_URL:-sqlserver://localhost:1433;database=dummy;user=sa;password=dummy;encrypt=true;trustServerCertificate=true}" \
   -e "STAGE_ARGS=$*" \

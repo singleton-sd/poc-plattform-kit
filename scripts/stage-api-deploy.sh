@@ -80,7 +80,41 @@ rm -rf "$DEPLOY_DIR/src" "$DEPLOY_DIR/Dockerfile" \
   "$DEPLOY_DIR/nest-cli.json" "$DEPLOY_DIR"/jest.config.* \
   "$DEPLOY_DIR/test" "$DEPLOY_DIR/coverage"
 
+# pnpm deploy --prod installs @prisma/client but does not run `prisma generate`
+# (prisma CLI is a packages/db devDependency). App Service then crashes:
+#   @prisma/client did not initialize yet. Please run "prisma generate"...
+# Generate MUST use a schema inside DEPLOY_DIR — otherwise Prisma writes into the
+# monorepo .pnpm store (path relative to packages/db) and the zip keeps the stub.
+SCHEMA_SRC="$ROOT/packages/db/prisma/schema.prisma"
+test -f "$SCHEMA_SRC"
+mkdir -p "$DEPLOY_DIR/prisma"
+cp "$SCHEMA_SRC" "$DEPLOY_DIR/prisma/schema.prisma"
+PRISMA_CLI=""
+for candidate in \
+  "$ROOT/node_modules/.bin/prisma" \
+  "$ROOT/packages/db/node_modules/.bin/prisma"
+do
+  if [[ -e "$candidate" ]]; then
+    PRISMA_CLI="$candidate"
+    break
+  fi
+done
+if [[ -z "$PRISMA_CLI" ]]; then
+  echo "::error::prisma CLI not found under repo node_modules; run pnpm install first" >&2
+  exit 1
+fi
+echo "==> prisma generate into $DEPLOY_DIR (schema=$DEPLOY_DIR/prisma/schema.prisma)"
+(
+  cd "$DEPLOY_DIR"
+  export DATABASE_URL="${DATABASE_URL:-sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true}"
+  "$PRISMA_CLI" generate --schema "$DEPLOY_DIR/prisma/schema.prisma"
+)
+# Stub default.js exists before generate; real client ships index.js + engines.
+test -f "$DEPLOY_DIR/node_modules/.prisma/client/index.js"
+test -f "$DEPLOY_DIR/node_modules/.prisma/client/default.js"
+
 # Shrink: drop non-Linux Prisma engines + source maps (App Service is Linux).
+# Run AFTER generate so the Linux query engine is present first.
 find "$DEPLOY_DIR/node_modules" -type f \( \
   -name '*darwin*' -o -name '*windows*' -o -name '*.exe' -o \
   -name '*debian-openssl-1.1*' -o -name '*.map' \
@@ -108,7 +142,7 @@ test -d "$DEPLOY_DIR/node_modules/tslib"
 test -d "$DEPLOY_DIR/node_modules/@poc-plattform-kit/db"
 test -d "$DEPLOY_DIR/node_modules/@poc-plattform-kit/pillar-tenant"
 
-(cd "$DEPLOY_DIR" && node -e "require('@nestjs/common'); require('tslib'); console.log('hypothesisId=G message=hoisted module resolve ok')")
+(cd "$DEPLOY_DIR" && node -e "require('@nestjs/common'); require('tslib'); const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('hypothesisId=G message=hoisted module + prisma generate ok')")
 
 (cd "$DEPLOY_DIR" && zip -r -q -9 "$ZIP_PATH" .)
 ls -lh "$ZIP_PATH"
@@ -136,7 +170,7 @@ if [[ "$DO_KUDU" == true ]]; then
   tar -xzf "$WWWROOT/node_modules.tar.gz" -C "$EXTRACTED_NM"
   # App Service startup links /node_modules → wwwroot/node_modules
   ln -sfn "$EXTRACTED_NM" "$WWWROOT/node_modules"
-  (cd "$WWWROOT" && node -e "require('@nestjs/common'); require('tslib'); console.log('hypothesisId=G message=kudu extract module resolve ok')")
+  (cd "$WWWROOT" && node -e "require('@nestjs/common'); require('tslib'); const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('hypothesisId=G message=kudu extract module + prisma ok')")
   rm -rf "$KUDU_TMP"
 fi
 
