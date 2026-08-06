@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Platform Kit API
  * poc-plattform-kit API
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 import {
   useMutation,
@@ -41,13 +41,20 @@ export type tenantControllerCreateResponse201 = {
   data: TenantResponseDto
   status: 201
 }
+
+export type tenantControllerCreateResponse401 = {
+  data: void
+  status: 401
+}
     
 export type tenantControllerCreateResponseSuccess = (tenantControllerCreateResponse201) & {
   headers: Headers;
 };
-;
+export type tenantControllerCreateResponseError = (tenantControllerCreateResponse401) & {
+  headers: Headers;
+};
 
-export type tenantControllerCreateResponse = (tenantControllerCreateResponseSuccess)
+export type tenantControllerCreateResponse = (tenantControllerCreateResponseSuccess | tenantControllerCreateResponseError)
 
 export const getTenantControllerCreateUrl = () => {
 
@@ -72,7 +79,7 @@ export const tenantControllerCreate = async (createTenantDto: CreateTenantDto, o
 
 
 
-export const getTenantControllerCreateMutationOptions = <TError = unknown,
+export const getTenantControllerCreateMutationOptions = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tenantControllerCreate>>, TError,{data: CreateTenantDto}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof tenantControllerCreate>>, TError,{data: CreateTenantDto}, TContext> => {
 
@@ -99,9 +106,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type TenantControllerCreateMutationResult = NonNullable<Awaited<ReturnType<typeof tenantControllerCreate>>>
     export type TenantControllerCreateMutationBody = CreateTenantDto
-    export type TenantControllerCreateMutationError = unknown
+    export type TenantControllerCreateMutationError = void
 
-    export const useTenantControllerCreate = <TError = unknown,
+    export const useTenantControllerCreate = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tenantControllerCreate>>, TError,{data: CreateTenantDto}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof tenantControllerCreate>>,
@@ -118,13 +125,20 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   data: TenantResponseDto
   status: 200
 }
+
+export type tenantControllerFindOneResponse401 = {
+  data: void
+  status: 401
+}
     
 export type tenantControllerFindOneResponseSuccess = (tenantControllerFindOneResponse200) & {
   headers: Headers;
 };
-;
+export type tenantControllerFindOneResponseError = (tenantControllerFindOneResponse401) & {
+  headers: Headers;
+};
 
-export type tenantControllerFindOneResponse = (tenantControllerFindOneResponseSuccess)
+export type tenantControllerFindOneResponse = (tenantControllerFindOneResponseSuccess | tenantControllerFindOneResponseError)
 
 export const getTenantControllerFindOneUrl = (id: string,) => {
 
@@ -156,7 +170,7 @@ export const getTenantControllerFindOneQueryKey = (id?: string,) => {
     }
 
     
-export const getTenantControllerFindOneQueryOptions = <TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tenantControllerFindOne>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getTenantControllerFindOneQueryOptions = <TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = void>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tenantControllerFindOne>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -175,10 +189,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type TenantControllerFindOneQueryResult = NonNullable<Awaited<ReturnType<typeof tenantControllerFindOne>>>
-export type TenantControllerFindOneQueryError = unknown
+export type TenantControllerFindOneQueryError = void
 
 
-export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = unknown>(
+export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = void>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof tenantControllerFindOne>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof tenantControllerFindOne>>,
@@ -188,7 +202,7 @@ export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof ten
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = unknown>(
+export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = void>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tenantControllerFindOne>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof tenantControllerFindOne>>,
@@ -198,12 +212,12 @@ export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof ten
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = unknown>(
+export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = void>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tenantControllerFindOne>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = unknown>(
+export function useTenantControllerFindOne<TData = Awaited<ReturnType<typeof tenantControllerFindOne>>, TError = void>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tenantControllerFindOne>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -224,13 +238,20 @@ export type tenantControllerUpdateResponse200 = {
   data: TenantResponseDto
   status: 200
 }
+
+export type tenantControllerUpdateResponse401 = {
+  data: void
+  status: 401
+}
     
 export type tenantControllerUpdateResponseSuccess = (tenantControllerUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type tenantControllerUpdateResponseError = (tenantControllerUpdateResponse401) & {
+  headers: Headers;
+};
 
-export type tenantControllerUpdateResponse = (tenantControllerUpdateResponseSuccess)
+export type tenantControllerUpdateResponse = (tenantControllerUpdateResponseSuccess | tenantControllerUpdateResponseError)
 
 export const getTenantControllerUpdateUrl = (id: string,) => {
 
@@ -256,7 +277,7 @@ export const tenantControllerUpdate = async (id: string,
 
 
 
-export const getTenantControllerUpdateMutationOptions = <TError = unknown,
+export const getTenantControllerUpdateMutationOptions = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tenantControllerUpdate>>, TError,{id: string;data: UpdateTenantDto}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof tenantControllerUpdate>>, TError,{id: string;data: UpdateTenantDto}, TContext> => {
 
@@ -283,9 +304,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type TenantControllerUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof tenantControllerUpdate>>>
     export type TenantControllerUpdateMutationBody = UpdateTenantDto
-    export type TenantControllerUpdateMutationError = unknown
+    export type TenantControllerUpdateMutationError = void
 
-    export const useTenantControllerUpdate = <TError = unknown,
+    export const useTenantControllerUpdate = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tenantControllerUpdate>>, TError,{id: string;data: UpdateTenantDto}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof tenantControllerUpdate>>,
