@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'apps/web/**'
+      - 'apps/marketing/**'
       - 'packages/**'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
@@ -16,6 +17,7 @@ on:
     branches: [main]
     paths:
       - 'apps/web/**'
+      - 'apps/marketing/**'
       - 'packages/**'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
@@ -51,13 +53,18 @@ jobs:
       - name: Prettier check
         run: pnpm format:check
 
-      - name: Lint (web + packages)
+      - name: Lint (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run lint
+          pnpm --filter @poc-plattform-kit/marketing... run lint
           pnpm exec eslint .
 
-      - name: Build (web + packages)
-        run: pnpm --filter @poc-plattform-kit/web... run build
+      - name: Build (web + marketing + packages)
+        run: |
+          pnpm --filter @poc-plattform-kit/web... run build
+          pnpm --filter @poc-plattform-kit/marketing... run build
 
-      - name: Test (web + packages)
-        run: pnpm --filter @poc-plattform-kit/web... run test
+      - name: Test (web + marketing + packages)
+        run: |
+          pnpm --filter @poc-plattform-kit/web... run test
+          pnpm --filter @poc-plattform-kit/marketing... run test
