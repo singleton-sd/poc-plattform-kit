@@ -4,6 +4,9 @@ import { TenantWorkspace } from './tenant-workspace';
 
 const mutateCreate = jest.fn();
 const mutateUpdate = jest.fn();
+const resetCreate = jest.fn();
+const resetUpdate = jest.fn();
+const refetchFind = jest.fn();
 const configureApiClient = jest.fn();
 
 jest.mock('@/lib/api-client', () => ({
@@ -13,12 +16,14 @@ jest.mock('@/lib/api-client', () => ({
 jest.mock('@poc-plattform-kit/api-client', () => ({
   useTenantControllerCreate: () => ({
     mutate: mutateCreate,
+    reset: resetCreate,
     isPending: false,
     isError: false,
     data: undefined,
   }),
   useTenantControllerUpdate: () => ({
     mutate: mutateUpdate,
+    reset: resetUpdate,
     isPending: false,
     isError: false,
     data: undefined,
@@ -27,6 +32,7 @@ jest.mock('@poc-plattform-kit/api-client', () => ({
     data: undefined,
     isFetching: false,
     isError: false,
+    refetch: refetchFind,
   }),
 }));
 
@@ -76,6 +82,9 @@ describe('TenantWorkspace', () => {
   beforeEach(() => {
     mutateCreate.mockReset();
     mutateUpdate.mockReset();
+    resetCreate.mockReset();
+    resetUpdate.mockReset();
+    refetchFind.mockReset();
     configureApiClient.mockReset();
   });
 
@@ -105,6 +114,25 @@ describe('TenantWorkspace', () => {
 
     await waitFor(() => {
       expect(configureApiClient).toHaveBeenCalledWith({ tenantId: 'ten-42' });
+    });
+  });
+
+  it('refetches when loading the same tenant id again', async () => {
+    renderWorkspace();
+
+    fireEvent.change(screen.getByTestId('tenant-id'), { target: { value: 'ten-1' } });
+    fireEvent.click(screen.getByTestId('tenant-load'));
+
+    await waitFor(() => {
+      expect(resetCreate).toHaveBeenCalled();
+      expect(resetUpdate).toHaveBeenCalled();
+    });
+
+    refetchFind.mockClear();
+    fireEvent.click(screen.getByTestId('tenant-load'));
+
+    await waitFor(() => {
+      expect(refetchFind).toHaveBeenCalled();
     });
   });
 });

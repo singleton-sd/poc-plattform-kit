@@ -30,6 +30,7 @@ function tenantPayload(response: unknown): TenantResponseDto | null {
 export function TenantWorkspace() {
   const [tenantId, setTenantId] = useState('');
   const [lookupId, setLookupId] = useState('');
+  const [activeTenant, setActiveTenant] = useState<TenantResponseDto | null>(null);
 
   useEffect(() => {
     configureApiClient({ tenantId: tenantId || null });
@@ -44,13 +45,23 @@ export function TenantWorkspace() {
   const loaded = tenantPayload(findQuery.data);
   const created = tenantPayload(createMutation.data);
   const updated = tenantPayload(updateMutation.data);
-  const display = updated ?? created ?? loaded;
 
   useEffect(() => {
     if (!created) return;
+    setActiveTenant(created);
     setTenantId(created.id);
     setLookupId(created.id);
   }, [created]);
+
+  useEffect(() => {
+    if (!updated) return;
+    setActiveTenant(updated);
+  }, [updated]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    setActiveTenant(loaded);
+  }, [loaded]);
 
   function onCreate(data: CreateTenantInput) {
     createMutation.mutate({ data });
@@ -60,11 +71,17 @@ export function TenantWorkspace() {
     event.preventDefault();
     const id = tenantId.trim();
     if (!id) return;
+    createMutation.reset();
+    updateMutation.reset();
+    if (id === lookupId) {
+      void findQuery.refetch();
+      return;
+    }
     setLookupId(id);
   }
 
   function onUpdate(data: UpdateTenantInput) {
-    const id = (display?.id ?? tenantId).trim();
+    const id = (activeTenant?.id ?? tenantId).trim();
     if (!id) return;
     configureApiClient({ tenantId: id });
     updateMutation.mutate({ id, data });
@@ -114,14 +131,14 @@ export function TenantWorkspace() {
       </form>
 
       <UpdateTenantForm
-        initialName={display?.name ?? ''}
+        initialName={activeTenant?.name ?? ''}
         pending={updateMutation.isPending}
         error={updateMutation.isError}
-        disabled={!tenantId.trim() && !display?.id}
+        disabled={!tenantId.trim() && !activeTenant?.id}
         onSubmit={onUpdate}
       />
 
-      {display ? (
+      {activeTenant ? (
         <section
           className="rounded border border-fg-subtle bg-bg-muted p-4 text-sm text-fg"
           data-testid="tenant-result"
@@ -129,11 +146,11 @@ export function TenantWorkspace() {
           <h2 className="font-heading mb-2 text-lg font-medium">Current tenant</h2>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             <dt className="text-fg-muted">Id</dt>
-            <dd data-testid="tenant-result-id">{display.id}</dd>
+            <dd data-testid="tenant-result-id">{activeTenant.id}</dd>
             <dt className="text-fg-muted">Name</dt>
-            <dd data-testid="tenant-result-name">{display.name}</dd>
+            <dd data-testid="tenant-result-name">{activeTenant.name}</dd>
             <dt className="text-fg-muted">Slug</dt>
-            <dd data-testid="tenant-result-slug">{display.slug}</dd>
+            <dd data-testid="tenant-result-slug">{activeTenant.slug}</dd>
           </dl>
         </section>
       ) : null}
