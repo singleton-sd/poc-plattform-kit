@@ -17,7 +17,9 @@
             }
           }
         },
-        "tags": ["health"]
+        "tags": [
+          "health"
+        ]
       }
     },
     "/tenants": {
@@ -46,7 +48,9 @@
             }
           }
         },
-        "tags": ["tenants"]
+        "tags": [
+          "tenants"
+        ]
       }
     },
     "/tenants/{id}": {
@@ -82,7 +86,9 @@
             }
           }
         },
-        "tags": ["tenants"]
+        "tags": [
+          "tenants"
+        ]
       },
       "patch": {
         "operationId": "TenantController_update",
@@ -126,7 +132,9 @@
             }
           }
         },
-        "tags": ["tenants"]
+        "tags": [
+          "tenants"
+        ]
       }
     },
     "/api/me": {
@@ -142,7 +150,9 @@
             "description": "Unauthorized"
           }
         },
-        "tags": ["SingleSignOn"],
+        "tags": [
+          "SingleSignOn"
+        ],
         "security": [
           {
             "bearer": []
@@ -181,7 +191,9 @@
             "example": "ok"
           }
         },
-        "required": ["status"]
+        "required": [
+          "status"
+        ]
       },
       "CreateTenantDto": {
         "type": "object",
@@ -199,7 +211,10 @@
             "additionalProperties": true
           }
         },
-        "required": ["name", "slug"]
+        "required": [
+          "name",
+          "slug"
+        ]
       },
       "TenantResponseDto": {
         "type": "object",
@@ -232,7 +247,13 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "name", "slug", "createdAt", "updatedAt"]
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "UpdateTenantDto": {
         "type": "object",
