@@ -64,17 +64,53 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **F1 Free** (B1 only if needed), SWA **Free**, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API PR previews + OpenFGA).
-- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
+- **Cost:** cheapest SKUs that still work — SQL **Basic**, App Service **B1** (custom-domain HTTPS + Nest always-on), SWA **Free** ×2 (app + marketing), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API PR previews + OpenFGA).
+- **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` → e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`, `ssd-pocpk-mkt-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
+
+### Custom domains (locked) — DNS in AWS Route53
+
+Public hostnames under `singletonsd.com` (DNS stays in **AWS**; Azure only gets CNAMEs / validation TXT):
+
+| Hostname | Surface | Azure target |
+| --- | --- | --- |
+| `plattform-kit.poc.singletonsd.com` | Marketing | SWA `ssd-pocpk-mkt-dev-ae` (Free) |
+| `app.plattform-kit.poc.singletonsd.com` | Web app (PWA/SPA) | SWA `pocpk-web-si5fhs6dvxiha` (Free) |
+| `api.plattform-kit.poc.singletonsd.com` | Nest API | App Service `pocpk-api-si5fhs6dvxiha` (**B1**) |
+
+PR / preview URLs stay on Azure defaults (`*.azurestaticapps.net`, ACA preview hostnames) — no custom preview domains.
+
+#### Route53 checklist (zone `singletonsd.com` or delegated `poc.singletonsd.com`)
+
+After Azure default hostnames are known (see provisioned table / `az` outputs):
+
+| Record | Type | Value |
+| --- | --- | --- |
+| `plattform-kit.poc` | CNAME | marketing SWA default hostname |
+| `app.plattform-kit.poc` | CNAME | web SWA default hostname (e.g. `kind-rock-….azurestaticapps.net`) |
+| `api.plattform-kit.poc` | CNAME | `pocpk-api-si5fhs6dvxiha.azurewebsites.net` |
+| (as prompted by Azure) | TXT | SWA / App Service domain validation |
+
+Then bind custom domains + managed certs in Azure (`az staticwebapp hostname set`, App Service managed certificate). Do **not** move the zone to Azure DNS.
+
+Exact live CNAME/TXT values and reusable apply scripts:
+[`docs/dns-route53.md`](./docs/dns-route53.md) / [`infra/custom-domains.pocpk.json`](./infra/custom-domains.pocpk.json).
+
+```powershell
+powershell -File ./scripts/apply-route53-dns.ps1
+powershell -File ./scripts/bind-custom-domains.ps1
+```
+
+Copy the JSON config to onboard another domain later (see `docs/dns-route53.md`).
 
 ### Provisioned (2026-08-04)
 
 | Kind | Name | URL / notes | SKU |
 | --- | --- | --- | --- |
 | SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `pocpk-sql-si5fhs6dvxiha.database.windows.net` | Basic |
-| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://pocpk-api-si5fhs6dvxiha.azurewebsites.net | F1 Free (prod/dev host) |
-| Static Web App | `pocpk-web-si5fhs6dvxiha` | https://kind-rock-0f409fe00.7.azurestaticapps.net | Free |
+| App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://api.plattform-kit.poc.singletonsd.com (default: `….azurewebsites.net`) | **B1** |
+| Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | https://app.plattform-kit.poc.singletonsd.com (default: `….azurestaticapps.net`) | Free |
+| Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | https://plattform-kit.poc.singletonsd.com | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | https://ssd-pocpk-appcs-dev-ae.azconfig.io | Free |
@@ -102,7 +138,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`
 *(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
 
 **GitHub Actions — allowed identifiers only (repository Variables, not Secrets):**
@@ -134,16 +170,21 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 | App Service / SWA / Container Apps | Prefer App Configuration provider + KV references for secrets. |
 
 - [x] CLI identity can see the subscription
-- [x] Core deploy succeeded — SQL, App Service (F1), SWA Free, Service Bus Standard
+- [x] Core deploy succeeded — SQL, App Service, SWA Free, Service Bus Standard
 - [x] Key Vault `ssd-pocpk-kv-dev-ae` provisioned; SQL/SB/SWA secrets in KV
 - [x] App Configuration `ssd-pocpk-appcs-dev-ae` (Free) + KV references seeded
 - [x] GitHub OIDC app + federated credentials + Variables set; **no** deploy tokens in GitHub Secrets
 - [x] Local `.env` written by deploy (gitignored); `.env.example` has placeholders
 - [x] `deploy-aca-preview.ps1` — CAE + ACR Basic + LAW + KV ACR secrets
+- [x] App Service plan **B1** + always-on (custom-domain HTTPS ready)
+- [x] Marketing SWA `ssd-pocpk-mkt-dev-ae` provisioned; App Config public URL keys seeded
+- [x] Route53 CNAMEs/TXT (AWS) — applied; re-run via `scripts/apply-route53-dns.ps1`
+- [x] Custom domains + managed certs bound — re-run via `scripts/bind-custom-domains.ps1`
+- [x] Reusable domain config `infra/custom-domains.pocpk.json` (+ schema) for other products
 - [ ] Entra app registration (SPA + API) — secrets in KV; config keys in App Config
+- [ ] API `/health` on custom domain returns 200 (currently 503 — app runtime, not DNS/TLS)
 - [ ] Tighten SQL firewall (`AllowAllDevPoC` → your IP)
 - [ ] Wire App Service / SWA / ACA to App Configuration provider + managed identity
-- [ ] Confirm Nest runs acceptably on F1; bump to B1 only if Free is insufficient
 - [x] Confirm OIDC app has **Contributor** on RG + **Key Vault Secrets User** (ACR push uses KV `acr-admin-*`, not AcrPush)
 - [x] Grant **Website Contributor** on `pocpk-api-si5fhs6dvxiha` to `ssd-pocpk-gha-oidc-dev` (needed once for `deploy-api.yml`)
 - [ ] ~~S1 slots for API PR previews~~ — **deprecated**; use Container Apps Path B
@@ -185,12 +226,13 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
-| `deploy-api.yml` | same as ci-api, **`push` `main`** (+ `workflow_dispatch`) | Nest → App Service via OIDC (prebuilt `dist`; Oryx off) |
+| `deploy-api.yml` | same as ci-api, **`push` `main`** (+ `workflow_dispatch`) | Nest → App Service **B1** via OIDC (prebuilt `dist`; Oryx off) |
+| `deploy-marketing.yml` | `apps/marketing/**`, **`push` `main`** | Marketing SWA production via OIDC → KV |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
 - **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
 - **Production on merge:** `deploy-web.yml` / `deploy-api.yml` publish to the live SWA hostname and App Service URL (same OIDC skip behaviour).
-- **API zip deploy:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` + `ENABLE_ORYX_BUILD=false` on the web app (Bicep). Do **not** change app settings in the same job as zip deploy (SCM restart aborts deploy). Package is CI-built `dist/` + prod `node_modules` via `az webapp deploy --type zip`.
+- **API zip deploy:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` + `ENABLE_ORYX_BUILD=false` on the web app (Bicep). Do **not** change app settings in the same job as zip deploy (SCM restart aborts deploy). Package with `pnpm --filter @poc-plattform-kit/api deploy --prod`, then `rsync -aL` to dereference pnpm symlinks (Kudu’s `node_modules.tar.gz` extract otherwise breaks nested deps like `tslib`), then `az webapp deploy --type zip` async. Do **not** zip the whole monorepo `node_modules` (~746MB → Kudu **504** on B1).
 - **BE preview (Path B locked):** Container Apps Consumption per PR (scale to zero). F1 stays prod/dev only. Shared F1 overwrite and S1 slots rejected/deprecated for per-PR need. OIDC Variables → KV ACR secrets — never GitHub secret tokens / `AZURE_CREDENTIALS`. Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
 - Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.
 

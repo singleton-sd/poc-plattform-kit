@@ -154,3 +154,5 @@ Before pushing, verify:
 - [ ] Ticket number is present (in commit or auto-injected from branch)
 - [ ] Body lines (if any) are ≤ 72 chars with a blank separator line
 - [ ] TypeScript filenames follow kebab-case or PascalCase
+- [ ] Pre-commit ran `lint-staged` (Prettier + ESLint on staged files only) —
+  do not skip hooks with `--no-verify` for format/lint failures

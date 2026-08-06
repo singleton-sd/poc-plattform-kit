@@ -1,0 +1,65 @@
+{
+  "$comment": "JSON shape for infra/custom-domains.*.json consumed by scripts/apply-route53-dns.ps1, bind-custom-domains.ps1, deploy-swa-from-kv.ps1",
+  "type": "object",
+  "required": ["zoneDomain"],
+  "properties": {
+    "comment": { "type": "string" },
+    "zoneDomain": {
+      "type": "string",
+      "description": "Route53 apex zone, e.g. singletonsd.com"
+    },
+    "hostedZoneId": {
+      "type": "string",
+      "description": "Optional Route53 hosted zone id (Z…). Resolved from zoneDomain when omitted."
+    },
+    "resourceGroup": { "type": "string" },
+    "ttlSeconds": { "type": "integer", "minimum": 60 },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "value"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Relative name under zoneDomain, or FQDN ending with zoneDomain"
+          },
+          "type": { "type": "string", "enum": ["CNAME", "TXT", "A"] },
+          "value": { "type": "string" },
+          "ttl": { "type": "integer" }
+        }
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "resourceName", "hostname"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["swa", "appservice"] },
+          "resourceName": { "type": "string" },
+          "hostname": { "type": "string" },
+          "managedCert": {
+            "type": "boolean",
+            "description": "App Service only — create + bind managed cert (SNI)"
+          },
+          "resourceGroup": { "type": "string" }
+        }
+      }
+    },
+    "deploys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["vaultName", "secretName", "appLocation"],
+        "properties": {
+          "name": { "type": "string" },
+          "vaultName": { "type": "string" },
+          "secretName": { "type": "string" },
+          "appLocation": { "type": "string" },
+          "environment": { "type": "string", "default": "production" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@poc-plattform-kit/marketing",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"Marketing stub — serve apps/marketing/public\"",
+    "build": "echo \"build:marketing stub — static public/ used by SWA\"",
+    "lint": "echo \"lint:marketing stub\"",
+    "test": "echo \"test:marketing stub\""
+  }
+}

@@ -132,7 +132,7 @@ $deployArgs = @(
   "appConfigName=$AppConfigName",
   "appConfigSku=Free",
   "deployerObjectId=$deployerObjectId",
-  "appServiceSku=F1",
+  "appServiceSku=B1",
   "sqlAdminLogin=$sqlLogin",
   "sqlAdminPassword=$sqlPassword",
   '--output', 'json'
@@ -160,10 +160,18 @@ $sqlFqdn = Get-Out 'sqlServerFqdn'
 $dbName = Get-Out 'sqlDatabaseName'
 $apiHost = Get-Out 'webAppHostname'
 $swaHost = Get-Out 'staticWebAppHostname'
+$marketingSwaHost = Get-Out 'marketingStaticWebAppHostname'
 $sbNs = Get-Out 'serviceBusNamespaceName'
 $sqlServerName = Get-Out 'sqlServerName'
 $webAppName = Get-Out 'webAppName'
 $swaName = Get-Out 'staticWebAppName'
+$marketingSwaName = Get-Out 'marketingStaticWebAppName'
+
+# Locked public hostnames (DNS in AWS Route53 → Azure CNAMEs)
+$publicApiUrl = 'https://api.plattform-kit.poc.singletonsd.com'
+$publicAppUrl = 'https://app.plattform-kit.poc.singletonsd.com'
+$publicMarketingUrl = 'https://plattform-kit.poc.singletonsd.com'
+$corsOrigins = "$publicAppUrl,$publicMarketingUrl"
 
 # Prisma sqlserver connection string (password URL-encoded)
 $encPassword = [uri]::EscapeDataString($sqlPassword)
@@ -183,12 +191,15 @@ $envLines = @(
   "AZURE_SQL_ADMIN_PASSWORD=$sqlPassword",
   "DATABASE_URL=$databaseUrl",
   "AZURE_APP_SERVICE_NAME=$webAppName",
-  "AZURE_APP_SERVICE_URL=https://$apiHost",
+  "AZURE_APP_SERVICE_URL=$publicApiUrl",
   "AZURE_STATIC_WEB_APP_NAME=$swaName",
-  "AZURE_STATIC_WEB_APP_URL=https://$swaHost",
+  "AZURE_STATIC_WEB_APP_URL=$publicAppUrl",
+  "AZURE_MARKETING_SWA_NAME=$marketingSwaName",
+  "AZURE_MARKETING_URL=$publicMarketingUrl",
   "AZURE_SERVICEBUS_NAMESPACE=$sbNs",
   'AZURE_SERVICEBUS_CONNECTION_STRING=',
-  'NEXT_PUBLIC_API_BASE_URL=https://' + $apiHost,
+  "NEXT_PUBLIC_API_BASE_URL=$publicApiUrl",
+  "CORS_ORIGINS=$corsOrigins",
   'AUTH_SECRET=',
   'AZURE_AD_CLIENT_ID=',
   'AZURE_AD_CLIENT_SECRET=',
@@ -242,14 +253,21 @@ Set-KvSecret 'sql-admin-password' $sqlPassword
 Set-KvSecret 'database-url' $databaseUrl
 if ($sbCs) { Set-KvSecret 'servicebus-connection-string' $sbCs }
 
-# SWA deployment token → KV only (never GitHub Secrets)
-Write-Step 'Upserting SWA deployment token into Key Vault (if available)'
+# SWA deployment tokens → KV only (never GitHub Secrets)
+Write-Step 'Upserting SWA deployment tokens into Key Vault (if available)'
 $swaToken = az staticwebapp secrets list --name $swaName --resource-group $ResourceGroup --query 'properties.apiKey' -o tsv 2>$null
 if ($swaToken) {
   Set-KvSecret 'swa-deployment-token' $swaToken
   Remove-Variable swaToken -ErrorAction SilentlyContinue
 } else {
   Write-Host '  skipped swa-deployment-token (CLI could not read SWA apiKey)'
+}
+$mktToken = az staticwebapp secrets list --name $marketingSwaName --resource-group $ResourceGroup --query 'properties.apiKey' -o tsv 2>$null
+if ($mktToken) {
+  Set-KvSecret 'swa-marketing-deployment-token' $mktToken
+  Remove-Variable mktToken -ErrorAction SilentlyContinue
+} else {
+  Write-Host '  skipped swa-marketing-deployment-token (CLI could not read marketing SWA apiKey)'
 }
 
 $appConfigOut = Get-Out 'appConfigName'
@@ -267,14 +285,19 @@ function Set-AppConfigKvRef([string]$Key, [string]$SecretName) {
   az appconfig kv set-keyvault --name $appConfigOut --key $Key --secret-identifier $secretId --yes -o none
   if ($LASTEXITCODE -eq 0) { Write-Host "  kv-ref $Key -> $SecretName" }
 }
-Set-AppConfigPlain 'app:api:baseUrl' "https://$apiHost"
+Set-AppConfigPlain 'app:api:baseUrl' $publicApiUrl
+Set-AppConfigPlain 'app:web:baseUrl' $publicAppUrl
+Set-AppConfigPlain 'app:marketing:baseUrl' $publicMarketingUrl
+Set-AppConfigPlain 'app:cors:origins' $corsOrigins
 Set-AppConfigPlain 'app:web:swaName' $swaName
+Set-AppConfigPlain 'app:marketing:swaName' $marketingSwaName
 Set-AppConfigPlain 'app:azure:resourceGroup' $ResourceGroup
 Set-AppConfigPlain 'app:azure:keyVaultName' $kvNameOut
 Set-AppConfigKvRef 'secret:database-url' 'database-url'
 Set-AppConfigKvRef 'secret:servicebus-connection-string' 'servicebus-connection-string'
 Set-AppConfigKvRef 'secret:sql-admin-password' 'sql-admin-password'
 Set-AppConfigKvRef 'secret:swa-deployment-token' 'swa-deployment-token'
+Set-AppConfigKvRef 'secret:swa-marketing-deployment-token' 'swa-marketing-deployment-token'
 
 if (Test-Path $envFile) {
   $envRaw = Get-Content $envFile -Raw
@@ -300,9 +323,14 @@ Write-Step 'Deployment summary (no secrets)'
   SqlFqdn                  = $sqlFqdn
   SqlDatabase              = $dbName
   AppService               = $webAppName
-  AppServiceUrl            = "https://$apiHost"
+  AppServiceUrl            = $publicApiUrl
+  AppServiceDefaultHost    = "https://$apiHost"
   StaticWebApp             = $swaName
-  StaticWebAppUrl          = "https://$swaHost"
+  StaticWebAppUrl          = $publicAppUrl
+  StaticWebAppDefaultHost  = "https://$swaHost"
+  MarketingSwa             = $marketingSwaName
+  MarketingUrl             = $publicMarketingUrl
+  MarketingDefaultHost     = "https://$marketingSwaHost"
   ServiceBusNamespace      = $sbNs
   KeyVault                 = $kvNameOut
   AppConfiguration         = $appConfigOut
@@ -313,11 +341,13 @@ Write-Step 'Deployment summary (no secrets)'
 Write-Host @'
 
 Next steps:
-  1. Entra app registration (SPA + API) — secrets in Key Vault; config in App Config
-  2. Tighten SQL firewall rule AllowAllDevPoC to your IP
-  3. Confirm GitHub Variables AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID (OIDC)
-  4. Wire App Service / SWA / ACA to App Configuration provider + managed identity
-  5. pnpm install && pull DATABASE_URL from Key Vault for Prisma migrate
-  6. Never store deploy tokens or connection strings in GitHub Secrets
+  1. AWS Route53: CNAME marketing/app/api hostnames → Azure defaults (+ TXT validation)
+  2. Bind custom domains + managed certs on SWAs and App Service (B1)
+  3. Entra app registration (SPA + API) — secrets in Key Vault; config in App Config
+  4. Tighten SQL firewall rule AllowAllDevPoC to your IP
+  5. Confirm GitHub Variables AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID (OIDC)
+  6. Wire App Service / SWA / ACA to App Configuration provider + managed identity
+  7. pnpm install && pull DATABASE_URL from Key Vault for Prisma migrate
+  8. Never store deploy tokens or connection strings in GitHub Secrets
 
 '@ -ForegroundColor Green

@@ -35,6 +35,15 @@ Default to **Next.js App Router** when in doubt — you can always skip the serv
 | Server state | TanStack Query | Caching, loading, error states out of the box |
 | Client state | Zustand | Zero boilerplate, Redux DevTools support, simple API |
 | Language | TypeScript | Always |
+| Forms | Zod → JSON Schema → JSON Forms | Schema-driven data-entry; see **schema-driven-forms** skill |
+
+---
+
+## Forms
+
+Default data-entry forms use **Zod → JSON Schema → [JSON Forms](https://jsonforms.io/)** with **custom Tailwind + Singleton SD token renderers** (not Material UI).
+
+Before building or changing forms, read and apply the **schema-driven-forms** skill (`.cursor/skills/schema-driven-forms`). Produce both schema transformation and React wiring. Escape hatch for highly custom UX: hand-built controls + Zod.
 
 ---
 
