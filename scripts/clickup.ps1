@@ -4,6 +4,9 @@
 # Auth: CLICKUP_API_TOKEN from process / User / Machine env (never print it).
 # Defaults: workspace 90161394355, ops list 901616287298.
 #
+# Custom field values use POST /task/{id}/field/{field_id} (not Update Task).
+# On Linux/Cloud without PowerShell, use scripts/clickup.sh instead.
+#
 # Usage:
 #   powershell -File scripts/clickup.ps1 me
 #   powershell -File scripts/clickup.ps1 list -Status "READY FOR AI"
@@ -80,7 +83,7 @@ function Invoke-ClickUp {
     Headers     = $headers
     ErrorAction = 'Stop'
   }
-  if ($null -ne $Body) {
+  if ($PSBoundParameters.ContainsKey('Body') -and $null -ne $Body) {
     $params.ContentType = 'application/json'
     $params.Body = ($Body | ConvertTo-Json -Depth 8 -Compress)
   }
@@ -109,6 +112,22 @@ function Get-CustomFieldValue {
   return $f.value
 }
 
+function Test-ClaimTokenEmpty {
+  param($Value)
+  return ($null -eq $Value) -or [string]::IsNullOrWhiteSpace([string]$Value)
+}
+
+function Set-ClickUpField {
+  param(
+    [Parameter(Mandatory)][string]$TaskId,
+    [Parameter(Mandatory)][string]$FieldId,
+    $Value
+  )
+  $null = Invoke-ClickUp -Method Post -Path "/task/$TaskId/field/$FieldId" -Body @{
+    value = $Value
+  }
+}
+
 function Write-TaskSummary {
   param($Task)
   $claim = Get-CustomFieldValue -Task $Task -Id $script:ClaimFieldId
@@ -121,6 +140,28 @@ function Write-TaskSummary {
     assignees   = (@($Task.assignees) | ForEach-Object { $_.username }) -join ', '
     claim_token = $claim
     preview_url = $preview
+  }
+}
+
+function Write-TaskDetail {
+  param($Task)
+  [pscustomobject]@{
+    id            = $Task.id
+    name          = $Task.name
+    status        = $Task.status.status
+    url           = $Task.url
+    description   = $Task.description
+    markdown_description = $Task.markdown_description
+    assignees     = @($Task.assignees | ForEach-Object {
+        [pscustomobject]@{ id = $_.id; username = $_.username; email = $_.email }
+      })
+    custom_fields = @($Task.custom_fields | ForEach-Object {
+        [pscustomobject]@{ id = $_.id; name = $_.name; type = $_.type; value = $_.value }
+      })
+    dependencies  = $Task.dependencies
+    linked_tasks  = $Task.linked_tasks
+    claim_token   = (Get-CustomFieldValue -Task $Task -Id $script:ClaimFieldId)
+    preview_url   = (Get-CustomFieldValue -Task $Task -Id $script:PreviewFieldId)
   }
 }
 
@@ -144,35 +185,40 @@ switch ($Command) {
     $r = Invoke-ClickUp -Method Get -Path $path
     $rows = @($r.tasks) | ForEach-Object { Write-TaskSummary $_ }
     if ($Status -and $Status -match 'READY FOR (AI|REVIEW)') {
-      $rows = $rows | Where-Object {
-        -not $_.claim_token -or [string]::IsNullOrWhiteSpace([string]$_.claim_token)
-      }
+      $rows = $rows | Where-Object { Test-ClaimTokenEmpty $_.claim_token }
     }
     $rows | ConvertTo-Json -Depth 4
   }
 
   'get' {
     if (-not $TaskId) { throw 'get requires -TaskId' }
-    $r = Invoke-ClickUp -Method Get -Path "/task/$TaskId?include_subtasks=false"
-    Write-TaskSummary $r | ConvertTo-Json -Depth 4
+    $r = Invoke-ClickUp -Method Get -Path "/task/${TaskId}?include_subtasks=false"
+    Write-TaskDetail $r | ConvertTo-Json -Depth 8
   }
 
   'claim' {
     if (-not $TaskId) { throw 'claim requires -TaskId' }
     if (-not $ClaimToken) { throw 'claim requires -ClaimToken (chat/session id)' }
-    $body = @{
-      custom_fields = @(
-        @{ id = $script:ClaimFieldId; value = $ClaimToken }
-      )
-    }
-    if ($Status) { $body.status = $Status }
-    # Default: Claim Token only (fewer human notifications). Pass -AssignMe when an owner must show.
-    if ($AssignMe) {
-      $me = Invoke-ClickUp -Method Get -Path '/user'
-      $body.assignees = @{ add = @([int64]$me.user.id) }
+
+    $before = Invoke-ClickUp -Method Get -Path "/task/$TaskId"
+    $existing = Get-CustomFieldValue -Task $before -Id $script:ClaimFieldId
+    if (-not (Test-ClaimTokenEmpty $existing) -and "$existing" -ne "$ClaimToken") {
+      throw "Claim refused: task $TaskId already claimed by '$existing'. Abort and pick another ticket."
     }
 
-    $null = Invoke-ClickUp -Method Put -Path "/task/$TaskId" -Body $body
+    # Custom fields must use Set Custom Field Value — Update Task ignores them.
+    Set-ClickUpField -TaskId $TaskId -FieldId $script:ClaimFieldId -Value $ClaimToken
+
+    $update = @{}
+    if ($Status) { $update.status = $Status }
+    if ($AssignMe) {
+      $me = Invoke-ClickUp -Method Get -Path '/user'
+      $update.assignees = @{ add = @([int64]$me.user.id) }
+    }
+    if ($update.Count -gt 0) {
+      $null = Invoke-ClickUp -Method Put -Path "/task/$TaskId" -Body $update
+    }
+
     $verify = Invoke-ClickUp -Method Get -Path "/task/$TaskId"
     $got = Get-CustomFieldValue -Task $verify -Id $script:ClaimFieldId
     if ("$got" -ne "$ClaimToken") {
@@ -184,16 +230,15 @@ switch ($Command) {
   'status' {
     if (-not $TaskId) { throw 'status requires -TaskId' }
     if (-not $Status) { throw 'status requires -Status' }
-    $body = @{ status = $Status }
-    $fields = @()
+
     if ($ClearClaim) {
-      $fields += @{ id = $script:ClaimFieldId; value = '' }
+      Set-ClickUpField -TaskId $TaskId -FieldId $script:ClaimFieldId -Value ''
     }
     if ($Url) {
-      $fields += @{ id = $script:PreviewFieldId; value = $Url }
+      Set-ClickUpField -TaskId $TaskId -FieldId $script:PreviewFieldId -Value $Url
     }
-    if ($fields.Count -gt 0) { $body.custom_fields = $fields }
-    $null = Invoke-ClickUp -Method Put -Path "/task/$TaskId" -Body $body
+
+    $null = Invoke-ClickUp -Method Put -Path "/task/$TaskId" -Body @{ status = $Status }
     $verify = Invoke-ClickUp -Method Get -Path "/task/$TaskId"
     Write-TaskSummary $verify | ConvertTo-Json -Depth 4
   }
@@ -210,10 +255,7 @@ switch ($Command) {
   'field' {
     if (-not $TaskId) { throw 'field requires -TaskId' }
     if (-not $FieldId) { throw 'field requires -FieldId' }
-    # ClickUp custom field set endpoint
-    $null = Invoke-ClickUp -Method Post -Path "/task/$TaskId/field/$FieldId" -Body @{
-      value = $Value
-    }
+    Set-ClickUpField -TaskId $TaskId -FieldId $FieldId -Value $Value
     $verify = Invoke-ClickUp -Method Get -Path "/task/$TaskId"
     Write-TaskSummary $verify | ConvertTo-Json -Depth 4
   }
@@ -221,9 +263,7 @@ switch ($Command) {
   'preview' {
     if (-not $TaskId) { throw 'preview requires -TaskId' }
     if (-not $Url) { throw 'preview requires -Url' }
-    $null = Invoke-ClickUp -Method Post -Path "/task/$TaskId/field/$($script:PreviewFieldId)" -Body @{
-      value = $Url
-    }
+    Set-ClickUpField -TaskId $TaskId -FieldId $script:PreviewFieldId -Value $Url
     $verify = Invoke-ClickUp -Method Get -Path "/task/$TaskId"
     Write-TaskSummary $verify | ConvertTo-Json -Depth 4
   }
@@ -235,19 +275,17 @@ switch ($Command) {
       status = $(if ($Status) { $Status } else { 'TO DO' })
     }
     if ($Description) { $body.description = $Description }
-    $fields = @()
-    if ($Estimate) {
-      $fields += @{ id = $script:EstimateFieldId; value = $Estimate }
-    }
-    if ($fields.Count -gt 0) { $body.custom_fields = $fields }
     $r = Invoke-ClickUp -Method Post -Path "/list/$ListId/task" -Body $body
+    if ($Estimate) {
+      Set-ClickUpField -TaskId $r.id -FieldId $script:EstimateFieldId -Value $Estimate
+      $r = Invoke-ClickUp -Method Get -Path "/task/$($r.id)"
+    }
     Write-TaskSummary $r | ConvertTo-Json -Depth 4
   }
 
   'depend' {
     if (-not $TaskId) { throw 'depend requires -TaskId' }
     if (-not $DependsOn) { throw 'depend requires -DependsOn (blocking task id)' }
-    # TaskId waits on DependsOn (DependsOn must finish first)
     $null = Invoke-ClickUp -Method Post -Path "/task/$TaskId/dependency" -Body @{
       depends_on = $DependsOn
     }

@@ -38,7 +38,7 @@ Finish with a one-paragraph summary verdict.
 ## Reviewer pickup (Claim Token)
 
 Before reviewing a ClickUp ticket in **READY FOR REVIEW**, run the exclusive
-claim protocol in `AGENTS.md` via `scripts/clickup.ps1` (REST +
+claim protocol in `AGENTS.md` via `scripts/clickup.ps1` / `scripts/clickup.sh` (REST +
 `CLICKUP_API_TOKEN` — not ClickUp MCP). Claim Token
 `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` + assignee, re-fetch verify. Do not
 start a review on a ticket whose Claim Token is already set to another

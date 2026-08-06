@@ -45,8 +45,9 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
 3. Status transitions and exclusive claim (Claim Token):
    - Agents often share one ClickUp identity, so **assignee alone is not a
      lock**. Follow `AGENTS.md` § **Exclusive claim protocol**.
-   - **ClickUp transport:** use `powershell -File scripts/clickup.ps1 …`
-     with `CLICKUP_API_TOKEN` — **not** ClickUp MCP (MCP rate-limits easily).
+   - **ClickUp transport:** use `scripts/clickup.ps1` (Windows) or
+     `scripts/clickup.sh` (Linux/Cloud) with `CLICKUP_API_TOKEN` — **not**
+     ClickUp MCP (MCP rate-limits easily). Custom fields via field endpoints.
    - **Claim Token** field id (ops list): `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`
      (also listed in `AGENTS.md` with Preview URL / Token Estimate / Token Spent).
    - **Browse ≠ claim.** Listing or reading tickets must not set Claim Token,
