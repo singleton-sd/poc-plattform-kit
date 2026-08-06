@@ -19,6 +19,7 @@ on:
       - '.github/workflows/deploy-api.yml'
       - 'scripts/stage-api-deploy.sh'
       - 'scripts/stage-api-deploy-docker.sh'
+      - 'scripts/verify-api-appservice.sh'
   workflow_dispatch:
 
 concurrency:
@@ -109,10 +110,11 @@ jobs:
         if: steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
-          echo "hypothesisId=F message=starting az webapp deploy --type zip async (no management ops)"
+          echo "hypothesisId=F message=starting az webapp deploy --type zip async (no startup track)"
           # Sync zip deploy on B1 hit HTTP 504 (~5m gateway) on large packages.
-          # Async + long timeout lets Kudu finish extract without gateway kill.
-          # --clean true replaces wwwroot; remote build stays off via app settings.
+          # Async returns after the artifact is pushed; do NOT --track-status (default true)
+          # — that waits forever on "Starting the site…" while Nest crash-loops with no logs.
+          # Startup health + container log fail-fast is the next step.
           az webapp deploy \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_WEBAPP_NAME" \
@@ -120,32 +122,15 @@ jobs:
             --type zip \
             --clean true \
             --async true \
-            --timeout 900000 \
-            --track-status true
-          echo "hypothesisId=F message=az webapp deploy finished"
+            --track-status false
+          echo "hypothesisId=F message=az webapp deploy push finished"
 
-      - name: Verify /health
+      - name: Verify /health + container logs
         if: steps.oidc.outputs.configured == 'true'
-        run: |
-          set -euo pipefail
-          url="https://${AZURE_WEBAPP_NAME}.azurewebsites.net/health"
-          deadline=$((SECONDS + 180))
-          attempt=0
-          while (( SECONDS < deadline )); do
-            attempt=$((attempt + 1))
-            code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$url" || true)
-            echo "hypothesisId=A attempt=$attempt http=$code"
-            if [ "$code" = "200" ]; then
-              cat /tmp/health.json
-              echo "hypothesisId=A message=health ok"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "hypothesisId=A message=health check failed after deploy"
-          cat /tmp/health.json || true
-          exit 1
-
+        env:
+          VERIFY_TIMEOUT_SEC: '240'
+          VERIFY_POLL_SEC: '15'
+        run: bash ./scripts/verify-api-appservice.sh
       - name: Skip notice (OIDC not configured)
         if: steps.oidc.outputs.configured != 'true'
         run: |
