@@ -29,7 +29,7 @@
       "minLength": 3,
       "maxLength": 20,
       "metadata": {
-        "description": "Legacy short prefix for already-deployed resources (do not change â€” renames recreate)"
+        "description": "Legacy short prefix for already-deployed resources (do not change — renames recreate)"
       }
     },
     "keyVaultName": {
@@ -56,7 +56,7 @@
         "Standard"
       ],
       "metadata": {
-        "description": "App Configuration SKU â€” Free preferred for PoC"
+        "description": "App Configuration SKU — Free preferred for PoC"
       }
     },
     "deployerObjectId": {
@@ -87,7 +87,7 @@
         "B1"
       ],
       "metadata": {
-        "description": "App Service Plan SKU â€” B1 required for custom-domain managed TLS + always-on"
+        "description": "App Service Plan SKU — B1 required for custom-domain managed TLS + always-on"
       }
     },
     "staticWebAppSku": {
