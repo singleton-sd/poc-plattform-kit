@@ -3,6 +3,7 @@ import { PrismaModule } from '@poc-plattform-kit/db';
 import { TenantModule } from '@poc-plattform-kit/pillar-tenant';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
+import { SingleSignOnModule } from './single-sign-on/single-sign-on.module';
 
 const usePrettyTransport =
   process.env.LOG_PRETTY === 'true' || process.env.NODE_ENV === 'development';
@@ -36,6 +37,7 @@ const usePrettyTransport =
     PrismaModule,
     HealthModule,
     TenantModule,
+    SingleSignOnModule,
   ],
 })
 export class AppModule {}

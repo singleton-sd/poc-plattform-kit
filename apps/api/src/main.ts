@@ -2,11 +2,13 @@ import './telemetry';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { Express } from 'express';
 import { Logger, PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { correlationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { parseCorsOrigins } from './cors-origins';
+import { configureSingleSignOnAuth } from './single-sign-on/configure-auth';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -26,10 +28,13 @@ async function bootstrap() {
     origin: parseCorsOrigins(process.env.CORS_ORIGINS),
   });
 
+  configureSingleSignOnAuth(app.getHttpAdapter().getInstance() as Express);
+
   const config = new DocumentBuilder()
     .setTitle('Platform Kit API')
     .setDescription('poc-plattform-kit API')
     .setVersion('0.0.0')
+    .addBearerAuth()
     .addApiKey({ type: 'apiKey', name: 'x-tenant-id', in: 'header' }, 'x-tenant-id')
     .build();
   const document = SwaggerModule.createDocument(app, config);
