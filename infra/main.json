@@ -424,6 +424,10 @@
               "value": "[reference(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName')), '2020-02-02').ConnectionString]"
             },
             {
+              "name": "DATABASE_URL",
+              "value": "[format('@Microsoft.KeyVault(SecretUri=https://{0}.vault.azure.net/secrets/database-url/)', parameters('keyVaultName'))]"
+            },
+            {
               "name": "CORS_ORIGINS",
               "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com"
             },

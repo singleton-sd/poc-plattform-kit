@@ -10,11 +10,12 @@
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
-| `deploy-web.yml` | `apps/web/**`, `packages/**` on **`main`** | SWA **production** via OIDC → Key Vault |
+| `deploy-web.yml` | `apps/web/**`, `packages/**` on **`main`** **and** commit message starts with `chore: Release` (or `workflow_dispatch`) | SWA **production** via OIDC → Key Vault |
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** | Marketing SWA **production** via OIDC → Key Vault |
-| `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** | Nest zip → App Service **B1** via OIDC |
+| `deploy-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` on **`main`** **and** commit message starts with `chore: Release` (or `workflow_dispatch`) | Nest zip → App Service **B1** via OIDC |
+| `release.yml` | push to **`main`** (skipped for `chore: Release` commits) | Path-aware `release-it` bumps; commit + tags |
 
-**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. Push to `main` with the same paths also runs the matching **deploy-*** workflow.
+**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). Matching **deploy-*** workflows then run on the release commit so shipped builds embed the new `package.json` version (web footer / Swagger).
 
 Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 

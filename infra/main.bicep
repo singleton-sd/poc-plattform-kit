@@ -313,6 +313,12 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           value: applicationInsights.properties.ConnectionString
         }
         {
+          // Resolved by App Service via system-assigned MI (Key Vault Secrets User).
+          // Do not set this in deploy-api.yml — appsettings writes restart SCM and abort zip deploy.
+          name: 'DATABASE_URL'
+          value: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}.vault.azure.net/secrets/database-url/)'
+        }
+        {
           name: 'CORS_ORIGINS'
           value: 'https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com'
         }

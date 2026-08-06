@@ -177,4 +177,11 @@ powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR preview
 | GitHub Actions | OIDC → Azure login → Key Vault / App Config / ACR / ACA at runtime |
 | App Service / SWA / ACA | App Configuration provider + `@Microsoft.KeyVault(...)` / KV refs via MI |
 
+**App Service secret app settings (IaC only):** `DATABASE_URL` is set in `main.bicep` as
+`@Microsoft.KeyVault(SecretUri=https://{keyVaultName}.vault.azure.net/secrets/database-url/)`
+so the platform injects the value via the web app’s system-assigned identity (Key Vault
+Secrets User). Never write this in `deploy-api.yml` (appsettings changes restart SCM and
+abort OneDeploy). Apply one-off live updates with `az webapp config appsettings set`
+outside the zip-deploy job, then keep Bicep in sync.
+
 Do not paste secrets into ClickUp, GitHub Secrets, or git.
