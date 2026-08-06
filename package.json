@@ -20,7 +20,7 @@
   },
   "lint-staged": {
     "*": "prettier --write --ignore-unknown",
-    "*.{js,mjs,cjs,ts,tsx}": "eslint --fix --max-warnings=0"
+    "*.{js,mjs,cjs,ts,tsx}": "eslint --fix --max-warnings=0 --no-warn-ignored"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",

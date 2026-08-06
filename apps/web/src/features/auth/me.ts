@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+﻿import { useQuery } from '@tanstack/react-query';
 
 export interface Me {
   id: string;
@@ -9,16 +9,18 @@ export interface Me {
 }
 
 /**
- * Stub BFF client for the Auth.js `/api/me` endpoint. There's no real
- * SingleSignOn/Entra session to read yet, so this returns null (signed out)
- * for any non-2xx / non-JSON response instead of throwing -- callers should
- * treat a null Me as "not authenticated", not as an error.
+ * BFF client for Nest SingleSignOn `GET /api/me`.
  *
- * `/api/me` itself doesn't exist yet: this is a static SPA export (see
- * next.config.mjs), which can't run a dynamic Next.js Route Handler that
- * reads session cookies. Until SingleSignOn lands (API host / SWA-linked
- * backend), Azure SWA may SPA-fallback `/api/me` to `index.html` with 200 —
- * treat that HTML as signed-out instead of letting `res.json()` throw.
+ * Auth.js runs on the Nest API host (`/api/auth/*`) with httpOnly session
+ * cookies. This static SPA calls same-origin `/api/me` with
+ * `credentials: 'include'`.
+ *
+ * Returns null (signed out) for any non-2xx / non-JSON response — callers
+ * should treat null as unauthenticated, not as an error.
+ *
+ * Until SWA links `/api/*` to App Service (see **Link SWA /api to App
+ * Service for SSO cookies**), Azure SWA may SPA-fallback `/api/me` to
+ * `index.html` with 200 — non-JSON responses are treated as signed-out.
  */
 export async function fetchMe(): Promise<Me | null> {
   const res = await fetch('/api/me', { credentials: 'include' });
