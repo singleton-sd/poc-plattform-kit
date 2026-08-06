@@ -1,4 +1,5 @@
 name: CI Web
+# includes marketing Astro SSG
 
 on:
   pull_request:
