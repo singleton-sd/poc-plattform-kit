@@ -48,10 +48,12 @@ describe('buildAuthConfig', () => {
     process.env.AZURE_AD_CLIENT_ID = 'client';
     process.env.AZURE_AD_CLIENT_SECRET = 'secret';
     process.env.AZURE_AD_TENANT_ID = 'tenant';
+    delete process.env.AUTH_COOKIE_DOMAIN;
 
     const config = buildAuthConfig();
     expect(config?.callbacks?.jwt).toBeDefined();
     expect(config?.callbacks?.session).toBeDefined();
+    expect(config?.cookies).toBeUndefined();
 
     const token = await config!.callbacks!.jwt!({
       token: { sub: 'sub-fallback' },
@@ -81,5 +83,22 @@ describe('buildAuthConfig', () => {
       roles: ['support-agent'],
       tenant_id: 'tenant-1',
     });
+  });
+
+  it('scopes Auth.js cookies when AUTH_COOKIE_DOMAIN is set', () => {
+    process.env.AUTH_SECRET = 'test-secret';
+    process.env.AZURE_AD_CLIENT_ID = 'client';
+    process.env.AZURE_AD_CLIENT_SECRET = 'secret';
+    process.env.AZURE_AD_TENANT_ID = 'tenant';
+    process.env.AUTH_COOKIE_DOMAIN = '.plattform-kit.poc.singletonsd.com';
+
+    const config = buildAuthConfig();
+    expect(config?.cookies?.sessionToken?.options).toMatchObject({
+      domain: '.plattform-kit.poc.singletonsd.com',
+      sameSite: 'lax',
+      secure: true,
+      httpOnly: true,
+    });
+    expect(config?.cookies?.csrfToken).toBeUndefined();
   });
 });

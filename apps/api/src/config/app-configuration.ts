@@ -9,6 +9,8 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:azureAd:clientId': 'AZURE_AD_CLIENT_ID',
   'app:azureAd:tenantId': 'AZURE_AD_TENANT_ID',
   'app:cors:origins': 'CORS_ORIGINS',
+  'app:auth:url': 'AUTH_URL',
+  'app:auth:cookieDomain': 'AUTH_COOKIE_DOMAIN',
   'app:telemetry:cloudRoleName:api': 'APPLICATIONINSIGHTS_CLOUD_ROLE_NAME',
   'secret:appinsights-connection-string': 'APPLICATIONINSIGHTS_CONNECTION_STRING',
   'secret:auth-secret': 'AUTH_SECRET',

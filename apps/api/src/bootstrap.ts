@@ -24,6 +24,7 @@ export async function bootstrap() {
     }),
   );
 
+  // Option B SSO: SPA on app.* calls api.* with credentials (shared cookie domain).
   app.enableCors({
     origin: parseCorsOrigins(process.env.CORS_ORIGINS),
     // Required for browser credentialed fetches (api-client defaults to credentials: 'include').

@@ -26,6 +26,12 @@ export function extractEntraSessionFields(source: Record<string, unknown> | unde
   };
 }
 
+/** Cookie Domain for cross-subdomain Auth.js sessions (Option B; Free SWA). */
+export function resolveAuthCookieDomain(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const domain = env.AUTH_COOKIE_DOMAIN?.trim();
+  return domain || undefined;
+}
+
 export function buildAuthConfig(): ExpressAuthConfig | null {
   const secret = process.env.AUTH_SECRET?.trim();
   const clientId = process.env.AZURE_AD_CLIENT_ID?.trim();
@@ -36,9 +42,28 @@ export function buildAuthConfig(): ExpressAuthConfig | null {
     return null;
   }
 
+  const cookieDomain = resolveAuthCookieDomain();
+  // Domain-scoped session/callback cookies only. Leave csrfToken host-only —
+  // Auth.js defaults to `__Host-authjs.csrf-token`, and browsers reject
+  // `__Host-` cookies that carry a Domain attribute.
+  const domainCookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path: '/',
+    secure: true,
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
+  };
+
   return {
     secret,
     trustHost: true,
+    // Shared across app.* and api.* under the PoC parent domain (not SWA link).
+    cookies: cookieDomain
+      ? {
+          sessionToken: { options: domainCookieOptions },
+          callbackUrl: { options: domainCookieOptions },
+        }
+      : undefined,
     providers: [
       MicrosoftEntraID({
         clientId,

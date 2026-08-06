@@ -2,7 +2,7 @@
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
 # If those Variables are missing, deploy steps SKIP (job succeeds) so CI is not blocked forever.
-# See SETUP.md / docs/pr-pipelines.md.
+# See SETUP.md / docs/pr-pipelines.md. Touching this file retriggers previews.
 name: Preview Web (SWA)
 
 on:
@@ -47,6 +47,7 @@ jobs:
       - name: Build web
         env:
           # Baked into the static export; SWA runtime cannot inject this later.
+          # Option B: SPA calls API host (prod default). Preview→ACA / Bearer is follow-up.
           NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
         run: pnpm --filter @poc-plattform-kit/web... run build
 
