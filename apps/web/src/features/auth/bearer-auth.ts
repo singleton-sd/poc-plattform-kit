@@ -19,6 +19,31 @@ function resolveAccount(app: Awaited<ReturnType<typeof getMsalPublicClient>>): A
 }
 
 /**
+ * Complete an in-flight MSAL redirect and set the active account.
+ * Safe to call on every cold load (no-op when there is no redirect response).
+ */
+export async function completeBearerRedirect(): Promise<boolean> {
+  if (!resolveMsalPublicConfig()) {
+    return false;
+  }
+
+  const app = await getMsalPublicClient();
+  const result = await app.handleRedirectPromise();
+  if (result?.account) {
+    app.setActiveAccount(result.account);
+    return true;
+  }
+
+  if (!app.getActiveAccount()) {
+    const existing = app.getAllAccounts()[0];
+    if (existing) {
+      app.setActiveAccount(existing);
+    }
+  }
+  return false;
+}
+
+/**
  * Silent access-token acquire for Nest Bearer auth.
  * Returns null when signed out or MSAL is not configured (no interactive prompt).
  */
@@ -49,18 +74,18 @@ export async function getBearerAccessToken(): Promise<string | null> {
   }
 }
 
-/** Interactive MSAL popup sign-in for SWA preview hosts. */
+/**
+ * Interactive MSAL redirect sign-in for SWA preview hosts.
+ * Prefer redirect over popup — Entra sets COOP that blocks `window.closed` polling.
+ */
 export async function signInWithBearer(): Promise<void> {
   const app = await getMsalPublicClient();
-  const result = await app.loginPopup({
+  await app.loginRedirect({
     scopes: loginRequestScopes(),
   });
-  if (result.account) {
-    app.setActiveAccount(result.account);
-  }
 }
 
-/** Clear MSAL session (popup logout when an account exists). */
+/** Clear MSAL session via redirect logout when an account exists. */
 export async function signOutWithBearer(): Promise<void> {
   if (!resolveMsalPublicConfig()) {
     return;
@@ -72,6 +97,6 @@ export async function signOutWithBearer(): Promise<void> {
     return;
   }
 
-  await app.logoutPopup({ account });
   app.setActiveAccount(null);
+  await app.logoutRedirect({ account });
 }

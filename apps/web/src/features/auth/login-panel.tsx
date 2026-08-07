@@ -18,7 +18,8 @@ export function LoginPanel() {
     setSignInError(null);
     try {
       await signIn();
-      // Cookie mode navigates away (form POST). Bearer (MSAL popup) returns here.
+      // Cookie mode navigates away (form POST). Bearer MSAL redirect navigates away too.
+      // invalidateQueries only runs if sign-in returns without navigation (errors / tests).
       await queryClient.invalidateQueries({ queryKey: meKeys.all });
     } catch (error) {
       const detail = error instanceof Error ? error.message : '';

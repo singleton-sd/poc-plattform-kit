@@ -7,5 +7,8 @@
       "/assets/*",
       "/*.{css,js,ico,png,svg,webmanifest,txt,json,map}"
     ]
+  },
+  "globalHeaders": {
+    "Cross-Origin-Opener-Policy": "same-origin-allow-popups"
   }
 }

@@ -60,7 +60,7 @@ Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They 
 | Host | Mode |
 | --- | --- |
 | `app.plattform-kit.poc.singletonsd.com` (and other non-SWA hosts) | Auth.js cookies (Option B) |
-| `*.azurestaticapps.net` (default + PR preview) | MSAL browser popup → Entra access token → `Authorization: Bearer` on `/api/me` and Orval `customFetch` |
+| `*.azurestaticapps.net` (default + PR preview) | MSAL **redirect** → Entra access token → `Authorization: Bearer` on `/api/me` and Orval `customFetch` (popup is blocked by Entra `Cross-Origin-Opener-Policy`) |
 
 Nest already accepts Bearer via `EntraJwtStrategy` (`AZURE_AD_API_AUDIENCE` / client id). Prod cookie path is unchanged.
 
@@ -80,7 +80,7 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 | Flow | Redirect URI |
 | --- | --- |
 | Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). SWA preview origins are **not** Entra redirect URIs for this flow. |
-| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. MSAL uses `window.location.origin` as `redirectUri`. |
+| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. SWA also sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
 
 ### Build / GitHub Variables
 

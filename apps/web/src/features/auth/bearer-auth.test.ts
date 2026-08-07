@@ -1,11 +1,17 @@
-import { getBearerAccessToken, signInWithBearer, signOutWithBearer } from './bearer-auth';
+import {
+  completeBearerRedirect,
+  getBearerAccessToken,
+  signInWithBearer,
+  signOutWithBearer,
+} from './bearer-auth';
 
 const setActiveAccount = jest.fn();
 const getActiveAccount = jest.fn();
 const getAllAccounts = jest.fn();
 const acquireTokenSilent = jest.fn();
-const loginPopup = jest.fn();
-const logoutPopup = jest.fn();
+const loginRedirect = jest.fn();
+const logoutRedirect = jest.fn();
+const handleRedirectPromise = jest.fn();
 
 jest.mock('./msal-config', () => ({
   resolveMsalPublicConfig: jest.fn(() => ({
@@ -18,8 +24,9 @@ jest.mock('./msal-config', () => ({
     getActiveAccount,
     getAllAccounts,
     acquireTokenSilent,
-    loginPopup,
-    logoutPopup,
+    loginRedirect,
+    logoutRedirect,
+    handleRedirectPromise,
   })),
 }));
 
@@ -29,17 +36,24 @@ describe('bearer-auth', () => {
     getActiveAccount.mockReset();
     getAllAccounts.mockReset();
     acquireTokenSilent.mockReset();
-    loginPopup.mockReset();
-    logoutPopup.mockReset();
+    loginRedirect.mockReset();
+    logoutRedirect.mockReset();
+    handleRedirectPromise.mockReset();
   });
 
-  it('sets the active account from loginPopup', async () => {
-    const account = { homeAccountId: 'a1' };
-    loginPopup.mockResolvedValue({ account });
+  it('starts MSAL redirect sign-in', async () => {
+    loginRedirect.mockResolvedValue(undefined);
 
     await signInWithBearer();
 
-    expect(loginPopup).toHaveBeenCalledWith({ scopes: ['api://client-1/.default'] });
+    expect(loginRedirect).toHaveBeenCalledWith({ scopes: ['api://client-1/.default'] });
+  });
+
+  it('completes redirect and sets the active account', async () => {
+    const account = { homeAccountId: 'a1' };
+    handleRedirectPromise.mockResolvedValue({ account });
+
+    await expect(completeBearerRedirect()).resolves.toBe(true);
     expect(setActiveAccount).toHaveBeenCalledWith(account);
   });
 
@@ -56,14 +70,14 @@ describe('bearer-auth', () => {
     });
   });
 
-  it('logs out the active account and clears it', async () => {
+  it('logs out via redirect and clears the active account first', async () => {
     const account = { homeAccountId: 'active' };
     getActiveAccount.mockReturnValue(account);
-    logoutPopup.mockResolvedValue(undefined);
+    logoutRedirect.mockResolvedValue(undefined);
 
     await signOutWithBearer();
 
-    expect(logoutPopup).toHaveBeenCalledWith({ account });
     expect(setActiveAccount).toHaveBeenCalledWith(null);
+    expect(logoutRedirect).toHaveBeenCalledWith({ account });
   });
 });
