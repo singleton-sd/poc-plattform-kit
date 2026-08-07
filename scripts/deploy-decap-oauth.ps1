@@ -61,7 +61,8 @@ try {
       npm install --omit=dev --package-lock=false | Out-Host
       $zipPath = Join-Path $env:TEMP 'decap-oauth-deploy.zip'
       if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-      Compress-Archive -Path * -DestinationPath $zipPath -Force
+      # tar zip is Linux/Kudu-friendly; Compress-Archive often fails extract on Linux apps
+      tar.exe -a -cf $zipPath *
     }
     finally {
       Pop-Location

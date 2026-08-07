@@ -12,7 +12,7 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 | Styling | **Tailwind 3** + [Singleton SD design tokens](https://tokens.design.singletonsd.com/) |
 | Content | Markdown collections under `apps/marketing/src/content/pages/` |
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
-| OAuth login | Azure Function Consumption `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`) |
+| OAuth login | Azure Function on existing B1 `pocpk-plan` — `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`) |
 | Deploy site | `deploy-marketing.yml` → OIDC → Key Vault → SWA upload of `apps/marketing/dist` |
 | Deploy OAuth | `deploy-decap-oauth.yml` → OIDC → Bicep + zip Function App |
 

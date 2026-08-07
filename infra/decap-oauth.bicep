@@ -1,5 +1,6 @@
-// Decap CMS GitHub OAuth proxy — Azure Functions Consumption (Linux).
-// Deploy: pwsh ./scripts/deploy-decap-oauth.ps1
+// Decap CMS GitHub OAuth proxy — Azure Functions on existing Linux B1 plan.
+// Y1 Linux Consumption is blocked in rg-poc-plattform-kit (already has Dedicated B1).
+// Deploy: powershell ./scripts/deploy-decap-oauth.ps1
 // Secrets: OAUTH_CLIENT_SECRET from Key Vault only (never GitHub Secrets).
 // CAF: ssd-pocpk-decap-oauth-dev-ae
 
@@ -12,8 +13,8 @@ param functionAppName string = 'ssd-pocpk-decap-oauth-dev-ae'
 @description('Storage account for Functions (3-24 lowercase alphanumeric)')
 param storageAccountName string = 'ssdpocpkstdoauth'
 
-@description('App Service Plan name for Consumption')
-param planName string = 'ssd-pocpk-asp-decap-oauth-dev-ae'
+@description('Existing Linux App Service Plan name (Dedicated B1 — shares API plan)')
+param planName string = 'pocpk-plan'
 
 @description('Existing Key Vault name')
 param keyVaultName string = 'ssd-pocpk-kv-dev-ae'
@@ -44,16 +45,8 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
 }
 
-resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
+resource plan 'Microsoft.Web/serverfarms@2023-12-01' existing = {
   name: planName
-  location: location
-  sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
-  }
-  properties: {
-    reserved: true
-  }
 }
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
@@ -71,21 +64,13 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     serverFarmId: plan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'Node|20'
+      linuxFxVersion: 'Node|24'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
           value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
@@ -101,7 +86,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~20'
+          value: '~24'
         }
         {
           name: 'OAUTH_CLIENT_ID'

@@ -1,4 +1,5 @@
-# Decap GitHub OAuth proxy — Azure Functions Consumption.
+# Decap GitHub OAuth proxy — Azure Functions on existing Linux B1 (pocpk-plan).
+# Y1 Consumption is blocked in this RG (LinuxDynamicWorkersNotAllowedInResourceGroup).
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `github-decap-oauth-client-secret`.
 # Non-secret client id: repo Variable `DECAP_OAUTH_CLIENT_ID` (GitHub OAuth App).
 # Required Variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
