@@ -92,7 +92,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:marketing:baseUrl` | plain — `https://plattform-kit.poc.singletonsd.com` |
 | `app:web:swaName` | plain |
 | `app:marketing:swaName` | plain — `ssd-pocpk-mkt-dev-ae` |
-| `app:cors:origins` | plain — comma-separated allowed browser origins |
+| `app:cors:origins` | plain — comma-separated allowed browser origins; supports `https://*.azurestaticapps.net` for SWA Free / PR preview hosts |
 | `app:auth:url` | plain — Auth.js `AUTH_URL` (API public origin) |
 | `app:auth:cookieDomain` | plain — Auth.js cookie Domain (Option B; e.g. `.plattform-kit.poc.singletonsd.com`) |
 | `app:azure:resourceGroup` | plain |

@@ -320,7 +320,7 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'CORS_ORIGINS'
-          value: 'https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com'
+          value: 'https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com,https://*.azurestaticapps.net'
         }
         {
           name: 'NEXT_PUBLIC_API_BASE_URL'

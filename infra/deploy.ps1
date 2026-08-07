@@ -173,7 +173,7 @@ $marketingSwaName = Get-Out 'marketingStaticWebAppName'
 $publicApiUrl = 'https://api.plattform-kit.poc.singletonsd.com'
 $publicAppUrl = 'https://app.plattform-kit.poc.singletonsd.com'
 $publicMarketingUrl = 'https://plattform-kit.poc.singletonsd.com'
-$corsOrigins = "$publicAppUrl,$publicMarketingUrl"
+$corsOrigins = "$publicAppUrl,$publicMarketingUrl,https://*.azurestaticapps.net"
 
 # Prisma sqlserver connection string (password URL-encoded)
 $encPassword = [uri]::EscapeDataString($sqlPassword)

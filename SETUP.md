@@ -79,7 +79,7 @@ Public hostnames under `singletonsd.com` (DNS stays in **AWS**; Azure only gets 
 | `app.plattform-kit.poc.singletonsd.com` | Web app (PWA/SPA) | SWA `pocpk-web-si5fhs6dvxiha` (Free) |
 | `api.plattform-kit.poc.singletonsd.com` | Nest API | App Service `pocpk-api-si5fhs6dvxiha` (**B1**) |
 
-PR / preview URLs stay on Azure defaults (`*.azurestaticapps.net`, ACA preview hostnames) — no custom preview domains.
+PR / preview URLs stay on Azure defaults (`*.azurestaticapps.net`, ACA preview hostnames) — no custom preview domains. API CORS allows `https://*.azurestaticapps.net` via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Entra Auth.js callback stays on the API host; MSAL SPA redirect URIs need exact preview origins (no Entra wildcard).
 
 #### Route53 checklist (zone `singletonsd.com` or delegated `poc.singletonsd.com`)
 
