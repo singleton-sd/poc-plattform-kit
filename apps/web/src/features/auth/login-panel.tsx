@@ -9,6 +9,7 @@ import { signIn, signOut } from '@/features/auth/auth-urls';
 
 /** Signed-out login surface (also used at `/` via HomeAuthGate). */
 export function LoginPanel() {
+  const queryClient = useQueryClient();
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
 
@@ -17,8 +18,18 @@ export function LoginPanel() {
     setSignInError(null);
     try {
       await signIn();
-    } catch {
-      setSignInError('Could not start sign-in. Try again.');
+      // Cookie mode navigates away (form POST). Bearer MSAL redirect navigates away too.
+      // invalidateQueries only runs if sign-in returns without navigation (errors / tests).
+      await queryClient.invalidateQueries({ queryKey: meKeys.all });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '';
+      setSignInError(
+        detail.includes('MSAL is not configured')
+          ? 'Sign-in is not configured for this preview (missing Entra public env).'
+          : 'Could not start sign-in. Try again.',
+      );
+    } finally {
+      // Bearer path stays on this panel when /api/me is still null — re-enable CTA.
       setSigningIn(false);
     }
   }
@@ -42,7 +53,7 @@ export function LoginPanel() {
         disabled={signingIn}
         onClick={() => void onSignIn()}
       >
-        {signingIn ? 'Redirecting…' : 'Sign in with Microsoft'}
+        {signingIn ? 'Signing in…' : 'Sign in with Microsoft'}
       </button>
       {signInError ? (
         <p className="text-sm text-fg-muted" data-testid="login-sign-in-error">

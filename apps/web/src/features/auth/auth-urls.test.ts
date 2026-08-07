@@ -1,5 +1,22 @@
 import { csrfUrl, ENTRA_PROVIDER_ID, signIn, signInUrl, signOut, signOutUrl } from './auth-urls';
 
+jest.mock('./auth-mode', () => ({
+  resolveAuthMode: jest.fn(() => 'cookie'),
+}));
+
+jest.mock('./bearer-auth', () => ({
+  getBearerAccessToken: jest.fn(),
+  signInWithBearer: jest.fn(),
+  signOutWithBearer: jest.fn(),
+}));
+
+import { resolveAuthMode } from './auth-mode';
+import { signInWithBearer, signOutWithBearer } from './bearer-auth';
+
+const resolveAuthModeMock = resolveAuthMode as jest.MockedFunction<typeof resolveAuthMode>;
+const signInWithBearerMock = signInWithBearer as jest.MockedFunction<typeof signInWithBearer>;
+const signOutWithBearerMock = signOutWithBearer as jest.MockedFunction<typeof signOutWithBearer>;
+
 describe('auth-urls', () => {
   const previousBase = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -9,6 +26,10 @@ describe('auth-urls', () => {
     } else {
       process.env.NEXT_PUBLIC_API_BASE_URL = previousBase;
     }
+    resolveAuthModeMock.mockReset();
+    resolveAuthModeMock.mockReturnValue('cookie');
+    signInWithBearerMock.mockReset();
+    signOutWithBearerMock.mockReset();
     jest.restoreAllMocks();
   });
 
@@ -22,8 +43,9 @@ describe('auth-urls', () => {
     expect(signInUrl()).toBe(`https://api.example.test/api/auth/signin/${ENTRA_PROVIDER_ID}`);
   });
 
-  it('starts sign-in with CSRF then form POST', async () => {
+  it('starts cookie sign-in with CSRF then form POST', async () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    resolveAuthModeMock.mockReturnValue('cookie');
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ csrfToken: 'csrf-test' }),
@@ -54,10 +76,21 @@ describe('auth-urls', () => {
     expect(fetchMock).toHaveBeenCalledWith(csrfUrl(), { credentials: 'include' });
     expect(submit).toHaveBeenCalled();
     expect(appendChild).toHaveBeenCalled();
+    expect(signInWithBearerMock).not.toHaveBeenCalled();
+  });
+
+  it('starts bearer sign-in via MSAL on SWA hosts', async () => {
+    resolveAuthModeMock.mockReturnValue('bearer');
+    signInWithBearerMock.mockResolvedValue(undefined);
+
+    await signIn('https://preview.example.test/');
+
+    expect(signInWithBearerMock).toHaveBeenCalled();
   });
 
   it('signs out with CSRF then POST against the API base', async () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    resolveAuthModeMock.mockReturnValue('cookie');
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce({
@@ -82,5 +115,15 @@ describe('auth-urls', () => {
     const body = (fetchMock.mock.calls[1][1] as RequestInit).body as URLSearchParams;
     expect(body.get('csrfToken')).toBe('csrf-test');
     expect(body.get('callbackUrl')).toBe('https://app.example.test/');
+    expect(signOutWithBearerMock).not.toHaveBeenCalled();
+  });
+
+  it('signs out via MSAL on SWA hosts', async () => {
+    resolveAuthModeMock.mockReturnValue('bearer');
+    signOutWithBearerMock.mockResolvedValue(undefined);
+
+    await signOut('https://preview.example.test/');
+
+    expect(signOutWithBearerMock).toHaveBeenCalled();
   });
 });

@@ -1,5 +1,17 @@
 import { fetchMe } from './me';
 
+jest.mock('./auth-urls', () => {
+  const actual = jest.requireActual('./auth-urls') as typeof import('./auth-urls');
+  return {
+    ...actual,
+    authHeaders: jest.fn(async () => ({})),
+  };
+});
+
+import { authHeaders } from './auth-urls';
+
+const authHeadersMock = authHeaders as jest.MockedFunction<typeof authHeaders>;
+
 function mockFetch(response: Partial<Response> & { json?: jest.Mock }) {
   const fetchMock = jest.fn().mockResolvedValue({
     ok: true,
@@ -19,6 +31,8 @@ describe('fetchMe', () => {
 
   afterEach(() => {
     (globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch = originalFetch;
+    authHeadersMock.mockReset();
+    authHeadersMock.mockResolvedValue({});
   });
 
   it('returns null when the response is not ok', async () => {
@@ -60,7 +74,10 @@ describe('fetchMe', () => {
     });
 
     await expect(fetchMe()).resolves.toEqual(me);
-    expect(fetchMock).toHaveBeenCalledWith('/api/me', { credentials: 'include' });
+    expect(fetchMock).toHaveBeenCalledWith('/api/me', {
+      credentials: 'include',
+      headers: {},
+    });
   });
 
   it('uses NEXT_PUBLIC_API_BASE_URL when set', async () => {
@@ -77,7 +94,7 @@ describe('fetchMe', () => {
       await expect(fetchMe()).resolves.toBeNull();
       expect(fetchMock).toHaveBeenCalledWith(
         'https://api.plattform-kit.poc.singletonsd.com/api/me',
-        { credentials: 'include' },
+        { credentials: 'include', headers: {} },
       );
     } finally {
       if (previous === undefined) {
@@ -86,5 +103,27 @@ describe('fetchMe', () => {
         process.env.NEXT_PUBLIC_API_BASE_URL = previous;
       }
     }
+  });
+
+  it('forwards Bearer auth headers when present', async () => {
+    authHeadersMock.mockResolvedValue({ Authorization: 'Bearer tok' });
+    const fetchMock = mockFetch({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: jest.fn().mockResolvedValue({
+        id: '1',
+        email: 'a@b.co',
+        name: null,
+        role: null,
+      }),
+    });
+
+    await fetchMe();
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/me', {
+      credentials: 'include',
+      headers: { Authorization: 'Bearer tok' },
+    });
   });
 });

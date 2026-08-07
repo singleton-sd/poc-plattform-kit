@@ -3,6 +3,9 @@ export interface EntraClaims {
   sub?: string;
   email?: string;
   preferred_username?: string;
+  /** Common on access tokens when email is absent. */
+  upn?: string;
+  unique_name?: string;
   name?: string;
   roles?: string[];
   /** App roles sometimes appear as a single string. */
@@ -35,9 +38,9 @@ export function mapEntraClaims(claims: EntraClaims, localUserId?: string): Authe
     throw new Error('Entra token missing oid/sub');
   }
 
-  const email = claims.email ?? claims.preferred_username;
+  const email = claims.email ?? claims.preferred_username ?? claims.upn ?? claims.unique_name;
   if (!email) {
-    throw new Error('Entra token missing email/preferred_username');
+    throw new Error('Entra token missing email/preferred_username/upn');
   }
 
   const roleFromArray =

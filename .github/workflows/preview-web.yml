@@ -47,8 +47,12 @@ jobs:
       - name: Build web
         env:
           # Baked into the static export; SWA runtime cannot inject this later.
-          # Option B: SPA calls API host (prod default). Preview→ACA / Bearer is follow-up.
+          # Option B cookies on custom domains; MSAL Bearer on *.azurestaticapps.net.
+          # Rebuild after setting GitHub Variables NEXT_PUBLIC_AZURE_AD_* (MSAL).
           NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
+          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
+          NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
+          NEXT_PUBLIC_AZURE_AD_API_SCOPE: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE }}
         run: pnpm --filter @poc-plattform-kit/web... run build
 
       - name: Check OIDC Variables

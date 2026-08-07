@@ -8,17 +8,22 @@ html {
   --pk-fg: var(--colors-gray-100);
   --pk-muted: var(--colors-gray-400);
   --pk-accent: var(--colors-yellow-light-400);
+  --pk-accent-on: var(--colors-gray-900);
+  --pk-accent-bg: var(--colors-yellow-light-900);
+  --pk-surface: var(--colors-gray-800);
   --fg-default: var(--pk-fg);
   --fg-muted: var(--pk-muted);
   --bg-default: var(--pk-bg);
   --accent-default: var(--pk-accent);
+  --accent-on-accent: var(--pk-accent-on);
+  --accent-bg: var(--pk-accent-bg);
 }
 
 html,
 body {
   margin: 0;
   padding: 1.5rem;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-families-body), ui-sans-serif, system-ui, sans-serif;
   background: var(--bg-default);
   color: var(--fg-default);
 }
@@ -27,6 +32,7 @@ h1,
 h2,
 h3 {
   color: var(--fg-default);
+  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
 }
 
 p,
@@ -37,4 +43,15 @@ li {
 
 a {
   color: var(--accent-default);
+}
+
+strong {
+  color: var(--fg-default);
+}
+
+code {
+  background: var(--pk-surface);
+  color: var(--pk-accent);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
 }

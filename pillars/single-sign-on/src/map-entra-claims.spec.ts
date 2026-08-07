@@ -46,6 +46,15 @@ describe('mapEntraClaims', () => {
     });
   });
 
+  it('falls back to upn on access tokens without email', () => {
+    expect(
+      mapEntraClaims({
+        oid: 'oid-1',
+        upn: 'user@contoso.com',
+      }).email,
+    ).toBe('user@contoso.com');
+  });
+
   it('uses localUserId when provided', () => {
     expect(mapEntraClaims({ oid: 'oid-1', email: 'a@b.com' }, 'cuid_local').id).toBe('cuid_local');
   });
@@ -54,8 +63,8 @@ describe('mapEntraClaims', () => {
     expect(() => mapEntraClaims({ email: 'a@b.com' })).toThrow(/oid\/sub/);
   });
 
-  it('rejects tokens without email', () => {
-    expect(() => mapEntraClaims({ oid: 'oid-1' })).toThrow(/email/);
+  it('rejects tokens without email claims', () => {
+    expect(() => mapEntraClaims({ oid: 'oid-1' })).toThrow(/email\/preferred_username\/upn/);
   });
 });
 

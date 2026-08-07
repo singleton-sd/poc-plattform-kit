@@ -1,6 +1,7 @@
 ﻿import { useQuery } from '@tanstack/react-query';
 
 import { apiUrl } from './api-base-url';
+import { authHeaders } from './auth-urls';
 
 export interface Me {
   id: string;
@@ -13,15 +14,18 @@ export interface Me {
 /**
  * Client for Nest SingleSignOn `GET /api/me`.
  *
- * Auth.js runs on the Nest API host (`/api/auth/*`) with httpOnly session
- * cookies scoped to `AUTH_COOKIE_DOMAIN` (Option B: Free SWA stays static;
- * browser calls the API origin with `credentials: 'include'`).
+ * - Custom domains: Auth.js httpOnly cookies (`credentials: 'include'`).
+ * - SWA PR / Free hosts: MSAL Bearer token (`Authorization`) — cookies cannot
+ *   share `AUTH_COOKIE_DOMAIN` with `*.azurestaticapps.net`.
  *
  * Returns null (signed out) for any non-2xx / non-JSON response — callers
  * should treat null as unauthenticated, not as an error.
  */
 export async function fetchMe(): Promise<Me | null> {
-  const res = await fetch(apiUrl('/api/me'), { credentials: 'include' });
+  const res = await fetch(apiUrl('/api/me'), {
+    credentials: 'include',
+    headers: await authHeaders(),
+  });
   if (!res.ok) return null;
 
   const contentType = res.headers.get('content-type') ?? '';

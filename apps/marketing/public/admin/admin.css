@@ -1,6 +1,7 @@
 /**
  * Decap CMS chrome — product palette via Singleton SD tokens.
- * Class names are Decap/Emotion internals and may drift; keep overrides minimal.
+ * Emotion class names include component labels; selectors use those
+ * substrings and may drift across Decap versions — keep overrides minimal.
  */
 @import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
 
@@ -10,13 +11,22 @@ html[data-theme='dark'] {
   --pk-muted: var(--colors-gray-400);
   --pk-accent: var(--colors-yellow-light-400);
   --pk-accent-on: var(--colors-gray-900);
+  --pk-accent-bg: var(--colors-yellow-light-900);
+  --pk-surface: var(--colors-gray-800);
+  --pk-surface-raised: var(--colors-gray-700);
   --pk-glow: color-mix(in srgb, var(--pk-accent) 18%, transparent);
 
   --fg-default: var(--pk-fg);
   --fg-muted: var(--pk-muted);
   --bg-default: var(--pk-bg);
+  --bg-muted: var(--pk-surface);
   --accent-default: var(--pk-accent);
   --accent-on-accent: var(--pk-accent-on);
+  --accent-bg: var(--pk-accent-bg);
+
+  /* Remap Decap hardcoded blues → product accent (for any leftover rules). */
+  --decap-blue: var(--pk-accent);
+  --decap-blue-light: var(--pk-accent-bg);
 }
 
 html,
@@ -46,4 +56,211 @@ button,
 
 a {
   color: var(--accent-default);
+}
+
+/* ——— Shell surfaces ——— */
+
+[class*='AppMainContainer'],
+[class*='CollectionContainer'],
+[class*='CollectionMain'] {
+  background-color: transparent !important;
+  color: var(--pk-fg) !important;
+}
+
+[class*='AppHeaderContent'],
+[class*='AppHeader'] {
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-bottom: 1px solid var(--pk-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+[class*='SidebarContainer'] {
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+[class*='SidebarHeading'],
+[class*='CollectionLabel'],
+[class*='CollectionTopHeading'],
+[class*='CollectionTopDescription'],
+[class*='CardHeading'],
+[class*='CardTitle'],
+[class*='ListCardTitle'] {
+  color: var(--pk-fg) !important;
+}
+
+[class*='CollectionTopContainer'],
+[class*='CollectionTopRow'],
+[class*='CollectionControlsContainer'],
+[class*='Card'],
+[class*='ListCard'],
+[class*='CardGrid'],
+[class*='CardsGrid'],
+[class*='AuthForm'] {
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+[class*='ListCardLink'],
+[class*='CardBody'],
+[class*='CardText'] {
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-surface-raised) !important;
+}
+
+[class*='ListCardLink']:hover,
+[class*='Card']:hover {
+  border-color: var(--pk-accent) !important;
+  background-color: var(--pk-surface-raised) !important;
+}
+
+/* ——— Nav / sidebar active states (replace Decap #3a69c7 / #e8f5fe) ——— */
+
+[class*='AppHeaderNavLink'],
+[class*='AppHeaderSiteLink'],
+[class*='SidebarNavLink'],
+[class*='BackCollection'] {
+  color: var(--pk-muted) !important;
+  fill: var(--pk-muted) !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+[class*='AppHeaderNavLink'] svg,
+[class*='SidebarNavLink'] svg {
+  fill: currentColor !important;
+  color: inherit !important;
+}
+
+[class*='AppHeaderNavLink']:hover,
+[class*='SidebarNavLink']:hover,
+[class*='AppHeaderSiteLink']:hover {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+/* Active: Emotion often appends -active or uses aria/current patterns via same class tree */
+[class*='AppHeaderNavLink'][class*='active'],
+[class*='AppHeaderNavLink'][aria-current],
+[class*='SidebarNavLink'][class*='active'],
+[class*='SidebarNavLink'][aria-current] {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+  background-color: color-mix(in srgb, var(--pk-accent) 12%, transparent) !important;
+  border-left-color: var(--pk-accent) !important;
+  box-shadow: inset 3px 0 0 var(--pk-accent) !important;
+}
+
+/* Decap paints active sidebar with blue left bar / light blue bg via sibling styles */
+[class*='SidebarNavList'] [class*='SidebarNavLink']:focus,
+[class*='SidebarNavList'] [class*='SidebarNavLink']:active {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+/* View toggles (list/grid) — active icon was blue */
+[class*='CollectionControlsContainer'] button,
+[class*='CollectionControlsContainer'] [class*='Button'],
+[class*='viewControls'] button {
+  color: var(--pk-muted) !important;
+  fill: var(--pk-muted) !important;
+  background-color: transparent !important;
+}
+
+[class*='CollectionControlsContainer'] button:hover,
+[class*='CollectionControlsContainer'] [class*='Button']:hover {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+/* ——— Search ——— */
+
+[class*='SearchContainer'],
+[class*='SearchInput'],
+[class*='AuthInput'],
+input[type='text'],
+input[type='search'],
+textarea {
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+[class*='SearchInput']::placeholder,
+input::placeholder {
+  color: var(--pk-muted) !important;
+}
+
+[class*='SearchIcon'] {
+  color: var(--pk-muted) !important;
+  fill: var(--pk-muted) !important;
+}
+
+/* ——— Buttons / primary actions ——— */
+
+[class*='AppHeaderButton'],
+[class*='CollectionTopNewButton'],
+[class*='AppHeaderQuickNewButton'],
+[class*='ActionButton'],
+[class*='AddButton'],
+button[class*='teal'],
+button[class*='green'] {
+  background-color: var(--pk-accent) !important;
+  color: var(--pk-accent-on) !important;
+  border-color: var(--pk-accent) !important;
+  fill: var(--pk-accent-on) !important;
+}
+
+[class*='AppHeaderButton']:hover,
+[class*='CollectionTopNewButton']:hover,
+[class*='ActionButton']:hover,
+[class*='AddButton']:hover {
+  filter: brightness(1.05);
+}
+
+[class*='AvatarDropdownButton'],
+[class*='ClearButton'],
+[class*='Cancel'],
+[class*='CloseButton'] {
+  background-color: var(--pk-surface-raised) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-surface-raised) !important;
+}
+
+/* ——— Dropdowns ——— */
+
+[class*='dropdownList'],
+[class*='DropdownList'],
+[class*='css-'][class*='menu'] {
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-surface-raised) !important;
+}
+
+[class*='dropdownItem']:hover,
+[class*='DropdownItem']:hover,
+[class*='dropdownItem'].active,
+[class*='DropdownItem'].active {
+  background-color: var(--pk-accent-bg) !important;
+  color: var(--pk-accent) !important;
+}
+
+/* ——— Force Decap blue hex leftovers to product accent ——— */
+
+svg[fill='#3a69c7'],
+svg [fill='#3a69c7'],
+[fill='#3a69c7'] {
+  fill: var(--pk-accent) !important;
+}
+
+svg[stroke='#3a69c7'],
+[stroke='#3a69c7'] {
+  stroke: var(--pk-accent) !important;
 }
