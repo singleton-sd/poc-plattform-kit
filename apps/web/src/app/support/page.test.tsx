@@ -1,14 +1,35 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import SupportPage from './page';
 import { useMe } from '@/features/auth/me';
+
+const mockFindTenant = jest.fn();
+const mockConfigureApiClient = jest.fn();
 
 jest.mock('@/features/auth/me', () => ({
   useMe: jest.fn(),
 }));
 
+jest.mock('@poc-plattform-kit/api-client', () => ({
+  useTenantControllerFindOne: (...args: unknown[]) => mockFindTenant(...args),
+}));
+
+jest.mock('@/lib/api-client', () => ({
+  configureApiClient: (...args: unknown[]) => mockConfigureApiClient(...args),
+}));
+
 const mockUseMe = useMe as jest.Mock;
 
 describe('SupportPage', () => {
+  beforeEach(() => {
+    mockFindTenant.mockReturnValue({
+      data: undefined,
+      error: null,
+      isError: false,
+      isFetching: false,
+      refetch: jest.fn(),
+    });
+  });
+
   it('shows a loading state while resolving the session', () => {
     mockUseMe.mockReturnValue({ data: undefined, isLoading: true, isError: false });
 
@@ -62,5 +83,41 @@ describe('SupportPage', () => {
     render(<SupportPage />);
 
     expect(screen.getByTestId('support-shell')).toBeInTheDocument();
+  });
+
+  it('looks up and displays a tenant by id for a support-agent', () => {
+    mockUseMe.mockReturnValue({
+      data: { role: 'support-agent' },
+      isLoading: false,
+      isError: false,
+    });
+    mockFindTenant.mockImplementation((id: string) => ({
+      data:
+        id === 'tenant-42'
+          ? {
+              data: { id: 'tenant-42', name: 'Acme Corp', slug: 'acme' },
+              status: 200,
+              headers: new Headers(),
+            }
+          : undefined,
+      error: null,
+      isError: false,
+      isFetching: false,
+      refetch: jest.fn(),
+    }));
+
+    render(<SupportPage />);
+    fireEvent.change(screen.getByLabelText('Tenant id'), {
+      target: { value: '  tenant-42  ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Look up tenant' }));
+
+    expect(mockFindTenant).toHaveBeenLastCalledWith(
+      'tenant-42',
+      expect.objectContaining({ query: expect.objectContaining({ enabled: true }) }),
+    );
+    expect(mockConfigureApiClient).toHaveBeenCalledWith({ tenantId: 'tenant-42' });
+    expect(screen.getByTestId('support-tenant-result')).toHaveTextContent('Acme Corp');
+    expect(screen.getByTestId('support-tenant-result')).toHaveTextContent('tenant-42');
   });
 });

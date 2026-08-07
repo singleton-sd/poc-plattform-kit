@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { AppShellHeader } from '@/components/app-shell-header';
 import { useMe } from '@/features/auth/me';
+import { TenantLookup } from '@/features/support/tenant-lookup';
 
 const SUPPORT_ROLE = 'support-agent';
 
@@ -56,7 +57,8 @@ export default function SupportPage() {
       <AppShellHeader />
       <main className="p-6" data-testid="support-shell">
         <h1 className="font-heading text-xl font-semibold">Support</h1>
-        <p className="text-fg-muted">Support admin shell — pillar features land here.</p>
+        <p className="text-fg-muted">Look up a tenant to begin support.</p>
+        <TenantLookup />
       </main>
     </div>
   );
