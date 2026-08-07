@@ -58,6 +58,9 @@
         ],
         "security": [
           {
+            "oauth2": []
+          },
+          {
             "bearer": []
           }
         ]
@@ -84,6 +87,9 @@
           "permissions"
         ],
         "security": [
+          {
+            "oauth2": []
+          },
           {
             "bearer": []
           }
@@ -144,6 +150,9 @@
         ],
         "security": [
           {
+            "oauth2": []
+          },
+          {
             "bearer": []
           }
         ]
@@ -180,6 +189,9 @@
           "tenants"
         ],
         "security": [
+          {
+            "oauth2": []
+          },
           {
             "bearer": []
           }
@@ -227,6 +239,9 @@
           "tenants"
         ],
         "security": [
+          {
+            "oauth2": []
+          },
           {
             "bearer": []
           }
@@ -283,6 +298,9 @@
         ],
         "security": [
           {
+            "oauth2": []
+          },
+          {
             "bearer": []
           }
         ]
@@ -305,6 +323,9 @@
           "SingleSignOn"
         ],
         "security": [
+          {
+            "oauth2": []
+          },
           {
             "bearer": []
           }
@@ -331,6 +352,22 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-tenant-id"
+      },
+      "oauth2": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+            "scopes": {
+              "openid": "Sign in",
+              "profile": "User profile",
+              "offline_access": "Refresh token",
+              "api://platform-kit/.default": "Access Platform Kit API"
+            }
+          }
+        },
+        "description": "Microsoft Entra ID (authorization code + PKCE). Register SPA redirect URI `/docs/oauth2-redirect.html` on the API app registration."
       }
     },
     "schemas": {

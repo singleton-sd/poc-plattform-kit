@@ -80,37 +80,40 @@ export function resolveSwaggerOAuth2RedirectUrl(env: EnvBag = process.env): stri
 export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
   const builder = new DocumentBuilder()
     .setTitle('Platform Kit API')
-    .setDescription(
-      'poc-plattform-kit API. Prefer **oauth2** (Entra authorization code + PKCE) in Swagger Authorize; Bearer paste and `x-tenant-id` remain available as fallbacks.',
-    )
+    .setDescription('poc-plattform-kit API')
     .setVersion(readPackageVersion())
     .addBearerAuth()
     .addApiKey({ type: 'apiKey', name: 'x-tenant-id', in: 'header' }, 'x-tenant-id');
 
-  const oauthUrls = resolveSwaggerOAuthUrls(env);
-  const apiScope = resolveSwaggerApiScope(env);
-  if (oauthUrls && apiScope) {
-    builder.addOAuth2(
-      {
-        type: 'oauth2',
-        description:
-          'Microsoft Entra ID (authorization code + PKCE). Register SPA redirect URI `/docs/oauth2-redirect.html` on the API app registration.',
-        flows: {
-          authorizationCode: {
-            authorizationUrl: oauthUrls.authorizationUrl,
-            tokenUrl: oauthUrls.tokenUrl,
-            scopes: {
-              openid: 'Sign in',
-              profile: 'User profile',
-              offline_access: 'Refresh token',
-              [apiScope]: 'Access Platform Kit API',
-            },
+  // Always publish the oauth2 scheme so offline OpenAPI export stays stable
+  // (CI has no AZURE_AD_*). Runtime initOAuth still prefills clientId when set.
+  const tenantId = envTrim(env, 'AZURE_AD_TENANT_ID') ?? 'common';
+  const oauthUrls = {
+    authorizationUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
+    tokenUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+  };
+  const apiScope = resolveSwaggerApiScope(env) ?? 'api://platform-kit/.default';
+
+  builder.addOAuth2(
+    {
+      type: 'oauth2',
+      description:
+        'Microsoft Entra ID (authorization code + PKCE). Register SPA redirect URI `/docs/oauth2-redirect.html` on the API app registration.',
+      flows: {
+        authorizationCode: {
+          authorizationUrl: oauthUrls.authorizationUrl,
+          tokenUrl: oauthUrls.tokenUrl,
+          scopes: {
+            openid: 'Sign in',
+            profile: 'User profile',
+            offline_access: 'Refresh token',
+            [apiScope]: 'Access Platform Kit API',
           },
         },
       },
-      'oauth2',
-    );
-  }
+    },
+    'oauth2',
+  );
 
   return builder.build();
 }

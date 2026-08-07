@@ -68,7 +68,7 @@ describe('swagger.config', () => {
   });
 
   describe('buildOpenApiDocumentConfig', () => {
-    it('includes oauth2 when Entra tenant + scope are available', () => {
+    it('includes oauth2 with tenant-specific Entra URLs when configured', () => {
       const doc = buildOpenApiDocumentConfig({
         AZURE_AD_TENANT_ID: 'tenant-1',
         AZURE_AD_CLIENT_ID: 'client-1',
@@ -88,9 +88,17 @@ describe('swagger.config', () => {
       });
     });
 
-    it('omits oauth2 when tenant is missing', () => {
-      const doc = buildOpenApiDocumentConfig({ AZURE_AD_CLIENT_ID: 'client-1' });
-      expect(doc.components?.securitySchemes?.oauth2).toBeUndefined();
+    it('falls back to common tenant for offline export without AZURE_AD_*', () => {
+      const doc = buildOpenApiDocumentConfig({});
+      expect(doc.components?.securitySchemes?.oauth2).toMatchObject({
+        type: 'oauth2',
+        flows: {
+          authorizationCode: {
+            authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+            tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+          },
+        },
+      });
       expect(doc.components?.securitySchemes?.bearer).toBeDefined();
     });
   });
