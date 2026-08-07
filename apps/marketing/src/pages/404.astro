@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Page not found — Platform Kit" description="This page does not exist.">
+  <main class="mx-auto max-w-xl px-6 pb-12 pt-[clamp(3rem,12vh,6rem)] text-center">
+    <p class="mb-3 font-heading text-sm font-semibold tracking-widest text-accent uppercase">404</p>
+    <h1 class="mb-3 font-heading text-[clamp(1.5rem,4vw,2rem)] font-bold tracking-tight text-fg">
+      Page not found
+    </h1>
+    <p class="mb-8 text-base leading-relaxed text-fg-muted">
+      That URL is not on this site. It may have been moved, renamed, or never published.
+    </p>
+    <a
+      class="inline-block rounded bg-accent px-6 py-3 font-semibold text-accent-on transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      href="/"
+    >
+      Back to Platform Kit
+    </a>
+  </main>
+</BaseLayout>
