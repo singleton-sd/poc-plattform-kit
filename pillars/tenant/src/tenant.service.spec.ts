@@ -14,7 +14,12 @@ describe('TenantService', () => {
 
   let prisma: {
     $transaction: jest.Mock;
-    tenant: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock };
+    tenant: {
+      findMany: jest.Mock;
+      findUnique: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
+    };
     tenantAudit: { create: jest.Mock };
     tenantOutbox: { create: jest.Mock };
   };
@@ -25,6 +30,7 @@ describe('TenantService', () => {
     prisma = {
       $transaction: jest.fn(),
       tenant: {
+        findMany: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
@@ -34,6 +40,43 @@ describe('TenantService', () => {
     };
     tenancy = new TenancyContext();
     service = new TenantService(prisma as never, tenancy);
+  });
+
+  it('lists tenants with a capped, deterministic query', async () => {
+    prisma.tenant.findMany.mockResolvedValue([tenantRow]);
+
+    await expect(service.findAll({})).resolves.toEqual([{ ...tenantRow, settings: null }]);
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith({
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: 25,
+    });
+    expect(prisma.tenantAudit.create).not.toHaveBeenCalled();
+    expect(prisma.tenantOutbox.create).not.toHaveBeenCalled();
+  });
+
+  it('searches tenant names and slugs case-insensitively', async () => {
+    prisma.tenant.findMany.mockResolvedValue([]);
+
+    await service.findAll({ q: '  ACME  ', limit: 10 });
+
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [{ name: { contains: 'ACME' } }, { slug: { contains: 'ACME' } }],
+      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: 10,
+    });
+  });
+
+  it('caps results when called outside the validated HTTP boundary', async () => {
+    prisma.tenant.findMany.mockResolvedValue([]);
+
+    await service.findAll({ limit: 1_000 });
+
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith({
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: 100,
+    });
   });
 
   it('create writes tenant + audit + outbox in one transaction', async () => {

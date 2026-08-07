@@ -8,6 +8,7 @@ import type { Prisma } from '@prisma/client';
 import type { DomainEvent } from '@poc-plattform-kit/events';
 import { PrismaService } from '@poc-plattform-kit/db';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenancyContext } from './tenancy.context';
 
@@ -62,6 +63,23 @@ export class TenantService {
     private readonly prisma: PrismaService,
     private readonly tenancy: TenancyContext,
   ) {}
+
+  async findAll(query: ListTenantsQueryDto): Promise<TenantRecord[]> {
+    const q = query.q?.trim();
+    const tenants = await this.prisma.tenant.findMany({
+      ...(q
+        ? {
+            where: {
+              OR: [{ name: { contains: q } }, { slug: { contains: q } }],
+            },
+          }
+        : {}),
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: Math.min(query.limit ?? 25, 100),
+    });
+
+    return tenants.map(toTenantRecord);
+  }
 
   async create(dto: CreateTenantDto): Promise<TenantRecord> {
     const settings = dto.settings ? JSON.stringify(dto.settings) : null;

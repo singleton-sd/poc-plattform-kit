@@ -11,6 +11,7 @@ export * from './createTenantDto';
 export * from './createTenantDtoSettings';
 export * from './healthResponseDto';
 export * from './permissionsHealthResponseDto';
+export * from './tenantControllerFindAllParams';
 export * from './tenantResponseDto';
 export * from './tenantResponseDtoSettings';
 export * from './updateTenantDto';
