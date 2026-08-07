@@ -11,8 +11,8 @@
     "build": "nest build",
     "lint": "echo \"lint:api stub\"",
     "test": "jest",
-    "openapi:export": "pnpm --filter @poc-plattform-kit/db build && pnpm --filter @poc-plattform-kit/pillar-tenant build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on build && pnpm --filter @poc-plattform-kit/pillar-permissions build && ts-node --transpile-only scripts/export-openapi.ts",
-    "prebuild": "pnpm --filter @poc-plattform-kit/db build && pnpm --filter @poc-plattform-kit/pillar-tenant build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on build && pnpm --filter @poc-plattform-kit/pillar-permissions build"
+    "openapi:export": "pnpm --filter @poc-plattform-kit/events build && pnpm --filter @poc-plattform-kit/db build && pnpm --filter @poc-plattform-kit/pillar-tenant build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on build && pnpm --filter @poc-plattform-kit/pillar-permissions build && ts-node --transpile-only scripts/export-openapi.ts",
+    "prebuild": "pnpm --filter @poc-plattform-kit/events build && pnpm --filter @poc-plattform-kit/db build && pnpm --filter @poc-plattform-kit/pillar-tenant build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on build && pnpm --filter @poc-plattform-kit/pillar-permissions build"
   },
   "dependencies": {
     "@auth/express": "^0.10.0",
