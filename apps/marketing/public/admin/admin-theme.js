@@ -6,17 +6,31 @@
  */
 (function remappedDecapTheme() {
   const BLUE = /#3a69c7|#e8f5fe|#eff0f4/gi;
-  const RGB_BLUE = /rgba?\(\s*58\s*,\s*105\s*,\s*199(?:\s*,\s*[\d.]+)?\s*\)/gi;
+  const RGB_BLUE = /rgba?\(\s*58\s*,\s*105\s*,\s*199(?:\s*,\s*([\d.]+))?\s*\)/gi;
 
   function productColors() {
     const root = document.documentElement;
     const cs = getComputedStyle(root);
+    // Prefer computed --pk-*; fall back to Singleton SD token vars (never hex).
     return {
-      accent: cs.getPropertyValue('--pk-accent').trim() || '#fdc94a',
-      accentBg: cs.getPropertyValue('--pk-accent-bg').trim() || '#6b4500',
-      bg: cs.getPropertyValue('--pk-bg').trim() || '#292c30',
-      surface: cs.getPropertyValue('--pk-surface').trim() || '#44484d',
+      accent:
+        cs.getPropertyValue('--pk-accent').trim() ||
+        'var(--colors-yellow-light-400)',
+      accentBg:
+        cs.getPropertyValue('--pk-accent-bg').trim() ||
+        'var(--colors-yellow-light-900)',
+      bg: cs.getPropertyValue('--pk-bg').trim() || 'var(--colors-gray-900)',
+      surface:
+        cs.getPropertyValue('--pk-surface').trim() || 'var(--colors-gray-800)',
     };
+  }
+
+  function withAlpha(color, alpha) {
+    if (alpha === undefined || alpha === '' || Number(alpha) >= 1) {
+      return color;
+    }
+    const pct = Math.round(Number(alpha) * 100);
+    return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
   }
 
   function replaceValue(value, colors) {
@@ -28,7 +42,7 @@
         if (lower === '#eff0f4') return colors.bg;
         return match;
       })
-      .replace(RGB_BLUE, colors.accent);
+      .replace(RGB_BLUE, (_match, alpha) => withAlpha(colors.accent, alpha));
   }
 
   function rewriteSheet(sheet, colors) {
