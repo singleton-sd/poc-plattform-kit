@@ -6,6 +6,10 @@
  * its last `@scope/name@version` tag, cascades web/api when shared paths
  * change, then creates one git commit + per-package tags.
  *
+ * When `@poc-plattform-kit/api` is bumped, also runs `pnpm openapi:export` and
+ * `pnpm openapi:generate` so committed OpenAPI `info.version` matches the
+ * package version (avoids `openapi:check` drift on main).
+ *
  * Usage:
  *   node scripts/release-changed.mjs           # dry-run
  *   node scripts/release-changed.mjs --ci      # bump, commit, tag, push
@@ -19,6 +23,12 @@ import semver from 'semver';
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
 const RELEASE_SUBJECT = 'chore: Release package versions';
+const API_PACKAGE = '@poc-plattform-kit/api';
+/** Paths refreshed when the API package version bumps (Swagger reads package.json). */
+const OPENAPI_CLIENT_PATHS = [
+  'packages/api-client/openapi.json',
+  'packages/api-client/src/generated',
+];
 
 /** @typedef {'major' | 'minor' | 'patch'} Increment */
 
@@ -27,12 +37,13 @@ const RELEASE_SUBJECT = 'chore: Release package versions';
  * @param {import('node:child_process').ExecSyncOptions} [options]
  */
 function sh(command, options = {}) {
-  return execSync(command, {
+  const out = execSync(command, {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     ...options,
-  }).trim();
+  });
+  return typeof out === 'string' ? out.trim() : '';
 }
 
 /**
@@ -223,6 +234,18 @@ function bumpPackageVersion(release) {
   writePackageVersion(release.path, release.next);
 }
 
+/**
+ * Nest Swagger `info.version` comes from apps/api/package.json. After an API
+ * bump, re-export + regenerate so `pnpm openapi:check` stays green on main.
+ * Requires DATABASE_URL (placeholder is fine) for Prisma generate during export.
+ */
+function refreshOpenApiClient() {
+  console.log('Refreshing OpenAPI client after API version bump...');
+  sh('pnpm openapi:export', { stdio: 'inherit' });
+  sh('pnpm openapi:generate', { stdio: 'inherit' });
+  console.log('OpenAPI client refreshed.');
+}
+
 function main() {
   const packages = listWorkspacePackages();
   if (packages.length === 0) {
@@ -261,6 +284,15 @@ function main() {
     console.log(`  ${r.name}: ${r.version} → ${r.next} (${r.increment}) [${r.tag}]`);
   }
 
+  const apiReleased = releases.some((r) => r.name === API_PACKAGE);
+  if (apiReleased) {
+    console.log(
+      CI
+        ? 'API bumped — will refresh OpenAPI client before commit.'
+        : 'Would also refresh OpenAPI client (pnpm openapi:export && pnpm openapi:generate).',
+    );
+  }
+
   if (!CI) {
     console.log('\nRe-run with --ci to bump, commit, tag, and push.');
     return;
@@ -268,6 +300,10 @@ function main() {
 
   for (const release of releases) {
     bumpPackageVersion(release);
+  }
+
+  if (apiReleased) {
+    refreshOpenApiClient();
   }
 
   updateChangelog(releases);
@@ -279,6 +315,9 @@ function main() {
     run('git', ['add', join(release.path, 'package.json')]);
   }
   run('git', ['add', 'CHANGELOG.md']);
+  if (apiReleased) {
+    run('git', ['add', ...OPENAPI_CLIENT_PATHS]);
+  }
   // Release commits are auto-generated; bypass hooks (ticket rule / lint-staged).
   run('git', ['commit', '-m', message], {
     env: { ...process.env, HUSKY: '0' },

@@ -1,11 +1,16 @@
 name: CI Web
+# includes marketing Astro SSG
 
+# Path filters include this workflow file so edits re-run web CI on PRs.
 on:
   pull_request:
     paths:
       - 'apps/web/**'
       - 'apps/marketing/**'
+      - 'apps/marketing-oauth/**'
       - 'packages/**'
+      - 'scripts/validate-staticwebapp-config.mjs'
+      - 'scripts/validate-staticwebapp-config.test.mjs'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -18,7 +23,10 @@ on:
     paths:
       - 'apps/web/**'
       - 'apps/marketing/**'
+      - 'apps/marketing-oauth/**'
       - 'packages/**'
+      - 'scripts/validate-staticwebapp-config.mjs'
+      - 'scripts/validate-staticwebapp-config.test.mjs'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -57,14 +65,17 @@ jobs:
         run: |
           pnpm --filter @poc-plattform-kit/web... run lint
           pnpm --filter @poc-plattform-kit/marketing... run lint
+          pnpm --filter @poc-plattform-kit/marketing-oauth... run lint
           pnpm exec eslint .
 
       - name: Build (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run build
           pnpm --filter @poc-plattform-kit/marketing... run build
+          pnpm --filter @poc-plattform-kit/marketing-oauth... run build
 
       - name: Test (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run test
           pnpm --filter @poc-plattform-kit/marketing... run test
+          pnpm --filter @poc-plattform-kit/marketing-oauth... run test

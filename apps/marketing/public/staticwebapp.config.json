@@ -1,16 +1,20 @@
 {
   "routes": [
     {
-      "route": "/privacy",
-      "rewrite": "/privacy.html"
-    },
-    {
-      "route": "/terms",
-      "rewrite": "/terms.html"
+      "route": "/admin",
+      "redirect": "/admin/",
+      "statusCode": 301
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/privacy*", "/terms*", "/assets/*", "/*.{css,js,ico,png,svg,webmanifest}"]
+    "exclude": [
+      "/admin*",
+      "/privacy*",
+      "/terms*",
+      "/assets/*",
+      "/_astro/*",
+      "/*.{css,js,ico,png,svg,webmanifest,yml,yaml}"
+    ]
   }
 }

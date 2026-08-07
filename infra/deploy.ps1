@@ -202,16 +202,19 @@ $envLines = @(
   'AZURE_SERVICEBUS_CONNECTION_STRING=',
   "NEXT_PUBLIC_API_BASE_URL=$publicApiUrl",
   "CORS_ORIGINS=$corsOrigins",
+  "AUTH_URL=$publicApiUrl",
+  "AUTH_COOKIE_DOMAIN=.plattform-kit.poc.singletonsd.com",
   'AUTH_SECRET=',
   'AZURE_AD_CLIENT_ID=',
   'AZURE_AD_CLIENT_SECRET=',
-  'AZURE_AD_TENANT_ID='
+  'AZURE_AD_TENANT_ID=',
+  'AZURE_AD_API_AUDIENCE='
 )
 
 # Preserve existing AUTH / Entra values if present
 if (Test-Path $envFile) {
   $existing = Get-Content $envFile -Raw
-  foreach ($key in @('AUTH_SECRET', 'AZURE_AD_CLIENT_ID', 'AZURE_AD_CLIENT_SECRET', 'AZURE_AD_TENANT_ID', 'AZURE_SERVICEBUS_CONNECTION_STRING')) {
+  foreach ($key in @('AUTH_SECRET', 'AUTH_URL', 'AUTH_COOKIE_DOMAIN', 'AZURE_AD_CLIENT_ID', 'AZURE_AD_CLIENT_SECRET', 'AZURE_AD_TENANT_ID', 'AZURE_AD_API_AUDIENCE', 'AZURE_SERVICEBUS_CONNECTION_STRING')) {
     if ($existing -match "(?m)^\s*$key=(.*)$") {
       $val = $Matches[1].Trim()
       if ($val) {
@@ -315,6 +318,8 @@ Set-AppConfigPlain 'app:api:baseUrl' $publicApiUrl
 Set-AppConfigPlain 'app:web:baseUrl' $publicAppUrl
 Set-AppConfigPlain 'app:marketing:baseUrl' $publicMarketingUrl
 Set-AppConfigPlain 'app:cors:origins' $corsOrigins
+Set-AppConfigPlain 'app:auth:url' $publicApiUrl
+Set-AppConfigPlain 'app:auth:cookieDomain' '.plattform-kit.poc.singletonsd.com'
 Set-AppConfigPlain 'app:web:swaName' $swaName
 Set-AppConfigPlain 'app:marketing:swaName' $marketingSwaName
 Set-AppConfigPlain 'app:azure:resourceGroup' $ResourceGroup
@@ -327,6 +332,42 @@ Set-AppConfigKvRef 'secret:appinsights-connection-string' 'appinsights-connectio
 Set-AppConfigPlain 'app:telemetry:cloudRoleName:api' 'api'
 Set-AppConfigPlain 'app:telemetry:cloudRoleName:web' 'web'
 Set-AppConfigKvRef 'secret:swa-marketing-deployment-token' 'swa-marketing-deployment-token'
+
+# Entra non-secrets from local .env when present (IDs only — secrets stay in KV)
+function Get-EnvValue([string]$Key) {
+  if (-not (Test-Path $envFile)) { return $null }
+  $raw = Get-Content $envFile -Raw
+  if ($raw -match "(?m)^\s*$([regex]::Escape($Key))=(.*)$") {
+    $v = $Matches[1].Trim()
+    if ($v) { return $v }
+  }
+  return $null
+}
+function Test-KvSecretExists([string]$SecretName) {
+  az keyvault secret show --vault-name $kvNameOut --name $SecretName -o none 2>$null
+  return ($LASTEXITCODE -eq 0)
+}
+function Set-AppConfigKvRefIfSecretExists([string]$Key, [string]$SecretName) {
+  if (Test-KvSecretExists $SecretName) {
+    Set-AppConfigKvRef $Key $SecretName
+  } else {
+    Write-Host "  skip $Key (Key Vault secret '$SecretName' not present yet)"
+  }
+}
+
+Set-AppConfigPlain 'app:azureAd:clientId' (Get-EnvValue 'AZURE_AD_CLIENT_ID')
+Set-AppConfigPlain 'app:azureAd:tenantId' (Get-EnvValue 'AZURE_AD_TENANT_ID')
+Set-AppConfigPlain 'app:azureAd:apiAudience' (Get-EnvValue 'AZURE_AD_API_AUDIENCE')
+
+# Upsert AUTH_SECRET / AZURE_AD_CLIENT_SECRET into KV when present in .env (never inline in App Config)
+$authSecret = Get-EnvValue 'AUTH_SECRET'
+if ($authSecret) { Set-KvSecret 'auth-secret' $authSecret }
+$adClientSecret = Get-EnvValue 'AZURE_AD_CLIENT_SECRET'
+if ($adClientSecret) { Set-KvSecret 'azure-ad-client-secret' $adClientSecret }
+
+# Only publish KV refs after the secrets exist — otherwise Nest bootstrap fails resolving them
+Set-AppConfigKvRefIfSecretExists 'secret:auth-secret' 'auth-secret'
+Set-AppConfigKvRefIfSecretExists 'secret:azure-ad-client-secret' 'azure-ad-client-secret'
 
 if (Test-Path $envFile) {
   $envRaw = Get-Content $envFile -Raw

@@ -1,18 +1,7 @@
-import Link from 'next/link';
+'use client';
+
+import { HomeAuthGate } from '@/features/auth/login-panel';
 
 export default function HomePage() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg text-fg">
-      <h1 className="font-heading text-2xl font-semibold">Platform Kit</h1>
-      <p className="text-fg-muted">poc-plattform-kit web shell.</p>
-      <nav className="flex gap-4">
-        <Link className="text-sm text-accent underline" href="/tenants">
-          Tenants
-        </Link>
-        <Link className="text-sm text-accent underline" href="/forms-demo">
-          Forms demo
-        </Link>
-      </nav>
-    </main>
-  );
+  return <HomeAuthGate />;
 }

@@ -26,6 +26,9 @@ describe('loadAppConfiguration', () => {
     const listSettings = jest.fn().mockReturnValue(
       settings(
         setting('app:cors:origins', 'https://app.example.com'),
+        setting('app:azureAd:clientId', 'entra-client-id'),
+        setting('app:azureAd:tenantId', 'entra-tenant-id'),
+        setting('app:azureAd:apiAudience', 'api://platform-kit'),
         setting(
           'secret:database-url',
           JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/database-url' }),
@@ -38,17 +41,38 @@ describe('loadAppConfiguration', () => {
           }),
           'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
         ),
+        setting(
+          'secret:auth-secret',
+          JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/auth-secret' }),
+          'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
+        ),
+        setting(
+          'secret:azure-ad-client-secret',
+          JSON.stringify({
+            uri: 'https://vault.vault.azure.net/secrets/azure-ad-client-secret',
+          }),
+          'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
+        ),
         setting('unmapped:key', 'ignored'),
       ),
     );
-    const getSecret = jest.fn().mockResolvedValue({ value: 'sqlserver://secret' });
+    const getSecret = jest.fn().mockImplementation(async (secretUri: string) => {
+      if (secretUri.includes('auth-secret')) return { value: 'auth-js-secret' };
+      if (secretUri.includes('azure-ad-client-secret')) return { value: 'entra-client-secret' };
+      return { value: 'sqlserver://secret' };
+    });
 
     await loadAppConfiguration({ listSettings, getSecret });
 
     expect(process.env.CORS_ORIGINS).toBe('https://app.example.com');
+    expect(process.env.AZURE_AD_CLIENT_ID).toBe('entra-client-id');
+    expect(process.env.AZURE_AD_TENANT_ID).toBe('entra-tenant-id');
+    expect(process.env.AZURE_AD_API_AUDIENCE).toBe('api://platform-kit');
+    expect(process.env.AUTH_SECRET).toBe('auth-js-secret');
+    expect(process.env.AZURE_AD_CLIENT_SECRET).toBe('entra-client-secret');
     expect(process.env.DATABASE_URL).toBe('sqlserver://secret');
     expect(process.env.AZURE_SERVICEBUS_CONNECTION_STRING).toBe('sqlserver://secret');
-    expect(getSecret).toHaveBeenCalledTimes(2);
+    expect(getSecret).toHaveBeenCalledTimes(4);
     expect(process.env.UNMAPPED_KEY).toBeUndefined();
   });
 

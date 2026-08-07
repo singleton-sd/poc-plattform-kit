@@ -18,7 +18,14 @@ export function trackFailedApiCall(response: Response, bodySnippet?: string): vo
   const ai = getAppInsights();
   if (!ai) return;
   const err = new Error(`API ${response.status} ${response.statusText} ${response.url}`);
-  ai.trackException({ exception: err });
+  ai.trackException({
+    exception: err,
+    properties: {
+      status: String(response.status),
+      statusText: response.statusText,
+      url: response.url,
+    },
+  });
   if (ai.trackTrace && bodySnippet) {
     ai.trackTrace({
       message: bodySnippet.slice(0, 500),

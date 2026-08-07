@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'apps/marketing/**'
+      - 'scripts/validate-staticwebapp-config.mjs'
       - '.github/workflows/deploy-marketing.yml'
 
 concurrency:
@@ -43,6 +44,10 @@ jobs:
 
       - name: Build marketing
         run: pnpm --filter @poc-plattform-kit/marketing... run build
+
+      # SWA rejects trailing-slash duplicate routes (e.g. /admin + /admin/).
+      - name: Validate SWA config (dist)
+        run: node scripts/validate-staticwebapp-config.mjs apps/marketing/dist/staticwebapp.config.json
 
       - name: Check OIDC Variables
         id: oidc
@@ -83,7 +88,8 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
           action: upload
-          app_location: apps/marketing/public
+          # CI already ran `astro build`; upload static output only.
+          app_location: apps/marketing/dist
           skip_app_build: true
           production_branch: main
 

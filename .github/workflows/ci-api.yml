@@ -1,5 +1,6 @@
 name: CI API
 
+# Path filters include this workflow file so edits re-run API CI on PRs.
 on:
   pull_request:
     paths:
