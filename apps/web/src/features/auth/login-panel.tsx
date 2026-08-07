@@ -20,8 +20,13 @@ export function LoginPanel() {
       await signIn();
       // Cookie mode navigates away (form POST). Bearer (MSAL popup) returns here.
       await queryClient.invalidateQueries({ queryKey: meKeys.all });
-    } catch {
-      setSignInError('Could not start sign-in. Try again.');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '';
+      setSignInError(
+        detail.includes('MSAL is not configured')
+          ? 'Sign-in is not configured for this preview (missing Entra public env).'
+          : 'Could not start sign-in. Try again.',
+      );
     } finally {
       // Bearer path stays on this panel when /api/me is still null — re-enable CTA.
       setSigningIn(false);
