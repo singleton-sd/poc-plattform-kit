@@ -1,0 +1,34 @@
+# Decap CMS — git-backed editor for marketing Markdown.
+# Auth: GitHub backend needs an OAuth proxy (Azure Function follow-up).
+# Docs: docs/marketing-astro-decap.md
+backend:
+  name: github
+  repo: singleton-sd/poc-plattform-kit
+  branch: main
+  # base_url: https://<oauth-proxy-host>  # set when OAuth proxy lands
+  # auth_endpoint: auth
+
+# Prefer PRs so human merge still gates production publish.
+publish_mode: editorial_workflow
+
+media_folder: apps/marketing/public/uploads
+public_folder: /uploads
+
+collections:
+  - name: pages
+    label: Pages
+    folder: apps/marketing/src/content/pages
+    create: false
+    delete: false
+    slug: '{{slug}}'
+    extension: md
+    format: frontmatter
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Description, name: description, widget: string, required: false }
+      - { label: Brand, name: brand, widget: string, required: false }
+      - { label: Headline, name: headline, widget: string, required: false }
+      - { label: CTA label, name: ctaLabel, widget: string, required: false }
+      - { label: CTA URL, name: ctaUrl, widget: string, required: false }
+      - { label: Last updated, name: updated, widget: string, required: false }
+      - { label: Body, name: body, widget: markdown }

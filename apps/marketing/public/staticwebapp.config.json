@@ -1,16 +1,23 @@
 {
   "routes": [
     {
-      "route": "/privacy",
-      "rewrite": "/privacy.html"
+      "route": "/admin",
+      "rewrite": "/admin/index.html"
     },
     {
-      "route": "/terms",
-      "rewrite": "/terms.html"
+      "route": "/admin/",
+      "rewrite": "/admin/index.html"
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/privacy*", "/terms*", "/assets/*", "/*.{css,js,ico,png,svg,webmanifest}"]
+    "exclude": [
+      "/admin*",
+      "/privacy*",
+      "/terms*",
+      "/assets/*",
+      "/_astro/*",
+      "/*.{css,js,ico,png,svg,webmanifest,yml,yaml}"
+    ]
   }
 }
