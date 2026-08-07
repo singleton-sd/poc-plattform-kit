@@ -61,7 +61,8 @@ try {
       npm install --omit=dev --package-lock=false | Out-Host
       $zipPath = Join-Path $env:TEMP 'decap-oauth-deploy.zip'
       if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-      Compress-Archive -Path * -DestinationPath $zipPath -Force
+      # The .NET ZIP API creates a Linux/Kudu-friendly archive on every platform.
+      [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipPath)
     }
     finally {
       Pop-Location
