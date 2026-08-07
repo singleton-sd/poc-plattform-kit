@@ -18,13 +18,13 @@ describe('swagger.config', () => {
       ).toBe('api://custom/.default');
     });
 
-    it('prefers api://{clientId}/.default over hostname App ID URI (AADSTS90009)', () => {
+    it('prefers {clientId}/.default over hostname App ID URI (AADSTS90009/500011)', () => {
       expect(
         resolveSwaggerApiScope({
           AZURE_AD_CLIENT_ID: 'be2e487d-9cea-4060-a600-dbb68434e128',
           AZURE_AD_API_AUDIENCE: 'api://api.plattform-kit.poc.singletonsd.com',
         }),
-      ).toBe('api://be2e487d-9cea-4060-a600-dbb68434e128/.default');
+      ).toBe('be2e487d-9cea-4060-a600-dbb68434e128/.default');
     });
 
     it('falls back to AZURE_AD_API_AUDIENCE when client id is absent', () => {
@@ -33,10 +33,8 @@ describe('swagger.config', () => {
       );
     });
 
-    it('defaults to api://{clientId}/.default', () => {
-      expect(resolveSwaggerApiScope({ AZURE_AD_CLIENT_ID: 'client-1' })).toBe(
-        'api://client-1/.default',
-      );
+    it('defaults to {clientId}/.default', () => {
+      expect(resolveSwaggerApiScope({ AZURE_AD_CLIENT_ID: 'client-1' })).toBe('client-1/.default');
     });
 
     it('returns null when Entra ids are missing', () => {
@@ -126,7 +124,7 @@ describe('swagger.config', () => {
         initOAuth: {
           clientId: 'client-1',
           usePkceWithAuthorizationCodeGrant: true,
-          scopes: expect.arrayContaining(['openid', 'api://client-1/.default']),
+          scopes: expect.arrayContaining(['openid', 'client-1/.default']),
         },
       });
     });

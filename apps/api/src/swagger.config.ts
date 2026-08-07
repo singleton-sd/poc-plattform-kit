@@ -22,10 +22,10 @@ function envTrim(env: EnvBag, key: string): string | undefined {
 /**
  * Entra API scope for Swagger OAuth2 (authorization code + PKCE).
  *
- * Same-app token requests (Swagger on the API host) must use the **GUID** App
- * Identifier — `api://{clientId}/.default` — or Entra returns AADSTS90009 when
- * the resource is only the hostname App ID URI
- * (`api://api.plattform-kit.poc.singletonsd.com`).
+ * Same-app token requests must use the **GUID** App Identifier
+ * (`{clientId}/.default`). Hostname App ID URIs trigger AADSTS90009;
+ * `api://{clientId}` is not registered on this app (AADSTS500011) — only
+ * `api://api.plattform-kit.poc.singletonsd.com` is an identifier URI.
  */
 export function resolveSwaggerApiScope(env: EnvBag = process.env): string | null {
   const explicit = envTrim(env, 'AZURE_AD_SWAGGER_SCOPE') || envTrim(env, 'AZURE_AD_API_SCOPE');
@@ -35,7 +35,7 @@ export function resolveSwaggerApiScope(env: EnvBag = process.env): string | null
 
   const clientId = envTrim(env, 'AZURE_AD_CLIENT_ID');
   if (clientId) {
-    return `api://${clientId}/.default`;
+    return `${clientId}/.default`;
   }
 
   const audience = envTrim(env, 'AZURE_AD_API_AUDIENCE');
@@ -45,7 +45,7 @@ export function resolveSwaggerApiScope(env: EnvBag = process.env): string | null
   if (audience.endsWith('/.default')) {
     return audience;
   }
-  return audience.includes('://') ? `${audience}/.default` : `api://${audience}/.default`;
+  return `${audience}/.default`;
 }
 
 /** Entra v2 authorize + token endpoints for the directory tenant. */
@@ -96,7 +96,7 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
     authorizationUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
     tokenUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
   };
-  const apiScope = resolveSwaggerApiScope(env) ?? 'api://platform-kit/.default';
+  const apiScope = resolveSwaggerApiScope(env) ?? 'platform-kit/.default';
 
   builder.addOAuth2(
     {

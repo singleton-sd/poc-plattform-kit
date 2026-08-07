@@ -31,7 +31,7 @@ Swagger UI at `/docs` exposes an **oauth2** scheme (authorization code + PKCE) i
 | --- | --- |
 | Authorize / token | `https://login.microsoftonline.com/{AZURE_AD_TENANT_ID}/oauth2/v2.0/{authorize\|token}` |
 | Client id (prefilled) | `AZURE_AD_CLIENT_ID` |
-| Default API scope | `AZURE_AD_SWAGGER_SCOPE` / `AZURE_AD_API_SCOPE`, else `api://{AZURE_AD_CLIENT_ID}/.default` (GUID form — required for same-app Swagger tokens; avoids AADSTS90009). Hostname App ID URI alone is not used for Authorize. |
+| Default API scope | `AZURE_AD_SWAGGER_SCOPE` / App Config `app:azureAd:swaggerScope`, else `{AZURE_AD_CLIENT_ID}/.default` (bare GUID — required for same-app Swagger; avoids AADSTS90009 / AADSTS500011). |
 | Redirect URI | `{AUTH_URL}/docs/oauth2-redirect.html` (override with `SWAGGER_OAUTH2_REDIRECT_URL`) |
 
 Register that redirect URI on the Entra app registration as a **SPA** platform redirect (required for browser PKCE from Swagger UI). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`.
