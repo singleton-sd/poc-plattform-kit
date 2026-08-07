@@ -1,0 +1,111 @@
+# Decap GitHub OAuth proxy — Azure Functions Consumption.
+# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `github-decap-oauth-client-secret`.
+# Non-secret client id: repo Variable `DECAP_OAUTH_CLIENT_ID` (GitHub OAuth App).
+# Required Variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
+# If OIDC or DECAP_OAUTH_CLIENT_ID missing, deploy steps SKIP (job succeeds).
+name: Deploy Decap OAuth (Function)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/marketing-oauth/**'
+      - 'infra/decap-oauth.bicep'
+      - 'scripts/deploy-decap-oauth.ps1'
+      - '.github/workflows/deploy-decap-oauth.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-decap-oauth-production
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: rg-poc-plattform-kit
+  AZURE_FUNCTIONAPP_NAME: ssd-pocpk-decap-oauth-dev-ae
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    name: Build + Decap OAuth Function
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test marketing-oauth
+        run: pnpm --filter @poc-plattform-kit/marketing-oauth run test
+
+      - name: Check OIDC + client id
+        id: cfg
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OIDC Variables not set — skipping Decap OAuth deploy."
+          elif [ -z "${{ vars.DECAP_OAUTH_CLIENT_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "DECAP_OAUTH_CLIENT_ID Variable not set — create GitHub OAuth App, then set Variable + KV secret."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.cfg.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Assert KV secret exists
+        if: steps.cfg.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          az keyvault secret show \
+            --vault-name ssd-pocpk-kv-dev-ae \
+            --name github-decap-oauth-client-secret \
+            --query name -o tsv >/dev/null
+
+      - name: Deploy Function App infra
+        if: steps.cfg.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/decap-oauth.bicep \
+            --parameters oauthClientId="${{ vars.DECAP_OAUTH_CLIENT_ID }}" \
+            --name "decap-oauth-${GITHUB_RUN_ID}"
+
+      - name: Stage zip
+        if: steps.cfg.outputs.configured == 'true'
+        working-directory: apps/marketing-oauth
+        run: |
+          set -euo pipefail
+          pnpm run build
+          STAGE=$(mktemp -d)
+          cp host.json package.json "$STAGE/"
+          cp -r dist "$STAGE/dist"
+          (cd "$STAGE" && npm install --omit=dev --package-lock=false)
+          (cd "$STAGE" && zip -r "$GITHUB_WORKSPACE/decap-oauth.zip" .)
+
+      - name: Zip deploy Function App
+        if: steps.cfg.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_FUNCTIONAPP_NAME" \
+            --src decap-oauth.zip
