@@ -72,7 +72,19 @@ pnpm --filter @poc-plattform-kit/api deploy --prod "$DEPLOY_DIR"
 
 # dist/ is gitignored; pnpm deploy may omit it — copy explicitly.
 rm -rf "$DEPLOY_DIR/dist"
+if [[ ! -d "$ROOT/apps/api/dist" ]]; then
+  echo "::error::apps/api/dist missing before stage copy (build first)" >&2
+  ls -la "$ROOT/apps/api" >&2 || true
+  exit 1
+fi
 cp -r "$ROOT/apps/api/dist" "$DEPLOY_DIR/dist"
+if [[ ! -f "$DEPLOY_DIR/dist/main.js" ]]; then
+  echo "::error::dist/main.js missing after copy from apps/api/dist (nest emit failed or stale tsbuildinfo?)" >&2
+  ls -la "$ROOT/apps/api/dist" >&2 || true
+  ls -la "$DEPLOY_DIR/dist" >&2 || true
+  exit 1
+fi
+echo "hypothesisId=G message=copied apps/api/dist/main.js"
 
 # Drop non-runtime paths copied from the package.
 rm -rf "$DEPLOY_DIR/src" "$DEPLOY_DIR/Dockerfile" \
@@ -167,11 +179,15 @@ assert_prisma_client
 
 # Shrink: drop non-Linux Prisma engines + source maps (App Service is Linux).
 # Run AFTER generate so the Linux query engine is present first.
+# pnpm may hardlink store files read-only; chmod so unlink works. Still ignore
+# find -delete non-zero so a single stubborn file cannot abort packaging
+# (Deploy API run 31129411239 died here with set -e and no error text).
+chmod -R u+w "$DEPLOY_DIR/node_modules" 2>/dev/null || true
 find "$DEPLOY_DIR/node_modules" -type f \( \
   -name '*darwin*' -o -name '*windows*' -o -name '*.exe' -o \
   -name '*debian-openssl-1.1*' -o -name '*.map' \
-\) -delete
-find "$DEPLOY_DIR/node_modules" -type f -name '*.md' -delete
+\) -delete || true
+find "$DEPLOY_DIR/node_modules" -type f -name '*.md' -delete || true
 
 DEPLOY_DIR="$DEPLOY_DIR" node <<'EOF'
 const fs = require('fs');
@@ -188,11 +204,11 @@ printf '%s\n' \
   'SCM_DO_BUILD_DURING_DEPLOYMENT=false' \
   >"$DEPLOY_DIR/.deployment"
 
-test -f "$DEPLOY_DIR/dist/main.js"
-test -d "$DEPLOY_DIR/node_modules/@nestjs/common"
-test -d "$DEPLOY_DIR/node_modules/tslib"
-test -d "$DEPLOY_DIR/node_modules/@poc-plattform-kit/db"
-test -d "$DEPLOY_DIR/node_modules/@poc-plattform-kit/pillar-tenant"
+test -f "$DEPLOY_DIR/dist/main.js" || { echo "::error::missing dist/main.js" >&2; exit 1; }
+test -d "$DEPLOY_DIR/node_modules/@nestjs/common" || { echo "::error::missing @nestjs/common" >&2; exit 1; }
+test -d "$DEPLOY_DIR/node_modules/tslib" || { echo "::error::missing tslib (hoist failed)" >&2; exit 1; }
+test -d "$DEPLOY_DIR/node_modules/@poc-plattform-kit/db" || { echo "::error::missing @poc-plattform-kit/db" >&2; exit 1; }
+test -d "$DEPLOY_DIR/node_modules/@poc-plattform-kit/pillar-tenant" || { echo "::error::missing pillar-tenant" >&2; exit 1; }
 
 (cd "$DEPLOY_DIR" && node -e "require('@nestjs/common'); require('tslib'); const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('hypothesisId=G message=hoisted module + prisma generate ok')")
 
