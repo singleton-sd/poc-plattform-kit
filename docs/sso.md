@@ -41,7 +41,7 @@ SWA **Free** cannot use Bring-your-own API (App Service link requires SWA **Stan
 | Web origin | `https://app.plattform-kit.poc.singletonsd.com` |
 | API origin | `https://api.plattform-kit.poc.singletonsd.com` |
 | Cookie `Domain` | `.plattform-kit.poc.singletonsd.com` (`AUTH_COOKIE_DOMAIN`) |
-| CORS | App (+ marketing) origins + `https://*.azurestaticapps.net` with `credentials: true` |
+| CORS | App (+ marketing) origins + instance-scoped SWA prefixes (`https://{swaName}*.azurestaticapps.net`) with `credentials: true` |
 | SPA calls | Absolute API base (`NEXT_PUBLIC_API_BASE_URL`), not same-origin `/api` |
 
 Sibling subdomains under `singletonsd.com` are same-site, so `SameSite=Lax` + shared cookie Domain is enough for credentialed `fetch` from `app.` → `api.`.
@@ -57,9 +57,11 @@ Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They 
 `CORS_ORIGINS` / App Config `app:cors:origins` includes:
 
 - Custom domains: `https://app.plattform-kit.poc.singletonsd.com`, `https://plattform-kit.poc.singletonsd.com`
-- Host wildcard: `https://*.azurestaticapps.net` (SWA default hostname + PR preview hosts such as `https://kind-rock-…-57.eastasia.7.azurestaticapps.net`)
+- Instance-scoped SWA hosts: `https://kind-rock-0f409fe00*.azurestaticapps.net`, `https://purple-field-05048bf00*.azurestaticapps.net` (default hostname + PR preview hosts such as `https://kind-rock-…-57.eastasia.7.azurestaticapps.net`)
 
-Nest resolves wildcards at request time (`isCorsOriginAllowed`). The same allowlist gates Auth.js post-login `redirect` callbacks so returns to SWA preview origins are permitted. Applies to prod App Service and ACA PR API previews (same Nest bootstrap).
+Do **not** use open `https://*.azurestaticapps.net` for Auth.js redirects — that would allow any Azure customer’s Static Web App as a post-login redirect target. Nest CORS may still parse that suffix form if misconfigured; Auth.js redirect checks ignore it and only honour exact origins + `{swaName}*` instance prefixes.
+
+Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirectOriginAllowed`). Applies to prod App Service and ACA PR API previews (same Nest bootstrap).
 
 ### Entra redirect URIs (approved pattern)
 

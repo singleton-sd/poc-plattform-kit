@@ -1,19 +1,30 @@
 /**
  * Default browser origins allowed to call the API.
- * `https://*.azurestaticapps.net` covers SWA Free default + PR preview hosts.
+ * SWA entries are instance-scoped (`{swaName}*.azurestaticapps.net`) so PR
+ * preview hosts of *this* SWA match, not every Azure customer's Static Web App.
  */
 export const DEFAULT_CORS_ORIGINS = [
   'https://app.plattform-kit.poc.singletonsd.com',
   'https://plattform-kit.poc.singletonsd.com',
-  'https://*.azurestaticapps.net',
+  'https://kind-rock-0f409fe00*.azurestaticapps.net',
+  'https://purple-field-05048bf00*.azurestaticapps.net',
 ] as const;
 
-/** Host-suffix wildcard entry: `https://*.example.com` (https only). */
-const HOST_WILDCARD = /^https:\/\/\*\.([A-Za-z0-9.-]+)$/;
+/** Host-suffix wildcard: `https://*.example.com` (https only). */
+const HOST_SUFFIX_WILDCARD = /^https:\/\/\*\.([A-Za-z0-9.-]+)$/;
+
+/**
+ * SWA instance prefix: `https://kind-rock-0f409fe00*.azurestaticapps.net`
+ * Matches default host (`name.…azurestaticapps.net`) and PR hosts (`name-57.…`).
+ */
+const SWA_INSTANCE_WILDCARD = /^https:\/\/([A-Za-z0-9-]+)\*\.azurestaticapps\.net$/i;
+
+const AZURE_SWA_ROOT = 'azurestaticapps.net';
 
 /**
  * Parse CORS_ORIGINS env (comma-separated). Empty / whitespace → defaults.
- * Entries may be exact origins or `https://*.domain` host wildcards.
+ * Entries may be exact origins, `https://*.domain` suffixes, or
+ * `https://{swaName}*.azurestaticapps.net` instance prefixes.
  */
 export function parseCorsOrigins(raw: string | undefined): string[] {
   if (raw === undefined || raw.trim() === '') {
@@ -26,32 +37,73 @@ export function parseCorsOrigins(raw: string | undefined): string[] {
   return parts.length > 0 ? parts : [...DEFAULT_CORS_ORIGINS];
 }
 
-/** True when `origin` matches an exact entry or an allowed host-suffix wildcard. */
-export function isCorsOriginAllowed(origin: string, allowlist: readonly string[]): boolean {
-  for (const entry of allowlist) {
-    if (entry === origin) {
-      return true;
+function httpsHostname(origin: string): string | undefined {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'https:') {
+      return undefined;
     }
-    const wildcard = HOST_WILDCARD.exec(entry);
-    if (!wildcard) {
-      continue;
-    }
-    let hostname: string;
-    try {
-      const url = new URL(origin);
-      if (url.protocol !== 'https:') {
-        continue;
-      }
-      hostname = url.hostname.toLowerCase();
-    } catch {
-      continue;
-    }
-    const suffix = wildcard[1].toLowerCase();
-    if (hostname === suffix || hostname.endsWith(`.${suffix}`)) {
-      return true;
-    }
+    return url.hostname.toLowerCase();
+  } catch {
+    return undefined;
   }
-  return false;
+}
+
+function matchesSwaInstance(hostname: string, swaName: string): boolean {
+  if (!hostname.endsWith(`.${AZURE_SWA_ROOT}`)) {
+    return false;
+  }
+  return hostname.startsWith(`${swaName}.`) || hostname.startsWith(`${swaName}-`);
+}
+
+function matchesAllowlistEntry(
+  origin: string,
+  entry: string,
+  options: { allowOpenAzureSwaSuffix: boolean },
+): boolean {
+  if (entry === origin) {
+    return true;
+  }
+
+  const swa = SWA_INSTANCE_WILDCARD.exec(entry);
+  if (swa) {
+    const hostname = httpsHostname(origin);
+    return hostname !== undefined && matchesSwaInstance(hostname, swa[1].toLowerCase());
+  }
+
+  const suffixWild = HOST_SUFFIX_WILDCARD.exec(entry);
+  if (!suffixWild) {
+    return false;
+  }
+
+  const suffix = suffixWild[1].toLowerCase();
+  if (!options.allowOpenAzureSwaSuffix && suffix === AZURE_SWA_ROOT) {
+    // Multi-tenant SWA root is too broad for Auth.js redirects (open redirect).
+    return false;
+  }
+
+  const hostname = httpsHostname(origin);
+  if (!hostname) {
+    return false;
+  }
+  return hostname === suffix || hostname.endsWith(`.${suffix}`);
+}
+
+/** True when `origin` matches an exact entry or an allowed wildcard (CORS). */
+export function isCorsOriginAllowed(origin: string, allowlist: readonly string[]): boolean {
+  return allowlist.some((entry) =>
+    matchesAllowlistEntry(origin, entry, { allowOpenAzureSwaSuffix: true }),
+  );
+}
+
+/**
+ * Auth.js post-login redirect allowlist: exact origins + this-repo SWA instance
+ * prefixes only. Ignores open `https://*.azurestaticapps.net` (any tenant).
+ */
+export function isAuthRedirectOriginAllowed(origin: string, allowlist: readonly string[]): boolean {
+  return allowlist.some((entry) =>
+    matchesAllowlistEntry(origin, entry, { allowOpenAzureSwaSuffix: false }),
+  );
 }
 
 /**

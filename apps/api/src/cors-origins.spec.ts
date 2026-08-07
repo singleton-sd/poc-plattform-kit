@@ -1,5 +1,6 @@
 import {
   DEFAULT_CORS_ORIGINS,
+  isAuthRedirectOriginAllowed,
   isCorsOriginAllowed,
   parseCorsOrigins,
   resolveCorsOrigin,
@@ -23,7 +24,7 @@ describe('parseCorsOrigins', () => {
 describe('isCorsOriginAllowed', () => {
   const allowlist = [
     'https://app.plattform-kit.poc.singletonsd.com',
-    'https://*.azurestaticapps.net',
+    'https://kind-rock-0f409fe00*.azurestaticapps.net',
   ];
 
   it('allows exact origins', () => {
@@ -32,7 +33,7 @@ describe('isCorsOriginAllowed', () => {
     );
   });
 
-  it('allows SWA default and PR preview hosts via wildcard', () => {
+  it('allows this-repo SWA default and PR preview hosts', () => {
     expect(
       isCorsOriginAllowed('https://kind-rock-0f409fe00.7.azurestaticapps.net', allowlist),
     ).toBe(true);
@@ -44,12 +45,44 @@ describe('isCorsOriginAllowed', () => {
     ).toBe(true);
   });
 
-  it('rejects non-allowlisted and non-https origins', () => {
+  it('rejects other tenants SWA hosts and non-https', () => {
+    expect(isCorsOriginAllowed('https://other-app.7.azurestaticapps.net', allowlist)).toBe(false);
     expect(isCorsOriginAllowed('https://evil.example', allowlist)).toBe(false);
     expect(isCorsOriginAllowed('http://kind-rock-0f409fe00.7.azurestaticapps.net', allowlist)).toBe(
       false,
     );
-    expect(isCorsOriginAllowed('not-a-url', allowlist)).toBe(false);
+  });
+
+  it('honours open azurestaticapps suffix for CORS when configured', () => {
+    expect(
+      isCorsOriginAllowed('https://any-tenant.7.azurestaticapps.net', [
+        'https://*.azurestaticapps.net',
+      ]),
+    ).toBe(true);
+  });
+});
+
+describe('isAuthRedirectOriginAllowed', () => {
+  it('allows exact and instance-scoped SWA hosts', () => {
+    const allowlist = [
+      'https://app.example.test',
+      'https://kind-rock-0f409fe00*.azurestaticapps.net',
+    ];
+    expect(isAuthRedirectOriginAllowed('https://app.example.test', allowlist)).toBe(true);
+    expect(
+      isAuthRedirectOriginAllowed(
+        'https://kind-rock-0f409fe00-57.eastasia.7.azurestaticapps.net',
+        allowlist,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects open multi-tenant azurestaticapps wildcards', () => {
+    expect(
+      isAuthRedirectOriginAllowed('https://attacker.7.azurestaticapps.net', [
+        'https://*.azurestaticapps.net',
+      ]),
+    ).toBe(false);
   });
 });
 

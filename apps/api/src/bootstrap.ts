@@ -25,7 +25,8 @@ export async function bootstrap() {
   );
 
   // Option B SSO: SPA on app.* calls api.* with credentials (shared cookie domain).
-  // Also allow SWA Free / PR preview hosts via https://*.azurestaticapps.net in CORS_ORIGINS.
+  // Also allow this-repo SWA Free / PR preview hosts via instance-scoped
+  // https://{swaName}*.azurestaticapps.net entries in CORS_ORIGINS.
   app.enableCors({
     origin: (origin, callback) => resolveCorsOrigin(origin, callback),
     // Required for browser credentialed fetches (api-client defaults to credentials: 'include').

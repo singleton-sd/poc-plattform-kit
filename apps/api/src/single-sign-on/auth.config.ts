@@ -1,6 +1,6 @@
 ﻿import type { ExpressAuthConfig } from '@auth/express';
 import MicrosoftEntraID from '@auth/express/providers/microsoft-entra-id';
-import { isCorsOriginAllowed, parseCorsOrigins } from '../cors-origins';
+import { isAuthRedirectOriginAllowed, parseCorsOrigins } from '../cors-origins';
 
 /** Pull platform identity fields from an Entra OIDC profile / token bag. */
 export function extractEntraSessionFields(source: Record<string, unknown> | undefined): {
@@ -57,7 +57,8 @@ export function isAllowedAuthRedirect(url: string, baseUrl: string): boolean {
     return true;
   }
 
-  return isCorsOriginAllowed(parsed.origin, parseCorsOrigins(process.env.CORS_ORIGINS));
+  // Instance-scoped SWA prefixes only — never open *.azurestaticapps.net (open redirect).
+  return isAuthRedirectOriginAllowed(parsed.origin, parseCorsOrigins(process.env.CORS_ORIGINS));
 }
 
 export function buildAuthConfig(): ExpressAuthConfig | null {
