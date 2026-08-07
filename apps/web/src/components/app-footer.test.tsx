@@ -18,5 +18,6 @@ describe('AppFooter', () => {
     render(<AppFooter />);
 
     expect(screen.getByTestId('app-footer')).toHaveTextContent('v1.2.3');
+    expect(screen.getByTestId('app-footer')).toHaveTextContent('Platform Kit');
   });
 });

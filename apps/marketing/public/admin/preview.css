@@ -1,0 +1,40 @@
+/**
+ * Preview pane — mirrors marketing token roles so editors see on-brand pages.
+ */
+@import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
+
+html {
+  --pk-bg: var(--colors-gray-900);
+  --pk-fg: var(--colors-gray-100);
+  --pk-muted: var(--colors-gray-400);
+  --pk-accent: var(--colors-yellow-light-400);
+  --fg-default: var(--pk-fg);
+  --fg-muted: var(--pk-muted);
+  --bg-default: var(--pk-bg);
+  --accent-default: var(--pk-accent);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 1.5rem;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background: var(--bg-default);
+  color: var(--fg-default);
+}
+
+h1,
+h2,
+h3 {
+  color: var(--fg-default);
+}
+
+p,
+li {
+  color: var(--fg-muted);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent-default);
+}

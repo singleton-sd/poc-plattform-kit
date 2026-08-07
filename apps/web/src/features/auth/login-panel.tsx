@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
+import { BrandMark } from '@/components/brand-mark';
 import { meKeys, useMe } from '@/features/auth/me';
 import { signIn, signOut } from '@/features/auth/auth-urls';
 
@@ -24,16 +25,19 @@ export function LoginPanel() {
 
   return (
     <main
-      className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg p-6 text-fg"
+      className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-6 pb-12 pt-[clamp(3rem,12vh,6rem)] text-center text-fg"
       data-testid="login-page"
     >
-      <h1 className="font-heading text-2xl font-semibold">Platform Kit</h1>
-      <p className="max-w-md text-center text-fg-muted">
-        Sign in with your Microsoft account to continue.
+      <BrandMark size="hero" />
+      <h1 className="font-heading text-[clamp(1.15rem,2.5vw,1.35rem)] font-medium tracking-tight text-fg">
+        Sign in to continue
+      </h1>
+      <p className="max-w-md text-base leading-relaxed text-fg-muted">
+        Multi-tenant platform foundations for Singleton SD — use your Microsoft account.
       </p>
       <button
         type="button"
-        className="rounded bg-accent px-4 py-2 text-accent-on disabled:opacity-60"
+        className="mt-2 inline-block rounded bg-accent px-6 py-3 font-semibold text-accent-on transition hover:-translate-y-0.5 disabled:opacity-60"
         data-testid="login-sign-in"
         disabled={signingIn}
         onClick={() => void onSignIn()}
@@ -72,7 +76,7 @@ export function HomeAuthGate() {
   if (isLoading) {
     return (
       <main
-        className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg p-6 text-fg-muted"
+        className="flex min-h-[70vh] flex-col items-center justify-center gap-4 p-6 text-fg-muted"
         data-testid="login-loading"
       >
         Loading…
@@ -83,14 +87,14 @@ export function HomeAuthGate() {
   if (isError) {
     return (
       <main
-        className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg p-6 text-fg"
+        className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-6 text-center text-fg"
         data-testid="login-session-error"
       >
-        <h1 className="font-heading text-2xl font-semibold">Platform Kit</h1>
+        <BrandMark size="hero" />
         <p className="text-fg-muted">Could not verify your session. Try again.</p>
         <button
           type="button"
-          className="rounded bg-accent px-4 py-2 text-accent-on"
+          className="rounded bg-accent px-6 py-3 font-semibold text-accent-on"
           data-testid="login-session-retry"
           onClick={() => void refetch()}
         >
@@ -106,18 +110,33 @@ export function HomeAuthGate() {
 
   return (
     <main
-      className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg p-6 text-fg"
+      className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-6 pb-12 pt-[clamp(3rem,12vh,6rem)] text-center text-fg"
       data-testid="home-shell"
     >
-      <h1 className="font-heading text-2xl font-semibold">Platform Kit</h1>
-      <p className="text-fg-muted">poc-plattform-kit web shell.</p>
-      <p className="text-sm text-fg-muted">Signed in as {me.email}</p>
-      <Link className="text-sm text-accent underline" href="/tenants">
-        Tenants
-      </Link>
+      <BrandMark size="hero" />
+      <h1 className="font-heading text-[clamp(1.15rem,2.5vw,1.35rem)] font-medium tracking-tight">
+        Admin console
+      </h1>
+      <p className="max-w-md text-base leading-relaxed text-fg-muted">
+        Signed in as {me.email}. Manage tenants and support from here.
+      </p>
+      <nav aria-label="Primary" className="mt-2 flex flex-wrap justify-center gap-4">
+        <Link
+          className="inline-block rounded bg-accent px-6 py-3 font-semibold text-accent-on transition hover:-translate-y-0.5"
+          href="/tenants"
+        >
+          Tenants
+        </Link>
+        <Link
+          className="inline-block rounded border border-fg-subtle px-6 py-3 font-semibold text-fg transition hover:border-accent hover:text-accent"
+          href="/support"
+        >
+          Support
+        </Link>
+      </nav>
       <button
         type="button"
-        className="rounded bg-accent px-4 py-2 text-accent-on disabled:opacity-60"
+        className="mt-4 text-sm text-fg-muted underline-offset-2 hover:text-accent hover:underline disabled:opacity-60"
         data-testid="login-sign-out"
         disabled={signingOut}
         onClick={() => void onSignOut()}
