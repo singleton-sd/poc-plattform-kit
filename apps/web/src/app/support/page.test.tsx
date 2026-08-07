@@ -21,6 +21,7 @@ const mockUseMe = useMe as jest.Mock;
 
 describe('SupportPage', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     mockFindTenant.mockReturnValue({
       data: undefined,
       error: null,
@@ -119,5 +120,48 @@ describe('SupportPage', () => {
     expect(mockConfigureApiClient).toHaveBeenCalledWith({ tenantId: 'tenant-42' });
     expect(screen.getByTestId('support-tenant-result')).toHaveTextContent('Acme Corp');
     expect(screen.getByTestId('support-tenant-result')).toHaveTextContent('tenant-42');
+  });
+
+  it.each([
+    {
+      name: 'loading',
+      query: { isFetching: true },
+      message: 'Loading tenant…',
+      role: 'status',
+    },
+    {
+      name: 'not found',
+      query: { error: { status: 404 }, isError: true },
+      message: 'No tenant was found with id tenant-42.',
+      role: 'alert',
+    },
+    {
+      name: 'error',
+      query: { error: { status: 500 }, isError: true },
+      message: 'Tenant lookup failed. Try again later.',
+      role: 'alert',
+    },
+  ])('shows the tenant $name state', ({ query, message, role }) => {
+    mockUseMe.mockReturnValue({
+      data: { role: 'support-agent' },
+      isLoading: false,
+      isError: false,
+    });
+    mockFindTenant.mockImplementation((id: string) => ({
+      data: undefined,
+      error: null,
+      isError: false,
+      isFetching: false,
+      refetch: jest.fn(),
+      ...(id === 'tenant-42' ? query : {}),
+    }));
+
+    render(<SupportPage />);
+    fireEvent.change(screen.getByLabelText('Tenant id'), {
+      target: { value: 'tenant-42' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Look up tenant' }));
+
+    expect(screen.getByRole(role)).toHaveTextContent(message);
   });
 });
