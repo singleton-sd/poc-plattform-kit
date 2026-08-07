@@ -20,15 +20,16 @@ No WordPress, Gatsby, or always-on CMS server for the site itself.
 
 ### SWA routes
 
-`public/staticwebapp.config.json` must not list trailing-slash duplicates (e.g. both `/admin` and `/admin/`) — Azure rejects the upload. CI/deploy run `scripts/validate-staticwebapp-config.mjs` to catch that before SWA.
+`public/staticwebapp.config.json` must not list trailing-slash duplicates (e.g. both `/admin` and `/admin/` rewrites) — Azure rejects the upload. Prefer a single `/admin` → `/admin/` redirect and let SWA serve `admin/index.html` for the directory. CI/deploy run `scripts/validate-staticwebapp-config.mjs` to catch duplicate routes before SWA.
 
 ## How Decap fits Astro
 
 1. Editors open `/admin` (static SPA shipped in `public/admin/`).
-2. Login with GitHub via the OAuth proxy (`base_url` in `config.yml`).
-3. Decap reads/writes Markdown in git via the **GitHub API** (editorial workflow → PRs).
-4. Merge to `main` runs Astro build; SWA serves the new HTML.
-5. Decap does **not** talk to Astro at runtime.
+2. `admin/index.html` sets `rel="cms-config-url"` to `/admin/config.yml` (needed when the URL has no trailing slash) and loads Decap at the end of `<body>` so `document.body` exists.
+3. Login with GitHub via the OAuth proxy (`base_url` in `config.yml`).
+4. Decap reads/writes Markdown in git via the **GitHub API** (editorial workflow → PRs).
+5. Merge to `main` runs Astro build; SWA serves the new HTML.
+6. Decap does **not** talk to Astro at runtime.
 
 ### Hosting
 
