@@ -2,6 +2,9 @@
 
 ## 2026-08-07
 
+- **@poc-plattform-kit/marketing** `0.4.0` → `0.5.0` (minor)
+## 2026-08-07
+
 - **@poc-plattform-kit/api** `0.13.0` → `0.14.0` (minor)
 - **@poc-plattform-kit/pillar-audit** `0.2.0` → `0.3.0` (minor)
 - **@poc-plattform-kit/pillar-contact** `0.0.0` → `0.1.0` (minor)
