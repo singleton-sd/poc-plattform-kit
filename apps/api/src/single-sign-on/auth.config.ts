@@ -1,5 +1,6 @@
 ﻿import type { ExpressAuthConfig } from '@auth/express';
 import MicrosoftEntraID from '@auth/express/providers/microsoft-entra-id';
+import { parseCorsOrigins } from '../cors-origins';
 
 /** Pull platform identity fields from an Entra OIDC profile / token bag. */
 export function extractEntraSessionFields(source: Record<string, unknown> | undefined): {
@@ -30,6 +31,34 @@ export function extractEntraSessionFields(source: Record<string, unknown> | unde
 export function resolveAuthCookieDomain(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const domain = env.AUTH_COOKIE_DOMAIN?.trim();
   return domain || undefined;
+}
+
+/** Allow Auth.js post-login redirects to known SPA origins (CORS allowlist). */
+export function isAllowedAuthRedirect(url: string, baseUrl: string): boolean {
+  if (url.startsWith('/')) {
+    return true;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+
+  let baseOrigin: string;
+  try {
+    baseOrigin = new URL(baseUrl).origin;
+  } catch {
+    return false;
+  }
+
+  if (parsed.origin === baseOrigin) {
+    return true;
+  }
+
+  const allowed = new Set(parseCorsOrigins(process.env.CORS_ORIGINS));
+  return allowed.has(parsed.origin);
 }
 
 export function buildAuthConfig(): ExpressAuthConfig | null {
@@ -72,6 +101,12 @@ export function buildAuthConfig(): ExpressAuthConfig | null {
       }),
     ],
     callbacks: {
+      async redirect({ url, baseUrl }) {
+        if (isAllowedAuthRedirect(url, baseUrl)) {
+          return url.startsWith('/') ? `${baseUrl}${url}` : url;
+        }
+        return baseUrl;
+      },
       async jwt({ token, profile }) {
         const fields = extractEntraSessionFields(profile as Record<string, unknown> | undefined);
         if (fields.oid) {

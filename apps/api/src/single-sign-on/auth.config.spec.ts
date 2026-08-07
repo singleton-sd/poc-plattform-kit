@@ -6,7 +6,7 @@ jest.mock('@auth/express/providers/microsoft-entra-id', () => ({
   })),
 }));
 
-import { buildAuthConfig, extractEntraSessionFields } from './auth.config';
+import { buildAuthConfig, extractEntraSessionFields, isAllowedAuthRedirect } from './auth.config';
 
 describe('extractEntraSessionFields', () => {
   it('reads oid, roles, and tenant_id from an Entra profile', () => {
@@ -53,6 +53,7 @@ describe('buildAuthConfig', () => {
     const config = buildAuthConfig();
     expect(config?.callbacks?.jwt).toBeDefined();
     expect(config?.callbacks?.session).toBeDefined();
+    expect(config?.callbacks?.redirect).toBeDefined();
     expect(config?.cookies).toBeUndefined();
 
     const token = await config!.callbacks!.jwt!({
@@ -100,5 +101,47 @@ describe('buildAuthConfig', () => {
       httpOnly: true,
     });
     expect(config?.cookies?.csrfToken).toBeUndefined();
+  });
+
+  it('allows redirect callbacks to CORS SPA origins', async () => {
+    process.env.AUTH_SECRET = 'test-secret';
+    process.env.AZURE_AD_CLIENT_ID = 'client';
+    process.env.AZURE_AD_CLIENT_SECRET = 'secret';
+    process.env.AZURE_AD_TENANT_ID = 'tenant';
+    process.env.CORS_ORIGINS = 'https://app.plattform-kit.poc.singletonsd.com';
+
+    const config = buildAuthConfig();
+    const redirect = config!.callbacks!.redirect!;
+
+    await expect(
+      redirect({
+        url: 'https://app.plattform-kit.poc.singletonsd.com/',
+        baseUrl: 'https://api.plattform-kit.poc.singletonsd.com',
+      } as never),
+    ).resolves.toBe('https://app.plattform-kit.poc.singletonsd.com/');
+
+    await expect(
+      redirect({
+        url: 'https://evil.example/',
+        baseUrl: 'https://api.plattform-kit.poc.singletonsd.com',
+      } as never),
+    ).resolves.toBe('https://api.plattform-kit.poc.singletonsd.com');
+  });
+});
+
+describe('isAllowedAuthRedirect', () => {
+  const env = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  it('allows relative paths and CORS origins', () => {
+    process.env.CORS_ORIGINS = 'https://app.example.test';
+    expect(isAllowedAuthRedirect('/support', 'https://api.example.test')).toBe(true);
+    expect(isAllowedAuthRedirect('https://app.example.test/', 'https://api.example.test')).toBe(
+      true,
+    );
+    expect(isAllowedAuthRedirect('https://other.example/', 'https://api.example.test')).toBe(false);
   });
 });
