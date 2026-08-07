@@ -90,7 +90,7 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 - `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
 - `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (optional)
 
-Set matching repo **Variables**. Scope must mint an access token whose `aud` matches Nest `AZURE_AD_API_AUDIENCE` (prefer `api://{clientId}` with default MSAL scope `api://{clientId}/.default`).
+Set matching repo **Variables**. Scope must mint an access token whose `aud` matches Nest `AZURE_AD_API_AUDIENCE`. Prefer the exposed delegated scope `api://api.plattform-kit.poc.singletonsd.com/access_as_user` (SPA-friendly); `.default` is a fallback for confidential clients.
 
 ### Follow-ups
 

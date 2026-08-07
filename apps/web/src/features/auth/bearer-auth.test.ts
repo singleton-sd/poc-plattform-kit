@@ -1,6 +1,7 @@
 import {
   completeBearerRedirect,
   getBearerAccessToken,
+  resetBearerTokenCacheForTests,
   signInWithBearer,
   signOutWithBearer,
 } from './bearer-auth';
@@ -32,6 +33,7 @@ jest.mock('./msal-config', () => ({
 
 describe('bearer-auth', () => {
   beforeEach(() => {
+    resetBearerTokenCacheForTests();
     setActiveAccount.mockReset();
     getActiveAccount.mockReset();
     getAllAccounts.mockReset();
@@ -49,19 +51,28 @@ describe('bearer-auth', () => {
     expect(loginRedirect).toHaveBeenCalledWith({ scopes: ['api://client-1/.default'] });
   });
 
-  it('completes redirect and sets the active account', async () => {
+  it('completes redirect, sets active account, and caches the access token', async () => {
     const account = { homeAccountId: 'a1' };
-    handleRedirectPromise.mockResolvedValue({ account });
+    handleRedirectPromise.mockResolvedValue({
+      account,
+      accessToken: 'redirect-tok',
+      expiresOn: new Date(Date.now() + 3600_000),
+    });
 
     await expect(completeBearerRedirect()).resolves.toBe(true);
     expect(setActiveAccount).toHaveBeenCalledWith(account);
+    await expect(getBearerAccessToken()).resolves.toBe('redirect-tok');
+    expect(acquireTokenSilent).not.toHaveBeenCalled();
   });
 
   it('acquires tokens for the active account', async () => {
     const account = { homeAccountId: 'active' };
     getActiveAccount.mockReturnValue(account);
     getAllAccounts.mockReturnValue([{ homeAccountId: 'other' }]);
-    acquireTokenSilent.mockResolvedValue({ accessToken: 'tok' });
+    acquireTokenSilent.mockResolvedValue({
+      accessToken: 'tok',
+      expiresOn: new Date(Date.now() + 3600_000),
+    });
 
     await expect(getBearerAccessToken()).resolves.toBe('tok');
     expect(acquireTokenSilent).toHaveBeenCalledWith({
