@@ -11,18 +11,33 @@ export type ApiFetchError = Error & {
  * Non-2xx responses throw so TanStack Query surfaces error state.
  */
 export async function customFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const { baseUrl, headers: defaultHeaders, credentials = 'include' } = getApiClientConfig();
+  const {
+    baseUrl,
+    headers: defaultHeaders,
+    credentials = 'include',
+    getAccessToken,
+  } = getApiClientConfig();
   const resolved = url.startsWith('http')
     ? url
     : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 
+  const headers: Record<string, string> = {
+    ...(defaultHeaders ? Object.fromEntries(new Headers(defaultHeaders).entries()) : {}),
+    ...(options?.headers ? Object.fromEntries(new Headers(options.headers).entries()) : {}),
+  };
+
+  // Per-request Bearer (MSAL) wins over a stale static Authorization header.
+  if (getAccessToken) {
+    const token = await getAccessToken();
+    if (token) {
+      headers.authorization = `Bearer ${token}`;
+    }
+  }
+
   const response = await fetch(resolved, {
     credentials,
     ...options,
-    headers: {
-      ...(defaultHeaders ? Object.fromEntries(new Headers(defaultHeaders).entries()) : {}),
-      ...(options?.headers ? Object.fromEntries(new Headers(options.headers).entries()) : {}),
-    },
+    headers,
   });
 
   const contentType = response.headers.get('content-type') ?? '';

@@ -10,7 +10,8 @@
 | Nest `GET /api/me` | Cookie session **or** Bearer Entra access token to `{ id, email, name, role }` |
 | Global `APP_GUARD` | `SessionOrJwtAuthGuard` + `RolesGuard` — non-public Nest routes require session or Bearer |
 | JWT guard | Validates Entra JWTs via JWKS (`AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`) |
-| Web SPA | Static export; `fetch(apiUrl('/api/me'), { credentials: 'include' })` via `NEXT_PUBLIC_API_BASE_URL` |
+| Web SPA (custom domain) | Auth.js cookies; `fetch(..., { credentials: 'include' })` via `NEXT_PUBLIC_API_BASE_URL` |
+| Web SPA (SWA Free / PR) | MSAL.js popup + `Authorization: Bearer` (no shared cookie Domain) |
 
 ## Public vs protected
 
@@ -28,7 +29,9 @@ Prefer optional token/session claim `tenant_id` → `AuthenticatedUser.tenantId`
 
 ## Env (see `.env.example`)
 
-`AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`, `CORS_ORIGINS`, `NEXT_PUBLIC_API_BASE_URL`
+Server / Auth.js: `AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`, `CORS_ORIGINS`
+
+Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`, `NEXT_PUBLIC_AZURE_AD_TENANT_ID`, optional `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (defaults to `{clientId}/.default`)
 
 KV secret names (human): `auth-secret`, `azure-ad-client-secret`.
 
@@ -50,7 +53,16 @@ Do **not** upgrade app SWA to Standard solely for `/api` linking unless cost loc
 
 ## SWA PR previews
 
-Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They cannot share the PoC cookie Domain.
+Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They **cannot** share the PoC cookie Domain, and Auth.js CSRF (`__Host-…; SameSite=Lax`) fails cross-site (`MissingCSRF`).
+
+### Auth mode (locked)
+
+| Host | Mode |
+| --- | --- |
+| `app.plattform-kit.poc.singletonsd.com` (and other non-SWA hosts) | Auth.js cookies (Option B) |
+| `*.azurestaticapps.net` (default + PR preview) | MSAL browser popup → Entra access token → `Authorization: Bearer` on `/api/me` and Orval `customFetch` |
+
+Nest already accepts Bearer via `EntraJwtStrategy` (`AZURE_AD_API_AUDIENCE` / client id). Prod cookie path is unchanged.
 
 ### CORS (locked)
 
@@ -68,15 +80,24 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 | Flow | Redirect URI |
 | --- | --- |
 | Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). SWA preview origins are **not** Entra redirect URIs for this flow. |
-| MSAL / Bearer SPA (follow-up) | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. |
+| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. MSAL uses `window.location.origin` as `redirectUri`. |
 
-Cookie sessions still will not stick on SWA preview hosts (wrong `Domain`). Track Bearer/MSAL separately:
+### Build / GitHub Variables
+
+`preview-web.yml` / `deploy-web.yml` bake (IDs only, no secrets):
+
+- `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`
+- `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
+- `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (optional)
+
+Set matching repo **Variables**. Scope must mint an access token whose `aud` matches Nest `AZURE_AD_API_AUDIENCE` (defaults to client id → `{clientId}/.default`).
+
+### Follow-ups
 
 | Title | Intent |
 | --- | --- |
 | Preview: SWA API base URL prod vs ACA | Bake `NEXT_PUBLIC_API_BASE_URL` → prod or ACA per PR |
-| Preview: Bearer Entra auth for SWA PR hosts | MSAL / Bearer for preview (Nest already accepts JWT) |
 
 ## Human portal follow-ups
 
-Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include the API callback (`https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`) and that App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. When testing MSAL on a SWA PR preview, add that preview’s exact origin as a SPA redirect URI (see pattern above).
+Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include the API callback (`https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`) and that App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. When testing MSAL on a SWA PR preview, add that preview’s exact origin as a SPA redirect URI (see pattern above). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).

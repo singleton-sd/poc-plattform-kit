@@ -9,6 +9,7 @@ import { signIn, signOut } from '@/features/auth/auth-urls';
 
 /** Signed-out login surface (also used at `/` via HomeAuthGate). */
 export function LoginPanel() {
+  const queryClient = useQueryClient();
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
 
@@ -17,6 +18,8 @@ export function LoginPanel() {
     setSignInError(null);
     try {
       await signIn();
+      // Cookie mode navigates away (form POST). Bearer (MSAL popup) returns here.
+      await queryClient.invalidateQueries({ queryKey: meKeys.all });
     } catch {
       setSignInError('Could not start sign-in. Try again.');
       setSigningIn(false);
@@ -42,7 +45,7 @@ export function LoginPanel() {
         disabled={signingIn}
         onClick={() => void onSignIn()}
       >
-        {signingIn ? 'Redirecting…' : 'Sign in with Microsoft'}
+        {signingIn ? 'Signing in…' : 'Sign in with Microsoft'}
       </button>
       {signInError ? (
         <p className="text-sm text-fg-muted" data-testid="login-sign-in-error">

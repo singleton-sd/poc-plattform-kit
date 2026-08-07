@@ -29,6 +29,7 @@ describe('configureApiClient', () => {
     configureApiClient();
     expect(createApiClientMock).toHaveBeenCalledWith({
       baseUrl: 'https://api.example.test',
+      getAccessToken: expect.any(Function),
     });
     expect(setApiClientTenantIdMock).toHaveBeenCalledWith(null);
   });
@@ -38,6 +39,7 @@ describe('configureApiClient', () => {
     configureApiClient({ tenantId: ' ten-1 ' });
     expect(createApiClientMock).toHaveBeenCalledWith({
       baseUrl: 'https://api.example.test',
+      getAccessToken: expect.any(Function),
     });
     expect(setApiClientTenantIdMock).toHaveBeenCalledWith('ten-1');
   });

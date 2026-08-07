@@ -13,6 +13,7 @@
     "./telemetry/report-boundary-error": "./src/telemetry/report-boundary-error.ts"
   },
   "dependencies": {
+    "@azure/msal-browser": "^4.12.0",
     "@jsonforms/core": "^3.5.1",
     "@jsonforms/react": "^3.5.1",
     "@poc-plattform-kit/api-client": "workspace:*",
