@@ -8,11 +8,23 @@ import {
 import { passportJwtSecret } from 'jwks-rsa';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
+/**
+ * Entra v2 access tokens for an API with `requestedAccessTokenVersion: 2` use the
+ * app's client id as `aud`. Older / App ID URI–style tokens use
+ * `AZURE_AD_API_AUDIENCE` (e.g. `api://…`). Accept both so SPA Bearer and
+ * URI-audience clients keep working.
+ */
+export function resolveEntraJwtAudiences(env: NodeJS.ProcessEnv = process.env): string[] {
+  const configured = env.AZURE_AD_API_AUDIENCE?.trim();
+  const clientId = env.AZURE_AD_CLIENT_ID?.trim();
+  return [...new Set([configured, clientId].filter((value): value is string => Boolean(value)))];
+}
+
 export function buildEntraJwtStrategyOptions(env: NodeJS.ProcessEnv = process.env) {
   const tenantId = env.AZURE_AD_TENANT_ID?.trim();
-  const audience = env.AZURE_AD_API_AUDIENCE?.trim() || env.AZURE_AD_CLIENT_ID?.trim();
+  const audiences = resolveEntraJwtAudiences(env);
 
-  if (!tenantId || !audience) {
+  if (!tenantId || audiences.length === 0) {
     return null;
   }
 
@@ -21,7 +33,7 @@ export function buildEntraJwtStrategyOptions(env: NodeJS.ProcessEnv = process.en
 
   return {
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-    audience,
+    audience: audiences.length === 1 ? audiences[0] : audiences,
     issuer,
     algorithms: ['RS256'] as const,
     secretOrKeyProvider: passportJwtSecret({

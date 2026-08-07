@@ -1,4 +1,9 @@
-export { createApiClient, getApiClientConfig, setApiClientTenantId } from './client-config';
+export {
+  createApiClient,
+  getApiClientConfig,
+  setApiClientAccessToken,
+  setApiClientTenantId,
+} from './client-config';
 export type { ApiClientConfig } from './client-config';
 export { customFetch } from './custom-fetch';
 export type { ApiFetchError } from './custom-fetch';

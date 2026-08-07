@@ -1,11 +1,13 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { HomeAuthGate } from '@/features/auth/login-panel';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { HomeAuthGate, LoginPanel } from '@/features/auth/login-panel';
 import { useMe } from '@/features/auth/me';
 import { signIn } from '@/features/auth/auth-urls';
 
+const invalidateQueries = jest.fn();
+
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({
-    invalidateQueries: jest.fn(),
+    invalidateQueries,
   }),
 }));
 
@@ -25,6 +27,8 @@ const mockSignIn = signIn as jest.Mock;
 describe('HomeAuthGate', () => {
   beforeEach(() => {
     mockSignIn.mockReset();
+    invalidateQueries.mockReset();
+    invalidateQueries.mockResolvedValue(undefined);
   });
 
   it('shows a loading state while resolving the session', () => {
@@ -63,6 +67,23 @@ describe('HomeAuthGate', () => {
     fireEvent.click(screen.getByTestId('login-sign-in'));
 
     expect(mockSignIn).toHaveBeenCalled();
+  });
+
+  it('re-enables the sign-in button when Bearer session stays signed out', async () => {
+    mockSignIn.mockResolvedValue(undefined);
+    invalidateQueries.mockResolvedValue(undefined);
+
+    render(<LoginPanel />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('login-sign-in'));
+    });
+
+    await waitFor(() => {
+      expect(invalidateQueries).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('login-sign-in')).not.toBeDisabled();
+    });
   });
 
   it('shows the home shell with sign out when signed in', () => {

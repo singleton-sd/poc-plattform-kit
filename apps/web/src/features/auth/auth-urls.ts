@@ -1,4 +1,6 @@
 import { apiUrl } from './api-base-url';
+import { resolveAuthMode } from './auth-mode';
+import { getBearerAccessToken, signInWithBearer, signOutWithBearer } from './bearer-auth';
 
 /** Auth.js Microsoft Entra ID provider id (`@auth/express/providers/microsoft-entra-id`). */
 export const ENTRA_PROVIDER_ID = 'microsoft-entra-id';
@@ -37,11 +39,7 @@ async function fetchCsrfToken(): Promise<string> {
   return csrfToken;
 }
 
-/**
- * Start Entra sign-in via Auth.js CSRF + POST.
- * Submits a form so the browser follows the OAuth redirect (fetch cannot).
- */
-export async function signIn(callbackUrl = defaultCallbackUrl()): Promise<void> {
+async function signInWithCookies(callbackUrl: string): Promise<void> {
   const csrfToken = await fetchCsrfToken();
 
   const form = document.createElement('form');
@@ -61,11 +59,7 @@ export async function signIn(callbackUrl = defaultCallbackUrl()): Promise<void> 
   form.submit();
 }
 
-/**
- * Sign out via Auth.js CSRF + POST.
- * Uses `NEXT_PUBLIC_API_BASE_URL` (Option B cross-subdomain cookies).
- */
-export async function signOut(callbackUrl = defaultCallbackUrl()): Promise<void> {
+async function signOutWithCookies(callbackUrl: string): Promise<void> {
   const csrfToken = await fetchCsrfToken();
 
   const body = new URLSearchParams({
@@ -83,4 +77,37 @@ export async function signOut(callbackUrl = defaultCallbackUrl()): Promise<void>
   if (!res.ok) {
     throw new Error('Auth.js sign-out failed');
   }
+}
+
+/**
+ * Start Entra sign-in.
+ * Custom domains: Auth.js CSRF + form POST (cookies).
+ * SWA preview hosts: MSAL popup + Bearer access token.
+ */
+export async function signIn(callbackUrl = defaultCallbackUrl()): Promise<void> {
+  if (resolveAuthMode() === 'bearer') {
+    await signInWithBearer();
+    return;
+  }
+  await signInWithCookies(callbackUrl);
+}
+
+/**
+ * Sign out via Auth.js cookies or MSAL, depending on host.
+ */
+export async function signOut(callbackUrl = defaultCallbackUrl()): Promise<void> {
+  if (resolveAuthMode() === 'bearer') {
+    await signOutWithBearer();
+    return;
+  }
+  await signOutWithCookies(callbackUrl);
+}
+
+/** Authorization header for Bearer mode (empty when cookie mode / signed out). */
+export async function authHeaders(): Promise<HeadersInit> {
+  if (resolveAuthMode() !== 'bearer') {
+    return {};
+  }
+  const token = await getBearerAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
