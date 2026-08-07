@@ -68,17 +68,14 @@ export function assertValidStaticWebAppConfig(config, fileLabel) {
     throw new Error(`${fileLabel}: "routes" must be an array when present`);
   }
 
-  const duplicates = findDuplicateSwaRoutes(
-    /** @type {Array<{ route?: unknown }>} */ (routes),
-  );
+  const duplicates = findDuplicateSwaRoutes(/** @type {Array<{ route?: unknown }>} */ (routes));
   if (duplicates.length === 0) {
     return;
   }
 
   const details = duplicates
     .map(
-      (d) =>
-        `  - "${d.route}" conflicts with "${d.conflictsWith}" (normalized "${d.normalized}")`,
+      (d) => `  - "${d.route}" conflicts with "${d.conflictsWith}" (normalized "${d.normalized}")`,
     )
     .join('\n');
   throw new Error(
