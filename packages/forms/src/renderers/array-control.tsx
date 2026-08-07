@@ -1,10 +1,22 @@
 import {
+  and,
   isPrimitiveArrayControl,
   rankWith,
+  schemaMatches,
   type ControlProps,
+  type JsonSchema,
   type RankedTester,
 } from '@jsonforms/core';
 import { withJsonFormsControlProps } from '@jsonforms/react';
+
+export function isStringArraySchema(schema: JsonSchema): boolean {
+  return (
+    schema.type === 'array' &&
+    !Array.isArray(schema.items) &&
+    typeof schema.items === 'object' &&
+    schema.items?.type === 'string'
+  );
+}
 
 function ArrayControlRenderer(props: ControlProps) {
   const { data, handleChange, path, label, required, errors, enabled, id } = props;
@@ -72,5 +84,8 @@ function ArrayControlRenderer(props: ControlProps) {
   );
 }
 
-export const arrayControlTester: RankedTester = rankWith(5, isPrimitiveArrayControl);
+export const arrayControlTester: RankedTester = rankWith(
+  5,
+  and(isPrimitiveArrayControl, schemaMatches(isStringArraySchema)),
+);
 export const ArrayControl = withJsonFormsControlProps(ArrayControlRenderer);

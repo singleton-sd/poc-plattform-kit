@@ -1,5 +1,10 @@
 import { isEnumControl, rankWith, type ControlProps, type RankedTester } from '@jsonforms/core';
 import { withJsonFormsControlProps } from '@jsonforms/react';
+
+export function enumValueAt(options: unknown[], selectedIndex: string): unknown {
+  if (selectedIndex === '') return undefined;
+  return options[Number(selectedIndex)];
+}
 import { cn } from '../cn';
 
 function SelectControlRenderer(props: ControlProps) {
@@ -20,15 +25,17 @@ function SelectControlRenderer(props: ControlProps) {
           'rounded border bg-bg px-3 py-2 text-fg',
           invalid ? 'border-fg' : 'border-fg-subtle',
         )}
-        value={data ?? ''}
+        value={
+          data === undefined ? '' : String(options.findIndex((option) => Object.is(option, data)))
+        }
         disabled={!enabled}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${inputId}-error` : undefined}
-        onChange={(event) => handleChange(path, event.target.value)}
+        onChange={(event) => handleChange(path, enumValueAt(options, event.target.value))}
       >
         <option value="">Select an option</option>
-        {options.map((option) => (
-          <option key={String(option)} value={String(option)}>
+        {options.map((option, index) => (
+          <option key={`${typeof option}-${String(option)}`} value={index}>
             {String(option)}
           </option>
         ))}

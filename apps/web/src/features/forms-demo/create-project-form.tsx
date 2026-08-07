@@ -28,6 +28,7 @@ export function CreateProjectForm() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    mutation.reset();
     const parsed = createProjectSchema.safeParse(data);
     if (!parsed.success) {
       setValidationError(parsed.error.issues[0]?.message ?? 'Check the form fields.');
@@ -46,7 +47,10 @@ export function CreateProjectForm() {
         data={data}
         renderers={tokenRenderers}
         cells={tokenCells}
-        onChange={({ data: next }) => setData(next as Record<string, unknown>)}
+        onChange={({ data: next }) => {
+          mutation.reset();
+          setData(next as Record<string, unknown>);
+        }}
       />
       <button
         type="submit"
