@@ -5,6 +5,9 @@
  */
 export function isPublicPath(path: string): boolean {
   const normalized = path.split('?')[0] || '/';
+  if (normalized === '/' || normalized === '') {
+    return true;
+  }
   if (normalized === '/health' || normalized.startsWith('/health/')) {
     return true;
   }
