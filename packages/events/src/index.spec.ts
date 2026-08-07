@@ -6,7 +6,7 @@ import {
   subscriptionForConsumer,
   topicForPillar,
   type DomainEventType,
-} from './index.js';
+} from './index';
 
 describe('topicForPillar', () => {
   it('names topics as `{pillar}.events` for every publishing pillar', () => {

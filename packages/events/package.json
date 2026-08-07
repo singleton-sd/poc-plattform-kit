@@ -2,7 +2,6 @@
   "name": "@poc-plattform-kit/events",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
@@ -25,19 +24,8 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "testEnvironment": "node",
-    "moduleNameMapper": {
-      "^(\\.{1,2}/.*)\\.js$": "$1"
-    },
     "transform": {
-      "^.+\\.ts$": [
-        "ts-jest",
-        {
-          "tsconfig": {
-            "module": "commonjs",
-            "moduleResolution": "node"
-          }
-        }
-      ]
+      "^.+\\.ts$": "ts-jest"
     }
   }
 }
