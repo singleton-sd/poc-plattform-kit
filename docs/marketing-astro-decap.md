@@ -47,40 +47,19 @@ Until the OAuth proxy exists, edit content via git/PRs. Decap `config.yml` leave
 - App: `apps/marketing`
 - Admin: `apps/marketing/public/admin/`
 - Deploy workflow: `.github/workflows/deploy-marketing.yml`
-- Local deploy helper: `scripts/deploy-swa-from-kv.ps1 -DeployName marketing`
+- Local preview: `pnpm dev:marketing` (no Azure PR preview for marketing SWA)
+- Local deploy helper: `scripts/deploy-swa-from-kv.ps1 -DeployName marketing` (builds `dist` if missing)
 
 ## ClickUp
 
-Ops list: https://app.clickup.com/90161394355/v/li/901616287298  
-Architecture Doc: https://app.clickup.com/90161394355/docs/2kz0kcnk-1416  
+Ops via **REST** (`CLICKUP_API_TOKEN` env) — not MCP for routine ops.
 
-**Note (2026-08-06):** ClickUp MCP/API was rate-limited during implement (~11h). File these tickets + paste this page into Architecture Doc when the limit clears. Leave unassigned / Claim Token empty until pickup.
+| Item | Link |
+| --- | --- |
+| Ops list | https://app.clickup.com/90161394355/v/li/901616287298 |
+| Implement (READY FOR REVIEW) | https://app.clickup.com/t/86d3z0mfz |
+| OAuth follow-up (TO DO, waiting_on implement) | https://app.clickup.com/t/86d3z0mg0 |
+| Architecture Doc page | https://app.clickup.com/90161394355/docs/2kz0kcnk-1416/2kz0kcnk-2876 |
+| PR | https://github.com/singleton-sd/poc-plattform-kit/pull/61 |
 
-### Ticket 1 — implement (Token Estimate ≈ 100000)
-
-**Title:** Marketing: Astro + Tailwind + Singleton SD + Markdown + Decap `[repo=singleton-sd/poc-plattform-kit]`
-
-**Status:** TO DO or READY FOR AI  
-
-**Acceptance criteria:**
-
-- [ ] Site uses Singleton SD token CSS vars + Tailwind only (no hardcoded palette hex)
-- [ ] `pnpm --filter @poc-plattform-kit/marketing build` emits `apps/marketing/dist`
-- [ ] SWA deploy uploads `dist` (not raw `public/`)
-- [ ] Decap admin static files present at `/admin`
-- [ ] Home + privacy + terms driven by Markdown content collections
-- [ ] Repo docs mention Astro + Decap marketing stack
-
-**Out of scope:** OAuth proxy runtime; page builder; blog/i18n.
-
-**Branch:** `feature/<clickup-task-id>-marketing-astro-decap`
-
-### Ticket 2 — follow-up (Token Estimate ≈ 50000, waiting_on ticket 1)
-
-**Title:** Marketing: Decap GitHub OAuth proxy (Azure Function) `[repo=singleton-sd/poc-plattform-kit]`
-
-**Scope:** Tiny OAuth callback; client secret in Key Vault; wire Decap `base_url` / `auth_endpoint` so non-devs can log in at `/admin`.
-
-### Related
-
-- [Marketing: Privacy + Terms pages](https://app.clickup.com/t/86d3yr2a8) — legal copy folded into Markdown in this work.
+Related: [Marketing: Privacy + Terms pages](https://app.clickup.com/t/86d3yr2a8) — legal copy folded into Markdown.
