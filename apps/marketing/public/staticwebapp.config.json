@@ -6,15 +6,9 @@
       "statusCode": 301
     }
   ],
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": [
-      "/admin*",
-      "/privacy*",
-      "/terms*",
-      "/assets/*",
-      "/_astro/*",
-      "/*.{css,js,ico,png,svg,webmanifest,yml,yaml}"
-    ]
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/404.html"
+    }
   }
 }

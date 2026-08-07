@@ -73,11 +73,18 @@ Editors need **write** access to `singleton-sd/poc-plattform-kit` (or a bot acco
 
 ## Content model
 
+Decap **Pages** collection allows creating new Markdown entries (`create: true`).
+Home stays on `/` via `src/pages/index.astro`; every other slug is built by
+`src/pages/[slug].astro` (e.g. `/privacy`, `/terms`, or a new `/about`).
+Unknown paths hit `src/pages/404.astro` (`404.html`) via SWA
+`responseOverrides` — not the homepage SPA fallback.
+
 | File | Purpose |
 | --- | --- |
 | `src/content/pages/home.md` | Landing brand, headline, CTA, body |
 | `src/content/pages/privacy.md` | Privacy Policy |
 | `src/content/pages/terms.md` | Terms of Service |
+| `src/content/pages/<slug>.md` | Any additional page editors create in `/admin` |
 
 ## Repo paths
 

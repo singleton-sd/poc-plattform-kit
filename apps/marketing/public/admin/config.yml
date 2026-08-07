@@ -26,7 +26,7 @@ collections:
   - name: pages
     label: Pages
     folder: apps/marketing/src/content/pages
-    create: false
+    create: true
     delete: false
     slug: '{{slug}}'
     extension: md
