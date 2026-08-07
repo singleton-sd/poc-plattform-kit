@@ -48,6 +48,7 @@ jobs:
         env:
           # Baked into the static export; SWA runtime cannot inject this later.
           # Option B cookies on custom domains; MSAL Bearer on *.azurestaticapps.net.
+          # Rebuild after setting GitHub Variables NEXT_PUBLIC_AZURE_AD_* (MSAL).
           NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
           NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
           NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
