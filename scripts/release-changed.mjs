@@ -3,8 +3,11 @@
  * Path-aware independent releases for the pnpm monorepo.
  *
  * Bumps each workspace package that has releasable conventional commits since
- * its last `@scope/name@version` tag, cascades web/api when shared paths
- * change, then creates one git commit + per-package tags.
+ * its last `@scope/name@version` tag (reachable from HEAD), cascades web/api
+ * when shared paths change, then creates one git commit + per-package tags.
+ *
+ * Push order is commit-then-tags (never `--follow-tags`): a non-fast-forward
+ * race must not publish tags without the release commit on main.
  *
  * When `@poc-plattform-kit/api` is bumped, also runs `pnpm openapi:export` and
  * `pnpm openapi:generate` so committed OpenAPI `info.version` matches the
@@ -91,6 +94,22 @@ function listWorkspacePackages() {
 }
 
 /**
+ * True when `ref` is an ancestor of HEAD (tag commit is on this branch history).
+ * @param {string} ref
+ */
+function isAncestorOfHead(ref) {
+  try {
+    run('git', ['merge-base', '--is-ancestor', ref, 'HEAD']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Highest semver tag for the package that is reachable from HEAD.
+ * Ignores orphaned tags left behind when a release push rejected the branch
+ * but still published tags (`git push --follow-tags` is not atomic).
  * @param {string} packageName
  * @returns {string | null}
  */
@@ -99,7 +118,35 @@ function getLastTag(packageName) {
     .split('\n')
     .map((t) => t.trim())
     .filter(Boolean);
-  return tags[0] ?? null;
+  for (const tag of tags) {
+    if (isAncestorOfHead(tag)) return tag;
+  }
+  return null;
+}
+
+/**
+ * @param {string} packageName
+ * @param {string | null} tag
+ * @returns {string | null}
+ */
+function versionFromTag(packageName, tag) {
+  if (!tag) return null;
+  const prefix = `${packageName}@`;
+  if (!tag.startsWith(prefix)) return null;
+  const version = tag.slice(prefix.length);
+  return semver.valid(version) ? version : null;
+}
+
+/**
+ * @param {string} tag
+ */
+function tagExists(tag) {
+  try {
+    run('git', ['rev-parse', '-q', '--verify', `refs/tags/${tag}`]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -192,6 +239,37 @@ function nextVersion(current, increment) {
 }
 
 /**
+ * Max of package.json version and last reachable tag, then bump until the
+ * target tag name is free (skips orphaned remote tags).
+ * @param {string} packageName
+ * @param {string} packageVersion
+ * @param {string | null} lastTag
+ * @param {Increment} increment
+ * @returns {{ base: string, next: string, tag: string }}
+ */
+function resolveNextVersion(packageName, packageVersion, lastTag, increment) {
+  const tagVersion = versionFromTag(packageName, lastTag);
+  const candidates = [packageVersion, tagVersion].filter(
+    (v) => typeof v === 'string' && Boolean(semver.valid(v)),
+  );
+  let base = candidates.length > 0 ? candidates.sort(semver.rcompare)[0] : '0.0.0';
+
+  const from = base;
+
+  for (let i = 0; i < 50; i += 1) {
+    const next = nextVersion(base, increment);
+    const tag = `${packageName}@${next}`;
+    if (!tagExists(tag)) {
+      return { base: from, next, tag };
+    }
+    console.warn(`Tag ${tag} already exists — skipping to next ${increment}.`);
+    base = next;
+  }
+
+  throw new Error(`Could not find a free version for ${packageName} after ${base}`);
+}
+
+/**
  * @param {{ name: string, version: string, next: string, increment: Increment }[]} releases
  */
 function updateChangelog(releases) {
@@ -246,7 +324,63 @@ function refreshOpenApiClient() {
   console.log('OpenAPI client refreshed.');
 }
 
+/**
+ * Sync to origin/main before computing bumps so concurrent pushes do not
+ * release from a stale tip.
+ */
+function syncToOriginMain() {
+  run('git', ['fetch', 'origin', 'main', '--tags']);
+  const head = run('git', ['rev-parse', 'HEAD']);
+  const main = run('git', ['rev-parse', 'origin/main']);
+  if (head === main) return;
+  console.log(`Updating HEAD ${head.slice(0, 7)} → origin/main ${main.slice(0, 7)}`);
+  run('git', ['reset', '--hard', 'origin/main']);
+}
+
+/**
+ * Push the release commit only (no tags). Retries once after rebase when
+ * concurrent main updates cause a non-fast-forward rejection.
+ */
+function pushReleaseCommit() {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      run('git', ['push', 'origin', 'HEAD:main']);
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts) throw error;
+      console.log(
+        `Push rejected (attempt ${attempt}/${maxAttempts}); rebasing onto origin/main...`,
+      );
+      run('git', ['fetch', 'origin', 'main']);
+      run('git', ['pull', '--rebase', '--autostash', 'origin', 'main']);
+    }
+  }
+}
+
+/**
+ * Create and push annotated tags only after HEAD is on origin/main.
+ * Never use `git push --follow-tags`: git can accept new tags while rejecting
+ * a non-fast-forward main update, leaving orphan tags that block later releases.
+ * @param {string[]} tags
+ */
+function createAndPushTags(tags) {
+  for (const tag of tags) {
+    if (tagExists(tag)) {
+      run('git', ['tag', '-d', tag]);
+    }
+    run('git', ['tag', '-a', tag, '-m', tag]);
+  }
+  if (tags.length > 0) {
+    run('git', ['push', 'origin', ...tags]);
+  }
+}
+
 function main() {
+  if (CI) {
+    syncToOriginMain();
+  }
+
   const packages = listWorkspacePackages();
   if (packages.length === 0) {
     console.log('No workspace packages found.');
@@ -263,14 +397,14 @@ function main() {
     const increment = deriveIncrement(messages);
     if (!increment) continue;
 
-    const next = nextVersion(pkg.version, increment);
+    const resolved = resolveNextVersion(pkg.name, pkg.version, lastTag, increment);
     releases.push({
       name: pkg.name,
       path: pkg.path,
-      version: pkg.version,
-      next,
+      version: resolved.base,
+      next: resolved.next,
       increment,
-      tag: `${pkg.name}@${next}`,
+      tag: resolved.tag,
     });
   }
 
@@ -288,7 +422,7 @@ function main() {
   if (apiReleased) {
     console.log(
       CI
-        ? 'API bumped — will refresh OpenAPI client before commit.'
+        ? 'API bumped - will refresh OpenAPI client before commit.'
         : 'Would also refresh OpenAPI client (pnpm openapi:export && pnpm openapi:generate).',
     );
   }
@@ -323,11 +457,10 @@ function main() {
     env: { ...process.env, HUSKY: '0' },
   });
 
-  for (const release of releases) {
-    run('git', ['tag', '-a', release.tag, '-m', release.tag]);
-  }
-
-  run('git', ['push', 'origin', 'HEAD', '--follow-tags']);
+  // Commit first, then tag. Tagging before a rebase-on-push-failure leaves
+  // tags pointing at a rewritten commit SHA.
+  pushReleaseCommit();
+  createAndPushTags(releases.map((r) => r.tag));
   console.log('Release commit and tags pushed.');
 }
 

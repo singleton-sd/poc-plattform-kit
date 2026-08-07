@@ -144,4 +144,22 @@ describe('isAllowedAuthRedirect', () => {
     );
     expect(isAllowedAuthRedirect('https://other.example/', 'https://api.example.test')).toBe(false);
   });
+
+  it('allows this-repo SWA preview hosts via instance prefix', () => {
+    process.env.CORS_ORIGINS =
+      'https://app.example.test,https://kind-rock-0f409fe00*.azurestaticapps.net';
+    expect(
+      isAllowedAuthRedirect(
+        'https://kind-rock-0f409fe00-57.eastasia.7.azurestaticapps.net/',
+        'https://api.example.test',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects open azurestaticapps wildcards for Auth.js redirects', () => {
+    process.env.CORS_ORIGINS = 'https://*.azurestaticapps.net';
+    expect(
+      isAllowedAuthRedirect('https://attacker.7.azurestaticapps.net/', 'https://api.example.test'),
+    ).toBe(false);
+  });
 });

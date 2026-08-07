@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "12704416279383250438"
+      "templateHash": "11808610735421786953"
     }
   },
   "parameters": {
@@ -429,7 +429,7 @@
             },
             {
               "name": "CORS_ORIGINS",
-              "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com"
+              "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com,https://kind-rock-0f409fe00*.azurestaticapps.net,https://purple-field-05048bf00*.azurestaticapps.net"
             },
             {
               "name": "NEXT_PUBLIC_API_BASE_URL",
