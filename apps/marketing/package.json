@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro build",
     "preview": "astro preview",
-    "lint": "astro check",
-    "test": "astro check"
+    "lint": "node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check",
+    "test": "node --test ../../scripts/validate-staticwebapp-config.test.mjs && node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
