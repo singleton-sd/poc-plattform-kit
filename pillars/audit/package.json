@@ -1,10 +1,38 @@
 {
   "name": "@poc-plattform-kit/pillar-audit",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "echo stub",
-    "lint": "echo stub",
-    "test": "echo stub"
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"lint:audit stub\"",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@poc-plattform-kit/events": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.9",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.2"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@poc-plattform-kit/events$": "<rootDir>/../../../packages/events/src/index.ts"
+    }
   }
 }
