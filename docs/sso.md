@@ -36,6 +36,8 @@ Swagger UI at `/docs` exposes an **oauth2** scheme (authorization code + PKCE) i
 
 Register that redirect URI on the Entra app registration as a **SPA** platform redirect (required for browser PKCE from Swagger UI). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`.
 
+Entra’s login navigation breaks Swagger’s stock `window.opener` handoff (`SecurityError` / null opener). The API serves a custom `/docs/oauth2-redirect.html` plus a BroadcastChannel bridge on `/docs` so the auth code still reaches Swagger UI.
+
 ## Tenancy
 
 Prefer optional token/session claim `tenant_id` → `AuthenticatedUser.tenantId` over `x-tenant-id`. The header remains a **legacy/dev escape** when the claim is absent; when both are present, the **claim wins** (see `TenancyMiddleware` + `ClaimTenancyInterceptor`). Do not treat Entra directory `tid` as the Platform Kit tenant id.

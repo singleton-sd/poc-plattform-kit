@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DocumentBuilder, type SwaggerCustomOptions } from '@nestjs/swagger';
+import { buildSwaggerOauth2BridgeScript } from './swagger-oauth2-redirect';
 
 type EnvBag = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -133,6 +134,8 @@ export function buildSwaggerUiOptions(env: EnvBag = process.env): SwaggerCustomO
     : ['openid', 'profile'];
 
   return {
+    // Completes Authorize when Entra COOP blocks window.opener on oauth2-redirect.
+    customJsStr: buildSwaggerOauth2BridgeScript(),
     swaggerOptions: {
       persistAuthorization: true,
       ...(oauth2RedirectUrl ? { oauth2RedirectUrl } : {}),

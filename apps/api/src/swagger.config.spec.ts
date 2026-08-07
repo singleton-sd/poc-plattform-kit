@@ -127,6 +127,7 @@ describe('swagger.config', () => {
           scopes: expect.arrayContaining(['openid', 'client-1/.default']),
         },
       });
+      expect(options.customJsStr).toEqual(expect.stringContaining('BroadcastChannel'));
     });
   });
 });

@@ -10,6 +10,7 @@ import { resolveCorsOrigin } from './cors-origins';
 import { mountApiRootDocsRedirect } from './docs-root-redirect';
 import { configureSingleSignOnAuth } from './single-sign-on/configure-auth';
 import { buildOpenApiDocumentConfig, buildSwaggerUiOptions } from './swagger.config';
+import { mountSwaggerOauth2Redirect } from './swagger-oauth2-redirect-mount';
 
 export async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -36,6 +37,8 @@ export async function bootstrap() {
 
   const expressApp = app.getHttpAdapter().getInstance() as Express;
   mountApiRootDocsRedirect(expressApp);
+  // Before SwaggerModule.setup so this route wins over swagger-ui-dist static.
+  mountSwaggerOauth2Redirect(expressApp);
   configureSingleSignOnAuth(expressApp);
 
   const document = SwaggerModule.createDocument(app, buildOpenApiDocumentConfig());
