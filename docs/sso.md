@@ -41,23 +41,42 @@ SWA **Free** cannot use Bring-your-own API (App Service link requires SWA **Stan
 | Web origin | `https://app.plattform-kit.poc.singletonsd.com` |
 | API origin | `https://api.plattform-kit.poc.singletonsd.com` |
 | Cookie `Domain` | `.plattform-kit.poc.singletonsd.com` (`AUTH_COOKIE_DOMAIN`) |
-| CORS | App (+ marketing) origins with `credentials: true` |
+| CORS | App (+ marketing) origins + instance-scoped SWA prefixes (`https://{swaName}*.azurestaticapps.net`) with `credentials: true` |
 | SPA calls | Absolute API base (`NEXT_PUBLIC_API_BASE_URL`), not same-origin `/api` |
 
 Sibling subdomains under `singletonsd.com` are same-site, so `SameSite=Lax` + shared cookie Domain is enough for credentialed `fetch` from `app.` → `api.`.
 
 Do **not** upgrade app SWA to Standard solely for `/api` linking unless cost lock is explicitly revised.
 
-## SWA PR previews (follow-up)
+## SWA PR previews
 
-Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They cannot share the PoC cookie Domain. Track separately:
+Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They cannot share the PoC cookie Domain.
+
+### CORS (locked)
+
+`CORS_ORIGINS` / App Config `app:cors:origins` includes:
+
+- Custom domains: `https://app.plattform-kit.poc.singletonsd.com`, `https://plattform-kit.poc.singletonsd.com`
+- Instance-scoped SWA hosts: `https://kind-rock-0f409fe00*.azurestaticapps.net`, `https://purple-field-05048bf00*.azurestaticapps.net` (default hostname + PR preview hosts such as `https://kind-rock-…-57.eastasia.7.azurestaticapps.net`)
+
+Do **not** use open `https://*.azurestaticapps.net` for Auth.js redirects — that would allow any Azure customer’s Static Web App as a post-login redirect target. Nest CORS may still parse that suffix form if misconfigured; Auth.js redirect checks ignore it and only honour exact origins + `{swaName}*` instance prefixes.
+
+Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirectOriginAllowed`). Applies to prod App Service and ACA PR API previews (same Nest bootstrap).
+
+### Entra redirect URIs (approved pattern)
+
+| Flow | Redirect URI |
+| --- | --- |
+| Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). SWA preview origins are **not** Entra redirect URIs for this flow. |
+| MSAL / Bearer SPA (follow-up) | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. |
+
+Cookie sessions still will not stick on SWA preview hosts (wrong `Domain`). Track Bearer/MSAL separately:
 
 | Title | Intent |
 | --- | --- |
 | Preview: SWA API base URL prod vs ACA | Bake `NEXT_PUBLIC_API_BASE_URL` → prod or ACA per PR |
 | Preview: Bearer Entra auth for SWA PR hosts | MSAL / Bearer for preview (Nest already accepts JWT) |
-| Preview: CORS and Entra redirects for SWA hosts | Allow preview origins + Entra redirect URIs |
 
 ## Human portal follow-ups
 
-Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include the API callback (`https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`) and that App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`.
+Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include the API callback (`https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`) and that App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. When testing MSAL on a SWA PR preview, add that preview’s exact origin as a SPA redirect URI (see pattern above).

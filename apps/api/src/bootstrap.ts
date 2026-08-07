@@ -6,7 +6,7 @@ import { Logger, PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { correlationIdMiddleware } from './common/middleware/correlation-id.middleware';
-import { parseCorsOrigins } from './cors-origins';
+import { resolveCorsOrigin } from './cors-origins';
 import { configureSingleSignOnAuth } from './single-sign-on/configure-auth';
 import { buildOpenApiDocumentConfig } from './swagger.config';
 
@@ -25,8 +25,10 @@ export async function bootstrap() {
   );
 
   // Option B SSO: SPA on app.* calls api.* with credentials (shared cookie domain).
+  // Also allow this-repo SWA Free / PR preview hosts via instance-scoped
+  // https://{swaName}*.azurestaticapps.net entries in CORS_ORIGINS.
   app.enableCors({
-    origin: parseCorsOrigins(process.env.CORS_ORIGINS),
+    origin: (origin, callback) => resolveCorsOrigin(origin, callback),
     // Required for browser credentialed fetches (api-client defaults to credentials: 'include').
     credentials: true,
   });
