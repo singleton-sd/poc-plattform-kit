@@ -363,7 +363,7 @@
               "openid": "Sign in",
               "profile": "User profile",
               "offline_access": "Refresh token",
-              "api://platform-kit/.default": "Access Platform Kit API"
+              "platform-kit/.default": "Access Platform Kit API"
             }
           }
         },
