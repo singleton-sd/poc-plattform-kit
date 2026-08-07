@@ -9,7 +9,7 @@
 | Nest `/api/auth/*` | Auth.js (`@auth/express`) Microsoft Entra ID provider; httpOnly session cookies |
 | Nest `GET /api/me` | Cookie session **or** Bearer Entra access token to `{ id, email, name, role }` |
 | Global `APP_GUARD` | `SessionOrJwtAuthGuard` + `RolesGuard` — non-public Nest routes require session or Bearer |
-| JWT guard | Validates Entra JWTs via JWKS (`AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`) |
+| JWT guard | Validates Entra JWTs via JWKS (`AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE` and/or `AZURE_AD_CLIENT_ID` as `aud`) |
 | Web SPA (custom domain) | Auth.js cookies; `fetch(..., { credentials: 'include' })` via `NEXT_PUBLIC_API_BASE_URL` |
 | Web SPA (SWA Free / PR) | MSAL.js popup + `Authorization: Bearer` (no shared cookie Domain) |
 
@@ -31,7 +31,7 @@ Prefer optional token/session claim `tenant_id` → `AuthenticatedUser.tenantId`
 
 Server / Auth.js: `AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`, `CORS_ORIGINS`
 
-Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`, `NEXT_PUBLIC_AZURE_AD_TENANT_ID`, optional `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (defaults to `api://{clientId}/.default`). Nest `AZURE_AD_API_AUDIENCE` should match that Application ID URI.
+Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`, `NEXT_PUBLIC_AZURE_AD_TENANT_ID`, optional `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (defaults to `api://{clientId}/.default`). With Entra `requestedAccessTokenVersion: 2`, access-token `aud` is the **client id** (GUID); Nest accepts that plus optional `AZURE_AD_API_AUDIENCE` (App ID URI) for older tokens.
 
 KV secret names (human): `auth-secret`, `azure-ad-client-secret`.
 
@@ -90,7 +90,7 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 - `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
 - `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (optional)
 
-Set matching repo **Variables**. Scope must mint an access token whose `aud` matches Nest `AZURE_AD_API_AUDIENCE`. Prefer the exposed delegated scope `api://api.plattform-kit.poc.singletonsd.com/access_as_user` (SPA-friendly); `.default` is a fallback for confidential clients.
+Set matching repo **Variables**. Prefer the exposed delegated scope `api://api.plattform-kit.poc.singletonsd.com/access_as_user` (SPA-friendly); `.default` is a fallback for confidential clients. Expect access-token `aud` = Entra app client id when `requestedAccessTokenVersion` is `2` — Nest accepts client id and `AZURE_AD_API_AUDIENCE`.
 
 ### Follow-ups
 
