@@ -10,6 +10,10 @@ export interface AuditRecord {
   correlationId?: string;
 }
 
+export interface AuditRecordRepository {
+  save(record: AuditRecord): Promise<void>;
+}
+
 export function toAuditRecord(event: DomainEvent): AuditRecord {
   return {
     eventId: event.id,
@@ -28,7 +32,11 @@ export function toAuditRecord(event: DomainEvent): AuditRecord {
  * Prisma, land with the Audit pillar's storage ticket.
  */
 export class AuditEventHandler {
+  constructor(private readonly repository?: AuditRecordRepository) {}
+
   async handle(event: DomainEvent): Promise<AuditRecord> {
-    return toAuditRecord(event);
+    const record = toAuditRecord(event);
+    await this.repository?.save(record);
+    return record;
   }
 }
