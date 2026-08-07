@@ -1,5 +1,7 @@
 name: CI Web
+# includes marketing Astro SSG
 
+# Path filters include this workflow file so edits re-run web CI on PRs.
 on:
   pull_request:
     paths:

@@ -10,7 +10,7 @@
 | Nest `GET /api/me` | Cookie session **or** Bearer Entra access token to `{ id, email, name, role }` |
 | Global `APP_GUARD` | `SessionOrJwtAuthGuard` + `RolesGuard` — non-public Nest routes require session or Bearer |
 | JWT guard | Validates Entra JWTs via JWKS (`AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`) |
-| Web SPA | Static export; `fetch('/api/me', { credentials: 'include' })` |
+| Web SPA | Static export; `fetch(apiUrl('/api/me'), { credentials: 'include' })` via `NEXT_PUBLIC_API_BASE_URL` |
 
 ## Public vs protected
 
@@ -28,14 +28,36 @@ Prefer optional token/session claim `tenant_id` → `AuthenticatedUser.tenantId`
 
 ## Env (see `.env.example`)
 
-`AUTH_SECRET`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`
+`AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`, `CORS_ORIGINS`, `NEXT_PUBLIC_API_BASE_URL`
 
 KV secret names (human): `auth-secret`, `azure-ad-client-secret`.
 
-## Same-origin cookies
+## Option B — cross-subdomain cookies (locked for PoC)
 
-SWA Free hosts the static SPA. Cookies require `/api/*` to hit Nest (App Service), not `navigationFallback` to `index.html`. See **Link SWA /api to App Service for SSO cookies**.
+SWA **Free** cannot use Bring-your-own API (App Service link requires SWA **Standard**). Cost lock stays Free ×2.
+
+| Piece | Value |
+| --- | --- |
+| Web origin | `https://app.plattform-kit.poc.singletonsd.com` |
+| API origin | `https://api.plattform-kit.poc.singletonsd.com` |
+| Cookie `Domain` | `.plattform-kit.poc.singletonsd.com` (`AUTH_COOKIE_DOMAIN`) |
+| CORS | App (+ marketing) origins with `credentials: true` |
+| SPA calls | Absolute API base (`NEXT_PUBLIC_API_BASE_URL`), not same-origin `/api` |
+
+Sibling subdomains under `singletonsd.com` are same-site, so `SameSite=Lax` + shared cookie Domain is enough for credentialed `fetch` from `app.` → `api.`.
+
+Do **not** upgrade app SWA to Standard solely for `/api` linking unless cost lock is explicitly revised.
+
+## SWA PR previews (follow-up)
+
+Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They cannot share the PoC cookie Domain. Track separately:
+
+| Title | Intent |
+| --- | --- |
+| Preview: SWA API base URL prod vs ACA | Bake `NEXT_PUBLIC_API_BASE_URL` → prod or ACA per PR |
+| Preview: Bearer Entra auth for SWA PR hosts | MSAL / Bearer for preview (Nest already accepts JWT) |
+| Preview: CORS and Entra redirects for SWA hosts | Allow preview origins + Entra redirect URIs |
 
 ## Human portal follow-ups
 
-Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete).
+Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include the API callback (`https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`) and that App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`.

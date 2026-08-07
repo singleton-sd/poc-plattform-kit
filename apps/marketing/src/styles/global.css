@@ -1,0 +1,58 @@
+/* Singleton SD design tokens — canonical source, not vendored/hardcoded.
+   Both themes imported; active theme via [data-theme] on <html>. */
+@import url('https://tokens.design.singletonsd.com/css/light/_variables.css');
+@import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-families-body), ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--bg-default);
+  color: var(--fg-default);
+}
+
+.prose-legal h2 {
+  @apply mt-8 mb-3 font-heading text-xl font-semibold text-fg;
+}
+
+.prose-legal h3 {
+  @apply mt-5 mb-2 font-heading text-lg font-medium text-fg;
+}
+
+.prose-legal p,
+.prose-legal li {
+  @apply text-fg-muted leading-relaxed;
+}
+
+.prose-legal ul {
+  @apply my-3 list-disc space-y-1 pl-5;
+}
+
+.prose-legal a {
+  @apply text-accent underline-offset-2 hover:underline;
+}
+
+.prose-legal table {
+  @apply my-4 w-full border-collapse text-left text-sm text-fg-muted;
+}
+
+.prose-legal th,
+.prose-legal td {
+  @apply border border-fg-muted px-3 py-2;
+}
+
+.prose-legal th {
+  @apply bg-bg-muted font-medium text-fg;
+}
+
+.prose-legal .callout {
+  @apply my-4 rounded border border-fg-muted bg-accent-bg px-4 py-3 text-sm text-fg-muted;
+}
+
+.prose-legal .caps {
+  @apply uppercase tracking-wide text-xs leading-relaxed;
+}

@@ -49,9 +49,10 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## 3. Agent automations
 
-- [ ] Implementer: pick tickets in **READY FOR AI** → **assign self** (`assignees: ["me"]`) → **IN PROGRESS** → PR → **PR hygiene** (CI + mergeable) → **READY FOR REVIEW**
-- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → **assign self** for the review phase (comment prior implementer if they must stay visible) → post review **comments** → hygiene (mergeable + CI + Bugbot/human feedback) → **READY FOR HUMAN**
-- [ ] Assignment only when claiming work — not when browsing
+- [x] Agents use REST [`scripts/clickup.ps1`](scripts/clickup.ps1) + `CLICKUP_API_TOKEN` (not ClickUp MCP for routine ops)
+- [ ] Implementer: pick tickets in **READY FOR AI** → claim via `scripts/clickup.ps1 claim` → **IN PROGRESS** → PR → **PR hygiene** (CI + mergeable) → **READY FOR REVIEW**
+- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → claim via REST → hygiene (mergeable + CI + Bugbot/human feedback) → **READY FOR HUMAN**
+- [ ] Assignment / Claim Token only when claiming work — not when browsing
 - [ ] Humans only: merge PR when **READY FOR HUMAN**, then set **COMPLETE**
 - [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`) from `.github/workflows/pr-hygiene.yml` — see `docs/pr-pipelines.md` / `AGENTS.md`
 
@@ -138,8 +139,9 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`
-*(Later after Entra: `auth-secret`, `azure-ad-client-secret`, …)*
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`
+
+**Entra / Auth.js (App Config → Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` → `AUTH_SECRET`, `secret:azure-ad-client-secret` → `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
 
 **Telemetry:** shared App Insights + LAW — see [`docs/telemetry.md`](docs/telemetry.md) / ClickUp Architecture Doc.
 
@@ -231,7 +233,7 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
 | `deploy-api.yml` | same as ci-api, **`push` `main`** (+ `workflow_dispatch`) | Nest → App Service **B1** via OIDC (prebuilt `dist`; Oryx off) |
-| `deploy-marketing.yml` | `apps/marketing/**`, **`push` `main`** | Marketing SWA production via OIDC → KV |
+| `deploy-marketing.yml` | `apps/marketing/**`, **`push` `main`** | Astro build → Marketing SWA production (`apps/marketing/dist`) via OIDC → KV |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
 - **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).

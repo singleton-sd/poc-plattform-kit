@@ -1,5 +1,6 @@
 ﻿import { useQuery } from '@tanstack/react-query';
-import { apiUrl } from '@/lib/api-base';
+
+import { apiUrl } from './api-base-url';
 
 export interface Me {
   id: string;
@@ -10,19 +11,14 @@ export interface Me {
 }
 
 /**
- * BFF client for Nest SingleSignOn `GET /api/me`.
+ * Client for Nest SingleSignOn `GET /api/me`.
  *
  * Auth.js runs on the Nest API host (`/api/auth/*`) with httpOnly session
- * cookies. The SPA calls `NEXT_PUBLIC_API_BASE_URL` + `/api/me` with
- * `credentials: 'include'` (same-origin path when the env is unset / SWA-linked).
+ * cookies scoped to `AUTH_COOKIE_DOMAIN` (Option B: Free SWA stays static;
+ * browser calls the API origin with `credentials: 'include'`).
  *
  * Returns null (signed out) for any non-2xx / non-JSON response — callers
  * should treat null as unauthenticated, not as an error.
- *
- * Until SWA links `/api/*` to App Service (see **Link SWA /api to App
- * Service for SSO cookies**), Azure SWA may SPA-fallback same-origin
- * `/api/me` to `index.html` with 200 — non-JSON responses are treated as
- * signed-out.
  */
 export async function fetchMe(): Promise<Me | null> {
   const res = await fetch(apiUrl('/api/me'), { credentials: 'include' });

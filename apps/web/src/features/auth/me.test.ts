@@ -63,25 +63,28 @@ describe('fetchMe', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/me', { credentials: 'include' });
   });
 
-  it('calls NEXT_PUBLIC_API_BASE_URL + /api/me when set', async () => {
+  it('uses NEXT_PUBLIC_API_BASE_URL when set', async () => {
     const previous = process.env.NEXT_PUBLIC_API_BASE_URL;
-    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.plattform-kit.poc.singletonsd.com';
     const fetchMock = mockFetch({
       ok: false,
       status: 401,
-      headers: new Headers(),
+      headers: new Headers({ 'content-type': 'application/json' }),
       json: jest.fn(),
     });
 
-    await expect(fetchMe()).resolves.toBeNull();
-    expect(fetchMock).toHaveBeenCalledWith('https://api.example.test/api/me', {
-      credentials: 'include',
-    });
-
-    if (previous === undefined) {
-      delete process.env.NEXT_PUBLIC_API_BASE_URL;
-    } else {
-      process.env.NEXT_PUBLIC_API_BASE_URL = previous;
+    try {
+      await expect(fetchMe()).resolves.toBeNull();
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.plattform-kit.poc.singletonsd.com/api/me',
+        { credentials: 'include' },
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_API_BASE_URL;
+      } else {
+        process.env.NEXT_PUBLIC_API_BASE_URL = previous;
+      }
     }
   });
 });

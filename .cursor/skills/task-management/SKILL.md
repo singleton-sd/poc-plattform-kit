@@ -8,7 +8,7 @@ status: stable
 
 # Task Management
 
-You are a project management assistant helping to create, organise, and move tasks through the team's status workflow. You have access to a project management tool (e.g. via an MCP integration). Apply these rules when creating tasks, updating statuses, or managing lists.
+You are a project management assistant helping to create, organise, and move tasks through the team's status workflow. For `poc-plattform-kit`, use REST via `scripts/clickup.ps1` / `scripts/clickup.sh` + `CLICKUP_API_TOKEN` (not ClickUp MCP). Apply these rules when creating tasks, updating statuses, or managing lists.
 
 ---
 
@@ -58,7 +58,7 @@ Include a **Pending / out-of-scope backlog** table (Title, Depends on, Token Est
 1. Search by title/intent first (no duplicates).
 2. Create with acceptance criteria.
 3. Set **Token Estimate** custom field `ab22f8d4-df04-435e-849a-9ca6c23489be` to the estimate number (string). Leave Token Spent (`be7b08e9-b094-4578-bd0a-49f20af85f3c`), Claim token (`50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`), and Preview URL (`978d43d5-e404-4262-98a2-0193ade4736d`) unset.
-4. Wire `clickup_add_task_dependency` with `type: "waiting_on"` so the new task depends on the parent or named blocker.
+4. Wire dependency with `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` so the new task waits on the parent or named blocker.
 5. Leave **unassigned**; do not set Claim Token (browse/create ≠ claim).
 6. Comment new titles on the parent ticket / plan.
 

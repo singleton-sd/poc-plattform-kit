@@ -12,11 +12,16 @@
   powershell -File ./scripts/deploy-swa-from-kv.ps1 -DeployName marketing
 
 .EXAMPLE
-  # Explicit one-off
+  # Explicit one-off (upload a pre-built folder)
   powershell -File ./scripts/deploy-swa-from-kv.ps1 `
     -VaultName ssd-pocpk-kv-dev-ae `
     -SecretName swa-marketing-deployment-token `
-    -AppLocation apps/marketing/public
+    -AppLocation apps/marketing/dist
+
+.NOTES
+  Marketing uploads `apps/marketing/dist` (gitignored). When -DeployName marketing
+  (or AppLocation ends with apps/marketing/dist) and that folder is missing, this
+  script runs `pnpm --filter @poc-plattform-kit/marketing build` first.
 #>
 [CmdletBinding()]
 param(
@@ -66,8 +71,29 @@ if (-not $AppLocation) {
 if (-not [System.IO.Path]::IsPathRooted($AppLocation)) {
   $AppLocation = Join-Path $repoRoot $AppLocation
 }
+
+$marketingDist = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'apps/marketing/dist'))
+$resolvedApp = [System.IO.Path]::GetFullPath($AppLocation)
+$needsMarketingBuild =
+  ($DeployName -eq 'marketing') -or
+  ($resolvedApp -eq $marketingDist)
+
+if ($needsMarketingBuild -and -not (Test-Path $AppLocation)) {
+  Write-Host "Marketing dist missing — building @poc-plattform-kit/marketing..."
+  Push-Location $repoRoot
+  try {
+    pnpm --filter @poc-plattform-kit/marketing run build
+    if ($LASTEXITCODE -ne 0) {
+      throw "Marketing Astro build failed (exit $LASTEXITCODE)"
+    }
+  }
+  finally {
+    Pop-Location
+  }
+}
+
 if (-not (Test-Path $AppLocation)) {
-  throw "AppLocation not found: $AppLocation"
+  throw "AppLocation not found: $AppLocation (for marketing, run pnpm --filter @poc-plattform-kit/marketing build first)"
 }
 
 $token = az keyvault secret show --vault-name $VaultName --name $SecretName --query value -o tsv

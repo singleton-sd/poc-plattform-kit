@@ -4,10 +4,24 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { meKeys, useMe } from '@/features/auth/me';
-import { signInUrl, signOut } from '@/features/auth/auth-urls';
+import { signIn, signOut } from '@/features/auth/auth-urls';
 
 /** Signed-out login surface (also used at `/` via HomeAuthGate). */
 export function LoginPanel() {
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
+
+  async function onSignIn() {
+    setSigningIn(true);
+    setSignInError(null);
+    try {
+      await signIn();
+    } catch {
+      setSignInError('Could not start sign-in. Try again.');
+      setSigningIn(false);
+    }
+  }
+
   return (
     <main
       className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg p-6 text-fg"
@@ -17,13 +31,20 @@ export function LoginPanel() {
       <p className="max-w-md text-center text-fg-muted">
         Sign in with your Microsoft account to continue.
       </p>
-      <a
-        href={signInUrl()}
-        className="rounded bg-accent px-4 py-2 text-accent-on"
+      <button
+        type="button"
+        className="rounded bg-accent px-4 py-2 text-accent-on disabled:opacity-60"
         data-testid="login-sign-in"
+        disabled={signingIn}
+        onClick={() => void onSignIn()}
       >
-        Sign in with Microsoft
-      </a>
+        {signingIn ? 'Redirecting…' : 'Sign in with Microsoft'}
+      </button>
+      {signInError ? (
+        <p className="text-sm text-fg-muted" data-testid="login-sign-in-error">
+          {signInError}
+        </p>
+      ) : null}
     </main>
   );
 }
@@ -31,7 +52,7 @@ export function LoginPanel() {
 /** Root gate: login when signed out, shell when signed in. */
 export function HomeAuthGate() {
   const queryClient = useQueryClient();
-  const { data: me, isLoading } = useMe();
+  const { data: me, isLoading, isError, refetch } = useMe();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
@@ -55,6 +76,26 @@ export function HomeAuthGate() {
         data-testid="login-loading"
       >
         Loading…
+      </main>
+    );
+  }
+
+  if (isError) {
+    return (
+      <main
+        className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg p-6 text-fg"
+        data-testid="login-session-error"
+      >
+        <h1 className="font-heading text-2xl font-semibold">Platform Kit</h1>
+        <p className="text-fg-muted">Could not verify your session. Try again.</p>
+        <button
+          type="button"
+          className="rounded bg-accent px-4 py-2 text-accent-on"
+          data-testid="login-session-retry"
+          onClick={() => void refetch()}
+        >
+          Retry
+        </button>
       </main>
     );
   }

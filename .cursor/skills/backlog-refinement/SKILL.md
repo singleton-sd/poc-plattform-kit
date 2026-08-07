@@ -72,7 +72,7 @@ When the work is an **architecture**, **design**, or **cross-cutting platform** 
 
 1. **Write the Architecture Doc page** (or update an existing page) with: goal, chosen approach, where to log, alert rules, out of scope, and links to related tickets.
 2. **Create ClickUp tasks** in list `901616287298` from the refined stories — one task per delivery slice — status `TO DO` (or `READY FOR AI` if already approved for agents).
-3. **Link** each task to the Architecture Doc page (task description + `clickup_add_task_link` / comment with the doc URL).
+3. **Link** each task to the Architecture Doc page (put the doc URL in the task description — avoid extra ClickUp comments when possible).
 4. **Repo mirror (optional):** a short `docs/*.md` in git may summarize the same decisions for engineers; **ClickUp Architecture Doc is the source of truth** for platform architecture.
 
 ### What counts as “architecture / design”
@@ -91,13 +91,13 @@ If unsure, add a short section to the Architecture Doc rather than skipping.
 
 When planning or refining a ticket, every **Out of scope** item that is real follow-up work (not a permanent non-goal) must become a ClickUp task if one does not already exist:
 
-1. Search the ops list for an equivalent ticket (match by **title** / intent — do not invent duplicates).
-2. If missing, create it on the Platform Kit ops list (`list_id=901616287298`) with status **TO DO** (this list’s backlog / not-started status; if a list literally has `BACKLOG`, use that instead).
-3. Include clear acceptance criteria.
-4. Set **Token Estimate** on create via custom field `ab22f8d4-df04-435e-849a-9ca6c23489be` (`custom_fields: [{id, value: "<number>"}]`). Leave **Token Spent**, **Claim token**, and **Preview URL** empty.
-5. After create, call `clickup_add_task_dependency` with `type: "waiting_on"` so the new task waits on the parent (or named blocker). Resolve **Depends on** titles to task ids at file time.
+1. Search the ops list for an equivalent ticket (match by **title** / intent — do not invent duplicates): `powershell -File scripts/clickup.ps1 list` (or search by name in results).
+2. If missing, create it: `powershell -File scripts/clickup.ps1 create -Name "..." -Status "TO DO" -Description "..." -Estimate <n>` (ops list `901616287298`).
+3. Include clear acceptance criteria in `-Description`.
+4. **Token Estimate** is set via `-Estimate` on create (field `ab22f8d4-df04-435e-849a-9ca6c23489be`). Leave **Token Spent**, **Claim Token**, and **Preview URL** empty.
+5. After create: `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` so the new task waits on the parent (or named blocker).
 6. Leave new backlog tickets **unassigned** and do **not** set Claim Token (browse/create ≠ claim).
-7. Link or comment the new titles on the parent ticket / plan so humans see the split.
+7. Prefer linking via dependencies / description over a parent-ticket comment dump (reduces notification noise).
 
 ### Token Estimate convention
 

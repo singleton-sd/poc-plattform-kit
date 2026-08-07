@@ -1,11 +1,24 @@
 {
   "name": "@poc-plattform-kit/marketing",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "echo \"Marketing stub — serve apps/marketing/public\"",
-    "build": "echo \"build:marketing stub — static public/ used by SWA\"",
-    "lint": "echo \"lint:marketing stub\"",
-    "test": "echo \"test:marketing stub\""
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "astro check",
+    "test": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/tailwind": "^5.1.4",
+    "astro": "^4.16.18",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49"
   }
 }
