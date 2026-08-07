@@ -21,7 +21,11 @@ function envTrim(env: EnvBag, key: string): string | undefined {
 
 /**
  * Entra API scope for Swagger OAuth2 (authorization code + PKCE).
- * Matches MSAL preview convention: `{audience}/.default` (audience is App ID URI).
+ *
+ * Same-app token requests (Swagger on the API host) must use the **GUID** App
+ * Identifier — `api://{clientId}/.default` — or Entra returns AADSTS90009 when
+ * the resource is only the hostname App ID URI
+ * (`api://api.plattform-kit.poc.singletonsd.com`).
  */
 export function resolveSwaggerApiScope(env: EnvBag = process.env): string | null {
   const explicit = envTrim(env, 'AZURE_AD_SWAGGER_SCOPE') || envTrim(env, 'AZURE_AD_API_SCOPE');
@@ -29,19 +33,19 @@ export function resolveSwaggerApiScope(env: EnvBag = process.env): string | null
     return explicit;
   }
 
-  const audience = envTrim(env, 'AZURE_AD_API_AUDIENCE');
-  if (audience) {
-    if (audience.endsWith('/.default')) {
-      return audience;
-    }
-    return audience.includes('://') ? `${audience}/.default` : `api://${audience}/.default`;
+  const clientId = envTrim(env, 'AZURE_AD_CLIENT_ID');
+  if (clientId) {
+    return `api://${clientId}/.default`;
   }
 
-  const clientId = envTrim(env, 'AZURE_AD_CLIENT_ID');
-  if (!clientId) {
+  const audience = envTrim(env, 'AZURE_AD_API_AUDIENCE');
+  if (!audience) {
     return null;
   }
-  return `api://${clientId}/.default`;
+  if (audience.endsWith('/.default')) {
+    return audience;
+  }
+  return audience.includes('://') ? `${audience}/.default` : `api://${audience}/.default`;
 }
 
 /** Entra v2 authorize + token endpoints for the directory tenant. */

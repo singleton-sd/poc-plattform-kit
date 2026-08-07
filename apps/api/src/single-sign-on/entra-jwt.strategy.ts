@@ -10,9 +10,21 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 
 export function buildEntraJwtStrategyOptions(env: NodeJS.ProcessEnv = process.env) {
   const tenantId = env.AZURE_AD_TENANT_ID?.trim();
-  const audience = env.AZURE_AD_API_AUDIENCE?.trim() || env.AZURE_AD_CLIENT_ID?.trim();
+  const apiAudience = env.AZURE_AD_API_AUDIENCE?.trim();
+  const clientId = env.AZURE_AD_CLIENT_ID?.trim();
 
-  if (!tenantId || !audience) {
+  // Accept App ID URI and/or GUID client id — Swagger same-app tokens (AADSTS90009
+  // workaround) use api://{clientId} as aud while App Config may still store the
+  // hostname URI as AZURE_AD_API_AUDIENCE.
+  const audiences = [
+    ...new Set(
+      [apiAudience, clientId, clientId ? `api://${clientId}` : undefined].filter(
+        (value): value is string => Boolean(value),
+      ),
+    ),
+  ];
+
+  if (!tenantId || audiences.length === 0) {
     return null;
   }
 
@@ -21,7 +33,7 @@ export function buildEntraJwtStrategyOptions(env: NodeJS.ProcessEnv = process.en
 
   return {
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-    audience,
+    audience: audiences.length === 1 ? audiences[0] : audiences,
     issuer,
     algorithms: ['RS256'] as const,
     secretOrKeyProvider: passportJwtSecret({
