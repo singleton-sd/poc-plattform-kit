@@ -1,0 +1,22 @@
+{
+  "name": "@poc-plattform-kit/marketing-oauth",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"lint:marketing-oauth — covered by root eslint on staged files\"",
+    "test": "pnpm build && node --test dist/src/login-script.spec.js dist/src/github-oauth.spec.js",
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

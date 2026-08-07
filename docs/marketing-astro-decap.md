@@ -12,16 +12,19 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 | Styling | **Tailwind 3** + [Singleton SD design tokens](https://tokens.design.singletonsd.com/) |
 | Content | Markdown collections under `apps/marketing/src/content/pages/` |
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
-| Deploy | `deploy-marketing.yml` → OIDC → Key Vault → SWA upload of `apps/marketing/dist` |
+| OAuth login | Azure Function Consumption `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`) |
+| Deploy site | `deploy-marketing.yml` → OIDC → Key Vault → SWA upload of `apps/marketing/dist` |
+| Deploy OAuth | `deploy-decap-oauth.yml` → OIDC → Bicep + zip Function App |
 
 No WordPress, Gatsby, or always-on CMS server for the site itself.
 
 ## How Decap fits Astro
 
 1. Editors open `/admin` (static SPA shipped in `public/admin/`).
-2. Decap reads/writes Markdown in git via the **GitHub API** (editorial workflow → PRs).
-3. Merge to `main` runs Astro build; SWA serves the new HTML.
-4. Decap does **not** talk to Astro at runtime.
+2. Login with GitHub via the OAuth proxy (`base_url` in `config.yml`).
+3. Decap reads/writes Markdown in git via the **GitHub API** (editorial workflow → PRs).
+4. Merge to `main` runs Astro build; SWA serves the new HTML.
+5. Decap does **not** talk to Astro at runtime.
 
 ### Hosting
 
@@ -30,9 +33,38 @@ No WordPress, Gatsby, or always-on CMS server for the site itself.
 | Decap UI `/admin` | No — same SWA Free |
 | Markdown content | No — GitHub |
 | Astro site | No — CI build + SWA |
-| GitHub OAuth login | **Yes** — tiny OAuth proxy (Azure Function follow-up); client secret in Key Vault |
+| GitHub OAuth login | **Yes** — Function App `ssd-pocpk-decap-oauth-dev-ae` |
 
-Until the OAuth proxy exists, edit content via git/PRs. Decap `config.yml` leaves `base_url` commented for that follow-up.
+### OAuth proxy routes
+
+| Path | Role |
+| --- | --- |
+| `/auth` | Redirect to GitHub authorize |
+| `/callback` | Exchange code → HTML `postMessage` handshake for Decap |
+| `/health` | Liveness |
+
+`config.yml`:
+
+```yaml
+backend:
+  name: github
+  repo: singleton-sd/poc-plattform-kit
+  branch: main
+  base_url: https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net
+  auth_endpoint: auth
+```
+
+### Human bootstrap (once)
+
+1. GitHub → **Settings → Developer settings → OAuth Apps → New**:
+   - Homepage: `https://plattform-kit.poc.singletonsd.com`
+   - Callback: `https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net/callback`
+2. Put client **secret** in Key Vault as `github-decap-oauth-client-secret` (never git / GitHub Secrets).
+3. Set repo Variable `DECAP_OAUTH_CLIENT_ID` to the OAuth App client id (non-secret).
+4. Deploy: merge this PR (CI) or run `pwsh ./scripts/deploy-decap-oauth.ps1 -OauthClientId '<id>'`.
+5. Open `https://plattform-kit.poc.singletonsd.com/admin` → Login with GitHub.
+
+Editors need **write** access to `singleton-sd/poc-plattform-kit` (or a bot account with `repo` scope).
 
 ## Content model
 
@@ -46,9 +78,12 @@ Until the OAuth proxy exists, edit content via git/PRs. Decap `config.yml` leave
 
 - App: `apps/marketing`
 - Admin: `apps/marketing/public/admin/`
-- Deploy workflow: `.github/workflows/deploy-marketing.yml`
-- Local preview: `pnpm dev:marketing` (no Azure PR preview for marketing SWA)
-- Local deploy helper: `scripts/deploy-swa-from-kv.ps1 -DeployName marketing` (builds `dist` if missing)
+- OAuth Function: `apps/marketing-oauth/`
+- OAuth Bicep: `infra/decap-oauth.bicep`
+- Deploy site: `.github/workflows/deploy-marketing.yml`
+- Deploy OAuth: `.github/workflows/deploy-decap-oauth.yml`
+- Local marketing: `pnpm dev:marketing`
+- Local OAuth: copy `local.settings.json.example` → `local.settings.json`, then `pnpm --filter @poc-plattform-kit/marketing-oauth start` (Azure Functions Core Tools)
 
 ## ClickUp
 
@@ -57,9 +92,9 @@ Ops via **REST** (`CLICKUP_API_TOKEN` env) — not MCP for routine ops.
 | Item | Link |
 | --- | --- |
 | Ops list | https://app.clickup.com/90161394355/v/li/901616287298 |
-| Implement (READY FOR REVIEW) | https://app.clickup.com/t/86d3z0mfz |
-| OAuth follow-up (TO DO, waiting_on implement) | https://app.clickup.com/t/86d3z0mg0 |
+| Astro + Decap site | https://app.clickup.com/t/86d3z0mfz |
+| OAuth proxy | https://app.clickup.com/t/86d3z0mg0 |
 | Architecture Doc page | https://app.clickup.com/90161394355/docs/2kz0kcnk-1416/2kz0kcnk-2876 |
-| PR | https://github.com/singleton-sd/poc-plattform-kit/pull/61 |
+| Site PR | https://github.com/singleton-sd/poc-plattform-kit/pull/61 |
 
 Related: [Marketing: Privacy + Terms pages](https://app.clickup.com/t/86d3yr2a8) — legal copy folded into Markdown.

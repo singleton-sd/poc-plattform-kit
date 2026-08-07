@@ -6,12 +6,13 @@
 
 | Workflow | Triggers when paths change | Checks |
 | --- | --- | --- |
-| `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `packages/**` | prettier check, lint, build, test (web + marketing + packages) |
+| `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `workflow_dispatch` from `release.yml` when `apps/web/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | SWA **production** via OIDC → Key Vault |
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** | Marketing SWA **production** via OIDC → Key Vault (`apps/marketing/dist` after Astro build) |
+| `deploy-decap-oauth.yml` | `apps/marketing-oauth/**`, `infra/decap-oauth.bicep` on **`main`** (also `workflow_dispatch`) | Decap GitHub OAuth Function App via OIDC → KV |
 | `deploy-api.yml` | `workflow_dispatch` from `release.yml` when `apps/api/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | Nest zip → App Service **B1** via OIDC |
 | `release.yml` | push to **`main`** (skipped for `chore: Release` commits) | Path-aware bumps; commit + tags; then `gh workflow run` deploy-api / deploy-web |
 
