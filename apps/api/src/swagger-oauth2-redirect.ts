@@ -130,6 +130,7 @@ export function buildSwaggerOauth2BridgeScript(): string {
   return `(function () {
   var CHANNEL = ${JSON.stringify(SWAGGER_OAUTH2_CHANNEL)};
   var STORAGE_KEY = ${JSON.stringify(SWAGGER_OAUTH2_STORAGE_KEY)};
+  var handled = false;
 
   function parseQuery(source) {
     var qp;
@@ -150,10 +151,17 @@ export function buildSwaggerOauth2BridgeScript(): string {
   }
 
   function complete(source) {
+    if (handled) {
+      return;
+    }
     var oauth2 = window.swaggerUIRedirectOauth2;
     if (!oauth2) {
       return;
     }
+    handled = true;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (err) {}
     var qp = parseQuery(source);
     var sentState = oauth2.state;
     var redirectUrl = oauth2.redirectUrl;
@@ -197,9 +205,6 @@ export function buildSwaggerOauth2BridgeScript(): string {
     } else {
       oauth2.callback({ auth: oauth2.auth, token: qp, isValid: isValid, redirectUrl: redirectUrl });
     }
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (err) {}
   }
 
   try {

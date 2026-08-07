@@ -358,7 +358,7 @@
         "flows": {
           "authorizationCode": {
             "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-            "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+            "tokenUrl": "https://api.plattform-kit.poc.singletonsd.com/docs/oauth2/token",
             "scopes": {
               "openid": "Sign in",
               "profile": "User profile",
@@ -367,7 +367,7 @@
             }
           }
         },
-        "description": "Microsoft Entra ID (authorization code + PKCE). Register SPA redirect URI `/docs/oauth2-redirect.html` on the API app registration."
+        "description": "Microsoft Entra ID (authorization code + PKCE). Register Web redirect URI `/docs/oauth2-redirect.html` on the API app registration. Token exchange is proxied by this API."
       }
     },
     "schemas": {

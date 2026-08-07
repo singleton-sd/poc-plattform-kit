@@ -34,9 +34,9 @@ Swagger UI at `/docs` exposes an **oauth2** scheme (authorization code + PKCE) i
 | Default API scope | `AZURE_AD_SWAGGER_SCOPE` / App Config `app:azureAd:swaggerScope`, else `{AZURE_AD_CLIENT_ID}/.default` (bare GUID — required for same-app Swagger; avoids AADSTS90009 / AADSTS500011). |
 | Redirect URI | `{AUTH_URL}/docs/oauth2-redirect.html` (override with `SWAGGER_OAUTH2_REDIRECT_URL`) |
 
-Register that redirect URI on the Entra app registration as a **SPA** platform redirect (required for browser PKCE from Swagger UI). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`.
+Register that redirect URI on the Entra app registration as a **Web** platform redirect (not SPA — SPA triggers Entra `/reprocess` loops with Swagger). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`.
 
-Entra’s login navigation breaks Swagger’s stock `window.opener` handoff (`SecurityError` / null opener). The API serves a custom `/docs/oauth2-redirect.html` plus a BroadcastChannel bridge on `/docs` so the auth code still reaches Swagger UI.
+Token exchange uses Nest `POST /docs/oauth2/token` (server adds `AZURE_AD_CLIENT_SECRET`) so the browser never calls Entra’s token endpoint. Entra’s login navigation can still break Swagger’s stock `window.opener` handoff; the API serves a custom `/docs/oauth2-redirect.html` plus a one-shot BroadcastChannel bridge on `/docs`.
 
 ## Tenancy
 
@@ -84,7 +84,7 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 | Flow | Redirect URI |
 | --- | --- |
 | Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). SWA preview origins are **not** Entra redirect URIs for this flow. |
-| Swagger UI OAuth2 (PKCE) | SPA redirect: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html` (and local `http://localhost:3001/docs/oauth2-redirect.html` when testing). |
+| Swagger UI OAuth2 (PKCE) | **Web** redirect: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html` (and local `http://localhost:3001/docs/oauth2-redirect.html`). Do **not** use SPA platform for this URI. |
 | MSAL / Bearer SPA (follow-up) | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. |
 
 Cookie sessions still will not stick on SWA preview hosts (wrong `Domain`). Track Bearer/MSAL separately:
@@ -99,6 +99,6 @@ Cookie sessions still will not stick on SWA preview hosts (wrong `Domain`). Trac
 Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include:
 
 - Auth.js callback: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`
-- Swagger OAuth2: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html` (SPA platform)
+- Swagger OAuth2: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html` (**Web** platform, not SPA)
 
 Also ensure App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. When testing MSAL on a SWA PR preview, add that preview’s exact origin as a SPA redirect URI (see pattern above).

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DocumentBuilder, type SwaggerCustomOptions } from '@nestjs/swagger';
 import { buildSwaggerOauth2BridgeScript } from './swagger-oauth2-redirect';
+import { resolveSwaggerTokenProxyUrl } from './swagger-oauth2-token-proxy';
 
 type EnvBag = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -92,10 +93,15 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
 
   // Always publish the oauth2 scheme so offline OpenAPI export stays stable
   // (CI has no AZURE_AD_*). Runtime initOAuth still prefills clientId when set.
+  // tokenUrl is our Nest proxy (not Entra) so Swagger can exchange codes without
+  // browser CORS / exposing client_secret — Web redirect URIs required on Entra.
   const tenantId = envTrim(env, 'AZURE_AD_TENANT_ID') ?? 'common';
+  const tokenUrl =
+    resolveSwaggerTokenProxyUrl(env) ??
+    'https://api.plattform-kit.poc.singletonsd.com/docs/oauth2/token';
   const oauthUrls = {
     authorizationUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
-    tokenUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+    tokenUrl,
   };
   const apiScope = resolveSwaggerApiScope(env) ?? 'platform-kit/.default';
 
@@ -103,7 +109,7 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
     {
       type: 'oauth2',
       description:
-        'Microsoft Entra ID (authorization code + PKCE). Register SPA redirect URI `/docs/oauth2-redirect.html` on the API app registration.',
+        'Microsoft Entra ID (authorization code + PKCE). Register Web redirect URI `/docs/oauth2-redirect.html` on the API app registration. Token exchange is proxied by this API.',
       flows: {
         authorizationCode: {
           authorizationUrl: oauthUrls.authorizationUrl,

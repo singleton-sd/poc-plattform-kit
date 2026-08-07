@@ -80,6 +80,7 @@ describe('swagger.config', () => {
         AZURE_AD_TENANT_ID: 'tenant-1',
         AZURE_AD_CLIENT_ID: 'client-1',
         AZURE_AD_API_AUDIENCE: 'api://platform-kit',
+        AUTH_URL: 'https://api.example.com',
       });
       const schemes = doc.components?.securitySchemes ?? {};
       expect(schemes.bearer).toBeDefined();
@@ -89,7 +90,7 @@ describe('swagger.config', () => {
         flows: {
           authorizationCode: {
             authorizationUrl: 'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/authorize',
-            tokenUrl: 'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/token',
+            tokenUrl: 'https://api.example.com/docs/oauth2/token',
           },
         },
       });
@@ -102,7 +103,7 @@ describe('swagger.config', () => {
         flows: {
           authorizationCode: {
             authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-            tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+            tokenUrl: 'https://api.plattform-kit.poc.singletonsd.com/docs/oauth2/token',
           },
         },
       });
