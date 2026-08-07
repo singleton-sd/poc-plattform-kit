@@ -1,0 +1,49 @@
+/**
+ * Decap CMS chrome — product palette via Singleton SD tokens.
+ * Class names are Decap/Emotion internals and may drift; keep overrides minimal.
+ */
+@import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
+
+html[data-theme='dark'] {
+  --pk-bg: var(--colors-gray-900);
+  --pk-fg: var(--colors-gray-100);
+  --pk-muted: var(--colors-gray-400);
+  --pk-accent: var(--colors-yellow-light-400);
+  --pk-accent-on: var(--colors-gray-900);
+  --pk-glow: color-mix(in srgb, var(--pk-accent) 18%, transparent);
+
+  --fg-default: var(--pk-fg);
+  --fg-muted: var(--pk-muted);
+  --bg-default: var(--pk-bg);
+  --accent-default: var(--pk-accent);
+  --accent-on-accent: var(--pk-accent-on);
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background-color: var(--bg-default);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% -12%, var(--pk-glow), transparent 55%),
+    radial-gradient(
+      circle at 88% 82%,
+      color-mix(in srgb, var(--colors-gray-700) 35%, transparent),
+      transparent 42%
+    );
+  color: var(--fg-default);
+}
+
+/* Login / loading splash */
+body > div {
+  min-height: 100vh;
+}
+
+button,
+[class*='Button'] {
+  border-radius: 0.35rem !important;
+}
+
+a {
+  color: var(--accent-default);
+}

@@ -1,5 +1,6 @@
 /* Singleton SD design tokens — canonical source, not vendored/hardcoded.
-   Both themes imported; active theme via [data-theme] on <html>. */
+   Both themes imported; active theme via [data-theme] on <html>.
+   Product semantic roles below keep marketing + admin as one brand. */
 @import url('https://tokens.design.singletonsd.com/css/light/_variables.css');
 @import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
 
@@ -7,11 +8,58 @@
 @tailwind components;
 @tailwind utilities;
 
+[data-theme='dark'] {
+  --pk-bg: var(--colors-gray-900);
+  --pk-fg: var(--colors-gray-100);
+  --pk-muted: var(--colors-gray-400);
+  --pk-accent: var(--colors-yellow-light-400);
+  --pk-accent-on: var(--colors-gray-900);
+  --pk-accent-bg: var(--colors-yellow-light-900);
+  --pk-glow: color-mix(in srgb, var(--pk-accent) 18%, transparent);
+
+  --fg-default: var(--pk-fg);
+  --fg-muted: var(--pk-muted);
+  --fg-subtle: var(--colors-gray-600);
+  --bg-default: var(--pk-bg);
+  --bg-muted: var(--colors-gray-800);
+  --bg-subtle: var(--colors-gray-700);
+  --accent-default: var(--pk-accent);
+  --accent-on-accent: var(--pk-accent-on);
+  --accent-bg: var(--pk-accent-bg);
+}
+
+[data-theme='light'] {
+  --pk-bg: var(--colors-gray-100);
+  --pk-fg: var(--colors-gray-900);
+  --pk-muted: var(--colors-gray-600);
+  --pk-accent: var(--colors-yellow-light-600);
+  --pk-accent-on: var(--colors-white);
+  --pk-accent-bg: var(--colors-yellow-light-100);
+  --pk-glow: color-mix(in srgb, var(--pk-accent) 14%, transparent);
+
+  --fg-default: var(--pk-fg);
+  --fg-muted: var(--pk-muted);
+  --fg-subtle: var(--colors-gray-400);
+  --bg-default: var(--pk-bg);
+  --bg-muted: var(--colors-gray-200);
+  --bg-subtle: var(--colors-gray-300);
+  --accent-default: var(--pk-accent);
+  --accent-on-accent: var(--pk-accent-on);
+  --accent-bg: var(--pk-accent-bg);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
   font-family: var(--font-families-body), ui-sans-serif, system-ui, sans-serif;
   background-color: var(--bg-default);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% -12%, var(--pk-glow), transparent 55%),
+    radial-gradient(
+      circle at 88% 82%,
+      color-mix(in srgb, var(--colors-gray-700) 35%, transparent),
+      transparent 42%
+    );
   color: var(--fg-default);
 }
 

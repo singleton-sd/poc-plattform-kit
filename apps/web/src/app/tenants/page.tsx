@@ -1,11 +1,15 @@
 'use client';
 
+import { AppShellHeader } from '@/components/app-shell-header';
 import { TenantWorkspace } from '@/features/tenants/tenant-workspace';
 
 export default function TenantsPage() {
   return (
-    <main className="min-h-screen bg-bg text-fg">
-      <TenantWorkspace />
-    </main>
+    <div className="min-h-screen text-fg">
+      <AppShellHeader />
+      <main>
+        <TenantWorkspace />
+      </main>
+    </div>
   );
 }

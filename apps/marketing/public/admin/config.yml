@@ -12,6 +12,13 @@ backend:
 # Prefer PRs so human merge still gates production publish.
 publish_mode: editorial_workflow
 
+logo:
+  src: /admin/brand-mark.svg
+  show_in_header: true
+
+site_url: https://plattform-kit.poc.singletonsd.com
+display_url: https://plattform-kit.poc.singletonsd.com
+
 media_folder: apps/marketing/public/uploads
 public_folder: /uploads
 

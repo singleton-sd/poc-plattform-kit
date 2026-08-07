@@ -8,7 +8,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Platform Kit',
-  description: 'poc-plattform-kit web',
+  description: 'Multi-tenant platform foundations for Singleton SD',
   manifest: '/manifest.webmanifest',
   other: {
     // Set at deploy/runtime (SWA / env bridge). Do not commit real connection strings.

@@ -51,6 +51,7 @@ describe('HomeAuthGate', () => {
 
     render(<HomeAuthGate />);
 
+    expect(screen.getByTestId('brand-mark')).toHaveTextContent('Platform Kit.');
     expect(screen.getByTestId('login-sign-in')).toHaveTextContent('Sign in with Microsoft');
   });
 
@@ -74,6 +75,7 @@ describe('HomeAuthGate', () => {
     render(<HomeAuthGate />);
 
     expect(screen.getByTestId('home-shell')).toBeInTheDocument();
+    expect(screen.getByTestId('brand-mark')).toHaveTextContent('Platform Kit.');
     expect(screen.getByTestId('login-sign-out')).toBeInTheDocument();
   });
 });
