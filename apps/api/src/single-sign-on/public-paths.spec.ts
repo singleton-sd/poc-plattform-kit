@@ -15,7 +15,7 @@ describe('isPublicPath', () => {
     expect(isPublicPath(path)).toBe(true);
   });
 
-  it.each(['/api/me', '/tenants', '/tenants/abc'])('rejects %s', (path) => {
+  it.each(['/api/me', '/tenants', '/tenants/abc', ''])('rejects %s', (path) => {
     expect(isPublicPath(path)).toBe(false);
   });
 });

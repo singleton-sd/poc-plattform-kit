@@ -4,8 +4,12 @@
  * listed here for defense-in-depth if a Nest route overlaps.
  */
 export function isPublicPath(path: string): boolean {
-  const normalized = path.split('?')[0] || '/';
-  if (normalized === '/' || normalized === '') {
+  const normalized = (path.split('?')[0] ?? '').trim();
+  // Empty/unknown path must not be treated as `/` (would open SessionOrJwtAuthGuard).
+  if (!normalized) {
+    return false;
+  }
+  if (normalized === '/') {
     return true;
   }
   if (normalized === '/health' || normalized.startsWith('/health/')) {
