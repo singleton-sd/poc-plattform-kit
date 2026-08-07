@@ -13,15 +13,10 @@
     const cs = getComputedStyle(root);
     // Prefer computed --pk-*; fall back to Singleton SD token vars (never hex).
     return {
-      accent:
-        cs.getPropertyValue('--pk-accent').trim() ||
-        'var(--colors-yellow-light-400)',
-      accentBg:
-        cs.getPropertyValue('--pk-accent-bg').trim() ||
-        'var(--colors-yellow-light-900)',
+      accent: cs.getPropertyValue('--pk-accent').trim() || 'var(--colors-yellow-light-400)',
+      accentBg: cs.getPropertyValue('--pk-accent-bg').trim() || 'var(--colors-yellow-light-900)',
       bg: cs.getPropertyValue('--pk-bg').trim() || 'var(--colors-gray-900)',
-      surface:
-        cs.getPropertyValue('--pk-surface').trim() || 'var(--colors-gray-800)',
+      surface: cs.getPropertyValue('--pk-surface').trim() || 'var(--colors-gray-800)',
     };
   }
 
