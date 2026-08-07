@@ -4,7 +4,7 @@ import { LogLevel, PublicClientApplication } from '@azure/msal-browser';
 export type MsalPublicConfig = {
   clientId: string;
   tenantId: string;
-  /** Entra scope for the Nest API audience (e.g. `{clientId}/.default`). */
+  /** Entra scope for the Nest API audience (e.g. `api://{clientId}/.default`). */
   apiScope: string;
 };
 
@@ -34,8 +34,9 @@ export function resolveMsalPublicConfig(env?: EnvBag): MsalPublicConfig | null {
   return {
     clientId,
     tenantId,
-    // Nest JWT audience defaults to client id — `.default` matches that.
-    apiScope: explicitScope || `${clientId}/.default`,
+    // Entra custom API scopes use Application ID URI (`api://…/.default`).
+    // Nest `AZURE_AD_API_AUDIENCE` should match that URI (not bare client id).
+    apiScope: explicitScope || `api://${clientId}/.default`,
   };
 }
 

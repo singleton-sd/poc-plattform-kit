@@ -13,8 +13,9 @@ function loginRequestScopes(): string[] {
   return [config.apiScope];
 }
 
-function pickAccount(accounts: AccountInfo[]): AccountInfo | null {
-  return accounts[0] ?? null;
+/** Prefer the active account from the last interactive login. */
+function resolveAccount(app: Awaited<ReturnType<typeof getMsalPublicClient>>): AccountInfo | null {
+  return app.getActiveAccount() ?? app.getAllAccounts()[0] ?? null;
 }
 
 /**
@@ -27,7 +28,7 @@ export async function getBearerAccessToken(): Promise<string | null> {
   }
 
   const app = await getMsalPublicClient();
-  const account = pickAccount(app.getAllAccounts());
+  const account = resolveAccount(app);
   if (!account) {
     return null;
   }
@@ -51,9 +52,12 @@ export async function getBearerAccessToken(): Promise<string | null> {
 /** Interactive MSAL popup sign-in for SWA preview hosts. */
 export async function signInWithBearer(): Promise<void> {
   const app = await getMsalPublicClient();
-  await app.loginPopup({
+  const result = await app.loginPopup({
     scopes: loginRequestScopes(),
   });
+  if (result.account) {
+    app.setActiveAccount(result.account);
+  }
 }
 
 /** Clear MSAL session (popup logout when an account exists). */
@@ -63,10 +67,11 @@ export async function signOutWithBearer(): Promise<void> {
   }
 
   const app = await getMsalPublicClient();
-  const account = pickAccount(app.getAllAccounts());
+  const account = resolveAccount(app);
   if (!account) {
     return;
   }
 
   await app.logoutPopup({ account });
+  app.setActiveAccount(null);
 }

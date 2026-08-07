@@ -22,6 +22,8 @@ export function LoginPanel() {
       await queryClient.invalidateQueries({ queryKey: meKeys.all });
     } catch {
       setSignInError('Could not start sign-in. Try again.');
+    } finally {
+      // Bearer path stays on this panel when /api/me is still null — re-enable CTA.
       setSigningIn(false);
     }
   }

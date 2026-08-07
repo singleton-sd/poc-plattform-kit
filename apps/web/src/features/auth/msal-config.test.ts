@@ -9,7 +9,7 @@ describe('msal-config', () => {
     ).toBeNull();
   });
 
-  it('defaults api scope to {clientId}/.default', () => {
+  it('defaults api scope to api://{clientId}/.default', () => {
     expect(
       resolveMsalPublicConfig({
         NEXT_PUBLIC_AZURE_AD_CLIENT_ID: 'client-1',
@@ -18,7 +18,7 @@ describe('msal-config', () => {
     ).toEqual({
       clientId: 'client-1',
       tenantId: 'tenant-1',
-      apiScope: 'client-1/.default',
+      apiScope: 'api://client-1/.default',
     });
   });
 

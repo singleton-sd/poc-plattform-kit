@@ -31,7 +31,7 @@ Prefer optional token/session claim `tenant_id` → `AuthenticatedUser.tenantId`
 
 Server / Auth.js: `AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`, `CORS_ORIGINS`
 
-Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`, `NEXT_PUBLIC_AZURE_AD_TENANT_ID`, optional `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (defaults to `{clientId}/.default`)
+Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`, `NEXT_PUBLIC_AZURE_AD_TENANT_ID`, optional `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (defaults to `api://{clientId}/.default`). Nest `AZURE_AD_API_AUDIENCE` should match that Application ID URI.
 
 KV secret names (human): `auth-secret`, `azure-ad-client-secret`.
 
@@ -90,7 +90,7 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 - `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
 - `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (optional)
 
-Set matching repo **Variables**. Scope must mint an access token whose `aud` matches Nest `AZURE_AD_API_AUDIENCE` (defaults to client id → `{clientId}/.default`).
+Set matching repo **Variables**. Scope must mint an access token whose `aud` matches Nest `AZURE_AD_API_AUDIENCE` (prefer `api://{clientId}` with default MSAL scope `api://{clientId}/.default`).
 
 ### Follow-ups
 
