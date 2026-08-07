@@ -10,6 +10,10 @@ export interface ReportingProjectionRecord {
   payload: Record<string, unknown>;
 }
 
+export interface ReportingProjectionRepository {
+  save(record: ReportingProjectionRecord): Promise<void>;
+}
+
 export function toProjectionRecord(event: DomainEvent): ReportingProjectionRecord {
   return {
     eventId: event.id,
@@ -29,7 +33,11 @@ export function toProjectionRecord(event: DomainEvent): ReportingProjectionRecor
  * pillar's storage ticket.
  */
 export class ReportingEventHandler {
+  constructor(private readonly repository?: ReportingProjectionRepository) {}
+
   async handle(event: DomainEvent): Promise<ReportingProjectionRecord> {
-    return toProjectionRecord(event);
+    const record = toProjectionRecord(event);
+    await this.repository?.save(record);
+    return record;
   }
 }
