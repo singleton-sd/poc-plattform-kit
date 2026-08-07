@@ -26,16 +26,16 @@ export interface ContactNameChangedPayload extends Record<string, unknown> {
 }
 
 export interface ContactNameChangeTransaction {
-  findContact(id: string): Contact | undefined;
-  saveContact(contact: Contact): void;
-  appendAudit(audit: ContactLocalAudit): void;
-  appendOutbox(entry: ContactOutboxEntry): void;
+  findContact(id: string): Promise<Contact | undefined>;
+  saveContact(contact: Contact): Promise<void>;
+  appendAudit(audit: ContactLocalAudit): Promise<void>;
+  appendOutbox(entry: ContactOutboxEntry): Promise<void>;
 }
 
 export interface ContactNameChangeStore {
-  transaction<T>(operation: (transaction: ContactNameChangeTransaction) => T): Promise<T>;
-  pendingOutbox(): ContactOutboxEntry[];
-  markProcessed(entry: ContactOutboxEntry, at: Date): void;
+  transaction<T>(operation: (transaction: ContactNameChangeTransaction) => Promise<T>): Promise<T>;
+  pendingOutbox(): Promise<ContactOutboxEntry[]>;
+  markProcessed(entry: ContactOutboxEntry, at: Date): Promise<void>;
 }
 
 interface ServiceDependencies {
@@ -60,8 +60,8 @@ export class ContactNameChangeService {
     actorId: string;
     correlationId?: string;
   }): Promise<DomainEvent<ContactNameChangedPayload>> {
-    return this.store.transaction((transaction) => {
-      const contact = transaction.findContact(input.contactId);
+    return this.store.transaction(async (transaction) => {
+      const contact = await transaction.findContact(input.contactId);
       if (!contact) throw new Error(`Contact ${input.contactId} not found`);
 
       const occurredAt = this.dependencies.now();
@@ -80,15 +80,15 @@ export class ContactNameChangeService {
         payload,
       };
 
-      transaction.saveContact({ ...contact, name: input.name });
-      transaction.appendAudit({
+      await transaction.saveContact({ ...contact, name: input.name });
+      await transaction.appendAudit({
         entityId: contact.id,
         action: 'name_changed',
         actorId: input.actorId,
         changes: { name: { from: contact.name, to: input.name } },
         createdAt: occurredAt,
       });
-      transaction.appendOutbox({ event });
+      await transaction.appendOutbox({ event });
       return event;
     });
   }
@@ -102,9 +102,9 @@ export class OutboxDispatcher {
   ) {}
 
   async dispatchPending(): Promise<void> {
-    for (const entry of this.store.pendingOutbox()) {
+    for (const entry of await this.store.pendingOutbox()) {
       await this.publish(entry.event);
-      this.store.markProcessed(entry, this.now());
+      await this.store.markProcessed(entry, this.now());
     }
   }
 }
@@ -120,15 +120,17 @@ export class InMemoryContactNameChangeStore implements ContactNameChangeStore {
     for (const contact of contacts) this.contacts.set(contact.id, { ...contact });
   }
 
-  async transaction<T>(operation: (transaction: ContactNameChangeTransaction) => T): Promise<T> {
+  async transaction<T>(
+    operation: (transaction: ContactNameChangeTransaction) => Promise<T>,
+  ): Promise<T> {
     const contacts = new Map([...this.contacts].map(([id, contact]) => [id, { ...contact }]));
     const audits: ContactLocalAudit[] = [];
     const outbox: ContactOutboxEntry[] = [];
-    const result = operation({
-      findContact: (id) => contacts.get(id),
-      saveContact: (contact) => contacts.set(contact.id, contact),
-      appendAudit: (audit) => audits.push(audit),
-      appendOutbox: (entry) => outbox.push(entry),
+    const result = await operation({
+      findContact: async (id) => contacts.get(id),
+      saveContact: async (contact) => void contacts.set(contact.id, contact),
+      appendAudit: async (audit) => void audits.push(audit),
+      appendOutbox: async (entry) => void outbox.push(entry),
     });
     if (this.failNextTransaction) {
       this.failNextTransaction = false;
@@ -141,11 +143,11 @@ export class InMemoryContactNameChangeStore implements ContactNameChangeStore {
     return result;
   }
 
-  pendingOutbox(): ContactOutboxEntry[] {
+  async pendingOutbox(): Promise<ContactOutboxEntry[]> {
     return this.outbox.filter((entry) => !entry.processedAt);
   }
 
-  markProcessed(entry: ContactOutboxEntry, at: Date): void {
+  async markProcessed(entry: ContactOutboxEntry, at: Date): Promise<void> {
     entry.processedAt = at;
   }
 }
