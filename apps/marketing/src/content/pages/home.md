@@ -3,7 +3,7 @@ title: Platform Kit - Singleton SD
 description: Multi-tenant platform foundations for Singleton SD
 brand: Platform Kit
 headline: Multi-tenant platform foundations for Singleton SD
-ctaLabel: Open the app
+ctaLabel: Go to app
 ctaUrl: https://app.plattform-kit.poc.singletonsd.com
 ---
 
