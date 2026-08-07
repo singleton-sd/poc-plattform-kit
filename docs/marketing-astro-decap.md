@@ -18,6 +18,10 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 
 No WordPress, Gatsby, or always-on CMS server for the site itself.
 
+### SWA routes
+
+`public/staticwebapp.config.json` must not list trailing-slash duplicates (e.g. both `/admin` and `/admin/`) — Azure rejects the upload. CI/deploy run `scripts/validate-staticwebapp-config.mjs` to catch that before SWA.
+
 ## How Decap fits Astro
 
 1. Editors open `/admin` (static SPA shipped in `public/admin/`).
