@@ -75,7 +75,7 @@ export class TenantService {
           }
         : {}),
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      take: query.limit ?? 25,
+      take: Math.min(query.limit ?? 25, 100),
     });
 
     return tenants.map(toTenantRecord);

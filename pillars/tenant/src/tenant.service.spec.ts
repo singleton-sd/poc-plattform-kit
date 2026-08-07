@@ -68,6 +68,17 @@ describe('TenantService', () => {
     });
   });
 
+  it('caps results when called outside the validated HTTP boundary', async () => {
+    prisma.tenant.findMany.mockResolvedValue([]);
+
+    await service.findAll({ limit: 1_000 });
+
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith({
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: 100,
+    });
+  });
+
   it('create writes tenant + audit + outbox in one transaction', async () => {
     prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
       fn(prisma),
