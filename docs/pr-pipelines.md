@@ -66,6 +66,13 @@ Azure Static Web Apps **Free** includes PR preview environments.
 - App location: `apps/marketing/dist` (Astro SSG; workflow builds + validates `staticwebapp.config.json` first)
 - Token: Key Vault secret `swa-marketing-deployment-token`
 - Close job on PR `closed` (same pattern as web)
+- SWA resource `ssd-pocpk-mkt-dev-ae` must have `stagingEnvironmentPolicy: Enabled` (web SWA already does). If deploy logs say “Staging environments are not allowed”, enable via ARM:
+
+```bash
+az rest --method patch \
+  --url "https://management.azure.com/subscriptions/<sub>/resourceGroups/rg-poc-plattform-kit/providers/Microsoft.Web/staticSites/ssd-pocpk-mkt-dev-ae?api-version=2022-03-01" \
+  --body '{"properties":{"stagingEnvironmentPolicy":"Enabled"}}'
+```
 
 ### BE — Container Apps per PR (Path B — locked)
 
