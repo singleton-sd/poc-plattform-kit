@@ -32,7 +32,7 @@ describe('TenantController', () => {
       entraOid: 'entra-1',
       email: 'admin@example.test',
       name: 'Admin',
-      role: 'tenant-admin',
+      roles: ['tenant-admin'],
       id: 'user-1',
       tenantId: null,
     };
