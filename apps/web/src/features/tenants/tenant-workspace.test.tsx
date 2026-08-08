@@ -1,39 +1,61 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TenantWorkspace } from './tenant-workspace';
 
-const mutateCreate = jest.fn();
-const mutateUpdate = jest.fn();
-const resetCreate = jest.fn();
-const resetUpdate = jest.fn();
-const refetchFind = jest.fn();
-const configureApiClient = jest.fn();
+const tenant = {
+  id: 't-1',
+  name: 'Acme',
+  slug: 'acme',
+  settings: null,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+const findAllRefetch = jest.fn();
+const findAll = jest.fn();
+const createMutate = jest.fn();
+const updateMutate = jest.fn();
+let createOnSuccess: ((response: unknown) => void) | undefined;
+let updateOnSuccess: ((response: unknown) => void) | undefined;
 
 jest.mock('@/lib/api-client', () => ({
-  configureApiClient: (...args: unknown[]) => configureApiClient(...args),
+  configureApiClient: jest.fn(),
 }));
 
 jest.mock('@poc-plattform-kit/api-client', () => ({
-  useTenantControllerCreate: () => ({
-    mutate: mutateCreate,
-    reset: resetCreate,
-    isPending: false,
-    isError: false,
-    data: undefined,
-  }),
-  useTenantControllerUpdate: () => ({
-    mutate: mutateUpdate,
-    reset: resetUpdate,
-    isPending: false,
-    isError: false,
-    data: undefined,
-  }),
+  useTenantControllerFindAll: (...args: unknown[]) => {
+    findAll(...args);
+    return findAllState;
+  },
+  useTenantControllerCreate: (options: {
+    mutation?: { onSuccess?: (response: unknown) => void };
+  }) => {
+    createOnSuccess = options?.mutation?.onSuccess;
+    return {
+      mutate: createMutate,
+      reset: jest.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+    };
+  },
   useTenantControllerFindOne: () => ({
-    data: undefined,
+    data: { data: tenant },
     isFetching: false,
     isError: false,
-    refetch: refetchFind,
+    refetch: jest.fn(),
   }),
+  useTenantControllerUpdate: (options: {
+    mutation?: { onSuccess?: (response: unknown) => void };
+  }) => {
+    updateOnSuccess = options?.mutation?.onSuccess;
+    return {
+      mutate: updateMutate,
+      reset: jest.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+    };
+  },
 }));
 
 jest.mock('@jsonforms/react', () => {
@@ -48,91 +70,129 @@ jest.mock('@jsonforms/react', () => {
       onChange: (event: { data: Record<string, unknown> }) => void;
     }) => (
       <div data-testid="jsonforms-stub">
-        {'name' in data ? (
-          <input
-            aria-label="Name"
-            value={String(data.name ?? '')}
-            onChange={(event) => onChange({ data: { ...data, name: event.target.value } })}
-          />
-        ) : null}
-        {'slug' in data ? (
-          <input
-            aria-label="Slug"
-            value={String(data.slug ?? '')}
-            onChange={(event) => onChange({ data: { ...data, slug: event.target.value } })}
-          />
-        ) : null}
+        <input
+          aria-label="Name"
+          value={String(data.name ?? '')}
+          onChange={(event) => onChange({ data: { ...data, name: event.target.value } })}
+        />
       </div>
     ),
   };
 });
 
+let findAllState: {
+  data: unknown;
+  isLoading: boolean;
+  isError: boolean;
+  refetch: jest.Mock;
+};
+
 function renderWorkspace() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={client}>
-      <TenantWorkspace />
-    </QueryClientProvider>,
-  );
+  return render(<TenantWorkspace />);
 }
 
 describe('TenantWorkspace', () => {
   beforeEach(() => {
-    mutateCreate.mockReset();
-    mutateUpdate.mockReset();
-    resetCreate.mockReset();
-    resetUpdate.mockReset();
-    refetchFind.mockReset();
-    configureApiClient.mockReset();
+    jest.useFakeTimers();
+    findAllRefetch.mockReset();
+    findAll.mockReset();
+    createMutate.mockReset();
+    updateMutate.mockReset();
+    findAllState = {
+      data: { data: [tenant] },
+      isLoading: false,
+      isError: false,
+      refetch: findAllRefetch,
+    };
+    Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
   });
 
-  it('creates a tenant via Zod + generated mutation hook', async () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('renders the tenant list', () => {
+    renderWorkspace();
+    expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
+  });
+
+  it('shows the empty state with no tenants and no search', () => {
+    findAllState = {
+      data: { data: [] },
+      isLoading: false,
+      isError: false,
+      refetch: findAllRefetch,
+    };
+    renderWorkspace();
+    expect(screen.getByTestId('tenant-empty-state')).toBeInTheDocument();
+  });
+
+  it('shows the error state and retries', () => {
+    findAllState = { data: undefined, isLoading: false, isError: true, refetch: findAllRefetch };
     renderWorkspace();
 
-    const createForm = screen.getByTestId('tenant-create-form');
-    fireEvent.change(createForm.querySelector('[aria-label="Name"]') as HTMLInputElement, {
-      target: { value: 'Acme' },
-    });
-    fireEvent.change(createForm.querySelector('[aria-label="Slug"]') as HTMLInputElement, {
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(findAllRefetch).toHaveBeenCalled();
+  });
+
+  it('debounces the search query passed to the list hook', () => {
+    renderWorkspace();
+    findAll.mockClear();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search tenants' }), {
       target: { value: 'acme' },
     });
-    fireEvent.click(screen.getByTestId('tenant-create'));
 
-    await waitFor(() => {
-      expect(mutateCreate).toHaveBeenCalledWith({
-        data: { name: 'Acme', slug: 'acme' },
-      });
-    });
+    act(() => jest.advanceTimersByTime(300));
+
+    expect(findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ q: 'acme', limit: 100 }),
+      expect.anything(),
+    );
   });
 
-  it('configures x-tenant-id when the tenant id field changes', async () => {
+  it('opens the create drawer from the toolbar button', () => {
     renderWorkspace();
 
-    fireEvent.change(screen.getByTestId('tenant-id'), { target: { value: 'ten-42' } });
+    fireEvent.click(screen.getByTestId('tenant-create-open'));
 
-    await waitFor(() => {
-      expect(configureApiClient).toHaveBeenCalledWith({ tenantId: 'ten-42' });
-    });
+    expect(screen.getByRole('dialog', { name: 'Create tenant' })).toBeInTheDocument();
   });
 
-  it('refetches when loading the same tenant id again', async () => {
+  it('opens the details drawer when a tenant row is selected', () => {
     renderWorkspace();
 
-    fireEvent.change(screen.getByTestId('tenant-id'), { target: { value: 'ten-1' } });
-    fireEvent.click(screen.getByTestId('tenant-load'));
+    fireEvent.click(screen.getByRole('button', { name: 'View details for Acme' }));
+
+    expect(screen.getByRole('dialog', { name: 'Tenant details' })).toBeInTheDocument();
+  });
+
+  it('on successful create: closes the drawer, refreshes the list, selects the tenant and toasts', async () => {
+    createMutate.mockImplementation(() => createOnSuccess?.({ data: tenant }));
+    renderWorkspace();
+
+    fireEvent.click(screen.getByTestId('tenant-create-open'));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByTestId('tenant-create-submit'));
 
     await waitFor(() => {
-      expect(resetCreate).toHaveBeenCalled();
-      expect(resetUpdate).toHaveBeenCalled();
+      expect(screen.queryByRole('dialog', { name: 'Create tenant' })).not.toBeInTheDocument();
     });
+    expect(findAllRefetch).toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Tenant details' })).toBeInTheDocument();
+    expect(screen.getByTestId('tenant-toast')).toHaveTextContent('Acme was created.');
+  });
 
-    refetchFind.mockClear();
-    fireEvent.click(screen.getByTestId('tenant-load'));
+  it('on successful update: refreshes the list and toasts', async () => {
+    updateMutate.mockImplementation(() => updateOnSuccess?.({ data: tenant }));
+    renderWorkspace();
+
+    fireEvent.click(screen.getByRole('button', { name: 'View details for Acme' }));
+    fireEvent.click(screen.getByTestId('tenant-update-submit'));
 
     await waitFor(() => {
-      expect(refetchFind).toHaveBeenCalled();
+      expect(findAllRefetch).toHaveBeenCalled();
     });
+    expect(screen.getByTestId('tenant-toast')).toHaveTextContent('Acme was updated.');
   });
 });

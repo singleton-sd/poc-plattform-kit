@@ -1,159 +1,109 @@
 'use client';
 
-import {
-  useTenantControllerCreate,
-  useTenantControllerFindOne,
-  useTenantControllerUpdate,
-  type TenantResponseDto,
-} from '@poc-plattform-kit/api-client';
-import { useEffect, useState, type FormEvent } from 'react';
-import { configureApiClient } from '@/lib/api-client';
-import { CreateTenantForm } from './create-tenant-form';
-import { UpdateTenantForm } from './update-tenant-form';
-import type { CreateTenantInput, UpdateTenantInput } from './schemas';
+import { useTenantControllerFindAll, type TenantResponseDto } from '@poc-plattform-kit/api-client';
+import { keepPreviousData } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { PlusIcon } from '@/components/icons';
+import { Toast } from '@/components/toast';
+import { tenantListPayload } from './api';
+import { TenantCreateDrawer } from './tenant-create-drawer';
+import { TenantDetailsDrawer } from './tenant-details-drawer';
+import { TenantEmptyState, TenantErrorState, TenantSearchEmptyState } from './tenant-list-states';
+import { TenantMobileList } from './tenant-mobile-list';
+import { TenantSearch } from './tenant-search';
+import { TenantTable } from './tenant-table';
 
-function tenantPayload(response: unknown): TenantResponseDto | null {
-  if (!response || typeof response !== 'object') return null;
-  const data = (response as { data?: unknown }).data;
-  if (!data || typeof data !== 'object') return null;
-  const tenant = data as Partial<TenantResponseDto>;
-  if (
-    typeof tenant.id !== 'string' ||
-    typeof tenant.name !== 'string' ||
-    typeof tenant.slug !== 'string'
-  ) {
-    return null;
-  }
-  return tenant as TenantResponseDto;
-}
+const SEARCH_DEBOUNCE_MS = 300;
+const LIST_LIMIT = 100;
 
 export function TenantWorkspace() {
-  const [tenantId, setTenantId] = useState('');
-  const [lookupId, setLookupId] = useState('');
-  const [activeTenant, setActiveTenant] = useState<TenantResponseDto | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    configureApiClient({ tenantId: tenantId || null });
-  }, [tenantId]);
+    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  const createMutation = useTenantControllerCreate();
-  const updateMutation = useTenantControllerUpdate();
-  const findQuery = useTenantControllerFindOne(lookupId, {
-    query: { enabled: lookupId.length > 0, retry: false },
-  });
+  const listQuery = useTenantControllerFindAll(
+    { q: debouncedSearch || undefined, limit: LIST_LIMIT },
+    { query: { placeholderData: keepPreviousData } },
+  );
 
-  const loaded = tenantPayload(findQuery.data);
-  const created = tenantPayload(createMutation.data);
-  const updated = tenantPayload(updateMutation.data);
+  const tenants = tenantListPayload(listQuery.data) ?? [];
+  const isInitialLoading = listQuery.isLoading;
+  const isError = listQuery.isError;
+  const isSearching = debouncedSearch.length > 0;
+  const isEmpty = !isInitialLoading && !isError && tenants.length === 0;
 
-  useEffect(() => {
-    if (!created) return;
-    setActiveTenant(created);
-    setTenantId(created.id);
-    setLookupId(created.id);
-  }, [created]);
-
-  useEffect(() => {
-    if (!updated) return;
-    setActiveTenant(updated);
-  }, [updated]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    setActiveTenant(loaded);
-  }, [loaded]);
-
-  function onCreate(data: CreateTenantInput) {
-    createMutation.mutate({ data });
+  function handleCreated(tenant: TenantResponseDto) {
+    setCreateOpen(false);
+    void listQuery.refetch();
+    setSelectedTenantId(tenant.id);
+    setToastMessage(`${tenant.name} was created.`);
   }
 
-  function onLoad(event: FormEvent) {
-    event.preventDefault();
-    const id = tenantId.trim();
-    if (!id) return;
-    createMutation.reset();
-    updateMutation.reset();
-    if (id === lookupId) {
-      void findQuery.refetch();
-      return;
-    }
-    setLookupId(id);
-  }
-
-  function onUpdate(data: UpdateTenantInput) {
-    const id = (activeTenant?.id ?? tenantId).trim();
-    if (!id) return;
-    configureApiClient({ tenantId: id });
-    updateMutation.mutate({ id, data });
+  function handleUpdated(tenant: TenantResponseDto) {
+    void listQuery.refetch();
+    setToastMessage(`${tenant.name} was updated.`);
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-8 p-6" data-testid="tenant-workspace">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-heading text-2xl font-semibold text-fg">Tenants</h1>
-        <p className="text-sm text-fg-muted">
-          Reads and writes go through the generated <code>@poc-plattform-kit/api-client</code>{' '}
-          hooks. Create/update fields use Zod → JSON Forms. Set tenant id to send{' '}
-          <code>x-tenant-id</code> on get/update.
-        </p>
+    <div
+      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      data-testid="tenant-workspace"
+    >
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold text-fg">Tenants</h1>
+          <p className="text-sm text-fg-muted">Browse, search, create and manage tenants.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <TenantSearch value={searchInput} onChange={setSearchInput} />
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex shrink-0 items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on"
+            data-testid="tenant-create-open"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Create Tenant
+          </button>
+        </div>
       </header>
 
-      <CreateTenantForm
-        pending={createMutation.isPending}
-        error={createMutation.isError}
-        onSubmit={onCreate}
+      {isError ? (
+        <TenantErrorState onRetry={() => void listQuery.refetch()} />
+      ) : isInitialLoading ? (
+        <>
+          <TenantTable tenants={[]} loading onSelect={() => undefined} />
+          <TenantMobileList tenants={[]} loading onSelect={() => undefined} />
+        </>
+      ) : isEmpty && isSearching ? (
+        <TenantSearchEmptyState onClearSearch={() => setSearchInput('')} />
+      ) : isEmpty ? (
+        <TenantEmptyState onCreate={() => setCreateOpen(true)} />
+      ) : (
+        <>
+          <TenantTable tenants={tenants} onSelect={setSelectedTenantId} />
+          <TenantMobileList tenants={tenants} onSelect={setSelectedTenantId} />
+        </>
+      )}
+
+      <TenantCreateDrawer
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handleCreated}
       />
-
-      <form className="flex flex-col gap-3" onSubmit={onLoad} data-testid="tenant-load-form">
-        <h2 className="font-heading text-lg font-medium text-fg">Load</h2>
-        <label className="flex flex-col gap-1 text-sm text-fg">
-          Tenant id
-          <input
-            className="rounded border border-fg-subtle bg-bg px-3 py-2 text-fg"
-            value={tenantId}
-            onChange={(e) => setTenantId(e.target.value)}
-            data-testid="tenant-id"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded border border-fg-subtle px-3 py-2 text-sm text-fg disabled:opacity-50"
-          disabled={!tenantId.trim() || findQuery.isFetching}
-          data-testid="tenant-load"
-        >
-          {findQuery.isFetching ? 'Loading…' : 'Load tenant'}
-        </button>
-        {findQuery.isError ? (
-          <p className="text-sm text-fg" data-testid="tenant-load-error">
-            Load failed.
-          </p>
-        ) : null}
-      </form>
-
-      <UpdateTenantForm
-        initialName={activeTenant?.name ?? ''}
-        pending={updateMutation.isPending}
-        error={updateMutation.isError}
-        disabled={!tenantId.trim() && !activeTenant?.id}
-        onSubmit={onUpdate}
+      <TenantDetailsDrawer
+        tenantId={selectedTenantId}
+        onClose={() => setSelectedTenantId(null)}
+        onUpdated={handleUpdated}
       />
-
-      {activeTenant ? (
-        <section
-          className="rounded border border-fg-subtle bg-bg-muted p-4 text-sm text-fg"
-          data-testid="tenant-result"
-        >
-          <h2 className="font-heading mb-2 text-lg font-medium">Current tenant</h2>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-            <dt className="text-fg-muted">Id</dt>
-            <dd data-testid="tenant-result-id">{activeTenant.id}</dd>
-            <dt className="text-fg-muted">Name</dt>
-            <dd data-testid="tenant-result-name">{activeTenant.name}</dd>
-            <dt className="text-fg-muted">Slug</dt>
-            <dd data-testid="tenant-result-slug">{activeTenant.slug}</dd>
-          </dl>
-        </section>
-      ) : null}
+      <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} testId="tenant-toast" />
     </div>
   );
 }

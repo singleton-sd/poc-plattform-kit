@@ -449,7 +449,8 @@
           },
           "slug": {
             "type": "string",
-            "example": "acme-corp"
+            "example": "acme-corp",
+            "description": "URL-friendly identifier. Generated from name when omitted or blank; format and uniqueness are validated when supplied."
           },
           "settings": {
             "type": "object",
@@ -457,8 +458,7 @@
           }
         },
         "required": [
-          "name",
-          "slug"
+          "name"
         ]
       },
       "UpdateTenantDto": {

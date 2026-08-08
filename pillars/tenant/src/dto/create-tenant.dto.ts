@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsObject, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateTenantDto {
   @ApiProperty({ example: 'Acme Corp' })
@@ -8,14 +8,15 @@ export class CreateTenantDto {
   @MaxLength(200)
   name!: string;
 
-  @ApiProperty({ example: 'acme-corp' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
-  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'slug must be lowercase alphanumeric with optional hyphens',
+  @ApiPropertyOptional({
+    example: 'acme-corp',
+    description:
+      'URL-friendly identifier. Generated from name when omitted or blank; format and uniqueness are validated when supplied.',
   })
-  slug!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  slug?: string;
 
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()

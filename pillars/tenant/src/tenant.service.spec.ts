@@ -1,6 +1,16 @@
-import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { TenantService } from './tenant.service';
 import { TenancyContext } from './tenancy.context';
+
+function prismaKnownRequestError(code: string): Error & { code: string } {
+  return Object.assign(new Error('Unique constraint failed'), { code });
+}
 
 describe('TenantService', () => {
   const tenantRow = {
@@ -120,6 +130,124 @@ describe('TenantService', () => {
         }),
       }),
     );
+  });
+
+  it('generates a normalized slug from the name when slug is omitted', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue({ ...tenantRow, name: 'Acme Pty Ltd' });
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+
+    await service.create({ name: 'Acme Pty Ltd' });
+
+    expect(prisma.tenant.create).toHaveBeenCalledWith({
+      data: { name: 'Acme Pty Ltd', slug: 'acme-pty-ltd', settings: null },
+    });
+  });
+
+  it('generates a slug when slug is blank', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue(tenantRow);
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+
+    await service.create({ name: 'Acme', slug: '   ' });
+
+    expect(prisma.tenant.create).toHaveBeenCalledWith({
+      data: { name: 'Acme', slug: 'acme', settings: null },
+    });
+  });
+
+  it('retries with deterministic -N suffixes when a generated slug collides', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create
+      .mockRejectedValueOnce(prismaKnownRequestError('P2002'))
+      .mockRejectedValueOnce(prismaKnownRequestError('P2002'))
+      .mockResolvedValueOnce({ ...tenantRow, slug: 'acme-3' });
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+
+    const result = await service.create({ name: 'Acme' });
+
+    expect(result.slug).toBe('acme-3');
+    expect(prisma.tenant.create).toHaveBeenNthCalledWith(1, {
+      data: { name: 'Acme', slug: 'acme', settings: null },
+    });
+    expect(prisma.tenant.create).toHaveBeenNthCalledWith(2, {
+      data: { name: 'Acme', slug: 'acme-2', settings: null },
+    });
+    expect(prisma.tenant.create).toHaveBeenNthCalledWith(3, {
+      data: { name: 'Acme', slug: 'acme-3', settings: null },
+    });
+  });
+
+  it('falls back to a fixed base when the name has no latin/numeric characters', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue({ ...tenantRow, slug: 'tenant' });
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+
+    await service.create({ name: '日本語' });
+
+    expect(prisma.tenant.create).toHaveBeenCalledWith({
+      data: { name: '日本語', slug: 'tenant', settings: null },
+    });
+  });
+
+  it('preserves an explicit slug and never falls back to generation', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue({ ...tenantRow, slug: 'custom-slug' });
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+
+    await service.create({ name: 'Acme', slug: 'custom-slug' });
+
+    expect(prisma.tenant.create).toHaveBeenCalledTimes(1);
+    expect(prisma.tenant.create).toHaveBeenCalledWith({
+      data: { name: 'Acme', slug: 'custom-slug', settings: null },
+    });
+  });
+
+  it('rejects an explicitly supplied slug with an invalid format', async () => {
+    await expect(service.create({ name: 'Acme', slug: 'Not Valid!' })).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(prisma.tenant.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a duplicate explicitly supplied slug without retrying', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockRejectedValue(prismaKnownRequestError('P2002'));
+
+    await expect(service.create({ name: 'Acme', slug: 'acme' })).rejects.toThrow(ConflictException);
+    expect(prisma.tenant.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes punctuation and whitespace when generating a slug', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue(tenantRow);
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+
+    await service.create({ name: '  Acme & Co.,  Ltd!!  ' });
+
+    expect(prisma.tenant.create).toHaveBeenCalledWith({
+      data: { name: '  Acme & Co.,  Ltd!!  ', slug: 'acme-co-ltd', settings: null },
+    });
   });
 
   it('findOne requires matching tenancy context', async () => {
