@@ -2,6 +2,10 @@
 
 ## 2026-08-08
 
+- **@poc-plattform-kit/api** `0.20.0` → `0.21.0` (minor)
+- **@poc-plattform-kit/pillar-permissions** `0.3.1` → `0.4.0` (minor)
+## 2026-08-08
+
 - **@poc-plattform-kit/marketing-oauth** `0.2.0` → `0.2.1` (patch)
 ## 2026-08-08
 
