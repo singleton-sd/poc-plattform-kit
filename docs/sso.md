@@ -100,10 +100,7 @@ this order:
 1. Repo Variable `NEXT_PUBLIC_API_BASE_URL` if set (manual override).
 2. This PR's ACA API preview (`ssd-pocpk-aca-pr-<n>-ae`, see `preview-api.yml`
    / Path B) if the OIDC Variables are configured and that Container App
-   exists. `preview-api.yml` runs in parallel and creates the Container App
-   only after building/pushing its image, so when this push also touches
-   `apps/api/**`, `pillars/**`, or `packages/**`, the lookup polls for up to
-   ~2.5 minutes before giving up.
+   exists.
 3. Prod API `https://api.plattform-kit.poc.singletonsd.com` otherwise.
 
 The web preview PR comment states which target was baked into that build.

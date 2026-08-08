@@ -65,17 +65,9 @@ jobs:
 
       - name: Resolve API preview target
         id: api
-        env:
-          GH_TOKEN: ${{ github.token }}
         # Baked into the static export at build time (SWA runtime cannot inject
         # this later). Precedence: manual Variable override > this PR's ACA API
         # preview (ssd-pocpk-aca-pr-<n>-ae, see preview-api.yml) > prod API.
-        #
-        # preview-api.yml runs in parallel on the same push and does not
-        # create the Container App until after it builds + pushes the image,
-        # so a single lookup here can race it. When this push also touches
-        # apps/api/**, pillars/**, or packages/** (preview-api.yml's own path
-        # filters), give it a bounded window to show up before falling back.
         run: |
           set -euo pipefail
           PROD_URL="https://api.plattform-kit.poc.singletonsd.com"
@@ -87,44 +79,18 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ steps.oidc.outputs.configured }}" != "true" ]; then
-            echo "api_base_url=$PROD_URL" >> "$GITHUB_OUTPUT"
-            echo "api_target=prod" >> "$GITHUB_OUTPUT"
-            echo "OIDC not configured — web preview will call prod: $PROD_URL"
-            exit 0
-          fi
-
-          APP_NAME="ssd-pocpk-aca-pr-${{ github.event.pull_request.number }}-ae"
-          check_aca() {
-            az containerapp show \
+          if [ "${{ steps.oidc.outputs.configured }}" = "true" ]; then
+            APP_NAME="ssd-pocpk-aca-pr-${{ github.event.pull_request.number }}-ae"
+            FQDN=$(az containerapp show \
               --name "$APP_NAME" \
               --resource-group rg-poc-plattform-kit \
-              --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true
-          }
-
-          FQDN=$(check_aca)
-          if [ -z "$FQDN" ]; then
-            TOUCHES_API=false
-            if gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename' \
-                | grep -qE '^(apps/api/|pillars/|packages/)'; then
-              TOUCHES_API=true
+              --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
+            if [ -n "$FQDN" ]; then
+              echo "api_base_url=https://$FQDN" >> "$GITHUB_OUTPUT"
+              echo "api_target=aca" >> "$GITHUB_OUTPUT"
+              echo "Found ACA preview $APP_NAME — pointing web preview at https://$FQDN"
+              exit 0
             fi
-            if [ "$TOUCHES_API" = "true" ]; then
-              echo "PR touches apps/api/, pillars/, or packages/ — waiting for preview-api.yml's Container App"
-              for i in $(seq 1 6); do
-                sleep 25
-                FQDN=$(check_aca)
-                [ -n "$FQDN" ] && break
-                echo "attempt $i: ACA preview not ready yet"
-              done
-            fi
-          fi
-
-          if [ -n "$FQDN" ]; then
-            echo "api_base_url=https://$FQDN" >> "$GITHUB_OUTPUT"
-            echo "api_target=aca" >> "$GITHUB_OUTPUT"
-            echo "Found ACA preview $APP_NAME — pointing web preview at https://$FQDN"
-            exit 0
           fi
 
           echo "api_base_url=$PROD_URL" >> "$GITHUB_OUTPUT"
