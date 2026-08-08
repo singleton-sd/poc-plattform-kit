@@ -37,6 +37,7 @@ export class OutboxDrainerService implements OnModuleInit, OnModuleDestroy {
   private timer: NodeJS.Timeout | undefined;
 
   constructor(
+    @Inject(ServiceBusClientService)
     private readonly serviceBus: Pick<ServiceBusClientService, 'isEnabled' | 'getSender'>,
     @Inject(OUTBOX_SOURCES) private readonly sources: readonly OutboxSource[],
   ) {}
