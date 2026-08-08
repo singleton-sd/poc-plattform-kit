@@ -5,13 +5,13 @@ import {
   useTenantControllerUpdate,
   type TenantResponseDto,
 } from '@poc-plattform-kit/api-client';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Drawer } from '@/components/drawer';
 import { AlertIcon } from '@/components/icons';
 import { configureApiClient } from '@/lib/api-client';
 import { errorMessage, tenantPayload } from './api';
 import { CopyTenantIdButton } from './copy-tenant-id-button';
-import { UpdateTenantForm, type UpdateTenantFormHandle } from './update-tenant-form';
+import { UPDATE_TENANT_FORM_ID, UpdateTenantForm } from './update-tenant-form';
 
 type TenantDetailsDrawerProps = {
   tenantId: string | null;
@@ -22,7 +22,6 @@ type TenantDetailsDrawerProps = {
 const FALLBACK_ERROR = 'Could not save changes. Try again.';
 
 export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDetailsDrawerProps) {
-  const formRef = useRef<UpdateTenantFormHandle>(null);
   const open = tenantId !== null;
 
   useEffect(() => {
@@ -58,8 +57,8 @@ export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDeta
         tenant ? (
           <>
             <button
-              type="button"
-              onClick={() => formRef.current?.submit()}
+              type="submit"
+              form={UPDATE_TENANT_FORM_ID}
               disabled={updateMutation.isPending}
               className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
               data-testid="tenant-update-submit"
@@ -105,7 +104,6 @@ export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDeta
       {!findQuery.isFetching && tenant ? (
         <div className="flex flex-col gap-5">
           <UpdateTenantForm
-            ref={formRef}
             initialName={tenant.name}
             pending={updateMutation.isPending}
             errorMessage={

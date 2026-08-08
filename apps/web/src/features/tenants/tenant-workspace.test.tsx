@@ -183,6 +183,16 @@ describe('TenantWorkspace', () => {
     expect(screen.getByTestId('tenant-toast')).toHaveTextContent('Acme was created.');
   });
 
+  it('opens the details drawer directly by tenant ID, bypassing the list', () => {
+    renderWorkspace();
+
+    fireEvent.click(screen.getByTestId('tenant-open-by-id-toggle'));
+    fireEvent.change(screen.getByLabelText('Tenant ID'), { target: { value: 't-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+
+    expect(screen.getByRole('dialog', { name: 'Tenant details' })).toBeInTheDocument();
+  });
+
   it('on successful update: refreshes the list and toasts', async () => {
     updateMutate.mockImplementation(() => updateOnSuccess?.({ data: tenant }));
     renderWorkspace();

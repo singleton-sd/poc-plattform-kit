@@ -100,6 +100,14 @@ describe('TenantDetailsDrawer', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Acme');
   });
 
+  it('renders a real <form> so Enter-to-submit keeps working for keyboard users', () => {
+    render(<TenantDetailsDrawer tenantId="t-1" onClose={jest.fn()} onUpdated={jest.fn()} />);
+
+    const form = screen.getByTestId('tenant-update-form');
+    expect(form.tagName).toBe('FORM');
+    expect(screen.getByTestId('tenant-update-submit')).toHaveAttribute('form', form.id);
+  });
+
   it('saves the edited name through the generated update hook', async () => {
     render(<TenantDetailsDrawer tenantId="t-1" onClose={jest.fn()} onUpdated={jest.fn()} />);
 

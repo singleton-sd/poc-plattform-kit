@@ -56,6 +56,14 @@ describe('TenantCreateDrawer', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('renders a real <form> so Enter-to-submit keeps working for keyboard users', () => {
+    render(<TenantCreateDrawer open onClose={jest.fn()} onCreated={jest.fn()} />);
+
+    const form = screen.getByTestId('tenant-create-form');
+    expect(form.tagName).toBe('FORM');
+    expect(screen.getByTestId('tenant-create-submit')).toHaveAttribute('form', form.id);
+  });
+
   it('submits name and slug through the generated create hook', async () => {
     render(<TenantCreateDrawer open onClose={jest.fn()} onCreated={jest.fn()} />);
 

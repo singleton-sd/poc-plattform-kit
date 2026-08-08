@@ -10,6 +10,7 @@ import { TenantCreateDrawer } from './tenant-create-drawer';
 import { TenantDetailsDrawer } from './tenant-details-drawer';
 import { TenantEmptyState, TenantErrorState, TenantSearchEmptyState } from './tenant-list-states';
 import { TenantMobileList } from './tenant-mobile-list';
+import { TenantOpenById } from './tenant-open-by-id';
 import { TenantSearch } from './tenant-search';
 import { TenantTable } from './tenant-table';
 
@@ -74,6 +75,10 @@ export function TenantWorkspace() {
           </button>
         </div>
       </header>
+
+      <div className="flex justify-end">
+        <TenantOpenById onOpen={setSelectedTenantId} />
+      </div>
 
       {isError ? (
         <TenantErrorState onRetry={() => void listQuery.refetch()} />

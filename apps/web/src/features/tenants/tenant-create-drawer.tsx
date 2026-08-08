@@ -1,10 +1,10 @@
 'use client';
 
 import { useTenantControllerCreate, type TenantResponseDto } from '@poc-plattform-kit/api-client';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Drawer } from '@/components/drawer';
 import { errorMessage, tenantPayload } from './api';
-import { CreateTenantForm, type CreateTenantFormHandle } from './create-tenant-form';
+import { CREATE_TENANT_FORM_ID, CreateTenantForm } from './create-tenant-form';
 
 type TenantCreateDrawerProps = {
   open: boolean;
@@ -15,7 +15,6 @@ type TenantCreateDrawerProps = {
 const FALLBACK_ERROR = 'Could not create the tenant. Try again.';
 
 export function TenantCreateDrawer({ open, onClose, onCreated }: TenantCreateDrawerProps) {
-  const formRef = useRef<CreateTenantFormHandle>(null);
   const mutation = useTenantControllerCreate({
     mutation: {
       onSuccess: (response) => {
@@ -43,8 +42,8 @@ export function TenantCreateDrawer({ open, onClose, onCreated }: TenantCreateDra
       footer={
         <>
           <button
-            type="button"
-            onClick={() => formRef.current?.submit()}
+            type="submit"
+            form={CREATE_TENANT_FORM_ID}
             disabled={mutation.isPending}
             className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
             data-testid="tenant-create-submit"
@@ -65,7 +64,6 @@ export function TenantCreateDrawer({ open, onClose, onCreated }: TenantCreateDra
         Tenants represent organisations using your platform.
       </p>
       <CreateTenantForm
-        ref={formRef}
         pending={mutation.isPending}
         errorMessage={mutation.isError ? errorMessage(mutation.error, FALLBACK_ERROR) : null}
         onSubmit={(data) => mutation.mutate({ data })}
