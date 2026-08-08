@@ -22,6 +22,28 @@
         ]
       }
     },
+    "/changelog": {
+      "get": {
+        "operationId": "ChangelogController_getChangelog",
+        "summary": "List recent client-facing API changes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The 20 most recent API releases and their changes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangelogResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Changelog"
+        ]
+      }
+    },
     "/tenants": {
       "get": {
         "operationId": "TenantController_findAll",
@@ -398,6 +420,71 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "ChangelogChangeDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "New"
+          },
+          "summary": {
+            "type": "string",
+            "example": "Add audit history"
+          },
+          "reason": {
+            "type": "string",
+            "example": "So administrators can explain account changes."
+          }
+        },
+        "required": [
+          "type",
+          "summary"
+        ]
+      },
+      "ChangelogReleaseDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "example": "0.22.0"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-08-08",
+            "format": "date"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangelogChangeDto"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "date",
+          "changes"
+        ]
+      },
+      "ChangelogResponseDto": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "type": "string",
+            "example": "@poc-plattform-kit/api"
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangelogReleaseDto"
+            }
+          }
+        },
+        "required": [
+          "product",
+          "releases"
         ]
       },
       "TenantResponseDto": {

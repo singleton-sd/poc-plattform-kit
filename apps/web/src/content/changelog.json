@@ -1,0 +1,16 @@
+{
+  "product": "@poc-plattform-kit/web",
+  "releases": [
+    {
+      "version": "0.15.0",
+      "date": "2026-08-08",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Release notes are now available in the app",
+          "reason": "So people can quickly understand what changed and why."
+        }
+      ]
+    }
+  ]
+}

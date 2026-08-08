@@ -1,0 +1,16 @@
+{
+  "product": "@poc-plattform-kit/marketing",
+  "releases": [
+    {
+      "version": "0.7.0",
+      "date": "2026-08-08",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Release notes are now available on the website",
+          "reason": "So visitors can see how Platform Kit is evolving."
+        }
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import semver from 'semver';
+import { CLIENT_CHANGELOG_TARGETS, updateClientChangelogs } from './client-changelog.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
@@ -405,6 +406,7 @@ function main() {
       next: resolved.next,
       increment,
       tag: resolved.tag,
+      messages,
     });
   }
 
@@ -441,6 +443,7 @@ function main() {
   }
 
   updateChangelog(releases);
+  updateClientChangelogs(ROOT, releases, new Date().toISOString().slice(0, 10));
 
   const body = releases.map((r) => `- ${r.tag}`).join('\n');
   const message = `${RELEASE_SUBJECT}\n\n${body}\n`;
@@ -449,6 +452,10 @@ function main() {
     run('git', ['add', join(release.path, 'package.json')]);
   }
   run('git', ['add', 'CHANGELOG.md']);
+  for (const release of releases) {
+    const target = CLIENT_CHANGELOG_TARGETS[release.name];
+    if (target) run('git', ['add', target]);
+  }
   if (apiReleased) {
     run('git', ['add', ...OPENAPI_CLIENT_PATHS]);
   }

@@ -1,0 +1,16 @@
+{
+  "product": "@poc-plattform-kit/api",
+  "releases": [
+    {
+      "version": "0.22.0",
+      "date": "2026-08-08",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Release notes are now available from the API",
+          "reason": "So API consumers can understand changes before integrating them."
+        }
+      ]
+    }
+  ]
+}
