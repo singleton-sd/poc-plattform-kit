@@ -38,8 +38,10 @@ describe('RolesGuard', () => {
   it('rejects when user roles are missing or not allowed', () => {
     reflector.getAllAndOverride.mockReturnValue(['tenant-admin']);
     expect(() => guard.canActivate(contextFor({ roles: ['support-agent'] }))).toThrow(
-      ForbiddenException,
+      /Insufficient role; requires one of: tenant-admin/,
     );
-    expect(() => guard.canActivate(contextFor())).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(contextFor())).toThrow(
+      /Insufficient role; requires one of: tenant-admin/,
+    );
   });
 });
