@@ -8,7 +8,7 @@ cat > "$TMP/curl" <<'MOCK'
 set -euo pipefail
 printf '%s\n' "$*" >> "$CALLS_FILE"
 if [[ "$*" == *"-X GET"* ]]; then
-  printf '{"custom_fields":[{"id":"50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7","value":"claim-1"}]}'
+  printf '{"custom_fields":[{"id":"50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7","value":"claim-1"}],"status":{"status":"ready for review"}}'
 else
   printf '{}'
 fi
@@ -30,6 +30,9 @@ bash "$ROOT/scripts/clickup.sh" handoff 86d3test 123 "READY FOR REVIEW" claim-1 
 grep -Fq 'gate ' "$CALLS_FILE"
 grep -Fq 'READY FOR REVIEW' "$CALLS_FILE"
 grep -Fq 'pull/123' "$CALLS_FILE"
+status_line=$(grep -n -F 'READY FOR REVIEW' "$CALLS_FILE" | tail -1 | cut -d: -f1)
+clear_line=$(grep -n -F '/field/50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7' "$CALLS_FILE" | tail -1 | cut -d: -f1)
+[[ "$status_line" -lt "$clear_line" ]]
 if bash "$ROOT/scripts/clickup.sh" handoff 86d3test 123 "READY FOR REVIEW" wrong >/dev/null 2>&1; then
   echo 'expected claim mismatch failure' >&2
   exit 1

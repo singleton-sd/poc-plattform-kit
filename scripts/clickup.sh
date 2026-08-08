@@ -189,9 +189,14 @@ print(json.dumps({
     pr_url="$(gh pr view "$pr_number" --json url --jq .url)"
     api POST "/task/$task_id/field/$PREVIEW_FIELD_ID" \
       "$(python3 -c 'import json,sys; print(json.dumps({"value":sys.argv[1]}))' "$pr_url")" >/dev/null
-    api POST "/task/$task_id/field/$CLAIM_FIELD_ID" '{"value":""}' >/dev/null
+    # Preserve the exclusive claim until the status transition succeeds.
     api PUT "/task/$task_id" \
       "$(python3 -c 'import json,sys; print(json.dumps({"status":sys.argv[1]}))' "$status")" >/dev/null
+    verify="$(api GET "/task/$task_id")"
+    got_status="$(printf '%s' "$verify" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("status") or {}).get("status", "").lower())')"
+    [[ "$got_status" == "${status,,}" ]] || \
+      die "Handoff verification failed: expected status '$status', got '$got_status'; claim retained"
+    api POST "/task/$task_id/field/$CLAIM_FIELD_ID" '{"value":""}' >/dev/null
     echo "OK: PR gate passed; $task_id -> $status"
     ;;
   status)

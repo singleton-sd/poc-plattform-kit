@@ -142,12 +142,16 @@ function loadSnapshot(number, observedHeadOid) {
     .trim()
     .split('\n')
     .filter(Boolean);
-  const checks = (view.statusCheckRollup ?? []).map((check) => ({
-    name: check.name ?? check.context,
-    status: check.status ?? 'COMPLETED',
-    conclusion: (check.conclusion ?? check.state ?? '').toUpperCase(),
-    completedAt: check.completedAt,
-  }));
+  const checks = (view.statusCheckRollup ?? [])
+    .map((check) => ({
+      name: check.name ?? check.context,
+      status: check.status ?? 'COMPLETED',
+      conclusion: (check.conclusion ?? check.state ?? '').toUpperCase(),
+      completedAt: check.completedAt,
+    }))
+    // The server workflow publishes this status before running the gate. It
+    // must not wait on itself.
+    .filter((check) => check.name !== 'pr-handoff-gate');
   const checkActivity = Math.max(
     0,
     ...checks.map((check) => Date.parse(check.completedAt || 0)).filter(Number.isFinite),
