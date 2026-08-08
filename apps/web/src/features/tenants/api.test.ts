@@ -40,6 +40,14 @@ describe('tenantListPayload', () => {
     expect(tenantListPayload({ data: { items: 'nope' } })).toBeNull();
   });
 
+  it('treats a bare array (pre-pagination API shape) as a single unpaginated page', () => {
+    expect(tenantListPayload({ data: [tenant], status: 200 })).toEqual({
+      items: [tenant],
+      nextCursor: null,
+    });
+    expect(tenantListPayload({ data: [] })).toEqual({ items: [], nextCursor: null });
+  });
+
   it('returns null for a malformed envelope', () => {
     expect(tenantListPayload(undefined)).toBeNull();
     expect(tenantListPayload({})).toBeNull();

@@ -119,6 +119,18 @@ describe('TenantWorkspace', () => {
     expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
   });
 
+  it('still renders the list against a pre-pagination API returning a bare array', () => {
+    findAllState = {
+      data: { data: [tenant] },
+      isLoading: false,
+      isError: false,
+      refetch: findAllRefetch,
+    };
+    renderWorkspace();
+    expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('tenant-empty-state')).not.toBeInTheDocument();
+  });
+
   it('shows the empty state with no tenants and no search', () => {
     findAllState = {
       data: { data: { items: [], nextCursor: null } },

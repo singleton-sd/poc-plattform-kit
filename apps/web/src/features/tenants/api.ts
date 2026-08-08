@@ -21,10 +21,21 @@ export type TenantListPage = {
   nextCursor: string | null;
 };
 
-/** Narrows an Orval `{ data, status, headers }` response envelope to a tenant page. */
+/**
+ * Narrows an Orval `{ data, status, headers }` response envelope to a tenant
+ * page. Also accepts the pre-pagination bare-array shape (`data: Tenant[]`)
+ * as a single unpaginated page — a deploy of this web app can briefly reach
+ * an older API during a rolling/staggered release, and should degrade to
+ * "no next page" rather than showing nothing.
+ */
 export function tenantListPayload(response: unknown): TenantListPage | null {
   if (!response || typeof response !== 'object') return null;
   const data = (response as { data?: unknown }).data;
+
+  if (Array.isArray(data)) {
+    return { items: data as TenantResponseDto[], nextCursor: null };
+  }
+
   if (!data || typeof data !== 'object') return null;
   const items = (data as { items?: unknown }).items;
   if (!Array.isArray(items)) return null;
