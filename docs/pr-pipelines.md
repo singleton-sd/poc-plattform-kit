@@ -129,7 +129,7 @@ Fine-grained `Check()` runs against a **shared** OpenFGA Container App on the sa
 | --- | --- | --- |
 | Container App | `ssd-pocpk-openfga-dev-ae` | `openfga/openfga` pinned tag; min replicas 1 |
 | Azure Files | `ssdpocpkstofga` / `openfga-data` | SQLite datastore (**beta**); durability without container-local disk |
-| Entra app | `api://ssd-pocpk-openfga` | OIDC authn; assignment-required; Nest API MI only |
+| Entra app | `api://ssd-pocpk-openfga` | OIDC authn; assignment-required; Nest App Service MI only (PR ACA MIs not assigned — preview Check fail-closed) |
 | App Config | `app:openfga:*` | `apiUrl` / `storeId` / `authorizationModelId` / `audience` |
 
 Provision / re-bootstrap (idempotent; OIDC login same Variables as above — no GitHub Secrets):

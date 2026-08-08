@@ -70,16 +70,18 @@ Run (interactive) or use GitHub OIDC Variables (same as preview-api.yml):
   exit 1
 }
 
-$account = $accountJson | ConvertFrom-Json
+Write-Step "Setting subscription $SubscriptionId"
+az account set --subscription $SubscriptionId
+Assert-LastExit 'az account set'
+
+# Resolve tenant after switching subscription (operator may start in another tenant).
+$account = az account show -o json | ConvertFrom-Json
 $entraTenantId = $account.tenantId
 if ([string]::IsNullOrWhiteSpace($entraTenantId)) {
   Write-Error 'Could not resolve Entra tenant ID from az account show.'
   exit 1
 }
-
-Write-Step "Setting subscription $SubscriptionId"
-az account set --subscription $SubscriptionId
-Assert-LastExit 'az account set'
+Write-Host "Entra tenant: $entraTenantId"
 
 Write-Step 'Ensuring Microsoft.App / Storage providers are registered'
 foreach ($ns in @('Microsoft.App', 'Microsoft.Storage', 'Microsoft.OperationalInsights')) {
@@ -317,29 +319,33 @@ function Wait-OpenFgaHealthy {
     }
     Start-Sleep -Seconds 5
   }
-  Write-Error "OpenFGA did not become healthy at $openfgaApiUrl/healthz"
-  exit 1
+  # throw (not exit) so callers' try/finally can still restore OIDC
+  throw "OpenFGA did not become healthy at $openfgaApiUrl/healthz"
 }
 
-function Set-OpenFgaAuthnMethod([string]$Method) {
+function Set-OpenFgaAuthnMethod {
+  param(
+    [Parameter(Mandatory = $true)][string]$Method,
+    [switch]$BestEffort
+  )
   Write-Host "Setting OPENFGA_AUTHN_METHOD=$Method on $OpenFgaAppName"
   az containerapp update `
     --name $OpenFgaAppName `
     --resource-group $ResourceGroup `
     --set-env-vars "OPENFGA_AUTHN_METHOD=$Method" `
     -o none
-  Assert-LastExit "containerapp update authn=$Method"
+  if ($LASTEXITCODE -ne 0) {
+    if ($BestEffort) {
+      Write-Warning "containerapp update authn=$Method failed (exit $LASTEXITCODE) — OpenFGA may still be unauthenticated"
+      return
+    }
+    throw "containerapp update authn=$Method failed (exit $LASTEXITCODE)."
+  }
   Wait-OpenFgaHealthy
 }
 
 if (-not $SkipBootstrap) {
   Wait-OpenFgaHealthy
-
-  # Assignment-required OIDC means only the Nest API MI can call OpenFGA at runtime.
-  # Operators (az login / GHA OIDC) are not that MI, so briefly disable authn for the
-  # idempotent store/model write, then restore oidc. Window is seconds on a PoC.
-  Write-Step 'Bootstrap window: OPENFGA_AUTHN_METHOD=none (store + model only)'
-  Set-OpenFgaAuthnMethod 'none'
 
   function Invoke-OpenFga {
     param(
@@ -356,7 +362,13 @@ if (-not $SkipBootstrap) {
     return Invoke-RestMethod -Method $Method -Uri $uri -Headers $headers
   }
 
+  # Assignment-required OIDC means only the Nest API App Service MI can call OpenFGA.
+  # Operators are not that MI, so briefly disable authn for store/model write, then
+  # always restore oidc in finally (even on health-wait / Ctrl+C-style terminating errors).
+  Write-Step 'Bootstrap window: OPENFGA_AUTHN_METHOD=none (store + model only)'
   try {
+    Set-OpenFgaAuthnMethod -Method 'none'
+
     Write-Step "Ensuring OpenFGA store '$StoreName'"
     $stores = Invoke-OpenFga -Method GET -Path '/stores'
     $existingStore = @($stores.stores) | Where-Object { $_.name -eq $StoreName } | Select-Object -First 1
@@ -381,13 +393,17 @@ if (-not $SkipBootstrap) {
     $written = Invoke-OpenFga -Method POST -Path "/stores/$storeId/authorization-models" -Body $writeBody
     $modelId = $written.authorization_model_id
     if (-not $modelId) {
-      Write-Error 'OpenFGA did not return authorization_model_id.'
-      exit 1
+      throw 'OpenFGA did not return authorization_model_id.'
     }
     Write-Host "Authorization model id: $modelId"
   } finally {
     Write-Step 'Restoring OPENFGA_AUTHN_METHOD=oidc'
-    Set-OpenFgaAuthnMethod 'oidc'
+    Set-OpenFgaAuthnMethod -Method 'oidc' -BestEffort
+  }
+
+  if ([string]::IsNullOrWhiteSpace($storeId) -or [string]::IsNullOrWhiteSpace($modelId)) {
+    Write-Error 'Bootstrap did not produce storeId/modelId; App Config not updated.'
+    exit 1
   }
 
   Write-Step "Seeding App Configuration $AppConfigName (app:openfga:*)"

@@ -173,7 +173,7 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 | --- | --- |
 | Image | `openfga/openfga:v1.18.3` (pin in `infra/openfga.bicep`) |
 | Datastore | **SQLite** (`OPENFGA_DATASTORE_ENGINE=sqlite`) on Azure Files share `openfga-data` — **beta** engine; durable across restarts (not container-local). Single replica only (`minReplicas=1` / `maxReplicas=1`) because SQLite is single-writer. |
-| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://ssd-pocpk-openfga` (assignment-required). Nest API App Service system MI is the sole `OpenFga.Access` assignee. |
+| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://ssd-pocpk-openfga` (assignment-required). Nest API App Service system MI (`pocpk-api-si5fhs6dvxiha`) is the sole `OpenFga.Access` assignee. Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
 | Model | `infra/openfga/model.fga` (+ `model.json` for API push) — `user` (recursive `manager`), `tenant` roles `admin`/`member` → `create`/`update`/`delete`/`read` |
 | Bootstrap | `powershell -File ./infra/deploy-openfga.ps1` (idempotent: Bicep + Entra + store/model + App Config `app:openfga:*`) |
 
