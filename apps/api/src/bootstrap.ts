@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import type { Express } from 'express';
+import helmet from 'helmet';
 import { Logger, PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -12,7 +13,14 @@ import { buildOpenApiDocumentConfig } from './swagger.config';
 
 export async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const expressApp = app.getHttpAdapter().getInstance() as Express;
+  // App Service and ACA put one trusted reverse proxy in front of the API.
+  // This lets throttling identify clients from the forwarded address.
+  expressApp.set('trust proxy', 1);
   app.useLogger(app.get(Logger));
+  // Swagger UI needs inline assets, so leave CSP to the serving edge until a
+  // route-specific policy is introduced. All other Helmet defaults stay on.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(correlationIdMiddleware);
   app.useGlobalFilters(new AllExceptionsFilter(await app.resolve(PinoLogger)));
 
@@ -33,7 +41,7 @@ export async function bootstrap() {
     credentials: true,
   });
 
-  configureSingleSignOnAuth(app.getHttpAdapter().getInstance() as Express);
+  configureSingleSignOnAuth(expressApp);
 
   const document = SwaggerModule.createDocument(app, buildOpenApiDocumentConfig());
   SwaggerModule.setup('docs', app, document);

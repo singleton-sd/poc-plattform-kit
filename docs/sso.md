@@ -101,3 +101,26 @@ Set matching repo **Variables**. Prefer the exposed delegated scope `api://api.p
 ## Human portal follow-ups
 
 Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include the API callback (`https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`) and that App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. When testing MSAL on a SWA PR preview, add that preview’s exact origin as a SPA redirect URI (see pattern above). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
+
+## HTTP hardening
+
+The Nest API applies Helmet's default response headers on App Service and ACA.
+Content Security Policy is intentionally disabled in the API middleware because
+Swagger UI currently needs inline assets; the remaining Helmet protections apply
+to `/health`, `/api/auth/*`, Swagger, and protected controllers.
+
+Nest controllers also share a global in-memory rate limit of **100 requests per
+60 seconds per client IP**. Express trusts the single App Service/ACA proxy hop
+when resolving that IP. Override it with positive integers in
+`API_THROTTLE_LIMIT` and `API_THROTTLE_TTL_MS`. Auth.js callbacks are mounted as
+Express middleware and are therefore covered by Helmet but not the Nest
+controller throttle. This baseline is per process; use an external store or edge
+rate limiter before scaling to quotas that must be consistent across replicas.
+
+To check the `429 Too Many Requests` response locally, temporarily set
+`API_THROTTLE_LIMIT=2`, restart `pnpm dev:api`, then make three requests within a
+minute:
+
+```bash
+for request in 1 2 3; do curl -i http://localhost:3001/health; done
+```
