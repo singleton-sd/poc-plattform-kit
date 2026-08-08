@@ -17,6 +17,8 @@ import type {
   UseQueryResult,
 } from '@tanstack/react-query';
 
+import type { MeResponseDto } from '.././models';
+
 import { customFetch } from '../../custom-fetch';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -25,7 +27,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary Current authenticated user (cookie session or Bearer JWT)
  */
 export type singleSignOnControllerMeResponse200 = {
-  data: void;
+  data: MeResponseDto;
   status: 200;
 };
 

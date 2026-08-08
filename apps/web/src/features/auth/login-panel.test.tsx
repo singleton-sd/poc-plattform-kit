@@ -88,7 +88,7 @@ describe('HomeAuthGate', () => {
 
   it('shows the home shell with sign out when signed in', () => {
     mockUseMe.mockReturnValue({
-      data: { id: '1', email: 'a@b.co', name: 'A', role: 'tenant-admin' },
+      data: { id: '1', email: 'a@b.co', name: 'A', roles: ['tenant-admin'] },
       isLoading: false,
       isError: false,
     });

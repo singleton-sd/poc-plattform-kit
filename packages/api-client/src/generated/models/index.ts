@@ -10,6 +10,7 @@ export * from './checkPermissionResponseDto';
 export * from './createTenantDto';
 export * from './createTenantDtoSettings';
 export * from './healthResponseDto';
+export * from './meResponseDto';
 export * from './permissionsHealthResponseDto';
 export * from './tenantControllerFindAllParams';
 export * from './tenantListResponseDto';

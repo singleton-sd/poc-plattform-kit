@@ -14,7 +14,7 @@ describe('mapAuthJsUserToAuthenticatedUser', () => {
       entraOid: 'sub-1',
       email: 'agent@example.com',
       name: 'Agent',
-      role: 'support-agent',
+      roles: ['support-agent'],
       id: 'sub-1',
       tenantId: 'tenant-1',
     });

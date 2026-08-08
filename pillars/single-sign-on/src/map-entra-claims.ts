@@ -21,11 +21,23 @@ export interface AuthenticatedUser {
   entraOid: string;
   email: string;
   name: string | null;
-  role: string | null;
+  /** Coarse Entra app roles (e.g. tenant-admin, support-agent). */
+  roles: string[];
   /** Local User.id when known; falls back to entraOid for claims-only sessions. */
   id: string;
   /** Platform tenant id from token/session when present. */
   tenantId: string | null;
+}
+
+/** Normalize Entra `roles[]` and optional singular `role` into a unique string list. */
+export function normalizeEntraRoles(claims: Pick<EntraClaims, 'roles' | 'role'>): string[] {
+  const fromArray = Array.isArray(claims.roles)
+    ? claims.roles.filter((r): r is string => typeof r === 'string' && r.length > 0)
+    : [];
+  const fromSingular =
+    typeof claims.role === 'string' && claims.role.length > 0 ? [claims.role] : [];
+
+  return [...new Set([...fromArray, ...fromSingular])];
 }
 
 /**
@@ -43,9 +55,6 @@ export function mapEntraClaims(claims: EntraClaims, localUserId?: string): Authe
     throw new Error('Entra token missing email/preferred_username/upn');
   }
 
-  const roleFromArray =
-    Array.isArray(claims.roles) && claims.roles.length > 0 ? claims.roles[0] : null;
-
   const tenantId =
     typeof claims.tenant_id === 'string' && claims.tenant_id.trim()
       ? claims.tenant_id.trim()
@@ -55,7 +64,7 @@ export function mapEntraClaims(claims: EntraClaims, localUserId?: string): Authe
     entraOid,
     email,
     name: claims.name ?? null,
-    role: claims.role ?? roleFromArray,
+    roles: normalizeEntraRoles(claims),
     id: localUserId ?? entraOid,
     tenantId,
   };
@@ -66,12 +75,12 @@ export function toMeResponse(user: AuthenticatedUser): {
   id: string;
   email: string;
   name: string | null;
-  role: string | null;
+  roles: string[];
 } {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role,
+    roles: user.roles,
   };
 }
