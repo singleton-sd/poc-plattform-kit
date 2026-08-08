@@ -1,0 +1,66 @@
+import type { TenantResponseDto } from '@poc-plattform-kit/api-client';
+
+/** Narrows an Orval `{ data, status, headers }` response envelope to a single tenant. */
+export function tenantPayload(response: unknown): TenantResponseDto | null {
+  if (!response || typeof response !== 'object') return null;
+  const data = (response as { data?: unknown }).data;
+  if (!data || typeof data !== 'object') return null;
+  const tenant = data as Partial<TenantResponseDto>;
+  if (
+    typeof tenant.id !== 'string' ||
+    typeof tenant.name !== 'string' ||
+    typeof tenant.slug !== 'string'
+  ) {
+    return null;
+  }
+  return tenant as TenantResponseDto;
+}
+
+export type TenantListPage = {
+  items: TenantResponseDto[];
+  nextCursor: string | null;
+};
+
+/**
+ * Narrows an Orval `{ data, status, headers }` response envelope to a tenant
+ * page. Also accepts the pre-pagination bare-array shape (`data: Tenant[]`)
+ * as a single unpaginated page — a deploy of this web app can briefly reach
+ * an older API during a rolling/staggered release, and should degrade to
+ * "no next page" rather than showing nothing.
+ */
+export function tenantListPayload(response: unknown): TenantListPage | null {
+  if (!response || typeof response !== 'object') return null;
+  const data = (response as { data?: unknown }).data;
+
+  if (Array.isArray(data)) {
+    return { items: data as TenantResponseDto[], nextCursor: null };
+  }
+
+  if (!data || typeof data !== 'object') return null;
+  const items = (data as { items?: unknown }).items;
+  if (!Array.isArray(items)) return null;
+  const nextCursor = (data as { nextCursor?: unknown }).nextCursor;
+  return {
+    items: items as TenantResponseDto[],
+    nextCursor: typeof nextCursor === 'string' ? nextCursor : null,
+  };
+}
+
+export function errorStatus(error: unknown): number | null {
+  if (!error || typeof error !== 'object' || !('status' in error)) return null;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === 'number' ? status : null;
+}
+
+/** Prefers the backend's Nest exception message (e.g. "Tenant slug already exists"). */
+export function errorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== 'object') return fallback;
+  const data = (error as { data?: unknown }).data;
+  if (!data || typeof data !== 'object' || !('message' in data)) return fallback;
+  const message = (data as { message?: unknown }).message;
+  if (typeof message === 'string') return message;
+  if (Array.isArray(message) && message.every((entry) => typeof entry === 'string')) {
+    return message.join(', ');
+  }
+  return fallback;
+}

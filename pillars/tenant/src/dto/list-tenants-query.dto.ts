@@ -14,7 +14,7 @@ export class ListTenantsQueryDto {
   q?: string;
 
   @ApiPropertyOptional({
-    description: 'Maximum tenants returned.',
+    description: 'Maximum tenants returned per page.',
     default: 25,
     minimum: 1,
     maximum: 100,
@@ -25,4 +25,14 @@ export class ListTenantsQueryDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Opaque pagination cursor from a previous response’s nextCursor. Omit to fetch the first page.',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  cursor?: string;
 }

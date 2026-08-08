@@ -3,22 +3,28 @@
 import { JsonForms } from '@jsonforms/react';
 import { tokenCells, tokenRenderers } from '@poc-plattform-kit/forms';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { AlertIcon } from '@/components/icons';
 import { updateTenantJsonSchema, updateTenantSchema, type UpdateTenantInput } from './schemas';
 import { updateTenantUiSchema } from './uischema';
+
+export const UPDATE_TENANT_FORM_ID = 'tenant-update-form';
 
 type UpdateTenantFormProps = {
   initialName?: string;
   pending?: boolean;
-  error?: boolean;
-  disabled?: boolean;
+  errorMessage?: string | null;
   onSubmit: (data: UpdateTenantInput) => void;
 };
 
+/**
+ * Editable "name" field for Tenant Details, hosted inside TenantDetailsDrawer
+ * which owns the footer's Save/Cancel buttons via the HTML `form` attribute
+ * — this stays a real <form> so Enter-to-submit keeps working.
+ */
 export function UpdateTenantForm({
   initialName = '',
   pending = false,
-  error = false,
-  disabled = false,
+  errorMessage = null,
   onSubmit,
 }: UpdateTenantFormProps) {
   const [data, setData] = useState<Record<string, unknown>>({ name: initialName });
@@ -44,14 +50,19 @@ export function UpdateTenantForm({
   }
 
   return (
-    <form className="flex flex-col gap-3" onSubmit={handleSubmit} data-testid="tenant-update-form">
+    <form
+      id={UPDATE_TENANT_FORM_ID}
+      className="flex flex-col gap-3"
+      onSubmit={handleSubmit}
+      data-testid="tenant-update-form"
+    >
       <JsonForms
         schema={schema}
         uischema={updateTenantUiSchema}
         data={data}
         renderers={tokenRenderers}
         cells={tokenCells}
-        readonly={disabled}
+        readonly={pending}
         validationMode="ValidateAndHide"
         onChange={({ data: next }) => {
           const record = next as Record<string, unknown>;
@@ -59,22 +70,24 @@ export function UpdateTenantForm({
           setData(record);
         }}
       />
-      <button
-        type="submit"
-        className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
-        disabled={disabled || pending}
-        data-testid="tenant-update"
-      >
-        {pending ? 'Updating…' : 'Update name'}
-      </button>
       {clientError ? (
-        <p className="text-sm text-fg" data-testid="tenant-update-client-error">
+        <p
+          className="flex items-center gap-2 text-sm text-fg"
+          data-testid="tenant-update-client-error"
+          role="alert"
+        >
+          <AlertIcon className="h-4 w-4 shrink-0" />
           {clientError}
         </p>
       ) : null}
-      {error ? (
-        <p className="text-sm text-fg" data-testid="tenant-update-error">
-          Update failed.
+      {errorMessage ? (
+        <p
+          className="flex items-center gap-2 text-sm text-fg"
+          data-testid="tenant-update-error"
+          role="alert"
+        >
+          <AlertIcon className="h-4 w-4 shrink-0" />
+          {errorMessage}
         </p>
       ) : null}
     </form>
