@@ -152,7 +152,7 @@ function loadSnapshot(number, observedHeadOid) {
     }))
     // The server workflow publishes this status before running the gate. It
     // must not wait on itself.
-    .filter((check) => check.name !== 'pr-handoff-gate');
+    .filter((check) => !['gate', 'pr-handoff-gate', 'recover'].includes(check.name));
   const checkActivity = Math.max(
     0,
     ...checks.map((check) => Date.parse(check.completedAt || 0)).filter(Number.isFinite),
