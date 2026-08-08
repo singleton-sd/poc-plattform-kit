@@ -24,6 +24,8 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     name: Build + SWA preview
+    outputs:
+      preview_url: ${{ steps.deploy.outputs.static_web_app_url }}
     permissions:
       contents: read
       id-token: write
@@ -102,26 +104,6 @@ jobs:
           app_location: apps/web/out
           skip_app_build: true
 
-      # MSAL uses window.location.origin — Entra has no *.azurestaticapps.net wildcards.
-      # Soft-fails if Graph Application.ReadWrite.OwnedBy / ownership is missing.
-      - name: Register Entra SPA redirect URI for preview
-        if: steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
-        env:
-          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-        run: |
-          set -euo pipefail
-          chmod +x scripts/entra-spa-preview-redirect.sh
-          origin="${{ steps.deploy.outputs.static_web_app_url }}"
-          if [ -n "$origin" ]; then
-            scripts/entra-spa-preview-redirect.sh add \
-              --pr "${{ github.event.pull_request.number }}" \
-              --origin "$origin"
-          else
-            scripts/entra-spa-preview-redirect.sh add \
-              --pr "${{ github.event.pull_request.number }}"
-          fi
-
       - name: Comment preview URL
         if: steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
         uses: actions/github-script@v7
@@ -170,15 +152,89 @@ jobs:
         run: |
           echo "SWA preview skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC IDs only; token stays in Key Vault)."
 
+  register_entra_redirect:
+    if: github.event.action != 'closed' && needs.build_and_preview.result == 'success'
+    needs: build_and_preview
+    concurrency:
+      group: entra-spa-preview-redirects
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    name: Register Entra redirect
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # Use only code from the trusted base on this credentialed runner.
+      - name: Check out trusted redirect helper
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: |
+            scripts/entra-spa-preview-redirect.sh
+            scripts/entra-spa-preview-redirect.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check OIDC Variables
+        id: oidc
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OIDC Variables not set — skipping Entra redirect registration."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # MSAL uses window.location.origin; Entra has no SWA host wildcards.
+      - name: Register Entra SPA redirect URI for preview
+        if: steps.oidc.outputs.configured == 'true'
+        env:
+          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          if [ ! -f scripts/entra-spa-preview-redirect.sh ]; then
+            echo "warning: trusted base does not contain the redirect helper yet; skipping"
+            exit 0
+          fi
+          chmod +x scripts/entra-spa-preview-redirect.sh
+          origin="${{ needs.build_and_preview.outputs.preview_url }}"
+          args=(add --pr "${{ github.event.pull_request.number }}")
+          if [ -n "$origin" ]; then
+            args+=(--origin "$origin")
+          fi
+          scripts/entra-spa-preview-redirect.sh "${args[@]}"
+
   close_preview:
     if: github.event.action == 'closed'
+    concurrency:
+      group: entra-spa-preview-redirects
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     name: Close SWA preview
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out trusted redirect helper
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: |
+            scripts/entra-spa-preview-redirect.sh
+            scripts/entra-spa-preview-redirect.mjs
+          sparse-checkout-cone-mode: false
 
       - uses: actions/setup-node@v4
         with:
@@ -210,6 +266,10 @@ jobs:
           ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
         run: |
           set -euo pipefail
+          if [ ! -f scripts/entra-spa-preview-redirect.sh ]; then
+            echo "warning: trusted base does not contain the redirect helper yet; skipping"
+            exit 0
+          fi
           chmod +x scripts/entra-spa-preview-redirect.sh
           # Resolve hostname while the SWA environment still exists, then remove URI.
           scripts/entra-spa-preview-redirect.sh remove \
