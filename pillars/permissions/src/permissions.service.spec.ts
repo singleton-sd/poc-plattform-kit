@@ -1,3 +1,4 @@
+import type { TokenCredential } from '@azure/identity';
 import { PermissionsService } from './permissions.service';
 
 describe('PermissionsService', () => {
@@ -9,6 +10,7 @@ describe('PermissionsService', () => {
     delete process.env.OPENFGA_API_URL;
     delete process.env.OPENFGA_STORE_ID;
     delete process.env.OPENFGA_AUTHORIZATION_MODEL_ID;
+    delete process.env.OPENFGA_AUDIENCE;
     global.fetch = jest.fn();
   });
 
@@ -54,6 +56,40 @@ describe('PermissionsService', () => {
         body: JSON.stringify({
           tuple_key: { user: 'user:alice', relation: 'update', object: 'tenant:one' },
           authorization_model_id: 'model-1',
+        }),
+      }),
+    );
+  });
+
+  it('sends a Bearer token when OPENFGA_AUDIENCE is set', async () => {
+    process.env.OPENFGA_API_URL = 'https://openfga.example.test';
+    process.env.OPENFGA_STORE_ID = 'store-1';
+    process.env.OPENFGA_AUDIENCE = 'api://ssd-pocpk-openfga';
+    const credential: TokenCredential = {
+      getToken: jest.fn().mockResolvedValue({
+        token: 'openfga-access-token',
+        expiresOnTimestamp: Date.now() + 3_600_000,
+      }),
+    };
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ allowed: true }),
+    });
+
+    const service = new PermissionsService();
+    service.setTokenCredential(credential);
+    await service.check({
+      subject: 'user:alice',
+      action: 'read',
+      resource: 'tenant:one',
+    });
+
+    expect(credential.getToken).toHaveBeenCalledWith('api://ssd-pocpk-openfga/.default');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openfga.example.test/stores/store-1/check',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          authorization: 'Bearer openfga-access-token',
         }),
       }),
     );

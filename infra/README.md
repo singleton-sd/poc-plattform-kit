@@ -19,7 +19,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | App Configuration | **Free** | Non-secret config + KV references |
 | ACR | **Basic** | API PR images; alphanumeric name only |
 | Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
-| Container Apps (OpenFGA) | **Consumption** | Permissions pillar authZ engine — not an Azure product name |
+| Container Apps (OpenFGA) | **Consumption** | `ssd-pocpk-openfga-dev-ae`; SQLite on Azure Files (beta) |
 | Log Analytics | **PerGB2018** | 30-day retention; shared by CAE + App Insights |
 | Application Insights | **Workspace-based** | Shared BE+FE sink |
 
@@ -55,6 +55,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Application Insights | `ssd-pocpk-appi-dev-ae` | (CAF) | Workspace-based |
 | ACR | `ssdpocpkacrdevae` | CAF would be `ssd-pocpk-acr-dev-ae` (hyphens illegal) | Basic |
 | Ephemeral ACA (PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
+| OpenFGA Container App | `ssd-pocpk-openfga-dev-ae` | (CAF) | Consumption (min 1) |
+| OpenFGA Files (SQLite) | `ssdpocpkstofga` / share `openfga-data` | CAF alphanumeric | Standard_LRS |
 
 ### Key Vault secret names (values never in git)
 
@@ -110,6 +112,10 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `secret:azure-ad-client-secret` | Key Vault reference → `AZURE_AD_CLIENT_SECRET` |
 | `app:telemetry:cloudRoleName:api` | plain (`api`) |
 | `app:telemetry:cloudRoleName:web` | plain (`web`) |
+| `app:openfga:apiUrl` | plain — OpenFGA HTTPS base URL → `OPENFGA_API_URL` |
+| `app:openfga:storeId` | plain — store id from bootstrap → `OPENFGA_STORE_ID` |
+| `app:openfga:authorizationModelId` | plain → `OPENFGA_AUTHORIZATION_MODEL_ID` |
+| `app:openfga:audience` | plain — `api://ssd-pocpk-openfga` → `OPENFGA_AUDIENCE` |
 
 ### Custom domains
 
@@ -161,7 +167,24 @@ Subscriptions `audit`, `reporting`, `support` on `notifications.events`.
 
 ### Permissions / OpenFGA (locked)
 
-Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** hosted on **Azure Container Apps Consumption** (CAF name e.g. `ssd-pocpk-openfga-dev-ae` when provisioned). Azure RBAC/Entra are not used for per-item domain ACL.
+Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** on **Azure Container Apps Consumption** (`ssd-pocpk-openfga-dev-ae` on CAE `ssd-pocpk-cae-dev-ae`). Azure RBAC/Entra are not used for per-item domain ACL.
+
+| Concern | Choice |
+| --- | --- |
+| Image | `openfga/openfga:v1.18.3` (pin in `infra/openfga.bicep`) |
+| Datastore | **SQLite** (`OPENFGA_DATASTORE_ENGINE=sqlite`) on Azure Files share `openfga-data` — **beta** engine; durable across restarts (not container-local). Single replica only (`minReplicas=1` / `maxReplicas=1`) because SQLite is single-writer. |
+| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://ssd-pocpk-openfga` (assignment-required). Nest API App Service system MI is the sole `OpenFga.Access` assignee. |
+| Model | `infra/openfga/model.fga` (+ `model.json` for API push) — `user` (recursive `manager`), `tenant` roles `admin`/`member` → `create`/`update`/`delete`/`read` |
+| Bootstrap | `powershell -File ./infra/deploy-openfga.ps1` (idempotent: Bicep + Entra + store/model + App Config `app:openfga:*`) |
+
+```powershell
+az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
+powershell -File ./infra/deploy-aca-preview.ps1   # CAE must exist first
+powershell -File ./infra/deploy-openfga.ps1 -WhatIf
+powershell -File ./infra/deploy-openfga.ps1
+```
+
+OIDC deploy auth matches `preview-api.yml`: Azure CLI / GitHub OIDC Variables (`AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`) — never `AZURE_CREDENTIALS` or deploy tokens in GitHub Secrets.
 
 ## Prerequisites
 
@@ -174,10 +197,12 @@ az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
 pwsh ./infra/deploy.ps1 -WhatIf   # preview
 pwsh ./infra/deploy.ps1           # create / update (idempotent)
 powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR previews
+powershell -File ./infra/deploy-openfga.ps1       # OpenFGA ACA + store/model bootstrap
 ```
 
 `deploy.ps1` upserts SQL/SB/SWA secrets into Key Vault, seeds App Config plain keys + KV refs, and mirrors non-secret + secret cache into local `.env` (gitignored).
 `deploy-aca-preview.ps1` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
+`deploy-openfga.ps1` provisions OpenFGA + Azure Files, Entra OIDC app, store/model, and `app:openfga:*` App Config keys.
 `refresh-database-url.ps1` rebuilds KV `database-url` from `sql-admin-password`, resets the SQL admin password to match, and restarts the API App Service (use when Prisma reports auth failure for `pocpkadmin`).
 `migrate-db.ps1` pulls `database-url` from Key Vault into gitignored `packages/db/.env` and runs `prisma migrate deploy` against Azure SQL (forward-only; never commit the `.env`).
 
