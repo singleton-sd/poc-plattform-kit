@@ -86,6 +86,8 @@ function externalActivityMs(pr, author) {
     const login = item.user?.login ?? '';
     if (!login || login === author || login === 'github-actions[bot]') return false;
     const lower = login.toLowerCase();
+    const body = (item.body ?? '').toLowerCase();
+    if (body.includes("couldn't run - usage limit reached")) return false;
     return (
       /bugbot|cursor|codex|chatgpt/.test(lower) ||
       ['OWNER', 'MEMBER', 'COLLABORATOR', 'CONTRIBUTOR'].includes(item.author_association)

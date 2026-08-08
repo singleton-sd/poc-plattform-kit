@@ -245,14 +245,22 @@ jobs:
             PR="${{ github.event.issue.number }}"
             AUTHOR="${{ github.event.comment.user.login }}"
             ASSOCIATION="${{ github.event.comment.author_association }}"
+            BODY="${{ github.event.comment.body }}"
           elif [ "${{ github.event_name }}" = "pull_request_review" ]; then
             PR="${{ github.event.pull_request.number }}"
             AUTHOR="${{ github.event.review.user.login }}"
             ASSOCIATION="${{ github.event.review.author_association }}"
+            BODY="${{ github.event.review.body }}"
           else
             PR="${{ github.event.pull_request.number }}"
             AUTHOR="${{ github.event.comment.user.login }}"
             ASSOCIATION="${{ github.event.comment.author_association }}"
+            BODY="${{ github.event.comment.body }}"
+          fi
+
+          if [[ "${BODY,,}" == *"couldn't run - usage limit reached"* ]]; then
+            echo "Skip: reviewer did not run because its usage limit was reached"
+            exit 0
           fi
 
           PR_AUTHOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.user.login')
