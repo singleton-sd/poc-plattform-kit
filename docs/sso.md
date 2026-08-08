@@ -112,7 +112,8 @@ to `/health`, `/api/auth/*`, Swagger, and protected controllers.
 Nest controllers also share a global in-memory rate limit of **100 requests per
 60 seconds per client IP**. Express trusts the single App Service/ACA proxy hop
 when resolving that IP. Override it with positive integers in
-`API_THROTTLE_LIMIT` and `API_THROTTLE_TTL_MS`. Auth.js callbacks are mounted as
+`API_THROTTLE_LIMIT` and `API_THROTTLE_TTL_MS` (App Configuration keys
+`app:throttle:limit` and `app:throttle:ttlMs`). Auth.js callbacks are mounted as
 Express middleware and are therefore covered by Helmet but not the Nest
 controller throttle. This baseline is per process; use an external store or edge
 rate limiter before scaling to quotas that must be consistent across replicas.

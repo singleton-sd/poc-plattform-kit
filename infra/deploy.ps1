@@ -318,6 +318,8 @@ Set-AppConfigPlain 'app:api:baseUrl' $publicApiUrl
 Set-AppConfigPlain 'app:web:baseUrl' $publicAppUrl
 Set-AppConfigPlain 'app:marketing:baseUrl' $publicMarketingUrl
 Set-AppConfigPlain 'app:cors:origins' $corsOrigins
+Set-AppConfigPlain 'app:throttle:limit' '100'
+Set-AppConfigPlain 'app:throttle:ttlMs' '60000'
 Set-AppConfigPlain 'app:auth:url' $publicApiUrl
 Set-AppConfigPlain 'app:auth:cookieDomain' '.plattform-kit.poc.singletonsd.com'
 Set-AppConfigPlain 'app:web:swaName' $swaName
