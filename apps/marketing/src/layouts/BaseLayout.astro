@@ -30,9 +30,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   </head>
   <body class="flex min-h-screen flex-col bg-bg text-fg antialiased">
     {showShell ? <SiteHeader currentPath={currentPath} /> : null}
-    <div class="flex-1">
+    <main class="flex-1">
       <slot />
-    </div>
+    </main>
     {showShell ? <SiteFooter /> : null}
   </body>
 </html>

@@ -26,25 +26,24 @@ const sizes = {
 } as const;
 
 const variants = {
-  primary:
-    'bg-accent text-accent-on hover:bg-accent-hover focus-visible:outline-accent disabled:bg-bg-muted disabled:text-fg-subtle disabled:border disabled:border-border',
-  secondary:
-    'bg-bg-muted text-fg hover:bg-bg-subtle focus-visible:outline-accent disabled:text-fg-subtle',
+  primary: 'bg-accent text-accent-on hover:bg-accent-hover focus-visible:outline-accent',
+  secondary: 'bg-bg-muted text-fg hover:bg-bg-subtle focus-visible:outline-accent',
   outline:
-    'border border-border bg-bg text-fg hover:border-border-strong hover:shadow-sm focus-visible:outline-accent disabled:bg-bg-muted disabled:text-fg-subtle',
-  ghost:
-    'bg-transparent text-fg hover:bg-bg-muted focus-visible:outline-accent disabled:text-fg-subtle',
+    'border border-border bg-bg text-fg hover:border-border-strong hover:shadow-sm focus-visible:outline-accent',
+  ghost: 'bg-transparent text-fg hover:bg-bg-muted focus-visible:outline-accent',
   destructive:
-    'bg-status-error text-fg-inverse hover:opacity-90 focus-visible:outline-status-error disabled:bg-bg-muted disabled:text-fg-subtle',
+    'bg-status-error text-fg-inverse hover:opacity-90 focus-visible:outline-status-error',
 } as const;
+
+const disabledClasses =
+  'pointer-events-none cursor-not-allowed bg-bg-muted text-fg-subtle border border-border hover:bg-bg-muted hover:shadow-none';
 
 const classes = [
   'inline-flex items-center justify-center rounded-md font-semibold transition',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
   sizes[size],
-  variants[variant],
+  disabled ? disabledClasses : variants[variant],
   fullWidth ? 'w-full' : '',
-  disabled ? 'pointer-events-none cursor-not-allowed' : '',
   className,
 ]
   .filter(Boolean)

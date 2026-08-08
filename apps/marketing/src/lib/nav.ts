@@ -3,6 +3,7 @@ export type NavLink = {
   href: string;
 };
 
+/** Primary destinations from the Figma shell (pages land in follow-up tickets). */
 export const primaryNav: NavLink[] = [
   { label: 'Features', href: '/features' },
   { label: 'Pricing', href: '/pricing' },
@@ -16,7 +17,6 @@ export const footerColumns: { title: string; links: NavLink[] }[] = [
     links: [
       { label: 'Features', href: '/features' },
       { label: 'Pricing', href: '/pricing' },
-      { label: 'Docs', href: '/docs' },
     ],
   },
   {
@@ -24,7 +24,6 @@ export const footerColumns: { title: string; links: NavLink[] }[] = [
     links: [
       { label: 'About', href: '/about' },
       { label: 'Contact', href: '/contact' },
-      { label: 'Blog', href: '/blog' },
     ],
   },
   {
@@ -36,10 +35,7 @@ export const footerColumns: { title: string; links: NavLink[] }[] = [
   },
   {
     title: 'Connect',
-    links: [
-      { label: 'GitHub', href: 'https://github.com/singleton-sd/poc-plattform-kit' },
-      { label: 'Twitter', href: 'https://twitter.com' },
-    ],
+    links: [{ label: 'GitHub', href: 'https://github.com/singleton-sd/poc-plattform-kit' }],
   },
 ];
 
