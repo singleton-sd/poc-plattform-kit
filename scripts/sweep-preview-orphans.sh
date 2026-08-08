@@ -199,11 +199,30 @@ for tag in "${TAGS[@]:-}"; do
     acr_kept=$((acr_kept + 1))
   else
     log "DELETE ${IMAGE_REPO}:${tag} (PR #$pr not open)"
-    run az acr repository delete \
-      --name "$ACR_NAME" \
-      --image "${IMAGE_REPO}:${tag}" \
-      --yes
-    acr_deleted=$((acr_deleted + 1))
+    if [[ "$DRY_RUN" == "1" ]]; then
+      run az acr repository delete \
+        --name "$ACR_NAME" \
+        --image "${IMAGE_REPO}:${tag}" \
+        --yes
+      acr_deleted=$((acr_deleted + 1))
+    else
+      # Deleting one tag can remove sibling tags that share the same
+      # manifest; treat "tag does not exist" as success.
+      if az acr repository delete \
+        --name "$ACR_NAME" \
+        --image "${IMAGE_REPO}:${tag}" \
+        --yes 2>"${TMPDIR:-/tmp}/acr-del.err"; then
+        acr_deleted=$((acr_deleted + 1))
+      else
+        err="$(tr '\n' ' ' <"${TMPDIR:-/tmp}/acr-del.err" 2>/dev/null || true)"
+        if echo "$err" | grep -qi 'does not exist\|not found'; then
+          log "  already gone (${IMAGE_REPO}:${tag})"
+          acr_deleted=$((acr_deleted + 1))
+        else
+          log "  WARN failed to delete ${IMAGE_REPO}:${tag}: $err"
+        fi
+      fi
+    fi
   fi
 done
 log "ACR summary: deleted=$acr_deleted kept_open_pr_tags=$acr_kept"
