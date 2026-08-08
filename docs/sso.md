@@ -92,18 +92,11 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 
 Set matching repo **Variables**. Prefer the exposed delegated scope `api://api.plattform-kit.poc.singletonsd.com/access_as_user` (SPA-friendly); `.default` is a fallback for confidential clients. Expect access-token `aud` = Entra app client id when `requestedAccessTokenVersion` is `2` — Nest accepts client id and `AZURE_AD_API_AUDIENCE`.
 
-### Preview API target (prod vs ACA)
+### Follow-ups
 
-`preview-web.yml` resolves `NEXT_PUBLIC_API_BASE_URL` before the build step, in
-this order:
-
-1. Repo Variable `NEXT_PUBLIC_API_BASE_URL` if set (manual override).
-2. This PR's ACA API preview (`ssd-pocpk-aca-pr-<n>-ae`, see `preview-api.yml`
-   / Path B) if the OIDC Variables are configured and that Container App
-   exists.
-3. Prod API `https://api.plattform-kit.poc.singletonsd.com` otherwise.
-
-The web preview PR comment states which target was baked into that build.
+| Title | Intent |
+| --- | --- |
+| Preview: SWA API base URL prod vs ACA | Bake `NEXT_PUBLIC_API_BASE_URL` → prod or ACA per PR |
 
 ## Human portal follow-ups
 

@@ -44,6 +44,17 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Build web
+        env:
+          # Baked into the static export; SWA runtime cannot inject this later.
+          # Option B cookies on custom domains; MSAL Bearer on *.azurestaticapps.net.
+          # Rebuild after setting GitHub Variables NEXT_PUBLIC_AZURE_AD_* (MSAL).
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
+          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
+          NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
+          NEXT_PUBLIC_AZURE_AD_API_SCOPE: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE }}
+        run: pnpm --filter @poc-plattform-kit/web... run build
+
       - name: Check OIDC Variables
         id: oidc
         run: |
@@ -62,50 +73,6 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Resolve API preview target
-        id: api
-        # Baked into the static export at build time (SWA runtime cannot inject
-        # this later). Precedence: manual Variable override > this PR's ACA API
-        # preview (ssd-pocpk-aca-pr-<n>-ae, see preview-api.yml) > prod API.
-        run: |
-          set -euo pipefail
-          PROD_URL="https://api.plattform-kit.poc.singletonsd.com"
-          MANUAL_URL="${{ vars.NEXT_PUBLIC_API_BASE_URL }}"
-          if [ -n "$MANUAL_URL" ]; then
-            echo "api_base_url=$MANUAL_URL" >> "$GITHUB_OUTPUT"
-            echo "api_target=manual" >> "$GITHUB_OUTPUT"
-            echo "Using manually configured NEXT_PUBLIC_API_BASE_URL override: $MANUAL_URL"
-            exit 0
-          fi
-
-          if [ "${{ steps.oidc.outputs.configured }}" = "true" ]; then
-            APP_NAME="ssd-pocpk-aca-pr-${{ github.event.pull_request.number }}-ae"
-            FQDN=$(az containerapp show \
-              --name "$APP_NAME" \
-              --resource-group rg-poc-plattform-kit \
-              --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
-            if [ -n "$FQDN" ]; then
-              echo "api_base_url=https://$FQDN" >> "$GITHUB_OUTPUT"
-              echo "api_target=aca" >> "$GITHUB_OUTPUT"
-              echo "Found ACA preview $APP_NAME — pointing web preview at https://$FQDN"
-              exit 0
-            fi
-          fi
-
-          echo "api_base_url=$PROD_URL" >> "$GITHUB_OUTPUT"
-          echo "api_target=prod" >> "$GITHUB_OUTPUT"
-          echo "No ACA preview found for this PR — web preview will call prod: $PROD_URL"
-
-      - name: Build web
-        env:
-          # Option B cookies on custom domains; MSAL Bearer on *.azurestaticapps.net.
-          # Rebuild after setting GitHub Variables NEXT_PUBLIC_AZURE_AD_* (MSAL).
-          NEXT_PUBLIC_API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
-          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-          NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
-          NEXT_PUBLIC_AZURE_AD_API_SCOPE: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE }}
-        run: pnpm --filter @poc-plattform-kit/web... run build
 
       - name: Read SWA deploy token from Key Vault
         if: steps.oidc.outputs.configured == 'true'
@@ -136,20 +103,9 @@ jobs:
       - name: Comment preview URL
         if: steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
         uses: actions/github-script@v7
-        env:
-          API_TARGET: ${{ steps.api.outputs.api_target }}
-          API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
         with:
           script: |
             const marker = '<!-- swa-preview-web -->';
-            const apiTarget = process.env.API_TARGET;
-            const apiBaseUrl = process.env.API_BASE_URL;
-            const apiLine =
-              apiTarget === 'aca'
-                ? `Calls this PR's **ACA API preview**: \`${apiBaseUrl}\``
-                : apiTarget === 'manual'
-                  ? `Calls the manually configured API base (repo Variable \`NEXT_PUBLIC_API_BASE_URL\`): \`${apiBaseUrl}\``
-                  : `Calls **prod API**: \`${apiBaseUrl}\` (no ACA preview found for this PR — see \`preview-api.yml\`)`;
             const body = [
               marker,
               '### Web preview (SWA Free)',
@@ -159,9 +115,8 @@ jobs:
               '- Check the **Azure Static Web Apps** bot / deployment summary for the URL.',
               '- Production SWA: `pocpk-web-si5fhs6dvxiha` (Free) — PR previews are included.',
               '- Deploy token loaded at runtime via **OIDC → Key Vault** (`swa-deployment-token`).',
-              `- ${apiLine}`,
               '',
-              '_API preview itself is deployed by `preview-api.yml` / SETUP.md (Path B ACA)._',
+              '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path B ACA)._',
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
