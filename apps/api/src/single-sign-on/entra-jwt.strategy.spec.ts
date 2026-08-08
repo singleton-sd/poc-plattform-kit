@@ -14,7 +14,7 @@ describe('buildEntraJwtStrategyOptions', () => {
       AZURE_AD_CLIENT_ID: 'client-1',
     });
     expect(options).toMatchObject({
-      audience: ['api://aud', 'client-1'],
+      audience: ['api://aud', 'client-1', 'api://client-1'],
       issuer: 'https://login.microsoftonline.com/tenant-1/v2.0',
     });
     expect(options?.secretOrKeyProvider).toBeDefined();
@@ -25,7 +25,7 @@ describe('buildEntraJwtStrategyOptions', () => {
       AZURE_AD_TENANT_ID: 'tenant-1',
       AZURE_AD_CLIENT_ID: 'client-1',
     });
-    expect(options?.audience).toBe('client-1');
+    expect(options?.audience).toEqual(['client-1', 'api://client-1']);
   });
 
   it('dedupes when api audience equals client id', () => {
@@ -34,7 +34,7 @@ describe('buildEntraJwtStrategyOptions', () => {
       AZURE_AD_API_AUDIENCE: 'client-1',
       AZURE_AD_CLIENT_ID: 'client-1',
     });
-    expect(options?.audience).toBe('client-1');
+    expect(options?.audience).toEqual(['client-1', 'api://client-1']);
   });
 });
 

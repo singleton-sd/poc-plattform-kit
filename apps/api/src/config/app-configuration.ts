@@ -8,6 +8,7 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:azureAd:apiAudience': 'AZURE_AD_API_AUDIENCE',
   'app:azureAd:clientId': 'AZURE_AD_CLIENT_ID',
   'app:azureAd:tenantId': 'AZURE_AD_TENANT_ID',
+  'app:azureAd:swaggerScope': 'AZURE_AD_SWAGGER_SCOPE',
   'app:cors:origins': 'CORS_ORIGINS',
   'app:throttle:limit': 'API_THROTTLE_LIMIT',
   'app:throttle:ttlMs': 'API_THROTTLE_TTL_MS',

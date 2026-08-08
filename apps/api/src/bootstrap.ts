@@ -8,8 +8,11 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { correlationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { resolveCorsOrigin } from './cors-origins';
+import { mountApiRootDocsRedirect } from './docs-root-redirect';
 import { configureSingleSignOnAuth } from './single-sign-on/configure-auth';
-import { buildOpenApiDocumentConfig } from './swagger.config';
+import { buildOpenApiDocumentConfig, buildSwaggerUiOptions } from './swagger.config';
+import { mountSwaggerOauth2Redirect } from './swagger-oauth2-redirect-mount';
+import { mountSwaggerOauth2TokenProxy } from './swagger-oauth2-token-proxy';
 
 export async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -41,10 +44,14 @@ export async function bootstrap() {
     credentials: true,
   });
 
+  mountApiRootDocsRedirect(expressApp);
+  // Before SwaggerModule.setup so these routes win over swagger-ui-dist static.
+  mountSwaggerOauth2Redirect(expressApp);
+  mountSwaggerOauth2TokenProxy(expressApp);
   configureSingleSignOnAuth(expressApp);
 
   const document = SwaggerModule.createDocument(app, buildOpenApiDocumentConfig());
-  SwaggerModule.setup('docs', app, document);
+  SwaggerModule.setup('docs', app, document, buildSwaggerUiOptions());
 
   await app.listen(process.env.PORT ?? 3001, '0.0.0.0');
 }
