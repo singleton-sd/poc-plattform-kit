@@ -74,14 +74,15 @@ function gh(args, options = {}) {
   return result.stdout;
 }
 
+function paginated(endpoint) {
+  const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `${endpoint}?per_page=100`]));
+  return pages.flat();
+}
+
 function externalActivityMs(pr, author) {
-  const issueComments = JSON.parse(
-    gh(['api', `repos/${pr.repository}/issues/${pr.number}/comments`]),
-  );
-  const reviewComments = JSON.parse(
-    gh(['api', `repos/${pr.repository}/pulls/${pr.number}/comments`]),
-  );
-  const reviews = JSON.parse(gh(['api', `repos/${pr.repository}/pulls/${pr.number}/reviews`]));
+  const issueComments = paginated(`repos/${pr.repository}/issues/${pr.number}/comments`);
+  const reviewComments = paginated(`repos/${pr.repository}/pulls/${pr.number}/comments`);
+  const reviews = paginated(`repos/${pr.repository}/pulls/${pr.number}/reviews`);
   const interesting = [...issueComments, ...reviewComments, ...reviews].filter((item) => {
     const login = item.user?.login ?? '';
     if (!login || login === author || login === 'github-actions[bot]') return false;
