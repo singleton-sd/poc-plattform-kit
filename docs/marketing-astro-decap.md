@@ -76,6 +76,14 @@ Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
 | `/callback` | Exchange code → HTML `postMessage` handshake for Decap |
 | `/health` | Liveness |
 
+`ORIGINS` (Function App setting / Bicep `origins`) is a comma-separated list of
+**opener hostnames** (no scheme). Include the marketing SWA instance prefix so
+default + PR preview hosts can complete the Decap `postMessage` handshake:
+
+`plattform-kit.poc.singletonsd.com,purple-field-05048bf00*.azurestaticapps.net,localhost:4321`
+
+Do **not** use open `*.azurestaticapps.net` (any Azure customer’s Static Web App).
+
 `config.yml`:
 
 ```yaml
