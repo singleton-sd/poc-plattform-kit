@@ -107,7 +107,8 @@ async function main(argv) {
       }
       const spa = JSON.parse(fs.readFileSync(spaPath, 'utf8')).spa ?? {};
       const uris = Array.isArray(spa.redirectUris) ? spa.redirectUris : [];
-      const next = action === 'add' ? addRedirectUri(uris, origin) : removeRedirectUri(uris, origin);
+      const next =
+        action === 'add' ? addRedirectUri(uris, origin) : removeRedirectUri(uris, origin);
       if (JSON.stringify(next) === JSON.stringify(uris)) {
         process.stdout.write('UNCHANGED\n');
       } else {
@@ -117,9 +118,7 @@ async function main(argv) {
     }
     default: {
       const _exhaustive = cmd;
-      throw new Error(
-        `usage: normalize|build|plan … (got ${_exhaustive ?? 'undefined'})`,
-      );
+      throw new Error(`usage: normalize|build|plan … (got ${_exhaustive ?? 'undefined'})`);
     }
   }
 }
