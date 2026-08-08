@@ -28,6 +28,12 @@ grep -Fq -- '-X PUT' "$CALLS_FILE"
 grep -Fq -- '{"status":"COMPLETE"}' "$CALLS_FILE"
 
 : > "$CALLS_FILE"
+HEAD_REF="feature/PLAT-123-fix-thing" \
+  "$ROOT/scripts/complete-clickup-on-merge.sh" >/dev/null
+grep -Fq -- '/task/PLAT-123?custom_task_ids=true&team_id=90161394355' \
+  "$CALLS_FILE"
+
+: > "$CALLS_FILE"
 HEAD_REF="docs/no-ticket" "$ROOT/scripts/complete-clickup-on-merge.sh" >/dev/null
 [[ ! -s "$CALLS_FILE" ]]
 

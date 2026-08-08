@@ -2,6 +2,7 @@
 set -euo pipefail
 
 CLICKUP_LIST_ID="${CLICKUP_LIST_ID:-901616287298}"
+CLICKUP_TEAM_ID="${CLICKUP_TEAM_ID:-90161394355}"
 CLICKUP_API_URL="${CLICKUP_API_URL:-https://api.clickup.com/api/v2}"
 HEAD_REF="${HEAD_REF:-${GITHUB_HEAD_REF:-}}"
 
@@ -10,8 +11,12 @@ if [[ -z "${CLICKUP_API_TOKEN:-}" ]]; then
   exit 1
 fi
 
-if [[ "$HEAD_REF" =~ ^(feature|hotfix)/([[:alnum:]]+)- ]]; then
+if [[ "$HEAD_REF" =~ ^(feature|hotfix)/([A-Z][A-Z0-9]*-[0-9]+)- ]]; then
   task_id="${BASH_REMATCH[2]}"
+  task_path="/task/$task_id?custom_task_ids=true&team_id=$CLICKUP_TEAM_ID"
+elif [[ "$HEAD_REF" =~ ^(feature|hotfix)/([[:alnum:]]+)- ]]; then
+  task_id="${BASH_REMATCH[2]}"
+  task_path="/task/$task_id"
 else
   echo "Branch '$HEAD_REF' does not contain a ClickUp task id; skipping"
   exit 0
@@ -26,7 +31,7 @@ request() {
   curl "${args[@]}" "$CLICKUP_API_URL$path"
 }
 
-task="$(request GET "/task/$task_id")"
+task="$(request GET "$task_path")"
 readarray -t metadata < <(python3 -c '
 import json, sys
 task = json.load(sys.stdin)
@@ -44,5 +49,5 @@ if [[ "${metadata[1],,}" == "complete" ]]; then
   exit 0
 fi
 
-request PUT "/task/$task_id" '{"status":"COMPLETE"}' >/dev/null
+request PUT "$task_path" '{"status":"COMPLETE"}' >/dev/null
 echo "Moved ClickUp task $task_id to COMPLETE"
