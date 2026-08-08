@@ -55,6 +55,7 @@ Azure Static Web Apps **Free** includes PR preview environments.
 - Action: `Azure/static-web-apps-deploy@v1`
 - App location: `apps/web/out` (Next.js static export; workflow builds first)
 - Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
+- API target baked into the build (`NEXT_PUBLIC_API_BASE_URL`, see `docs/sso.md`): repo Variable override, else this PR's ACA API preview if one exists, else prod API. PR comment states which target was used.
 
 ### BE — Container Apps per PR (Path B — locked)
 
