@@ -23,6 +23,7 @@ import type {
 import type {
   CreateTenantDto,
   TenantControllerFindAllParams,
+  TenantListResponseDto,
   TenantResponseDto,
   UpdateTenantDto,
 } from '.././models';
@@ -32,7 +33,7 @@ import { customFetch } from '../../custom-fetch';
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 export type tenantControllerFindAllResponse200 = {
-  data: TenantResponseDto[];
+  data: TenantListResponseDto;
   status: 200;
 };
 
@@ -457,10 +458,17 @@ export type tenantControllerUpdateResponse401 = {
   status: 401;
 };
 
+export type tenantControllerUpdateResponse403 = {
+  data: void;
+  status: 403;
+};
+
 export type tenantControllerUpdateResponseSuccess = tenantControllerUpdateResponse200 & {
   headers: Headers;
 };
-export type tenantControllerUpdateResponseError = tenantControllerUpdateResponse401 & {
+export type tenantControllerUpdateResponseError = (
+  tenantControllerUpdateResponse401 | tenantControllerUpdateResponse403
+) & {
   headers: Headers;
 };
 

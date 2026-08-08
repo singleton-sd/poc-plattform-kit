@@ -1,6 +1,6 @@
 {
   "name": "@poc-plattform-kit/api",
-  "version": "0.16.0",
+  "version": "0.20.0",
   "private": true,
   "files": [
     "dist"
@@ -26,6 +26,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.15",
     "@nestjs/swagger": "^7.4.2",
+    "@nestjs/throttler": "^6.5.0",
     "@poc-plattform-kit/db": "workspace:*",
     "@poc-plattform-kit/events": "workspace:*",
     "@poc-plattform-kit/pillar-permissions": "workspace:*",
@@ -33,6 +34,7 @@
     "@poc-plattform-kit/pillar-tenant": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "helmet": "^8.3.0",
     "jwks-rsa": "^3.1.0",
     "nestjs-pino": "^4.3.0",
     "passport": "^0.7.0",
