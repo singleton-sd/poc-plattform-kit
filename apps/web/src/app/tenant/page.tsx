@@ -39,7 +39,7 @@ export default function TenantSettingsPage() {
     );
   }
 
-  if (me?.role !== TENANT_ADMIN_ROLE) {
+  if (!me?.roles?.includes(TENANT_ADMIN_ROLE)) {
     return (
       <div className="min-h-screen text-fg">
         <AppShellHeader />

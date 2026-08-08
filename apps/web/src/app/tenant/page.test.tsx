@@ -35,7 +35,7 @@ describe('TenantSettingsPage', () => {
 
   it('restricts access when the user lacks the tenant-admin role', () => {
     mockUseMe.mockReturnValue({
-      data: { role: 'support-agent' },
+      data: { roles: ['support-agent'] },
       isLoading: false,
       isError: false,
     });
@@ -60,7 +60,7 @@ describe('TenantSettingsPage', () => {
 
   it('renders the settings shell for a tenant-admin', () => {
     mockUseMe.mockReturnValue({
-      data: { role: 'tenant-admin' },
+      data: { roles: ['tenant-admin'] },
       isLoading: false,
       isError: false,
     });
@@ -69,5 +69,17 @@ describe('TenantSettingsPage', () => {
 
     expect(screen.getByTestId('tenant-settings-page-shell')).toBeInTheDocument();
     expect(screen.getByTestId('tenant-settings-stub')).toBeInTheDocument();
+  });
+
+  it('renders the shell when tenant-admin is one of multiple roles', () => {
+    mockUseMe.mockReturnValue({
+      data: { roles: ['support-agent', 'tenant-admin'] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TenantSettingsPage />);
+
+    expect(screen.getByTestId('tenant-settings-page-shell')).toBeInTheDocument();
   });
 });
