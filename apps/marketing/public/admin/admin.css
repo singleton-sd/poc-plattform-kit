@@ -184,8 +184,7 @@ a {
 /* AppHeaderNavLink / AppHeaderSiteLink / SidebarNavLink */
 [class*='AppHeaderNavLink'],
 [class*='AppHeaderSiteLink'],
-[class*='SidebarNavLink'],
-[class*='BackCollection'] {
+[class*='SidebarNavLink'] {
   color: var(--pk-muted) !important;
   fill: var(--pk-muted) !important;
   background-color: transparent !important;
@@ -356,14 +355,57 @@ button[class*='green'] {
   border-color: var(--pk-border) !important;
 }
 
+/*
+ * Editor top bar (EditorToolbar.js): "← Writing in … / CHANGES SAVED".
+ * Decap hardcodes ToolbarContainer background #fff and Back* textLead —
+ * paint the whole strip dark so it matches product chrome.
+ */
 [class*='EditorToolbar'],
 [class*='ToolbarContainer'],
-[class*='ToolbarMain'],
-[class*='EditorToolbarButton'] {
-  background-color: var(--pk-surface) !important;
+[class*='ToolbarSectionMain'],
+[class*='ToolbarSectionMeta'],
+[class*='ToolbarSubSection'],
+[class*='ToolbarMain'] {
+  background: var(--pk-bg) !important;
+  background-color: var(--pk-bg) !important;
   color: var(--pk-fg) !important;
   border-color: var(--pk-border) !important;
-  fill: var(--pk-muted) !important;
+  box-shadow: none !important;
+}
+
+[class*='ToolbarSectionBackLink'],
+[class*='ToolbarSectionBack'] {
+  background: var(--pk-bg) !important;
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+[class*='ToolbarSectionBackLink']:hover,
+[class*='ToolbarSectionBackLink']:focus,
+[class*='ToolbarSectionBack']:hover,
+[class*='ToolbarSectionBack']:focus {
+  background: var(--pk-surface) !important;
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+}
+
+[class*='BackArrow'],
+[class*='BackCollection'] {
+  color: var(--pk-muted) !important;
+}
+
+[class*='BackStatus'],
+[class*='BackStatusUnchanged'] {
+  color: var(--pk-success) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+[class*='BackStatusChanged'] {
+  color: var(--pk-danger) !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 [class*='ToolbarButton'],
@@ -377,6 +419,17 @@ button[class*='green'] {
 [class*='EditorToolbarButton']:hover {
   color: var(--pk-accent) !important;
   fill: var(--pk-accent) !important;
+}
+
+/* Save / Publish stay accent CTAs inside the editor bar */
+[class*='ToolbarContainer'] [class*='SaveButton'],
+[class*='ToolbarContainer'] [class*='PublishButton'],
+[class*='EditorToolbar'] [class*='SaveButton'],
+[class*='EditorToolbar'] [class*='PublishButton'] {
+  background-color: var(--pk-accent) !important;
+  color: var(--pk-accent-on) !important;
+  fill: var(--pk-accent-on) !important;
+  border-color: var(--pk-accent) !important;
 }
 
 /* Field column max-width — stop full-bleed optional strings */

@@ -16,7 +16,9 @@
   /** colorsRaw (+ common leftovers) → product role */
   const HEX_TO_ROLE = {
     '#eff0f4': 'bg', // grayLight — page / inactive wash
+    '#f1f2f4': 'surface', // EditorToolbar back-link hover
     '#798291': 'muted', // gray
+    '#313d3e': 'fg', // textLead (BackArrow / BackCollection)
     '#3a69c7': 'accent', // blue → product accent
     '#e8f5fe': 'accentBg', // blueLight
     '#005614': 'success',
@@ -74,14 +76,18 @@
     return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
   }
 
-  function mapHex(hex, colors) {
-    const key = HEX_TO_ROLE[hex.toLowerCase()];
+  function mapHex(hex, colors, toolbarChrome) {
+    const lower = hex.toLowerCase();
+    if (toolbarChrome && (lower === '#fff' || lower === '#ffffff')) {
+      return colors.bg;
+    }
+    const key = HEX_TO_ROLE[lower];
     return key ? colors[key] || hex : null;
   }
 
-  function replaceValue(value, colors) {
+  function replaceValue(value, colors, toolbarChrome) {
     let next = value.replace(HEX, (match) => {
-      const mapped = mapHex(match, colors);
+      const mapped = mapHex(match, colors, toolbarChrome);
       return mapped || match;
     });
     next = next.replace(RGB_BLUE, (_match, alpha) => withAlpha(colors.accent, alpha));
@@ -106,13 +112,16 @@
       }
       if (!rule.style) continue;
 
+      const selector = rule.selectorText || '';
+      const toolbarChrome = /Toolbar|BackArrow|BackCollection|BackStatus/i.test(selector);
+
       for (let j = 0; j < rule.style.length; j += 1) {
         const prop = rule.style.item(j);
         const raw = rule.style.getPropertyValue(prop);
         if (!raw || (!raw.includes('#') && !raw.includes('rgb'))) continue;
-        const next = replaceValue(raw, colors);
+        const next = replaceValue(raw, colors, toolbarChrome);
         if (next !== raw) {
-          rule.style.setProperty(prop, next, rule.style.getPropertyPriority(prop));
+          rule.style.setProperty(prop, next, rule.style.getPropertyPriority(prop) || 'important');
         }
       }
     }
