@@ -457,10 +457,17 @@ export type tenantControllerUpdateResponse401 = {
   status: 401;
 };
 
+export type tenantControllerUpdateResponse403 = {
+  data: void;
+  status: 403;
+};
+
 export type tenantControllerUpdateResponseSuccess = tenantControllerUpdateResponse200 & {
   headers: Headers;
 };
-export type tenantControllerUpdateResponseError = tenantControllerUpdateResponse401 & {
+export type tenantControllerUpdateResponseError = (
+  tenantControllerUpdateResponse401 | tenantControllerUpdateResponse403
+) & {
   headers: Headers;
 };
 

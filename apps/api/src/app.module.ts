@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '@poc-plattform-kit/db';
-import { PermissionsModule } from '@poc-plattform-kit/pillar-permissions';
 import { TenantModule } from '@poc-plattform-kit/pillar-tenant';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
 import { buildThrottleConfig } from './http-hardening';
 import { MessagingModule } from './messaging/messaging.module';
+import { PermissionsAuthorizationModule } from './permissions/permissions-authorization.module';
 import { SingleSignOnModule } from './single-sign-on/single-sign-on.module';
 
 const usePrettyTransport =
@@ -43,9 +43,9 @@ const usePrettyTransport =
     PrismaModule,
     MessagingModule,
     HealthModule,
-    PermissionsModule,
     TenantModule,
     SingleSignOnModule,
+    PermissionsAuthorizationModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
