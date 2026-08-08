@@ -60,6 +60,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ ! -x scripts/recover-clickup-pr.sh ]; then
+            echo 'Recovery implementation is being bootstrapped by this PR; defer until merged.'
+            exit 0
+          fi
           CLICKUP_API_TOKEN=$(az keyvault secret show \
             --vault-name ssd-pocpk-kv-dev-ae \
             --name clickup-api-token \

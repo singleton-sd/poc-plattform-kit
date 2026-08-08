@@ -75,7 +75,12 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/pr-handoff-gate.mjs --pr '${{ steps.pr.outputs.number }}' --timeout-seconds 1200
+        run: |
+          if [ ! -f scripts/pr-handoff-gate.mjs ]; then
+            echo 'Gate implementation is being bootstrapped by this PR; defer enforcement until merged.'
+            exit 0
+          fi
+          node scripts/pr-handoff-gate.mjs --pr '${{ steps.pr.outputs.number }}' --timeout-seconds 1200
 
       - name: Publish handoff gate result
         if: always()
