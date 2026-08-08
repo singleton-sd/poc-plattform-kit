@@ -94,14 +94,16 @@ body {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   border-radius: 0.35rem;
-  background: var(--pk-accent);
-  color: var(--pk-accent-on);
+  background: var(--pk-accent) !important;
+  /* Must beat `.pk-preview a { color: accent }` — yellow-on-yellow hides the label. */
+  color: var(--pk-accent-on) !important;
   font-weight: 600;
   text-decoration: none;
 }
 
 .pk-preview__cta:hover {
   filter: brightness(1.05);
+  color: var(--pk-accent-on) !important;
 }
 
 /* ——— Legal / slug pages ([slug].astro) ——— */
