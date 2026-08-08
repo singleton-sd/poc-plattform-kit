@@ -4,6 +4,7 @@ import {
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiHeader,
+  ApiOAuth2,
   ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -17,6 +18,7 @@ import { TenantService } from './tenant.service';
 
 @ApiTags('tenants')
 @ApiBearerAuth()
+@ApiOAuth2([])
 @Controller('tenants')
 export class TenantController {
   constructor(private readonly tenants: TenantService) {}

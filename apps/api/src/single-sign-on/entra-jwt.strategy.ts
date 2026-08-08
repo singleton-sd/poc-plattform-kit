@@ -11,13 +11,20 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 /**
  * Entra v2 access tokens for an API with `requestedAccessTokenVersion: 2` use the
  * app's client id as `aud`. Older / App ID URI–style tokens use
- * `AZURE_AD_API_AUDIENCE` (e.g. `api://…`). Accept both so SPA Bearer and
- * URI-audience clients keep working.
+ * `AZURE_AD_API_AUDIENCE` (e.g. `api://…`). Also accept `api://{clientId}` for
+ * same-app Swagger Authorize tokens. Accept all so SPA Bearer and URI-audience
+ * clients keep working.
  */
 export function resolveEntraJwtAudiences(env: NodeJS.ProcessEnv = process.env): string[] {
   const configured = env.AZURE_AD_API_AUDIENCE?.trim();
   const clientId = env.AZURE_AD_CLIENT_ID?.trim();
-  return [...new Set([configured, clientId].filter((value): value is string => Boolean(value)))];
+  return [
+    ...new Set(
+      [configured, clientId, clientId ? `api://${clientId}` : undefined].filter(
+        (value): value is string => Boolean(value),
+      ),
+    ),
+  ];
 }
 
 export function buildEntraJwtStrategyOptions(env: NodeJS.ProcessEnv = process.env) {

@@ -4,7 +4,14 @@
  * listed here for defense-in-depth if a Nest route overlaps.
  */
 export function isPublicPath(path: string): boolean {
-  const normalized = path.split('?')[0] || '/';
+  const normalized = (path.split('?')[0] ?? '').trim();
+  // Empty/unknown path must not be treated as `/` (would open SessionOrJwtAuthGuard).
+  if (!normalized) {
+    return false;
+  }
+  if (normalized === '/') {
+    return true;
+  }
   if (normalized === '/health' || normalized.startsWith('/health/')) {
     return true;
   }
@@ -12,6 +19,10 @@ export function isPublicPath(path: string): boolean {
     return true;
   }
   if (normalized === '/docs' || normalized.startsWith('/docs/') || normalized === '/docs-json') {
+    return true;
+  }
+  // Swagger UI default when mounted at `/docs` (no trailing slash).
+  if (normalized === '/oauth2-redirect.html') {
     return true;
   }
   return false;
