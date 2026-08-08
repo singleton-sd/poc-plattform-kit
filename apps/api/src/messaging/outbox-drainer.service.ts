@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { ServiceBusMessage } from '@azure/service-bus';
 import type { PublishingPillarName } from '@poc-plattform-kit/events';
+import { randomUUID } from 'node:crypto';
 import { ServiceBusClientService } from './service-bus-client.service';
 
 export interface OutboxRow {
@@ -17,8 +18,15 @@ export interface OutboxRow {
 }
 
 export interface OutboxStore {
-  findUnpublished(limit: number): Promise<OutboxRow[]>;
-  markPublished(id: string, publishedAt: Date): Promise<boolean>;
+  claimUnpublished(
+    limit: number,
+    claimId: string,
+    claimedAt: Date,
+    staleBefore: Date,
+  ): Promise<OutboxRow[]>;
+  markPublished(id: string, claimId: string, publishedAt: Date): Promise<boolean>;
+  markFailed(id: string, claimId: string, failedAt: Date, reason: string): Promise<boolean>;
+  releaseClaim(id: string, claimId: string): Promise<void>;
 }
 
 export interface OutboxSource {
@@ -29,6 +37,7 @@ export interface OutboxSource {
 export const OUTBOX_SOURCES = Symbol('OUTBOX_SOURCES');
 const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_INTERVAL_MS = 5_000;
+const DEFAULT_LEASE_MS = 60_000;
 
 @Injectable()
 export class OutboxDrainerService implements OnModuleInit, OnModuleDestroy {
@@ -71,16 +80,35 @@ export class OutboxDrainerService implements OnModuleInit, OnModuleDestroy {
   private async drainSources(): Promise<{ published: number }> {
     let published = 0;
     const limit = this.positiveInteger(process.env.OUTBOX_DRAIN_BATCH_SIZE, DEFAULT_BATCH_SIZE);
+    const leaseMs = this.positiveInteger(process.env.OUTBOX_CLAIM_LEASE_MS, DEFAULT_LEASE_MS);
+    const claimedAt = new Date();
+    const staleBefore = new Date(claimedAt.getTime() - leaseMs);
 
     for (const { pillar, store } of this.sources) {
-      const rows = await store.findUnpublished(limit);
+      const claimId = randomUUID();
+      const rows = await store.claimUnpublished(limit, claimId, claimedAt, staleBefore);
       if (rows.length === 0) continue;
 
       const sender = this.serviceBus.getSender(pillar);
       try {
         for (const row of rows) {
-          await sender.sendMessages(this.toMessage(row, pillar));
-          if (await store.markPublished(row.id, new Date())) published += 1;
+          let message: ServiceBusMessage;
+          try {
+            message = this.toMessage(row, pillar);
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : 'Invalid outbox payload';
+            await store.markFailed(row.id, claimId, new Date(), reason.slice(0, 1000));
+            this.logger.error(`Quarantined malformed outbox event ${row.id}`);
+            continue;
+          }
+
+          try {
+            await sender.sendMessages(message);
+          } catch (error) {
+            await store.releaseClaim(row.id, claimId);
+            throw error;
+          }
+          if (await store.markPublished(row.id, claimId, new Date())) published += 1;
         }
       } finally {
         await sender.close();

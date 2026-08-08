@@ -11,8 +11,10 @@ describe('OutboxDrainerService', () => {
 
   function setup() {
     const store: jest.Mocked<OutboxStore> = {
-      findUnpublished: jest.fn().mockResolvedValue([row]),
+      claimUnpublished: jest.fn().mockResolvedValue([row]),
       markPublished: jest.fn().mockResolvedValue(true),
+      markFailed: jest.fn().mockResolvedValue(true),
+      releaseClaim: jest.fn().mockResolvedValue(undefined),
     };
     const sender = {
       sendMessages: jest.fn().mockResolvedValue(undefined),
@@ -46,7 +48,11 @@ describe('OutboxDrainerService', () => {
         pillar: 'tenant',
       },
     });
-    expect(store.markPublished).toHaveBeenCalledWith('outbox-1', expect.any(Date));
+    expect(store.markPublished).toHaveBeenCalledWith(
+      'outbox-1',
+      expect.any(String),
+      expect.any(Date),
+    );
     expect(sender.close).toHaveBeenCalledTimes(1);
   });
 
@@ -57,6 +63,7 @@ describe('OutboxDrainerService', () => {
     await expect(service.drainOnce()).rejects.toThrow('Service Bus unavailable');
 
     expect(store.markPublished).not.toHaveBeenCalled();
+    expect(store.releaseClaim).toHaveBeenCalledWith('outbox-1', expect.any(String));
     expect(sender.close).toHaveBeenCalledTimes(1);
   });
 
@@ -83,14 +90,14 @@ describe('OutboxDrainerService', () => {
 
     await expect(service.drainOnce()).resolves.toEqual({ published: 0 });
 
-    expect(store.findUnpublished).not.toHaveBeenCalled();
+    expect(store.claimUnpublished).not.toHaveBeenCalled();
     expect(serviceBus.getSender).not.toHaveBeenCalled();
   });
 
   it('coalesces overlapping drains into one run', async () => {
     const { service, store } = setup();
     let release: (() => void) | undefined;
-    store.findUnpublished.mockReturnValue(
+    store.claimUnpublished.mockReturnValue(
       new Promise((resolve) => {
         release = () => resolve([row]);
       }),
@@ -104,6 +111,25 @@ describe('OutboxDrainerService', () => {
       { published: 1 },
       { published: 1 },
     ]);
-    expect(store.findUnpublished).toHaveBeenCalledTimes(1);
+    expect(store.claimUnpublished).toHaveBeenCalledTimes(1);
+  });
+
+  it('quarantines malformed JSON and continues with later rows', async () => {
+    const { service, sender, store } = setup();
+    store.claimUnpublished.mockResolvedValue([
+      { ...row, id: 'bad', payload: '{not-json' },
+      { ...row, id: 'good' },
+    ]);
+
+    await expect(service.drainOnce()).resolves.toEqual({ published: 1 });
+
+    expect(store.markFailed).toHaveBeenCalledWith(
+      'bad',
+      expect.any(String),
+      expect.any(Date),
+      expect.any(String),
+    );
+    expect(sender.sendMessages).toHaveBeenCalledTimes(1);
+    expect(store.markPublished).toHaveBeenCalledWith('good', expect.any(String), expect.any(Date));
   });
 });
