@@ -9,6 +9,7 @@
 | `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
+| `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** (Free) via OIDC → Key Vault (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `workflow_dispatch` from `release.yml` when `apps/web/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | SWA **production** via OIDC → Key Vault |
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** | Marketing SWA **production** via OIDC → Key Vault (`apps/marketing/dist` after Astro build) |
@@ -29,7 +30,7 @@ Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge
 
 Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
 
-If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
+If OIDC Variables are missing, `preview-web.yml` / `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
 
 `deploy-api.yml` also needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (SWA production uses the KV deploy token only).
 
@@ -37,7 +38,7 @@ If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-ap
 
 GitHub may emit **ID-form** OIDC subjects such as `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` (and the matching `:ref:refs/heads/main` form). The Entra federated identity credential **subject must match that `sub` claim exactly**. Classic subjects (`repo:org/repo:pull_request`) can remain on the app registration for compatibility when tokens still use them.
 
-Both preview workflows use `azure/login@v2` with job `permissions.id-token: write` for OIDC.
+Web, marketing, and API preview workflows use `azure/login@v2` with job `permissions.id-token: write` for OIDC.
 
 ### Node version
 
@@ -51,10 +52,20 @@ Secrets live in **Key Vault** `ssd-pocpk-kv-dev-ae`. Non-secret config + KV refs
 
 Azure Static Web Apps **Free** includes PR preview environments.
 
+**Web app**
+
 - Workflow: `.github/workflows/preview-web.yml`
 - Action: `Azure/static-web-apps-deploy@v1`
 - App location: `apps/web/out` (Next.js static export; workflow builds first)
 - Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
+
+**Marketing**
+
+- Workflow: `.github/workflows/preview-marketing.yml`
+- Action: `Azure/static-web-apps-deploy@v1`
+- App location: `apps/marketing/dist` (Astro SSG; workflow builds + validates `staticwebapp.config.json` first)
+- Token: Key Vault secret `swa-marketing-deployment-token`
+- Close job on PR `closed` (same pattern as web)
 
 ### BE — Container Apps per PR (Path B — locked)
 
