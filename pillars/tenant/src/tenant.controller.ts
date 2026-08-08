@@ -72,8 +72,7 @@ export class TenantController {
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   @ApiForbiddenResponse({
-    description:
-      'Requires tenant-admin role and Permissions tuple user:<id>, tenant:update, tenant:<id>.',
+    description: 'Requires tenant-admin role and Permissions tuple user:<id>, update, tenant:<id>.',
   })
   update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
     return this.tenants.update(id, dto);

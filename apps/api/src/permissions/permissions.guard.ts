@@ -19,7 +19,7 @@ interface PermissionRequest {
  * API-host mapping for fine-grained authorization.
  *
  * The first protected pattern maps `PATCH /tenants/:id` to:
- * `user:<local user id>`, `tenant:update`, `tenant:<route id>`.
+ * `user:<local user id>`, `update`, `tenant:<route id>`.
  * Add mappings here rather than embedding authorization rules in pillars.
  */
 @Injectable()
@@ -30,6 +30,12 @@ export class PermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<PermissionRequest>();
     const permission = this.mapPermission(request);
     if (!permission) {
+      return true;
+    }
+
+    // Preserve the existing role + tenancy checks until an OpenFGA endpoint
+    // and store are configured; once configured, decisions fail closed.
+    if (!this.permissions.isConfigured()) {
       return true;
     }
 
@@ -55,7 +61,7 @@ export class PermissionsGuard implements CanActivate {
       request.params?.id
     ) {
       return {
-        action: 'tenant:update',
+        action: 'update',
         resource: `tenant:${request.params.id}`,
       };
     }

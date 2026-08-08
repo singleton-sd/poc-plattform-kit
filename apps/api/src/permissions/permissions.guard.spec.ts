@@ -6,6 +6,7 @@ import { PermissionsGuard } from './permissions.guard';
 describe('PermissionsGuard', () => {
   const permissions = {
     check: jest.fn(),
+    isConfigured: jest.fn(),
   } as unknown as PermissionsService;
   const guard = new PermissionsGuard(permissions);
 
@@ -38,6 +39,14 @@ describe('PermissionsGuard', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    (permissions.isConfigured as jest.Mock).mockReturnValue(true);
+  });
+
+  it('keeps existing routes usable until OpenFGA is configured', async () => {
+    (permissions.isConfigured as jest.Mock).mockReturnValue(false);
+
+    await expect(guard.canActivate(contextFor({ user }))).resolves.toBe(true);
+    expect(permissions.check).not.toHaveBeenCalled();
   });
 
   it('allows routes without a fine-grained permission mapping', async () => {
@@ -53,7 +62,7 @@ describe('PermissionsGuard', () => {
     await expect(guard.canActivate(contextFor({ user }))).resolves.toBe(true);
     expect(permissions.check).toHaveBeenCalledWith({
       subject: 'user:user-1',
-      action: 'tenant:update',
+      action: 'update',
       resource: 'tenant:tenant-1',
     });
   });

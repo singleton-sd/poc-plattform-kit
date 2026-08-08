@@ -210,7 +210,7 @@
             "description": "Missing or invalid session/JWT."
           },
           "403": {
-            "description": "Requires tenant-admin role and Permissions tuple user:<id>, tenant:update, tenant:<id>."
+            "description": "Requires tenant-admin role and Permissions tuple user:<id>, update, tenant:<id>."
           }
         },
         "tags": [
