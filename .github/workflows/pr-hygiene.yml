@@ -21,6 +21,7 @@ on:
       - CI Web
       - CI API
       - Preview Web (SWA)
+      - Preview Marketing (SWA)
       - Preview API (Container Apps)
     types: [completed]
   issue_comment:

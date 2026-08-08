@@ -9,6 +9,7 @@
 | `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
+| `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** (Free) via OIDC → Key Vault (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `workflow_dispatch` from `release.yml` when `apps/web/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | SWA **production** via OIDC → Key Vault |
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** | Marketing SWA **production** via OIDC → Key Vault (`apps/marketing/dist` after Astro build) |
@@ -29,7 +30,7 @@ Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge
 
 Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
 
-If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
+If OIDC Variables are missing, `preview-web.yml` / `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
 
 `deploy-api.yml` also needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (SWA production uses the KV deploy token only).
 
@@ -37,7 +38,7 @@ If OIDC Variables are missing, `preview-web.yml` / `deploy-web.yml` / `deploy-ap
 
 GitHub may emit **ID-form** OIDC subjects such as `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` (and the matching `:ref:refs/heads/main` form). The Entra federated identity credential **subject must match that `sub` claim exactly**. Classic subjects (`repo:org/repo:pull_request`) can remain on the app registration for compatibility when tokens still use them.
 
-Both preview workflows use `azure/login@v2` with job `permissions.id-token: write` for OIDC.
+Web, marketing, and API preview workflows use `azure/login@v2` with job `permissions.id-token: write` for OIDC.
 
 ### Node version
 
@@ -51,10 +52,28 @@ Secrets live in **Key Vault** `ssd-pocpk-kv-dev-ae`. Non-secret config + KV refs
 
 Azure Static Web Apps **Free** includes PR preview environments.
 
+**Web app**
+
 - Workflow: `.github/workflows/preview-web.yml`
 - Action: `Azure/static-web-apps-deploy@v1`
 - App location: `apps/web/out` (Next.js static export; workflow builds first)
 - Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
+- After deploy: `scripts/entra-spa-preview-redirect.sh add` registers the preview origin as an Entra **SPA** redirect URI (MSAL). On PR `closed`, the same script removes it before closing the SWA environment. Requires Graph `Application.ReadWrite.OwnedBy` + ownership on the Entra app (see `docs/sso.md`); missing rights soft-fail.
+
+**Marketing**
+
+- Workflow: `.github/workflows/preview-marketing.yml`
+- Action: `Azure/static-web-apps-deploy@v1`
+- App location: `apps/marketing/dist` (Astro SSG; workflow builds + validates `staticwebapp.config.json` first)
+- Token: Key Vault secret `swa-marketing-deployment-token`
+- Close job on PR `closed` (same pattern as web)
+- SWA resource `ssd-pocpk-mkt-dev-ae` must have `stagingEnvironmentPolicy: Enabled` (web SWA already does). If deploy logs say “Staging environments are not allowed”, enable via ARM:
+
+```bash
+az rest --method patch \
+  --url "https://management.azure.com/subscriptions/<sub>/resourceGroups/rg-poc-plattform-kit/providers/Microsoft.Web/staticSites/ssd-pocpk-mkt-dev-ae?api-version=2022-03-01" \
+  --body '{"properties":{"stagingEnvironmentPolicy":"Enabled"}}'
+```
 
 ### BE — Container Apps per PR (Path B — locked)
 
@@ -185,3 +204,17 @@ Hand-fix leftovers: `infra/main.bicep`, `apps/api/src/main.ts`, `app.module.ts`,
 | --- | --- | --- |
 | Merging `main` into feature | `--theirs` | `--ours` |
 | Rebasing onto `main` | `--ours` | `--theirs` |
+
+## Complete ClickUp tickets after merge
+
+`.github/workflows/complete-clickup-on-merge.yml` runs when GitHub closes a
+merged pull request. It extracts the ClickUp task id from the required
+`feature/<task-id>-...` or `hotfix/<task-id>-...` branch name, verifies that the
+task belongs to the Platform Kit ops list, and moves it to **COMPLETE**. Closing
+a pull request without merging it, or merging a branch without a task id, does
+not update ClickUp.
+
+The workflow authenticates to Azure with the repository's OIDC variables and
+reads `clickup-api-token` from Key Vault `ssd-pocpk-kv-dev-ae`; the token must
+not be stored in GitHub Secrets. The OIDC service principal needs permission to
+read that Key Vault secret.

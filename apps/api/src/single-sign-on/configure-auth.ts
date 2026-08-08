@@ -9,7 +9,6 @@ export function configureSingleSignOnAuth(expressApp: Express): void {
     return;
   }
 
-  expressApp.set('trust proxy', true);
   expressApp.use('/api/auth', ExpressAuth(config));
 
   expressApp.use(async (req: Request, _res: Response, next: NextFunction) => {

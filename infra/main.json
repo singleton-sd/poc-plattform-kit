@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.45.15.27210",
-      "templateHash": "11808610735421786953"
+      "version": "0.46.1.21595",
+      "templateHash": "461668366153710702"
     }
   },
   "parameters": {
@@ -469,7 +469,7 @@
       },
       "properties": {
         "allowConfigFileUpdates": true,
-        "stagingEnvironmentPolicy": "Disabled"
+        "stagingEnvironmentPolicy": "Enabled"
       }
     },
     {
@@ -649,8 +649,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.45.15.27210",
-              "templateHash": "7015084776436157906"
+              "version": "0.46.1.21595",
+              "templateHash": "11357489719549352654"
             }
           },
           "parameters": {

@@ -53,7 +53,7 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 - [ ] Implementer: pick tickets in **READY FOR AI** → claim via `scripts/clickup.ps1 claim` → **IN PROGRESS** → PR → **PR hygiene** (CI + mergeable) → **READY FOR REVIEW**
 - [ ] Reviewer: pick tickets in **READY FOR REVIEW** → claim via REST → hygiene (mergeable + CI + Bugbot/human feedback) → **READY FOR HUMAN**
 - [ ] Assignment / Claim Token only when claiming work — not when browsing
-- [ ] Humans only: merge PR when **READY FOR HUMAN**, then set **COMPLETE**
+- [x] Merge automation: merged task branches set ClickUp to **COMPLETE** via OIDC → Key Vault (`clickup-api-token`) → ClickUp REST
 - [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`) from `.github/workflows/pr-hygiene.yml` — see `docs/pr-pipelines.md` / `AGENTS.md`
 
 ## 4. Azure
@@ -111,7 +111,7 @@ Copy the JSON config to onboard another domain later (see `docs/dns-route53.md`)
 | SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `pocpk-sql-si5fhs6dvxiha.database.windows.net` | Basic |
 | App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://api.plattform-kit.poc.singletonsd.com (default: `….azurewebsites.net`) | **B1** |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | https://app.plattform-kit.poc.singletonsd.com (default: `….azurestaticapps.net`) | Free |
-| Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | https://plattform-kit.poc.singletonsd.com | Free |
+| Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | https://plattform-kit.poc.singletonsd.com (PR previews need `stagingEnvironmentPolicy=Enabled`) | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | https://ssd-pocpk-appcs-dev-ae.azconfig.io | Free |
@@ -219,7 +219,7 @@ az role assignment create \
 
 ### GitHub Actions runtime (Node)
 
-Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`, `deploy-web`, `deploy-api`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
+Workflows pin **Node 24** via `actions/setup-node` (`ci-web`, `ci-api`, `preview-web`, `preview-marketing`, `deploy-web`, `deploy-marketing`, `deploy-api`). Prefer Node 24; do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` unless a third-party action forces an unsupported Node and you have no upgrade path.
 
 ## 5. PR pipelines & previews
 
@@ -230,14 +230,15 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
+| `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** via OIDC → KV (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
 | `deploy-api.yml` | same as ci-api, **`push` `main`** (+ `workflow_dispatch`) | Nest → App Service **B1** via OIDC (prebuilt `dist`; Oryx off) |
 | `deploy-marketing.yml` | `apps/marketing/**`, **`push` `main`** | Astro build → Marketing SWA production (`apps/marketing/dist`) via OIDC → KV |
 
 - **FE-only PRs** skip API CI; **API-only** skip web CI; **`packages/**`** runs both.
-- **FE preview:** SWA Free PR environments; token from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
-- **Production on merge:** `deploy-web.yml` / `deploy-api.yml` publish to the live SWA hostname and App Service URL (same OIDC skip behaviour).
+- **FE preview:** SWA Free PR environments for web (`preview-web.yml`) and marketing (`preview-marketing.yml`); tokens from Key Vault at runtime (OIDC). If OIDC Variables are unset, deploy **skips** (non-blocking).
+- **Production on merge:** `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` publish to the live SWA hostnames and App Service URL (same OIDC skip behaviour).
 - **API zip deploy:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` + `ENABLE_ORYX_BUILD=false` on the web app (Bicep). Do **not** change app settings in the same job as zip deploy (SCM restart aborts deploy). Staging is [`scripts/stage-api-deploy.sh`](./scripts/stage-api-deploy.sh) (absolute deploy dir + `node-linker=hoisted` + `prisma generate` into the zip; do **not** `rsync -aL`). Local: on Linux/WSL with Node+pnpm use `pnpm stage:api-deploy -- --kudu`; on Windows use `pnpm stage:api-deploy:docker -- --kudu` (bind mounts break pnpm rename). CI calls `stage-api-deploy.sh --kudu`. Then `az webapp deploy --type zip --async true --track-status false` (do **not** track Linux startup — that hangs on "Starting the site…" during crash-loops). [`scripts/verify-api-appservice.sh`](./scripts/verify-api-appservice.sh) polls `/health` and downloads App Service logs each interval, failing fast when recent container crash signatures appear. Do **not** zip the whole monorepo `node_modules` (~746MB → Kudu **504** on B1).
 - **BE preview (Path B locked):** Container Apps Consumption per PR (scale to zero). F1 stays prod/dev only. Shared F1 overwrite and S1 slots rejected/deprecated for per-PR need. OIDC Variables → KV ACR secrets — never GitHub secret tokens / `AZURE_CREDENTIALS`. Re-run `powershell -File ./infra/deploy-aca-preview.ps1` is idempotent.
 - Branch naming: `feature/<clickup-task-id>-<kebab-title>`. **Humans only** merge PRs.

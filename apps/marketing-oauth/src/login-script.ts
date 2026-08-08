@@ -5,6 +5,9 @@
 
 export type OauthResultMessage = 'success' | 'error';
 
+const AZURE_SWA_ROOT = 'azurestaticapps.net';
+const SWA_INSTANCE_SUFFIX = `*.${AZURE_SWA_ROOT}`;
+
 export function parseOrigins(raw: string | undefined): string[] {
   if (!raw?.trim()) {
     throw new Error('ORIGINS must be a comma-separated list of allowed hostnames');
@@ -13,6 +16,64 @@ export function parseOrigins(raw: string | undefined): string[] {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+}
+
+/**
+ * Allow exact hostnames, generic `*` globs, and marketing SWA instance prefixes
+ * (`purple-field-05048bf00*.azurestaticapps.net`) for default + PR preview hosts.
+ * Do not use open `*.azurestaticapps.net` (any Azure customer’s SWA).
+ */
+export function isAllowedOauthHostname(host: string, origins: readonly string[]): boolean {
+  for (const entry of origins) {
+    if (entry === host) {
+      return true;
+    }
+
+    if (entry.endsWith(SWA_INSTANCE_SUFFIX)) {
+      const swaName = entry.slice(0, -SWA_INSTANCE_SUFFIX.length);
+      if (!swaName || swaName.includes('*')) {
+        continue;
+      }
+      if (!host.endsWith(`.${AZURE_SWA_ROOT}`)) {
+        continue;
+      }
+      if (host.startsWith(`${swaName}.`) || host.startsWith(`${swaName}-`)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (entry.includes('*')) {
+      const regex = new RegExp(`^${entry.replace(/\./g, '\\.').replace(/\*/g, '[\\w_.-]+')}$`);
+      if (regex.test(host)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** Browser-side mirror of `isAllowedOauthHostname` (no TypeScript in the popup). */
+function buildContainsRuntime(): string {
+  return `function contains(arr, elem) {
+    for (var i = 0; i < arr.length; i++) {
+      var entry = arr[i];
+      if (entry === elem) return true;
+      var swaMarker = '*.azurestaticapps.net';
+      if (entry.length >= swaMarker.length && entry.slice(-swaMarker.length) === swaMarker) {
+        var swaName = entry.slice(0, -swaMarker.length);
+        if (!swaName || swaName.indexOf('*') >= 0) continue;
+        if (elem.slice(-'.azurestaticapps.net'.length) !== '.azurestaticapps.net') continue;
+        if (elem.indexOf(swaName + '.') === 0 || elem.indexOf(swaName + '-') === 0) return true;
+        continue;
+      }
+      if (entry.indexOf('*') >= 0) {
+        var regex = new RegExp('^' + entry.replace(/\\./g, '\\\\.').replace(/\\*/g, '[\\\\w_.-]+') + '$');
+        if (elem.match(regex) !== null) return true;
+      }
+    }
+    return false;
+  }`;
 }
 
 export function buildLoginScript(
@@ -29,17 +90,7 @@ export function buildLoginScript(
 <script>
 (function () {
   var origins = ${JSON.stringify(origins)};
-  function contains(arr, elem) {
-    for (var i = 0; i < arr.length; i++) {
-      if (arr[i].indexOf('*') >= 0) {
-        var regex = new RegExp('^' + arr[i].replace(/\\./g, '\\\\.').replace(/\\*/g, '[\\\\w_-]+') + '$');
-        if (elem.match(regex) !== null) return true;
-      } else if (arr[i] === elem) {
-        return true;
-      }
-    }
-    return false;
-  }
+  ${buildContainsRuntime()}
   function receiveMessage(e) {
     var host = e.origin.replace('https://', '').replace('http://', '');
     if (!contains(origins, host)) {

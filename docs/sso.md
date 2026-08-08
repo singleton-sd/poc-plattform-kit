@@ -17,11 +17,28 @@
 
 | Public (no AuthN) | Protected |
 | --- | --- |
-| `GET /health` (`@Public()`) | `GET /api/me` |
-| `/api/auth/*` (Auth.js) | `/tenants/**` (and other domain routes as they land) |
-| `/docs`, `/docs-json` (Swagger) | |
+| `GET /` (302 → `/docs`) | `GET /api/me` |
+| `GET /health` (`@Public()`) | `/tenants/**` (and other domain routes as they land) |
+| `/api/auth/*` (Auth.js) | |
+| `/docs`, `/docs-json`, `/docs/oauth2-redirect.html` (Swagger) | |
 
 Mark additional Nest handlers with `@Public()` when they must stay anonymous. Coarse Entra app roles use `@Roles('tenant-admin' \| 'support-agent')` (e.g. `POST /tenants`, `PATCH /tenants/:id`).
+
+## Swagger Authorize (Entra OAuth2)
+
+Swagger UI at `/docs` exposes an **oauth2** scheme (authorization code + PKCE) in addition to Bearer paste and `x-tenant-id`.
+
+| Piece | Value |
+| --- | --- |
+| Authorize / token | `https://login.microsoftonline.com/{AZURE_AD_TENANT_ID}/oauth2/v2.0/{authorize\|token}` |
+| Client id (prefilled) | `AZURE_AD_CLIENT_ID` |
+| Default API scope | `AZURE_AD_SWAGGER_SCOPE` / App Config `app:azureAd:swaggerScope`, else `{AZURE_AD_CLIENT_ID}/.default` (bare GUID — required for same-app Swagger; avoids AADSTS90009 / AADSTS500011). |
+| Redirect URI | Same-origin `{currentHost}/docs/oauth2-redirect.html` (Swagger UI derives this; optional override `SWAGGER_OAUTH2_REDIRECT_URL`). Do **not** default from prod `AUTH_URL` — that breaks ACA PR previews. |
+| Token URL | Same-origin relative `/docs/oauth2/token` (Nest proxy) |
+
+Register that redirect URI on the Entra app registration as a **Web** platform redirect (not SPA — SPA triggers Entra `/reprocess` loops with Swagger). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`. Each ACA PR host also needs its exact Web redirect (Entra has no wildcards). Prefer `{acaHost}/docs/oauth2-redirect.html`; also register `{acaHost}/oauth2-redirect.html` because Swagger UI’s default for path `/docs` (no trailing slash) omits the `/docs` segment.
+
+Token exchange uses Nest `POST /docs/oauth2/token` (server adds `AZURE_AD_CLIENT_SECRET`) so the browser never calls Entra’s token endpoint. Entra’s login navigation can still break Swagger’s stock `window.opener` handoff; the API serves a custom `/docs/oauth2-redirect.html` plus a one-shot BroadcastChannel bridge on `/docs`.
 
 ## Tenancy
 
@@ -80,7 +97,8 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 | Flow | Redirect URI |
 | --- | --- |
 | Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). SWA preview origins are **not** Entra redirect URIs for this flow. |
-| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. SWA also sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
+| Swagger UI OAuth2 (PKCE) | **Web** redirects: prod `…/docs/oauth2-redirect.html`, local `http://localhost:3001/docs/oauth2-redirect.html`, and each ACA PR preview host’s `…/docs/oauth2-redirect.html`. Do **not** use SPA platform for these URIs. |
+| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. `preview-web.yml` registers the **exact** PR preview origin (add after deploy, remove on PR close) via `scripts/entra-spa-preview-redirect.sh` using Graph + the OIDC SP. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. SWA also sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
 
 ### Build / GitHub Variables
 
@@ -100,4 +118,52 @@ Set matching repo **Variables**. Prefer the exposed delegated scope `api://api.p
 
 ## Human portal follow-ups
 
-Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure SPA redirect URIs include the API callback (`https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`) and that App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. When testing MSAL on a SWA PR preview, add that preview’s exact origin as a SPA redirect URI (see pattern above). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
+Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure redirect URIs include:
+
+- Auth.js callback (Web): `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`
+- Swagger OAuth2 (Web, not SPA): `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`
+
+Also ensure App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. SWA PR preview MSAL redirects are registered automatically by `preview-web.yml` (see below). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
+
+### OIDC SP Graph permission (preview redirect automation)
+
+GitHub Actions OIDC app `ssd-pocpk-gha-oidc-dev` must be able to PATCH the Entra SPA app’s `spa.redirectUris`:
+
+| Requirement | Notes |
+| --- | --- |
+| Microsoft Graph app role | `Application.ReadWrite.OwnedBy` (admin consented) |
+| Ownership | OIDC SP is an **owner** of Entra app `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` |
+| Soft-fail | Missing Graph rights logs a warning and does **not** fail the SWA deploy |
+
+Manual one-time setup (human / tenant admin) if previews skip registration:
+
+```bash
+# App role on the OIDC app registration + admin consent, then:
+az ad app owner add \
+  --id <entra-spa-app-id> \
+  --owner-object-id <oidc-sp-object-id>
+```
+
+## HTTP hardening
+
+The Nest API applies Helmet's default response headers on App Service and ACA.
+Content Security Policy is intentionally disabled in the API middleware because
+Swagger UI currently needs inline assets; the remaining Helmet protections apply
+to `/health`, `/api/auth/*`, Swagger, and protected controllers.
+
+Nest controllers also share a global in-memory rate limit of **100 requests per
+60 seconds per client IP**. Express trusts the single App Service/ACA proxy hop
+when resolving that IP. Override it with positive integers in
+`API_THROTTLE_LIMIT` and `API_THROTTLE_TTL_MS` (App Configuration keys
+`app:throttle:limit` and `app:throttle:ttlMs`). Auth.js callbacks are mounted as
+Express middleware and are therefore covered by Helmet but not the Nest
+controller throttle. This baseline is per process; use an external store or edge
+rate limiter before scaling to quotas that must be consistent across replicas.
+
+To check the `429 Too Many Requests` response locally, temporarily set
+`API_THROTTLE_LIMIT=2`, restart `pnpm dev:api`, then make three requests within a
+minute:
+
+```bash
+for request in 1 2 3; do curl -i http://localhost:3001/health; done
+```

@@ -1,8 +1,7 @@
 import type { UISchemaElement } from '@jsonforms/core';
 
 export const createTenantUiSchema: UISchemaElement = {
-  type: 'Group',
-  label: 'Create',
+  type: 'VerticalLayout',
   elements: [
     { type: 'Control', scope: '#/properties/name' },
     { type: 'Control', scope: '#/properties/slug' },
@@ -10,7 +9,6 @@ export const createTenantUiSchema: UISchemaElement = {
 };
 
 export const updateTenantUiSchema: UISchemaElement = {
-  type: 'Group',
-  label: 'Update',
+  type: 'VerticalLayout',
   elements: [{ type: 'Control', scope: '#/properties/name' }],
 };

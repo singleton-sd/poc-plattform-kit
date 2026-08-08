@@ -4,12 +4,14 @@ import {
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiHeader,
+  ApiOAuth2,
   ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
+import { TenantListResponseDto } from './dto/tenant-list-response.dto';
 import { TenantResponseDto } from './dto/tenant-response.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { Roles } from './roles.decorator';
@@ -17,6 +19,7 @@ import { TenantService } from './tenant.service';
 
 @ApiTags('tenants')
 @ApiBearerAuth()
+@ApiOAuth2([])
 @Controller('tenants')
 export class TenantController {
   constructor(private readonly tenants: TenantService) {}
@@ -24,9 +27,8 @@ export class TenantController {
   @Get()
   @Roles('support-agent')
   @ApiOkResponse({
-    type: TenantResponseDto,
-    isArray: true,
-    description: 'Tenants matching the optional name or slug search.',
+    type: TenantListResponseDto,
+    description: 'A page of tenants matching the optional name or slug search.',
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   @ApiForbiddenResponse({ description: 'Requires the support-agent role.' })
@@ -68,9 +70,12 @@ export class TenantController {
   })
   @ApiOkResponse({
     type: TenantResponseDto,
-    description: 'Tenant updated (requires matching tenancy context).',
+    description: 'Tenant updated after AuthN, tenancy, role, and Permissions AuthZ checks.',
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
+  @ApiForbiddenResponse({
+    description: 'Requires tenant-admin role and Permissions tuple user:<id>, update, tenant:<id>.',
+  })
   update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
     return this.tenants.update(id, dto);
   }

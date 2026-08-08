@@ -3,18 +3,31 @@
 import { JsonForms } from '@jsonforms/react';
 import { tokenCells, tokenRenderers } from '@poc-plattform-kit/forms';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { createTenantJsonSchema, createTenantSchema, type CreateTenantInput } from './schemas';
+import { AlertIcon } from '@/components/icons';
+import {
+  createTenantJsonSchema,
+  createTenantSchema,
+  toCreateTenantPayload,
+  type CreateTenantInput,
+} from './schemas';
 import { createTenantUiSchema } from './uischema';
+
+export const CREATE_TENANT_FORM_ID = 'tenant-create-form';
 
 type CreateTenantFormProps = {
   pending?: boolean;
-  error?: boolean;
+  errorMessage?: string | null;
   onSubmit: (data: CreateTenantInput) => void;
 };
 
+/**
+ * Create Tenant fields, hosted inside TenantCreateDrawer which owns the
+ * footer's submit/cancel buttons via the HTML `form` attribute — this stays
+ * a real <form> so Enter-to-submit keeps working for keyboard users.
+ */
 export function CreateTenantForm({
   pending = false,
-  error = false,
+  errorMessage = null,
   onSubmit,
 }: CreateTenantFormProps) {
   const [data, setData] = useState<Record<string, unknown>>({ name: '', slug: '' });
@@ -24,7 +37,7 @@ export function CreateTenantForm({
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const parsed = createTenantSchema.safeParse(dataRef.current);
+    const parsed = createTenantSchema.safeParse(toCreateTenantPayload(dataRef.current));
     if (!parsed.success) {
       setClientError(parsed.error.issues[0]?.message ?? 'Invalid form');
       return;
@@ -34,13 +47,19 @@ export function CreateTenantForm({
   }
 
   return (
-    <form className="flex flex-col gap-3" onSubmit={handleSubmit} data-testid="tenant-create-form">
+    <form
+      id={CREATE_TENANT_FORM_ID}
+      className="flex flex-col gap-3"
+      onSubmit={handleSubmit}
+      data-testid="tenant-create-form"
+    >
       <JsonForms
         schema={schema}
         uischema={createTenantUiSchema}
         data={data}
         renderers={tokenRenderers}
         cells={tokenCells}
+        readonly={pending}
         validationMode="ValidateAndHide"
         onChange={({ data: next }) => {
           const record = { ...dataRef.current, ...(next as Record<string, unknown>) };
@@ -48,22 +67,24 @@ export function CreateTenantForm({
           setData(record);
         }}
       />
-      <button
-        type="submit"
-        className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
-        disabled={pending}
-        data-testid="tenant-create"
-      >
-        {pending ? 'Creating…' : 'Create tenant'}
-      </button>
       {clientError ? (
-        <p className="text-sm text-fg" data-testid="tenant-create-client-error">
+        <p
+          className="flex items-center gap-2 text-sm text-fg"
+          data-testid="tenant-create-client-error"
+          role="alert"
+        >
+          <AlertIcon className="h-4 w-4 shrink-0" />
           {clientError}
         </p>
       ) : null}
-      {error ? (
-        <p className="text-sm text-fg" data-testid="tenant-create-error">
-          Create failed.
+      {errorMessage ? (
+        <p
+          className="flex items-center gap-2 text-sm text-fg"
+          data-testid="tenant-create-error"
+          role="alert"
+        >
+          <AlertIcon className="h-4 w-4 shrink-0" />
+          {errorMessage}
         </p>
       ) : null}
     </form>

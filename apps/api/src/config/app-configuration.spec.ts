@@ -26,9 +26,15 @@ describe('loadAppConfiguration', () => {
     const listSettings = jest.fn().mockReturnValue(
       settings(
         setting('app:cors:origins', 'https://app.example.com'),
+        setting('app:throttle:limit', '25'),
+        setting('app:throttle:ttlMs', '30000'),
         setting('app:azureAd:clientId', 'entra-client-id'),
         setting('app:azureAd:tenantId', 'entra-tenant-id'),
         setting('app:azureAd:apiAudience', 'api://platform-kit'),
+        setting('app:openfga:apiUrl', 'https://openfga.example.test'),
+        setting('app:openfga:storeId', 'store-1'),
+        setting('app:openfga:authorizationModelId', 'model-1'),
+        setting('app:azureAd:swaggerScope', 'entra-client-id/.default'),
         setting(
           'secret:database-url',
           JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/database-url' }),
@@ -65,9 +71,15 @@ describe('loadAppConfiguration', () => {
     await loadAppConfiguration({ listSettings, getSecret });
 
     expect(process.env.CORS_ORIGINS).toBe('https://app.example.com');
+    expect(process.env.API_THROTTLE_LIMIT).toBe('25');
+    expect(process.env.API_THROTTLE_TTL_MS).toBe('30000');
     expect(process.env.AZURE_AD_CLIENT_ID).toBe('entra-client-id');
     expect(process.env.AZURE_AD_TENANT_ID).toBe('entra-tenant-id');
     expect(process.env.AZURE_AD_API_AUDIENCE).toBe('api://platform-kit');
+    expect(process.env.OPENFGA_API_URL).toBe('https://openfga.example.test');
+    expect(process.env.OPENFGA_STORE_ID).toBe('store-1');
+    expect(process.env.OPENFGA_AUTHORIZATION_MODEL_ID).toBe('model-1');
+    expect(process.env.AZURE_AD_SWAGGER_SCOPE).toBe('entra-client-id/.default');
     expect(process.env.AUTH_SECRET).toBe('auth-js-secret');
     expect(process.env.AZURE_AD_CLIENT_SECRET).toBe('entra-client-secret');
     expect(process.env.DATABASE_URL).toBe('sqlserver://secret');
