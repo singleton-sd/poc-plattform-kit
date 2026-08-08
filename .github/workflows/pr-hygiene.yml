@@ -239,23 +239,25 @@ jobs:
       - name: Label actionable feedback
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          REVIEW_BODY: ${{ github.event.review.body }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
             PR="${{ github.event.issue.number }}"
             AUTHOR="${{ github.event.comment.user.login }}"
             ASSOCIATION="${{ github.event.comment.author_association }}"
-            BODY="${{ github.event.comment.body }}"
+            BODY="$COMMENT_BODY"
           elif [ "${{ github.event_name }}" = "pull_request_review" ]; then
             PR="${{ github.event.pull_request.number }}"
             AUTHOR="${{ github.event.review.user.login }}"
             ASSOCIATION="${{ github.event.review.author_association }}"
-            BODY="${{ github.event.review.body }}"
+            BODY="$REVIEW_BODY"
           else
             PR="${{ github.event.pull_request.number }}"
             AUTHOR="${{ github.event.comment.user.login }}"
             ASSOCIATION="${{ github.event.comment.author_association }}"
-            BODY="${{ github.event.comment.body }}"
+            BODY="$COMMENT_BODY"
           fi
 
           if [[ "${BODY,,}" == *"couldn't run - usage limit reached"* ]]; then
