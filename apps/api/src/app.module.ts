@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '@poc-plattform-kit/db';
 import { PermissionsModule } from '@poc-plattform-kit/pillar-permissions';
 import { TenantModule } from '@poc-plattform-kit/pillar-tenant';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
+import { buildThrottleConfig } from './http-hardening';
 import { MessagingModule } from './messaging/messaging.module';
 import { SingleSignOnModule } from './single-sign-on/single-sign-on.module';
 
@@ -14,6 +17,7 @@ const usePrettyTransport =
 // Audit, Reporting, Permissions) register here as their foundation tickets land.
 @Module({
   imports: [
+    ThrottlerModule.forRoot([buildThrottleConfig()]),
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',
@@ -43,5 +47,6 @@ const usePrettyTransport =
     TenantModule,
     SingleSignOnModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

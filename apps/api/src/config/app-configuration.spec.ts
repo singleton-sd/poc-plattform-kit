@@ -26,6 +26,8 @@ describe('loadAppConfiguration', () => {
     const listSettings = jest.fn().mockReturnValue(
       settings(
         setting('app:cors:origins', 'https://app.example.com'),
+        setting('app:throttle:limit', '25'),
+        setting('app:throttle:ttlMs', '30000'),
         setting('app:azureAd:clientId', 'entra-client-id'),
         setting('app:azureAd:tenantId', 'entra-tenant-id'),
         setting('app:azureAd:apiAudience', 'api://platform-kit'),
@@ -66,6 +68,8 @@ describe('loadAppConfiguration', () => {
     await loadAppConfiguration({ listSettings, getSecret });
 
     expect(process.env.CORS_ORIGINS).toBe('https://app.example.com');
+    expect(process.env.API_THROTTLE_LIMIT).toBe('25');
+    expect(process.env.API_THROTTLE_TTL_MS).toBe('30000');
     expect(process.env.AZURE_AD_CLIENT_ID).toBe('entra-client-id');
     expect(process.env.AZURE_AD_TENANT_ID).toBe('entra-tenant-id');
     expect(process.env.AZURE_AD_API_AUDIENCE).toBe('api://platform-kit');
