@@ -64,7 +64,7 @@ describe('fetchMe', () => {
       id: '1',
       email: 'agent@example.com',
       name: 'Agent',
-      role: 'support-agent',
+      roles: ['support-agent'],
     };
     const fetchMock = mockFetch({
       ok: true,
@@ -115,7 +115,7 @@ describe('fetchMe', () => {
         id: '1',
         email: 'a@b.co',
         name: null,
-        role: null,
+        roles: [],
       }),
     });
 

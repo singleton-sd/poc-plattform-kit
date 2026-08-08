@@ -249,7 +249,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Authenticated user profile"
+            "description": "Authenticated user profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized"
@@ -486,6 +493,41 @@
             "additionalProperties": true
           }
         }
+      },
+      "MeResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "oid-or-local-user-id"
+          },
+          "email": {
+            "type": "string",
+            "example": "agent@example.com"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Agent"
+          },
+          "roles": {
+            "example": [
+              "support-agent",
+              "tenant-admin"
+            ],
+            "description": "Coarse Entra app roles from the access token / session.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "roles"
+        ]
       },
       "CheckPermissionDto": {
         "type": "object",
