@@ -288,7 +288,6 @@ textarea::placeholder {
 
 [class*='CollectionTopNewButton'],
 [class*='AppHeaderQuickNewButton'],
-[class*='ActionButton'],
 [class*='AddButton'],
 [class*='SaveButton'],
 [class*='PublishButton'],
@@ -300,9 +299,19 @@ button[class*='green'] {
   fill: var(--pk-accent-on) !important;
 }
 
+[class*='CollectionTopNewButton'] *,
+[class*='AppHeaderQuickNewButton'] *,
+[class*='AddButton'] *,
+[class*='SaveButton'] *,
+[class*='PublishButton'] *,
+button[class*='teal'] *,
+button[class*='green'] * {
+  color: var(--pk-accent-on) !important;
+  fill: var(--pk-accent-on) !important;
+}
+
 [class*='CollectionTopNewButton']:hover,
 [class*='AppHeaderQuickNewButton']:hover,
-[class*='ActionButton']:hover,
 [class*='AddButton']:hover,
 [class*='SaveButton']:hover,
 [class*='PublishButton']:hover {
@@ -511,20 +520,144 @@ label[class*='FieldLabel'] {
   border-radius: 0.35rem !important;
 }
 
-/* Workflow columns */
-[class*='WorkflowColumn'],
-[class*='columnHeader'] {
+/* ——— Editorial Workflow ——— */
+
+[class*='WorkflowContainer'],
+[class*='WorkflowListContainer'] {
+  background-color: transparent !important;
+  color: var(--pk-fg) !important;
+}
+
+/* WorkflowTop uses components.cardTop (white) */
+[class*='WorkflowTop'],
+[class*='WorkflowTopRow'] {
   background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+  box-shadow: none !important;
+}
+
+[class*='WorkflowTopHeading'] {
+  color: var(--pk-fg) !important;
+}
+
+[class*='WorkflowTopDescription'] {
+  color: var(--pk-muted) !important;
+}
+
+/* Keep Decap status chip colors on ColumnHeader; fix unreadable counts */
+[class*='ColumnCount'] {
+  color: var(--pk-muted) !important;
+}
+
+/* Column divider (::before) was light border on dark — use raised surface */
+[class*='WorkflowListContainer'] [class*='column']:before,
+[class*='WorkflowListContainer'] > * > * > *:before {
+  background-color: var(--pk-border) !important;
+}
+
+[class*='WorkflowCard'],
+[class*='WorkflowCardContainer'] {
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+  box-shadow: none !important;
+}
+
+/* ——— Media library modal ——— */
+
+.ReactModal__Content,
+.ReactModal__Content--after-open,
+[class*='StyledModal'],
+[class*='MediaLibrary'] [class*='Modal'],
+div[class*='Modal'][class*='Styled'],
+[class*='LibraryTop'],
+[class*='HeaderContainer'],
+[class*='RowContainer'] {
+  background-color: var(--pk-bg) !important;
   color: var(--pk-fg) !important;
   border-color: var(--pk-border) !important;
 }
 
-/* Media library */
-[class*='MediaLibrary'] [class*='Card'],
-[class*='MediaLibraryCard'] {
+.ReactModal__Overlay,
+.ReactModal__Overlay--after-open {
+  background-color: color-mix(in srgb, var(--pk-bg) 72%, transparent) !important;
+}
+
+[class*='LibraryTitle'] {
+  color: var(--pk-fg) !important;
+}
+
+/* Close control — not a white circle */
+[class*='CloseButton'] {
+  background-color: var(--pk-surface-raised) !important;
+  color: var(--pk-fg) !important;
+  fill: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+/* Copy / Download / Upload — secondary chrome, not yellow with light text.
+   (ActionButton was previously force-painted accent and became unreadable.) */
+[class*='ActionButton'],
+[class*='UploadButton'],
+[class*='DownloadButton'],
+[class*='CopyToClipBoardButton'] {
+  background-color: var(--pk-surface-raised) !important;
+  color: var(--pk-fg) !important;
+  fill: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+[class*='ActionButton'] *,
+[class*='UploadButton'] *,
+[class*='DownloadButton'] * {
+  color: var(--pk-fg) !important;
+  fill: var(--pk-fg) !important;
+}
+
+[class*='ActionButton']:hover:not([disabled]),
+[class*='UploadButton']:hover:not([disabled]),
+[class*='DownloadButton']:hover:not([disabled]) {
+  border-color: var(--pk-accent) !important;
+  color: var(--pk-accent) !important;
+}
+
+[class*='ActionButton']:hover:not([disabled]) *,
+[class*='UploadButton']:hover:not([disabled]) *,
+[class*='DownloadButton']:hover:not([disabled]) * {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+[class*='DeleteButton'] {
+  background-color: var(--pk-danger-bg) !important;
+  color: var(--pk-danger) !important;
+  border-color: var(--pk-danger-bg) !important;
+}
+
+[class*='InsertButton'] {
+  background-color: var(--pk-accent) !important;
+  color: var(--pk-accent-on) !important;
+  border-color: var(--pk-accent) !important;
+}
+
+[class*='InsertButton'] * {
+  color: var(--pk-accent-on) !important;
+}
+
+[class*='MediaLibraryCard'],
+[class*='MediaLibrary'] [class*='Card']:not([class*='CardImage']) {
   background-color: var(--pk-surface) !important;
   border-color: var(--pk-border) !important;
   color: var(--pk-fg) !important;
+}
+
+[class*='CardText'] {
+  color: var(--pk-fg) !important;
+}
+
+[class*='EmptyMessage'] {
+  color: var(--pk-muted) !important;
 }
 
 /* Preview pane outer chrome */
