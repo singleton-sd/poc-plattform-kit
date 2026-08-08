@@ -204,3 +204,17 @@ Hand-fix leftovers: `infra/main.bicep`, `apps/api/src/main.ts`, `app.module.ts`,
 | --- | --- | --- |
 | Merging `main` into feature | `--theirs` | `--ours` |
 | Rebasing onto `main` | `--ours` | `--theirs` |
+
+## Complete ClickUp tickets after merge
+
+`.github/workflows/complete-clickup-on-merge.yml` runs when GitHub closes a
+merged pull request. It extracts the ClickUp task id from the required
+`feature/<task-id>-...` or `hotfix/<task-id>-...` branch name, verifies that the
+task belongs to the Platform Kit ops list, and moves it to **COMPLETE**. Closing
+a pull request without merging it, or merging a branch without a task id, does
+not update ClickUp.
+
+The workflow authenticates to Azure with the repository's OIDC variables and
+reads `clickup-api-token` from Key Vault `ssd-pocpk-kv-dev-ae`; the token must
+not be stored in GitHub Secrets. The OIDC service principal needs permission to
+read that Key Vault secret.
