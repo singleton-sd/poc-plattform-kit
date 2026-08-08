@@ -7,6 +7,6 @@
     "OAUTH_CLIENT_SECRET": "replace-with-github-oauth-app-client-secret",
     "REDIRECT_URL": "http://localhost:7071/callback",
     "SCOPES": "repo,user",
-    "ORIGINS": "plattform-kit.poc.singletonsd.com,localhost:4321,localhost:3000"
+    "ORIGINS": "plattform-kit.poc.singletonsd.com,purple-field-05048bf00*.azurestaticapps.net,localhost:4321,localhost:3000"
   }
 }
