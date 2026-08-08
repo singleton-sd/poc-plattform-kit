@@ -101,14 +101,16 @@ jobs:
         with:
           script: |
             const marker = '<!-- swa-preview-marketing -->';
+            const pr = context.issue.number;
+            const previewHost = `https://purple-field-05048bf00-${pr}.eastasia.7.azurestaticapps.net`;
             const body = [
               marker,
               '### Marketing preview (SWA Free)',
               '',
               'Static Web Apps created a **PR preview environment** for `apps/marketing`.',
               '',
-              '- Check the **Azure Static Web Apps** bot / deployment summary for the URL.',
-              '- Production SWA: `ssd-pocpk-mkt-dev-ae` (Free) — PR previews are included.',
+              `- Preview URL: ${previewHost}`,
+              '- Production SWA: `ssd-pocpk-mkt-dev-ae` (Free) — requires `stagingEnvironmentPolicy=Enabled`.',
               '- Deploy token loaded at runtime via **OIDC → Key Vault** (`swa-marketing-deployment-token`).',
               '',
               '_Production host: `https://plattform-kit.poc.singletonsd.com`._',
