@@ -1,0 +1,23 @@
+---
+import Button from '../ui/Button.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  title: string;
+  cta: { label: string; href: string };
+  class?: string;
+}
+
+const { title, cta, class: className = '' } = Astro.props;
+---
+
+<section class:list={['py-12 md:py-16', className]}>
+  <PageContainer>
+    <div
+      class="flex flex-col items-start justify-between gap-6 rounded-lg bg-bg-inverse px-6 py-8 text-fg-inverse md:flex-row md:items-center md:px-10 md:py-10"
+    >
+      <h2 class="m-0 max-w-xl font-heading text-h3 md:text-h2">{title}</h2>
+      <Button href={cta.href} size="lg">{cta.label}</Button>
+    </div>
+  </PageContainer>
+</section>
