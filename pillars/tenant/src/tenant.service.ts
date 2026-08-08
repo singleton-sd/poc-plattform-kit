@@ -35,6 +35,11 @@ export type TenantRecord = {
   updatedAt: Date;
 };
 
+export type TenantListPage = {
+  items: TenantRecord[];
+  nextCursor: string | null;
+};
+
 function isUniqueConflict(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -69,8 +74,10 @@ export class TenantService {
     private readonly tenancy: TenancyContext,
   ) {}
 
-  async findAll(query: ListTenantsQueryDto): Promise<TenantRecord[]> {
+  async findAll(query: ListTenantsQueryDto): Promise<TenantListPage> {
     const q = query.q?.trim();
+    const take = Math.min(query.limit ?? 25, 100);
+
     const tenants = await this.prisma.tenant.findMany({
       ...(q
         ? {
@@ -80,10 +87,16 @@ export class TenantService {
           }
         : {}),
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      take: Math.min(query.limit ?? 25, 100),
+      // Fetch one extra row to detect whether another page follows, without a separate count query.
+      take: take + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
 
-    return tenants.map(toTenantRecord);
+    const hasMore = tenants.length > take;
+    const page = hasMore ? tenants.slice(0, take) : tenants;
+    const nextCursor = hasMore ? page[page.length - 1].id : null;
+
+    return { items: page.map(toTenantRecord), nextCursor };
   }
 
   async create(dto: CreateTenantDto): Promise<TenantRecord> {

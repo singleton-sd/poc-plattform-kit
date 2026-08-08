@@ -55,10 +55,13 @@ describe('TenantService', () => {
   it('lists tenants with a capped, deterministic query', async () => {
     prisma.tenant.findMany.mockResolvedValue([tenantRow]);
 
-    await expect(service.findAll({})).resolves.toEqual([{ ...tenantRow, settings: null }]);
+    await expect(service.findAll({})).resolves.toEqual({
+      items: [{ ...tenantRow, settings: null }],
+      nextCursor: null,
+    });
     expect(prisma.tenant.findMany).toHaveBeenCalledWith({
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      take: 25,
+      take: 26,
     });
     expect(prisma.tenantAudit.create).not.toHaveBeenCalled();
     expect(prisma.tenantOutbox.create).not.toHaveBeenCalled();
@@ -74,7 +77,7 @@ describe('TenantService', () => {
         OR: [{ name: { contains: 'ACME' } }, { slug: { contains: 'ACME' } }],
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      take: 10,
+      take: 11,
     });
   });
 
@@ -85,7 +88,47 @@ describe('TenantService', () => {
 
     expect(prisma.tenant.findMany).toHaveBeenCalledWith({
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      take: 100,
+      take: 101,
+    });
+  });
+
+  it('returns a nextCursor and trims the extra probe row when another page follows', async () => {
+    const rows = Array.from({ length: 3 }, (_, i) => ({
+      ...tenantRow,
+      id: `t${i + 1}`,
+      name: `Tenant ${i + 1}`,
+    }));
+    prisma.tenant.findMany.mockResolvedValue(rows);
+
+    const result = await service.findAll({ limit: 2 });
+
+    expect(result.items).toHaveLength(2);
+    expect(result.items.map((t) => t.id)).toEqual(['t1', 't2']);
+    expect(result.nextCursor).toBe('t2');
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith({
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: 3,
+    });
+  });
+
+  it('returns a null nextCursor when the page is not full', async () => {
+    prisma.tenant.findMany.mockResolvedValue([tenantRow]);
+
+    const result = await service.findAll({ limit: 25 });
+
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it('passes an opaque cursor through to Prisma cursor-based pagination', async () => {
+    prisma.tenant.findMany.mockResolvedValue([]);
+
+    await service.findAll({ cursor: 't1', limit: 25 });
+
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith({
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: 26,
+      cursor: { id: 't1' },
+      skip: 1,
     });
   });
 

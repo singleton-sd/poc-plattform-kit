@@ -10,6 +10,7 @@ import {
 } from '@nestjs/swagger';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
+import { TenantListResponseDto } from './dto/tenant-list-response.dto';
 import { TenantResponseDto } from './dto/tenant-response.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { Roles } from './roles.decorator';
@@ -24,9 +25,8 @@ export class TenantController {
   @Get()
   @Roles('support-agent')
   @ApiOkResponse({
-    type: TenantResponseDto,
-    isArray: true,
-    description: 'Tenants matching the optional name or slug search.',
+    type: TenantListResponseDto,
+    description: 'A page of tenants matching the optional name or slug search.',
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   @ApiForbiddenResponse({ description: 'Requires the support-agent role.' })

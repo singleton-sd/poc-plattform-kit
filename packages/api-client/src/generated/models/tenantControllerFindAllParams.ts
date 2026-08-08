@@ -12,9 +12,14 @@ export type TenantControllerFindAllParams = {
    */
   q?: string;
   /**
-   * Maximum tenants returned.
+   * Maximum tenants returned per page.
    * @minimum 1
    * @maximum 100
    */
   limit?: number;
+  /**
+   * Opaque pagination cursor from a previous response’s nextCursor. Omit to fetch the first page.
+   * @maxLength 50
+   */
+  cursor?: string;
 };

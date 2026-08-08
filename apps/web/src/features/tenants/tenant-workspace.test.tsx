@@ -12,6 +12,7 @@ const tenant = {
 
 const findAllRefetch = jest.fn();
 const findAll = jest.fn();
+const findAllRaw = jest.fn();
 const createMutate = jest.fn();
 const updateMutate = jest.fn();
 let createOnSuccess: ((response: unknown) => void) | undefined;
@@ -26,6 +27,7 @@ jest.mock('@poc-plattform-kit/api-client', () => ({
     findAll(...args);
     return findAllState;
   },
+  tenantControllerFindAll: (...args: unknown[]) => findAllRaw(...args),
   useTenantControllerCreate: (options: {
     mutation?: { onSuccess?: (response: unknown) => void };
   }) => {
@@ -96,10 +98,11 @@ describe('TenantWorkspace', () => {
     jest.useFakeTimers();
     findAllRefetch.mockReset();
     findAll.mockReset();
+    findAllRaw.mockReset();
     createMutate.mockReset();
     updateMutate.mockReset();
     findAllState = {
-      data: { data: [tenant] },
+      data: { data: { items: [tenant], nextCursor: null } },
       isLoading: false,
       isError: false,
       refetch: findAllRefetch,
@@ -118,7 +121,7 @@ describe('TenantWorkspace', () => {
 
   it('shows the empty state with no tenants and no search', () => {
     findAllState = {
-      data: { data: [] },
+      data: { data: { items: [], nextCursor: null } },
       isLoading: false,
       isError: false,
       refetch: findAllRefetch,
@@ -191,6 +194,52 @@ describe('TenantWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
 
     expect(screen.getByRole('dialog', { name: 'Tenant details' })).toBeInTheDocument();
+  });
+
+  it('shows a Load more button only when a next page exists', () => {
+    renderWorkspace();
+    expect(screen.queryByTestId('tenant-load-more')).not.toBeInTheDocument();
+  });
+
+  it('loads and appends the next page on Load more', async () => {
+    findAllState = {
+      data: { data: { items: [tenant], nextCursor: 'cursor-1' } },
+      isLoading: false,
+      isError: false,
+      refetch: findAllRefetch,
+    };
+    const nextTenant = { ...tenant, id: 't-2', name: 'Globex', slug: 'globex' };
+    findAllRaw.mockResolvedValue({ data: { items: [nextTenant], nextCursor: null } });
+    renderWorkspace();
+
+    fireEvent.click(screen.getByTestId('tenant-load-more'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Globex').length).toBeGreaterThan(0);
+    });
+    expect(findAllRaw).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: 'cursor-1', limit: 100 }),
+    );
+    expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('tenant-load-more')).not.toBeInTheDocument();
+  });
+
+  it('shows an error and keeps the button when Load more fails', async () => {
+    findAllState = {
+      data: { data: { items: [tenant], nextCursor: 'cursor-1' } },
+      isLoading: false,
+      isError: false,
+      refetch: findAllRefetch,
+    };
+    findAllRaw.mockRejectedValue(new Error('network error'));
+    renderWorkspace();
+
+    fireEvent.click(screen.getByTestId('tenant-load-more'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tenant-load-more-error')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('tenant-load-more')).toBeInTheDocument();
   });
 
   it('on successful update: refreshes the list and toasts', async () => {

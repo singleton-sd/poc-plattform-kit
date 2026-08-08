@@ -1,6 +1,10 @@
 'use client';
 
-import { useTenantControllerFindAll, type TenantResponseDto } from '@poc-plattform-kit/api-client';
+import {
+  tenantControllerFindAll,
+  useTenantControllerFindAll,
+  type TenantResponseDto,
+} from '@poc-plattform-kit/api-client';
 import { keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { PlusIcon } from '@/components/icons';
@@ -24,6 +28,11 @@ export function TenantWorkspace() {
   const [createOpen, setCreateOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [items, setItems] = useState<TenantResponseDto[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -34,11 +43,45 @@ export function TenantWorkspace() {
     { query: { placeholderData: keepPreviousData } },
   );
 
-  const tenants = tenantListPayload(listQuery.data) ?? [];
+  // First page for the current search — sets the base of the accumulated,
+  // load-more-extended list below. `listQuery.data` is referentially stable
+  // between renders until a fetch actually resolves, so this only resets the
+  // accumulator on a real first-page load (initial, search change, refetch).
+  useEffect(() => {
+    const page = tenantListPayload(listQuery.data);
+    if (!page) return;
+    setItems(page.items);
+    setNextCursor(page.nextCursor);
+    setLoadMoreFailed(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the query result identity, not the derived page
+  }, [listQuery.data]);
+
   const isInitialLoading = listQuery.isLoading;
   const isError = listQuery.isError;
   const isSearching = debouncedSearch.length > 0;
-  const isEmpty = !isInitialLoading && !isError && tenants.length === 0;
+  const isEmpty = !isInitialLoading && !isError && items.length === 0;
+
+  async function handleLoadMore() {
+    if (!nextCursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setLoadMoreFailed(false);
+    try {
+      const response = await tenantControllerFindAll({
+        q: debouncedSearch || undefined,
+        limit: LIST_LIMIT,
+        cursor: nextCursor,
+      });
+      const page = tenantListPayload(response);
+      if (page) {
+        setItems((prev) => [...prev, ...page.items]);
+        setNextCursor(page.nextCursor);
+      }
+    } catch {
+      setLoadMoreFailed(true);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
 
   function handleCreated(tenant: TenantResponseDto) {
     setCreateOpen(false);
@@ -93,8 +136,27 @@ export function TenantWorkspace() {
         <TenantEmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
         <>
-          <TenantTable tenants={tenants} onSelect={setSelectedTenantId} />
-          <TenantMobileList tenants={tenants} onSelect={setSelectedTenantId} />
+          <TenantTable tenants={items} onSelect={setSelectedTenantId} />
+          <TenantMobileList tenants={items} onSelect={setSelectedTenantId} />
+
+          {nextCursor ? (
+            <div className="flex flex-col items-center gap-2 py-2">
+              <button
+                type="button"
+                onClick={() => void handleLoadMore()}
+                disabled={isLoadingMore}
+                className="rounded border border-fg-subtle px-4 py-2 text-sm text-fg disabled:opacity-50"
+                data-testid="tenant-load-more"
+              >
+                {isLoadingMore ? 'Loading…' : 'Load more'}
+              </button>
+              {loadMoreFailed ? (
+                <p className="text-sm text-fg" role="alert" data-testid="tenant-load-more-error">
+                  Couldn&apos;t load more tenants.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </>
       )}
 

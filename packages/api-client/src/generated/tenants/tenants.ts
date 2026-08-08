@@ -23,6 +23,7 @@ import type {
 import type {
   CreateTenantDto,
   TenantControllerFindAllParams,
+  TenantListResponseDto,
   TenantResponseDto,
   UpdateTenantDto,
 } from '.././models';
@@ -32,7 +33,7 @@ import { customFetch } from '../../custom-fetch';
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 export type tenantControllerFindAllResponse200 = {
-  data: TenantResponseDto[];
+  data: TenantListResponseDto;
   status: 200;
 };
 

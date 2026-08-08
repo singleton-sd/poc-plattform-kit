@@ -16,11 +16,23 @@ export function tenantPayload(response: unknown): TenantResponseDto | null {
   return tenant as TenantResponseDto;
 }
 
-/** Narrows an Orval `{ data, status, headers }` response envelope to a tenant list. */
-export function tenantListPayload(response: unknown): TenantResponseDto[] | null {
+export type TenantListPage = {
+  items: TenantResponseDto[];
+  nextCursor: string | null;
+};
+
+/** Narrows an Orval `{ data, status, headers }` response envelope to a tenant page. */
+export function tenantListPayload(response: unknown): TenantListPage | null {
   if (!response || typeof response !== 'object') return null;
   const data = (response as { data?: unknown }).data;
-  return Array.isArray(data) ? (data as TenantResponseDto[]) : null;
+  if (!data || typeof data !== 'object') return null;
+  const items = (data as { items?: unknown }).items;
+  if (!Array.isArray(items)) return null;
+  const nextCursor = (data as { nextCursor?: unknown }).nextCursor;
+  return {
+    items: items as TenantResponseDto[],
+    nextCursor: typeof nextCursor === 'string' ? nextCursor : null,
+  };
 }
 
 export function errorStatus(error: unknown): number | null {
