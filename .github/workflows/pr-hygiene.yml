@@ -27,7 +27,9 @@ on:
   issue_comment:
     types: [created]
   pull_request_review_comment:
-    types: [created]
+    types: [created, edited]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
 
 permissions:
   contents: read
@@ -38,7 +40,7 @@ permissions:
   checks: read
 
 concurrency:
-  group: pr-hygiene-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
+  group: pr-hygiene-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -112,9 +114,16 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          # New commits are treated as addressing prior review feedback.
-          # Fresh Bugbot/human comments after this push will re-apply the label.
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label has-feedback || true
+          read -r OWNER NAME <<<"${GITHUB_REPOSITORY//\// }"
+          UNRESOLVED=$(gh api graphql \
+            -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved isOutdated}}}}}' \
+            -F owner="$OWNER" -F name="$NAME" -F number="$PR" \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .isOutdated == false)] | length')
+          if [ "$UNRESOLVED" = 0 ]; then
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label has-feedback || true
+          else
+            echo "$UNRESOLVED unresolved review thread(s); keep has-feedback"
+          fi
 
   conflict-after-main:
     needs: ensure-labels
@@ -223,22 +232,37 @@ jobs:
   has-feedback:
     if: >
       (github.event_name == 'issue_comment' && github.event.issue.pull_request != null) ||
-      github.event_name == 'pull_request_review_comment'
+      github.event_name == 'pull_request_review_comment' ||
+      github.event_name == 'pull_request_review'
     runs-on: ubuntu-latest
     steps:
       - name: Label actionable feedback
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          REVIEW_BODY: ${{ github.event.review.body }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
             PR="${{ github.event.issue.number }}"
             AUTHOR="${{ github.event.comment.user.login }}"
             ASSOCIATION="${{ github.event.comment.author_association }}"
+            BODY="$COMMENT_BODY"
+          elif [ "${{ github.event_name }}" = "pull_request_review" ]; then
+            PR="${{ github.event.pull_request.number }}"
+            AUTHOR="${{ github.event.review.user.login }}"
+            ASSOCIATION="${{ github.event.review.author_association }}"
+            BODY="$REVIEW_BODY"
           else
             PR="${{ github.event.pull_request.number }}"
             AUTHOR="${{ github.event.comment.user.login }}"
             ASSOCIATION="${{ github.event.comment.author_association }}"
+            BODY="$COMMENT_BODY"
+          fi
+
+          if [[ "${BODY,,}" == *"couldn't run - usage limit reached"* ]]; then
+            echo "Skip: reviewer did not run because its usage limit was reached"
+            exit 0
           fi
 
           PR_AUTHOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.user.login')
