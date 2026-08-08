@@ -237,3 +237,37 @@ The workflow authenticates to Azure with the repository's OIDC variables and
 reads `clickup-api-token` from Key Vault `ssd-pocpk-kv-dev-ae`; the token must
 not be stored in GitHub Secrets. The OIDC service principal needs permission to
 read that Key Vault secret.
+
+## Enforced PR handoff gate
+
+PR-backed ClickUp handoffs must use the fail-closed command instead of a raw
+status transition:
+
+```bash
+./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>
+# Reviewer uses the same command with READY FOR HUMAN.
+```
+
+The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp. The gate
+pins the PR head SHA, requires all path-applicable CI and preview checks to
+appear and finish successfully, requires a mergeable/non-dirty PR, rejects the
+hygiene labels, rejects unresolved review threads, and waits for a 90-second
+reviewer quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
+Override polling only for diagnostics with `PR_GATE_QUIET_SECONDS`,
+`PR_GATE_TIMEOUT_SECONDS`, and `PR_GATE_POLL_SECONDS`.
+
+`.github/workflows/pr-handoff-gate.yml` applies the same policy in GitHub and
+publishes the commit status context `pr-handoff-gate`. Configure the `main`
+ruleset to require this context together with the API/web CI checks. The workflow
+restarts on pushes, CI/preview completion, reviews, and review/issue comments so
+late bot feedback moves the status back to pending/failure before stabilising.
+
+## Asynchronous ClickUp recovery
+
+`.github/workflows/clickup-pr-recovery.yml` is the server-side safety net. It
+uses GitHub OIDC to read `clickup-api-token` from Key Vault, never GitHub
+Secrets. After CI, hygiene, review, comment, or `main` events it checks open PRs.
+When a ticket is already in `READY FOR REVIEW` or `READY FOR HUMAN` and the PR
+has a conflict, failed check, or blocking hygiene label, it clears Claim Token,
+returns the ticket to `READY FOR AI`, and posts one blocker-oriented ClickUp
+comment. Active implementation and closed tickets are not changed.
