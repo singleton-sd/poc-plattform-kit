@@ -68,9 +68,13 @@ export class TenantController {
   })
   @ApiOkResponse({
     type: TenantResponseDto,
-    description: 'Tenant updated (requires matching tenancy context).',
+    description: 'Tenant updated after AuthN, tenancy, role, and Permissions AuthZ checks.',
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
+  @ApiForbiddenResponse({
+    description:
+      'Requires tenant-admin role and Permissions tuple user:<id>, tenant:update, tenant:<id>.',
+  })
   update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
     return this.tenants.update(id, dto);
   }
