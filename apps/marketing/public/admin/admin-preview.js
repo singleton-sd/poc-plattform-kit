@@ -1,4 +1,4 @@
-/* global CMS, createClass, h */
+/* global window, CMS, createClass, h */
 /**
  * Official Decap preview customization:
  * https://decapcms.org/docs/customization/
