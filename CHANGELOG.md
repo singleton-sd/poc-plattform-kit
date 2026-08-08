@@ -2,6 +2,9 @@
 
 ## 2026-08-08
 
+- **@poc-plattform-kit/marketing-oauth** `0.2.0` → `0.2.1` (patch)
+## 2026-08-08
+
 - **@poc-plattform-kit/marketing** `0.6.0` → `0.7.0` (minor)
 ## 2026-08-08
 
