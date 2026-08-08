@@ -7,22 +7,21 @@
     <meta name="description" content="Content admin for Platform Kit marketing pages" />
     <!-- Absolute path: at /admin (no trailing slash) a relative config.yml resolves to /config.yml. -->
     <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
+    <!-- Open Sauce Sans — matches Singleton SD --font-families-* tokens. -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/open-sauce-sans@5.3.0/index.css" />
     <link rel="stylesheet" href="/admin/admin.css" />
   </head>
   <body>
     <!--
       Decap is a static admin SPA. It talks to GitHub, not Astro at runtime.
       GitHub OAuth requires the Azure Function proxy before non-dev login works.
-      Until then, edit Markdown under apps/marketing/src/content/ via git/PRs.
       Script must load after body exists — Decap mounts onto document.body.
+      Pin exact Decap version: CSS overrides target Emotion class labels that
+      drift across releases (see docs/marketing-astro-decap.md).
     -->
-    <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
-    <script>
-      if (window.CMS) {
-        CMS.registerPreviewStyle('/admin/preview.css');
-      }
-    </script>
-    <!-- Remaps Emotion-injected Decap blues to --pk-* after CMS styles mount. -->
+    <script src="https://unpkg.com/decap-cms@3.15.1/dist/decap-cms.js"></script>
+    <script src="/admin/admin-preview.js"></script>
+    <!-- Unofficial Emotion hex remapper — Decap has no admin theme API. -->
     <script src="/admin/admin-theme.js"></script>
   </body>
 </html>

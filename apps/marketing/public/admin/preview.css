@@ -1,7 +1,9 @@
 /**
- * Preview pane — mirrors marketing token roles so editors see on-brand pages.
+ * Preview pane iframe styles — official CMS.registerPreviewStyle target.
+ * Mirrors marketing token roles + Pages preview template layout.
  */
 @import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/open-sauce-sans@5.3.0/index.css');
 
 html {
   --pk-bg: var(--colors-gray-900);
@@ -22,10 +24,95 @@ html {
 html,
 body {
   margin: 0;
-  padding: 1.5rem;
+  padding: 0;
   font-family: var(--font-families-body), ui-sans-serif, system-ui, sans-serif;
   background: var(--bg-default);
   color: var(--fg-default);
+}
+
+.pk-preview {
+  margin: 0 auto;
+  max-width: 36rem;
+  padding: 2rem 1.5rem 3rem;
+  text-align: center;
+}
+
+.pk-preview__brand {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(2.25rem, 7vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--pk-fg);
+}
+
+.pk-preview__dot {
+  color: var(--pk-accent);
+}
+
+.pk-preview__headline {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--pk-fg);
+}
+
+.pk-preview__description {
+  margin: 0 0 1rem;
+  color: var(--pk-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.pk-preview__body {
+  margin: 0 0 2rem;
+  color: var(--pk-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.pk-preview__body p {
+  margin: 0 0 0.75rem;
+}
+
+.pk-preview__body h1,
+.pk-preview__body h2,
+.pk-preview__body h3 {
+  color: var(--pk-fg);
+  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+.pk-preview__body a {
+  color: var(--pk-accent);
+}
+
+.pk-preview__cta {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.35rem;
+  background: var(--pk-accent);
+  color: var(--pk-accent-on);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pk-preview__cta:hover {
+  filter: brightness(1.05);
+}
+
+.pk-preview__updated {
+  margin: 1.5rem 0 0;
+  color: var(--pk-muted);
+  font-size: 0.8rem;
+}
+
+/* Fallback when preview template is not used */
+body > div:not(.pk-preview) {
+  padding: 1.5rem;
 }
 
 h1,
