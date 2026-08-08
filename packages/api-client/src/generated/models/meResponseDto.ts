@@ -4,13 +4,12 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
-import type { MeResponseDtoName } from './meResponseDtoName';
 
 export interface MeResponseDto {
   id: string;
   email: string;
   /** @nullable */
-  name: MeResponseDtoName;
+  name: string | null;
   /** Coarse Entra app roles from the access token / session. */
   roles: string[];
 }

@@ -506,7 +506,7 @@
             "example": "agent@example.com"
           },
           "name": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Agent"
           },

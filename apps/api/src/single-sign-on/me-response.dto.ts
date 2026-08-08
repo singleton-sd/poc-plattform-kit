@@ -8,7 +8,7 @@ export class MeResponseDto {
   @ApiProperty({ example: 'agent@example.com' })
   email!: string;
 
-  @ApiProperty({ nullable: true, example: 'Agent' })
+  @ApiProperty({ type: String, nullable: true, example: 'Agent' })
   name!: string | null;
 
   @ApiProperty({
