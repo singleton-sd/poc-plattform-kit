@@ -40,12 +40,16 @@ model Tenant {
 }
 
 model TenantOutbox {
-  id          String    @id @default(cuid())
-  eventType   String
-  payload     String
-  occurredAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@map("tenant_outbox")
 }
@@ -65,12 +69,16 @@ model TenantAudit {
 // --- SingleSignOn ---
 
 model SingleSignOnOutbox {
-  id          String    @id @default(cuid())
-  eventType   String
-  payload     String
-  occurredAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@map("single_sign_on_outbox")
 }
@@ -90,12 +98,16 @@ model SingleSignOnAudit {
 // --- Subscriptions ---
 
 model SubscriptionsOutbox {
-  id          String    @id @default(cuid())
-  eventType   String
-  payload     String
-  occurredAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@map("subscriptions_outbox")
 }
@@ -115,12 +127,16 @@ model SubscriptionsAudit {
 // --- Contact ---
 
 model ContactOutbox {
-  id          String    @id @default(cuid())
-  eventType   String
-  payload     String
-  occurredAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@map("contact_outbox")
 }
@@ -140,12 +156,16 @@ model ContactAudit {
 // --- Support ---
 
 model SupportOutbox {
-  id          String    @id @default(cuid())
-  eventType   String
-  payload     String
-  occurredAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@map("support_outbox")
 }
@@ -162,17 +182,55 @@ model SupportAudit {
   @@map("support_audit")
 }
 
+// --- Permissions ---
+
+model PermissionsOutbox {
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
+
+  @@map("permissions_outbox")
+}
+
+// --- Notifications ---
+
+model NotificationsOutbox {
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
+
+  @@map("notifications_outbox")
+}
+
 // --- Audit (pillar) ---
 // The Audit pillar consumes other pillars' events over Service Bus; its own
 // Outbox/Audit tables track that consumption, same shape as every pillar.
 
 model AuditOutbox {
-  id          String    @id @default(cuid())
-  eventType   String
-  payload     String
-  occurredAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@map("audit_outbox")
 }
@@ -192,12 +250,16 @@ model AuditAudit {
 // --- Reporting ---
 
 model ReportingOutbox {
-  id          String    @id @default(cuid())
-  eventType   String
-  payload     String
-  occurredAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  eventType     String
+  payload       String
+  occurredAt    DateTime  @default(now())
+  processedAt   DateTime?
+  claimedAt     DateTime?
+  claimId       String?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@map("reporting_outbox")
 }
