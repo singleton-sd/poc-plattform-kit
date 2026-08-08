@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOAuth2,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -13,6 +14,7 @@ import { PermissionsService } from './permissions.service';
 
 @ApiTags('permissions')
 @ApiBearerAuth()
+@ApiOAuth2([])
 @Controller('permissions')
 export class PermissionsController {
   constructor(private readonly permissions: PermissionsService) {}
