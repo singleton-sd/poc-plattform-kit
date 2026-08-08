@@ -46,6 +46,13 @@ export class TenantController {
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   create(@Body() dto: CreateTenantDto, @CurrentUser() user: AuthenticatedUser) {
+    // AuthenticatedUser.id falls back to the Entra oid until a local User row
+    // exists for this session (see mapEntraClaims) -- no call site anywhere
+    // in the app passes localUserId today, so this stores that oid, same as
+    // every other consumer of AuthenticatedUser.id (e.g. GET /api/me).
+    // "Persist SSO User locally on sign-in" (ClickUp 86d3zbugm) is the
+    // tracked ticket that starts populating real local User.id values; no
+    // membership-specific fix belongs here.
     return this.tenants.create(dto, user.id);
   }
 
