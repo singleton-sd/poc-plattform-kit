@@ -8,17 +8,21 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { AlertIcon } from '@/components/icons';
 import { Toast } from '@/components/toast';
 import { errorMessage, errorStatus, tenantPayload } from '@/features/tenants/api';
+import { UPDATE_TENANT_FORM_ID, UpdateTenantForm } from '@/features/tenants/update-tenant-form';
+import type { UpdateTenantInput } from '@/features/tenants/schemas';
 import { configureApiClient } from '@/lib/api-client';
-import { parseSettingsText, tenantSettingsFormSchema } from './schemas';
+import { parseSettingsText } from './schemas';
 
 /**
  * Tenant-admin settings: look up a tenant by id (dev/legacy `x-tenant-id`
- * escape — see docs/sso.md), then edit its name and settings.
+ * escape — see docs/sso.md), then edit its name and settings. Name is
+ * edited through the shared `UpdateTenantForm` (schema-driven-forms
+ * pipeline); settings is an arbitrary JSON object, handled as a hand-built
+ * escape hatch — see the comment on `parseSettingsText`.
  */
 export function TenantSettings() {
   const [tenantIdInput, setTenantIdInput] = useState('');
   const [lookupId, setLookupId] = useState('');
-  const [name, setName] = useState('');
   const [settingsText, setSettingsText] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -39,7 +43,6 @@ export function TenantSettings() {
 
   useEffect(() => {
     if (!tenant) return;
-    setName(tenant.name);
     setSettingsText(tenant.settings ? JSON.stringify(tenant.settings, null, 2) : '');
   }, [tenant]);
 
@@ -57,15 +60,8 @@ export function TenantSettings() {
     setLookupId(id);
   }
 
-  function handleSave(event: FormEvent) {
-    event.preventDefault();
+  function handleNameSubmit(data: UpdateTenantInput) {
     if (!tenant) return;
-
-    const parsedName = tenantSettingsFormSchema.shape.name.safeParse(name);
-    if (!parsedName.success) {
-      setClientError(parsedName.error.issues[0]?.message ?? 'Invalid name');
-      return;
-    }
 
     const settingsResult = parseSettingsText(settingsText);
     if ('error' in settingsResult) {
@@ -76,7 +72,7 @@ export function TenantSettings() {
     setClientError(null);
     updateMutation.mutate({
       id: tenant.id,
-      data: { name: parsedName.data, ...settingsResult },
+      data: { ...data, ...settingsResult },
     });
   }
 
@@ -129,12 +125,8 @@ export function TenantSettings() {
         </p>
       ) : null}
 
-      {tenant && !findQuery.isFetching ? (
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={handleSave}
-          data-testid="tenant-settings-form"
-        >
+      {tenant && !findQuery.isFetching && !findQuery.isError ? (
+        <div className="flex flex-col gap-5" data-testid="tenant-settings-form">
           <div className="flex flex-col gap-1 text-sm">
             <span className="text-fg-muted">Tenant ID</span>
             <span className="font-mono text-xs text-fg" data-testid="tenant-settings-id">
@@ -149,16 +141,16 @@ export function TenantSettings() {
             </span>
           </div>
 
-          <label className="flex flex-col gap-1 text-sm text-fg">
-            Name
-            <input
-              className="rounded border border-fg-subtle bg-bg px-3 py-2 text-fg"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              disabled={updateMutation.isPending}
-              data-testid="tenant-settings-name"
-            />
-          </label>
+          <UpdateTenantForm
+            initialName={tenant.name}
+            pending={updateMutation.isPending}
+            errorMessage={
+              updateMutation.isError
+                ? errorMessage(updateMutation.error, 'Could not save changes. Try again.')
+                : null
+            }
+            onSubmit={handleNameSubmit}
+          />
 
           <label className="flex flex-col gap-1 text-sm text-fg">
             Settings (JSON)
@@ -176,6 +168,7 @@ export function TenantSettings() {
 
           <button
             type="submit"
+            form={UPDATE_TENANT_FORM_ID}
             className="self-start rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
             disabled={updateMutation.isPending}
             data-testid="tenant-settings-save"
@@ -193,18 +186,7 @@ export function TenantSettings() {
               {clientError}
             </p>
           ) : null}
-
-          {updateMutation.isError ? (
-            <p
-              className="flex items-center gap-2 text-sm text-fg"
-              role="alert"
-              data-testid="tenant-settings-save-error"
-            >
-              <AlertIcon className="h-4 w-4 shrink-0" />
-              {errorMessage(updateMutation.error, 'Could not save changes. Try again.')}
-            </p>
-          ) : null}
-        </form>
+        </div>
       ) : null}
 
       <Toast

@@ -1,11 +1,3 @@
-import { z } from 'zod';
-
-export const tenantSettingsFormSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(120),
-});
-
-export type TenantSettingsFormInput = z.infer<typeof tenantSettingsFormSchema>;
-
 export type ParsedSettings = { settings?: Record<string, unknown> };
 export type ParseSettingsError = { error: string };
 
@@ -14,6 +6,12 @@ export type ParseSettingsError = { error: string };
  * `settings` from the payload (leaves the tenant's current settings
  * unchanged) — the API's `@IsObject()` validation on `UpdateTenantDto`
  * rejects `null`, so there is no supported way to clear settings here.
+ *
+ * `settings` is an arbitrary, tenant-defined JSON object rather than a fixed
+ * shape, so it doesn't fit the Zod → JSON Schema → UI Schema → JSON Forms
+ * pipeline (schema-driven-forms skill) and is handled as the documented
+ * hand-built escape hatch; the `name` field above it in `tenant-settings.tsx`
+ * goes through that pipeline via the shared `UpdateTenantForm`.
  */
 export function parseSettingsText(text: string): ParsedSettings | ParseSettingsError {
   const trimmed = text.trim();

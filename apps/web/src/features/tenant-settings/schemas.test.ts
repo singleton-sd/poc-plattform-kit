@@ -1,22 +1,4 @@
-import { parseSettingsText, tenantSettingsFormSchema } from './schemas';
-
-describe('tenantSettingsFormSchema', () => {
-  it('accepts a non-empty name', () => {
-    expect(tenantSettingsFormSchema.shape.name.parse('Acme')).toBe('Acme');
-  });
-
-  it('rejects a blank name', () => {
-    expect(() => tenantSettingsFormSchema.shape.name.parse('')).toThrow();
-  });
-
-  it('rejects a whitespace-only name', () => {
-    expect(() => tenantSettingsFormSchema.shape.name.parse('   ')).toThrow();
-  });
-
-  it('trims surrounding whitespace', () => {
-    expect(tenantSettingsFormSchema.shape.name.parse('  Acme  ')).toBe('Acme');
-  });
-});
+import { parseSettingsText } from './schemas';
 
 describe('parseSettingsText', () => {
   it('omits settings for blank text', () => {

@@ -42,6 +42,28 @@ jest.mock('@poc-plattform-kit/api-client', () => ({
   },
 }));
 
+jest.mock('@jsonforms/react', () => {
+  const actual = jest.requireActual('@jsonforms/react') as typeof import('@jsonforms/react');
+  return {
+    ...actual,
+    JsonForms: ({
+      data,
+      onChange,
+    }: {
+      data: Record<string, unknown>;
+      onChange: (event: { data: Record<string, unknown> }) => void;
+    }) => (
+      <div data-testid="jsonforms-stub">
+        <input
+          aria-label="Name"
+          value={String(data.name ?? '')}
+          onChange={(event) => onChange({ data: { ...data, name: event.target.value } })}
+        />
+      </div>
+    ),
+  };
+});
+
 function renderComponent() {
   return render(<TenantSettings />);
 }
@@ -108,6 +130,22 @@ describe('TenantSettings', () => {
     );
   });
 
+  it('hides the stale form when a failed refetch still returns cached tenant data', () => {
+    // TanStack Query keeps the previous `data` around while `isError` is true
+    // on a refetch failure — the form must not render alongside the error.
+    findState = {
+      data: { data: tenant },
+      isFetching: false,
+      isError: true,
+      error: { status: 500 },
+    };
+    renderComponent();
+    loadTenant();
+
+    expect(screen.queryByTestId('tenant-settings-form')).not.toBeInTheDocument();
+    expect(screen.getByTestId('tenant-settings-load-error')).toBeInTheDocument();
+  });
+
   it('populates the form with the loaded tenant', () => {
     findState = { data: { data: tenant }, isFetching: false, isError: false, error: null };
     renderComponent();
@@ -116,7 +154,7 @@ describe('TenantSettings', () => {
 
     expect(screen.getByTestId('tenant-settings-id')).toHaveTextContent('tenant-42');
     expect(screen.getByTestId('tenant-settings-slug')).toHaveTextContent('acme');
-    expect(screen.getByTestId('tenant-settings-name')).toHaveValue('Acme Corp');
+    expect(screen.getByLabelText('Name')).toHaveValue('Acme Corp');
     expect(screen.getByTestId('tenant-settings-json')).toHaveValue(
       JSON.stringify({ plan: 'pro' }, null, 2),
     );
@@ -127,7 +165,7 @@ describe('TenantSettings', () => {
     renderComponent();
     loadTenant();
 
-    fireEvent.change(screen.getByTestId('tenant-settings-name'), {
+    fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Acme Corporation' },
     });
     fireEvent.change(screen.getByTestId('tenant-settings-json'), {
@@ -175,20 +213,6 @@ describe('TenantSettings', () => {
     expect(updateMutate).not.toHaveBeenCalled();
   });
 
-  it('shows a client error and does not submit for a blank name', () => {
-    findState = { data: { data: tenant }, isFetching: false, isError: false, error: null };
-    renderComponent();
-    loadTenant();
-
-    fireEvent.change(screen.getByTestId('tenant-settings-name'), { target: { value: '  ' } });
-    fireEvent.click(screen.getByTestId('tenant-settings-save'));
-
-    expect(screen.getByTestId('tenant-settings-client-error')).toHaveTextContent(
-      'Name is required',
-    );
-    expect(updateMutate).not.toHaveBeenCalled();
-  });
-
   it('shows the API error state on save failure', () => {
     findState = { data: { data: tenant }, isFetching: false, isError: false, error: null };
     updateState = {
@@ -199,7 +223,7 @@ describe('TenantSettings', () => {
     renderComponent();
     loadTenant();
 
-    expect(screen.getByTestId('tenant-settings-save-error')).toHaveTextContent('Update failed');
+    expect(screen.getByTestId('tenant-update-error')).toHaveTextContent('Update failed');
   });
 
   it('shows a success toast and refreshes on save success', () => {
