@@ -7,8 +7,8 @@
 | Surface | Behaviour |
 | --- | --- |
 | Nest `/api/auth/*` | Auth.js (`@auth/express`) Microsoft Entra ID provider; httpOnly session cookies |
-| Nest `GET /api/me` | Cookie session **or** Bearer Entra access token to `{ id, email, name, role }` |
-| Global `APP_GUARD` | `SessionOrJwtAuthGuard` + `RolesGuard` — non-public Nest routes require session or Bearer |
+| Nest `GET /api/me` | Cookie session **or** Bearer Entra access token to `{ id, email, name, roles: string[] }` |
+| Global `APP_GUARD` | `SessionOrJwtAuthGuard` + `RolesGuard` — non-public Nest routes require session or Bearer; `@Roles` passes when **any** user role matches |
 | JWT guard | Validates Entra JWTs via JWKS (`AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE` and/or `AZURE_AD_CLIENT_ID` as `aud`) |
 | Web SPA (custom domain) | Auth.js cookies; `fetch(..., { credentials: 'include' })` via `NEXT_PUBLIC_API_BASE_URL` |
 | Web SPA (SWA Free / PR) | MSAL.js popup + `Authorization: Bearer` (no shared cookie Domain) |
@@ -98,7 +98,7 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 | --- | --- |
 | Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). SWA preview origins are **not** Entra redirect URIs for this flow. |
 | Swagger UI OAuth2 (PKCE) | **Web** redirects: prod `…/docs/oauth2-redirect.html`, local `http://localhost:3001/docs/oauth2-redirect.html`, and each ACA PR preview host’s `…/docs/oauth2-redirect.html`. Do **not** use SPA platform for these URIs. |
-| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. Add the **exact** PR preview origin (and logout URI) in the Entra app registration when testing login on that PR, or use the stable SWA default hostname for non-PR default-host checks. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. SWA also sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
+| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. `preview-web.yml` registers the **exact** PR preview origin (add after deploy, remove on PR close) via `scripts/entra-spa-preview-redirect.sh` using Graph + the OIDC SP. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. SWA also sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
 
 ### Build / GitHub Variables
 
@@ -123,7 +123,26 @@ Entra app registration, admin consent, and KV/App Config seeding are tracked as 
 - Auth.js callback (Web): `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`
 - Swagger OAuth2 (Web, not SPA): `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`
 
-Also ensure App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. When testing MSAL on a SWA PR preview, add that preview’s exact origin as a SPA redirect URI (see pattern above). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
+Also ensure App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. SWA PR preview MSAL redirects are registered automatically by `preview-web.yml` (see below). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
+
+### OIDC SP Graph permission (preview redirect automation)
+
+GitHub Actions OIDC app `ssd-pocpk-gha-oidc-dev` must be able to PATCH the Entra SPA app’s `spa.redirectUris`:
+
+| Requirement | Notes |
+| --- | --- |
+| Microsoft Graph app role | `Application.ReadWrite.OwnedBy` (admin consented) |
+| Ownership | OIDC SP is an **owner** of Entra app `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` |
+| Soft-fail | Missing Graph rights logs a warning and does **not** fail the SWA deploy |
+
+Manual one-time setup (human / tenant admin) if previews skip registration:
+
+```bash
+# App role on the OIDC app registration + admin consent, then:
+az ad app owner add \
+  --id <entra-spa-app-id> \
+  --owner-object-id <oidc-sp-object-id>
+```
 
 ## HTTP hardening
 

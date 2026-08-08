@@ -1,11 +1,17 @@
 /**
- * Decap CMS chrome — product palette via Singleton SD tokens.
- * Emotion class names include component labels; selectors use those
- * substrings and may drift across Decap versions — keep overrides minimal.
+ * Decap CMS admin chrome — product palette via Singleton SD tokens.
+ *
+ * Decap has no official admin theme API. Maintainers endorse CSS overrides
+ * (https://github.com/decaporg/decap-cms/discussions/7353). Semantic colors
+ * come from packages/decap-cms-ui-default/src/styles.js (colorsRaw / colors).
+ *
+ * Emotion class names include component labels; substring selectors may drift
+ * across Decap versions — pin the CDN build in index.html.
  */
 @import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
 
 html[data-theme='dark'] {
+  /* Product roles */
   --pk-bg: var(--colors-gray-900);
   --pk-fg: var(--colors-gray-100);
   --pk-muted: var(--colors-gray-400);
@@ -14,8 +20,18 @@ html[data-theme='dark'] {
   --pk-accent-bg: var(--colors-yellow-light-900);
   --pk-surface: var(--colors-gray-800);
   --pk-surface-raised: var(--colors-gray-700);
+  --pk-border: var(--colors-gray-700);
   --pk-glow: color-mix(in srgb, var(--pk-accent) 18%, transparent);
+  --pk-danger: var(--colors-red-400);
+  --pk-danger-bg: var(--colors-red-900);
+  --pk-success: var(--colors-green-400);
+  --pk-success-bg: var(--colors-green-900);
+  --pk-warn: var(--colors-yellow-light-300);
+  --pk-warn-bg: var(--colors-yellow-light-900);
+  --pk-info: var(--pk-accent);
+  --pk-info-bg: var(--pk-accent-bg);
 
+  /* Override CDN token semantics that clash with product yellow/gray */
   --fg-default: var(--pk-fg);
   --fg-muted: var(--pk-muted);
   --bg-default: var(--pk-bg);
@@ -24,15 +40,20 @@ html[data-theme='dark'] {
   --accent-on-accent: var(--pk-accent-on);
   --accent-bg: var(--pk-accent-bg);
 
-  /* Remap Decap hardcoded blues → product accent (for any leftover rules). */
-  --decap-blue: var(--pk-accent);
-  --decap-blue-light: var(--pk-accent-bg);
+  /* Decap styles.js semantic → product (documentation aid for remapper) */
+  --decap-background: var(--pk-bg);
+  --decap-foreground: var(--pk-surface);
+  --decap-active: var(--pk-accent);
+  --decap-active-background: var(--pk-accent-bg);
+  --decap-control-label: var(--pk-muted);
+  --decap-text-field-border: var(--pk-border);
 }
 
 html,
 body {
   margin: 0;
   min-height: 100%;
+  font-family: var(--font-families-body), ui-sans-serif, system-ui, sans-serif;
   background-color: var(--bg-default);
   background-image:
     radial-gradient(ellipse 80% 55% at 50% -12%, var(--pk-glow), transparent 55%),
@@ -44,7 +65,6 @@ body {
   color: var(--fg-default);
 }
 
-/* Login / loading splash */
 body > div {
   min-height: 100vh;
 }
@@ -58,27 +78,55 @@ a {
   color: var(--accent-default);
 }
 
-/* ——— Shell surfaces ——— */
+/* ——— Shell: solid surfaces (never transparent main panes) ——— */
 
+/* AppMainContainer / CollectionContainer / CollectionMain */
 [class*='AppMainContainer'],
 [class*='CollectionContainer'],
-[class*='CollectionMain'] {
-  background-color: transparent !important;
+[class*='CollectionMain'],
+[class*='Entries'],
+[class*='WorkflowContainer'],
+[class*='MediaLibraryModal'],
+[class*='MediaLibrary'] {
+  background-color: var(--pk-bg) !important;
   color: var(--pk-fg) !important;
 }
 
+/* AppHeader / AppHeaderContent */
 [class*='AppHeaderContent'],
 [class*='AppHeader'] {
   background-color: var(--pk-bg) !important;
   color: var(--pk-fg) !important;
-  border-bottom: 1px solid var(--pk-surface-raised) !important;
+  border-bottom: 1px solid var(--pk-border) !important;
   box-shadow: none !important;
 }
 
+/* Logo — no floating gray tile; taller mark on login for subtitle */
+[class*='AppHeader'] img,
+[class*='AppHeader'] [class*='logo'] {
+  background: transparent !important;
+  max-height: 2.5rem !important;
+  width: auto !important;
+}
+
+[class*='AuthenticationPage'] [class*='CustomIconWrapper'] {
+  width: min(18rem, 90vw) !important;
+  margin-bottom: 0.5rem !important;
+}
+
+[class*='AuthenticationPage'] img {
+  background: transparent !important;
+  max-height: none !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* SidebarContainer */
 [class*='SidebarContainer'] {
   background-color: var(--pk-surface) !important;
   color: var(--pk-fg) !important;
-  border-color: var(--pk-surface-raised) !important;
+  border-color: var(--pk-border) !important;
   box-shadow: none !important;
 }
 
@@ -88,10 +136,13 @@ a {
 [class*='CollectionTopDescription'],
 [class*='CardHeading'],
 [class*='CardTitle'],
-[class*='ListCardTitle'] {
+[class*='ListCardTitle'],
+[class*='WorkflowCard'],
+[class*='EntryCard'] {
   color: var(--pk-fg) !important;
 }
 
+/* Collection chrome + cards */
 [class*='CollectionTopContainer'],
 [class*='CollectionTopRow'],
 [class*='CollectionControlsContainer'],
@@ -99,37 +150,58 @@ a {
 [class*='ListCard'],
 [class*='CardGrid'],
 [class*='CardsGrid'],
-[class*='AuthForm'] {
+[class*='AuthForm'],
+[class*='WorkflowList'],
+[class*='WorkflowCard'],
+[class*='EntryListing'] {
   background-color: var(--pk-surface) !important;
   color: var(--pk-fg) !important;
-  border-color: var(--pk-surface-raised) !important;
+  border-color: var(--pk-border) !important;
   box-shadow: none !important;
+}
+
+/* List density — bordered rows, not one empty slab */
+[class*='ListCard'],
+[class*='EntryCard'] {
+  margin: 0 0 0.5rem !important;
+  padding: 0.75rem 1rem !important;
+  min-height: auto !important;
+  border: 1px solid var(--pk-border) !important;
+  border-radius: 0.35rem !important;
 }
 
 [class*='ListCardLink'],
 [class*='CardBody'],
 [class*='CardText'] {
-  background-color: var(--pk-surface) !important;
+  background-color: transparent !important;
   color: var(--pk-fg) !important;
-  border-color: var(--pk-surface-raised) !important;
+  border-color: transparent !important;
+  padding: 0 !important;
 }
 
-[class*='ListCardLink']:hover,
-[class*='Card']:hover {
+[class*='ListCard']:hover,
+[class*='Card']:hover,
+[class*='EntryCard']:hover {
   border-color: var(--pk-accent) !important;
   background-color: var(--pk-surface-raised) !important;
 }
 
-/* ——— Nav / sidebar active states (replace Decap #3a69c7 / #e8f5fe) ——— */
+/* Constrain collection main content width */
+[class*='CollectionMain'] {
+  max-width: 56rem !important;
+}
 
+/* ——— Nav: muted inactive, accent only when active (never mustard fill) ——— */
+
+/* AppHeaderNavLink / AppHeaderSiteLink / SidebarNavLink */
 [class*='AppHeaderNavLink'],
 [class*='AppHeaderSiteLink'],
-[class*='SidebarNavLink'],
-[class*='BackCollection'] {
+[class*='SidebarNavLink'] {
   color: var(--pk-muted) !important;
   fill: var(--pk-muted) !important;
   background-color: transparent !important;
   border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 [class*='AppHeaderNavLink'] svg,
@@ -143,9 +215,9 @@ a {
 [class*='AppHeaderSiteLink']:hover {
   color: var(--pk-accent) !important;
   fill: var(--pk-accent) !important;
+  background-color: transparent !important;
 }
 
-/* Active: Emotion often appends -active or uses aria/current patterns via same class tree */
 [class*='AppHeaderNavLink'][class*='active'],
 [class*='AppHeaderNavLink'][aria-current],
 [class*='SidebarNavLink'][class*='active'],
@@ -157,14 +229,13 @@ a {
   box-shadow: inset 3px 0 0 var(--pk-accent) !important;
 }
 
-/* Decap paints active sidebar with blue left bar / light blue bg via sibling styles */
 [class*='SidebarNavList'] [class*='SidebarNavLink']:focus,
 [class*='SidebarNavList'] [class*='SidebarNavLink']:active {
   color: var(--pk-accent) !important;
   fill: var(--pk-accent) !important;
+  background-color: transparent !important;
 }
 
-/* View toggles (list/grid) — active icon was blue */
 [class*='CollectionControlsContainer'] button,
 [class*='CollectionControlsContainer'] [class*='Button'],
 [class*='viewControls'] button {
@@ -179,22 +250,32 @@ a {
   fill: var(--pk-accent) !important;
 }
 
-/* ——— Search ——— */
+/* ——— Search / inputs ——— */
 
 [class*='SearchContainer'],
 [class*='SearchInput'],
 [class*='AuthInput'],
+[class*='ControlContainer'] input,
+[class*='ControlContainer'] textarea,
+[class*='Widget'] input,
+[class*='Widget'] textarea,
 input[type='text'],
 input[type='search'],
-textarea {
+input[type='url'],
+input[type='email'],
+input[type='number'],
+textarea,
+select {
   background-color: var(--pk-bg) !important;
   color: var(--pk-fg) !important;
-  border-color: var(--pk-surface-raised) !important;
+  border: 1px solid var(--pk-border) !important;
   box-shadow: none !important;
+  border-radius: 0.35rem !important;
 }
 
 [class*='SearchInput']::placeholder,
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--pk-muted) !important;
 }
 
@@ -203,13 +284,13 @@ input::placeholder {
   fill: var(--pk-muted) !important;
 }
 
-/* ——— Buttons / primary actions ——— */
+/* ——— CTAs only — yellow accent ——— */
 
-[class*='AppHeaderButton'],
 [class*='CollectionTopNewButton'],
 [class*='AppHeaderQuickNewButton'],
-[class*='ActionButton'],
 [class*='AddButton'],
+[class*='SaveButton'],
+[class*='PublishButton'],
 button[class*='teal'],
 button[class*='green'] {
   background-color: var(--pk-accent) !important;
@@ -218,20 +299,41 @@ button[class*='green'] {
   fill: var(--pk-accent-on) !important;
 }
 
-[class*='AppHeaderButton']:hover,
+[class*='CollectionTopNewButton'] *,
+[class*='AppHeaderQuickNewButton'] *,
+[class*='AddButton'] *,
+[class*='SaveButton'] *,
+[class*='PublishButton'] *,
+button[class*='teal'] *,
+button[class*='green'] * {
+  color: var(--pk-accent-on) !important;
+  fill: var(--pk-accent-on) !important;
+}
+
 [class*='CollectionTopNewButton']:hover,
-[class*='ActionButton']:hover,
-[class*='AddButton']:hover {
+[class*='AppHeaderQuickNewButton']:hover,
+[class*='AddButton']:hover,
+[class*='SaveButton']:hover,
+[class*='PublishButton']:hover {
   filter: brightness(1.05);
+}
+
+/* Do NOT paint all AppHeaderButton yellow — that mustard-filled inactive tabs */
+[class*='AppHeaderButton']:not([class*='QuickNew']):not([class*='Save']):not([class*='Publish']) {
+  background-color: transparent !important;
+  color: var(--pk-muted) !important;
+  border-color: transparent !important;
+  fill: var(--pk-muted) !important;
 }
 
 [class*='AvatarDropdownButton'],
 [class*='ClearButton'],
 [class*='Cancel'],
-[class*='CloseButton'] {
+[class*='CloseButton'],
+[class*='DeleteButton'] {
   background-color: var(--pk-surface-raised) !important;
   color: var(--pk-fg) !important;
-  border-color: var(--pk-surface-raised) !important;
+  border-color: var(--pk-border) !important;
 }
 
 /* ——— Dropdowns ——— */
@@ -241,7 +343,13 @@ button[class*='green'] {
 [class*='css-'][class*='menu'] {
   background-color: var(--pk-surface) !important;
   color: var(--pk-fg) !important;
-  border-color: var(--pk-surface-raised) !important;
+  border-color: var(--pk-border) !important;
+}
+
+[class*='dropdownItem'],
+[class*='DropdownItem'] {
+  color: var(--pk-fg) !important;
+  background-color: transparent !important;
 }
 
 [class*='dropdownItem']:hover,
@@ -252,8 +360,378 @@ button[class*='green'] {
   color: var(--pk-accent) !important;
 }
 
-/* ——— Force Decap blue hex leftovers to product accent ——— */
+/* ——— Entry editor ——— */
 
+/* EditorContainer / ControlPane / PreviewPane */
+[class*='EditorContainer'],
+[class*='Editor'],
+[class*='ControlPaneContainer'],
+[class*='ControlPane'],
+[class*='PreviewPane'],
+[class*='PreviewPaneContainer'],
+[class*='EntryEditor'],
+[class*='EditorInterface'] {
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+/*
+ * Editor top bar (EditorToolbar.js): "← Writing in … / CHANGES SAVED".
+ * Decap hardcodes ToolbarContainer background #fff and Back* textLead —
+ * paint the whole strip dark so it matches product chrome.
+ */
+[class*='EditorToolbar'],
+[class*='ToolbarContainer'],
+[class*='ToolbarSectionMain'],
+[class*='ToolbarSectionMeta'],
+[class*='ToolbarSubSection'],
+[class*='ToolbarMain'] {
+  background: var(--pk-bg) !important;
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+  box-shadow: none !important;
+}
+
+[class*='ToolbarSectionBackLink'],
+[class*='ToolbarSectionBack'] {
+  background: var(--pk-bg) !important;
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+[class*='ToolbarSectionBackLink']:hover,
+[class*='ToolbarSectionBackLink']:focus,
+[class*='ToolbarSectionBack']:hover,
+[class*='ToolbarSectionBack']:focus {
+  background: var(--pk-surface) !important;
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+}
+
+[class*='BackArrow'],
+[class*='BackCollection'] {
+  color: var(--pk-muted) !important;
+}
+
+[class*='BackStatus'],
+[class*='BackStatusUnchanged'] {
+  color: var(--pk-success) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+[class*='BackStatusChanged'] {
+  color: var(--pk-danger) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+[class*='ToolbarButton'],
+[class*='EditorToolbarButton'] {
+  color: var(--pk-muted) !important;
+  fill: var(--pk-muted) !important;
+  background-color: transparent !important;
+}
+
+[class*='ToolbarButton']:hover,
+[class*='EditorToolbarButton']:hover {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+/* Save / Publish stay accent CTAs inside the editor bar */
+[class*='ToolbarContainer'] [class*='SaveButton'],
+[class*='ToolbarContainer'] [class*='PublishButton'],
+[class*='EditorToolbar'] [class*='SaveButton'],
+[class*='EditorToolbar'] [class*='PublishButton'] {
+  background-color: var(--pk-accent) !important;
+  color: var(--pk-accent-on) !important;
+  fill: var(--pk-accent-on) !important;
+  border-color: var(--pk-accent) !important;
+}
+
+/* Field column max-width — stop full-bleed optional strings */
+[class*='ControlPane'],
+[class*='ControlPaneContainer'] {
+  max-width: 48rem !important;
+}
+
+[class*='ControlContainer'],
+[class*='FieldLabel'],
+[class*='Widget'],
+[class*='control-pane'] {
+  color: var(--pk-fg) !important;
+}
+
+/* Override Decap text.fieldLabel (12px uppercase controlLabel).
+   Decap paints labels on white/active pills — strip that chrome. */
+[class*='FieldLabel'],
+label[class*='Label'],
+label[class*='FieldLabel'] {
+  color: var(--pk-muted) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 0.35rem !important;
+  padding: 0 !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+[class*='ControlHints'],
+[class*='hint'] {
+  color: var(--pk-muted) !important;
+  font-size: 0.8rem !important;
+}
+
+/* Markdown / CodeMirror */
+[class*='MarkdownControl'],
+[class*='cms-editor'],
+[class*='CodeMirror'],
+.CodeMirror,
+.CodeMirror-scroll {
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+.CodeMirror-gutters {
+  background-color: var(--pk-surface) !important;
+  border-color: var(--pk-border) !important;
+}
+
+.CodeMirror-cursor {
+  border-left-color: var(--pk-accent) !important;
+}
+
+/* Status badges / toast */
+[class*='Badge'],
+[class*='status'],
+[class*='Toast'],
+[class*='Notification'] {
+  border-radius: 0.35rem !important;
+}
+
+/* ——— Editorial Workflow ——— */
+
+[class*='WorkflowContainer'],
+[class*='WorkflowListContainer'] {
+  background-color: transparent !important;
+  color: var(--pk-fg) !important;
+}
+
+/* WorkflowTop uses components.cardTop (white) */
+[class*='WorkflowTop'],
+[class*='WorkflowTopRow'] {
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+  box-shadow: none !important;
+}
+
+[class*='WorkflowTopHeading'] {
+  color: var(--pk-fg) !important;
+}
+
+[class*='WorkflowTopDescription'] {
+  color: var(--pk-muted) !important;
+}
+
+/* Keep Decap status chip colors on ColumnHeader; fix unreadable counts */
+[class*='ColumnCount'] {
+  color: var(--pk-muted) !important;
+}
+
+/* Column divider (::before) was light border on dark — use raised surface */
+[class*='WorkflowListContainer'] [class*='column']:before,
+[class*='WorkflowListContainer'] > * > * > *:before {
+  background-color: var(--pk-border) !important;
+}
+
+[class*='WorkflowCard'],
+[class*='WorkflowCardContainer'] {
+  background-color: var(--pk-surface) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+  box-shadow: none !important;
+}
+
+/* ——— Media library modal ——— */
+
+.ReactModal__Content,
+.ReactModal__Content--after-open,
+[class*='StyledModal'],
+[class*='MediaLibrary'] [class*='Modal'],
+div[class*='Modal'][class*='Styled'],
+[class*='LibraryTop'],
+[class*='HeaderContainer'],
+[class*='RowContainer'] {
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+.ReactModal__Overlay,
+.ReactModal__Overlay--after-open {
+  background-color: color-mix(in srgb, var(--pk-bg) 72%, transparent) !important;
+}
+
+[class*='LibraryTitle'] {
+  color: var(--pk-fg) !important;
+}
+
+/* Close control — not a white circle */
+[class*='CloseButton'] {
+  background-color: var(--pk-surface-raised) !important;
+  color: var(--pk-fg) !important;
+  fill: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+/* Copy / Download / Upload — secondary chrome, not yellow with light text.
+   (ActionButton was previously force-painted accent and became unreadable.) */
+[class*='ActionButton'],
+[class*='UploadButton'],
+[class*='DownloadButton'],
+[class*='CopyToClipBoardButton'] {
+  background-color: var(--pk-surface-raised) !important;
+  color: var(--pk-fg) !important;
+  fill: var(--pk-fg) !important;
+  border-color: var(--pk-border) !important;
+}
+
+[class*='ActionButton'] *,
+[class*='UploadButton'] *,
+[class*='DownloadButton'] * {
+  color: var(--pk-fg) !important;
+  fill: var(--pk-fg) !important;
+}
+
+[class*='ActionButton']:hover:not([disabled]),
+[class*='UploadButton']:hover:not([disabled]),
+[class*='DownloadButton']:hover:not([disabled]) {
+  border-color: var(--pk-accent) !important;
+  color: var(--pk-accent) !important;
+}
+
+[class*='ActionButton']:hover:not([disabled]) *,
+[class*='UploadButton']:hover:not([disabled]) *,
+[class*='DownloadButton']:hover:not([disabled]) * {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+[class*='DeleteButton'] {
+  background-color: var(--pk-danger-bg) !important;
+  color: var(--pk-danger) !important;
+  border-color: var(--pk-danger-bg) !important;
+}
+
+[class*='InsertButton'] {
+  background-color: var(--pk-accent) !important;
+  color: var(--pk-accent-on) !important;
+  border-color: var(--pk-accent) !important;
+}
+
+[class*='InsertButton'] * {
+  color: var(--pk-accent-on) !important;
+}
+
+[class*='MediaLibraryCard'],
+[class*='MediaLibrary'] [class*='Card']:not([class*='CardImage']) {
+  background-color: var(--pk-surface) !important;
+  border-color: var(--pk-border) !important;
+  color: var(--pk-fg) !important;
+}
+
+[class*='CardText'] {
+  color: var(--pk-fg) !important;
+}
+
+[class*='EmptyMessage'] {
+  color: var(--pk-muted) !important;
+}
+
+/* Preview pane outer chrome */
+[class*='PreviewPane'] iframe,
+[class*='PreviewPaneContainer'] iframe {
+  background-color: var(--pk-bg) !important;
+  border: 1px solid var(--pk-border) !important;
+  border-radius: 0.35rem !important;
+}
+
+[class*='PreviewPane'] {
+  border-left: 1px solid var(--pk-border) !important;
+}
+
+/* Soften default OS scrollbar against dark chrome */
+[class*='ControlPane']::-webkit-scrollbar,
+[class*='PreviewPane']::-webkit-scrollbar,
+[class*='Editor']::-webkit-scrollbar {
+  width: 0.65rem;
+  height: 0.65rem;
+}
+
+[class*='ControlPane']::-webkit-scrollbar-thumb,
+[class*='PreviewPane']::-webkit-scrollbar-thumb,
+[class*='Editor']::-webkit-scrollbar-thumb {
+  background: var(--pk-surface-raised);
+  border-radius: 0.35rem;
+}
+
+[class*='ControlPane']::-webkit-scrollbar-track,
+[class*='PreviewPane']::-webkit-scrollbar-track,
+[class*='Editor']::-webkit-scrollbar-track {
+  background: var(--pk-bg);
+}
+
+/* Login */
+[class*='AuthenticationPage'],
+[class*='AuthButton'] {
+  background-color: var(--pk-bg) !important;
+  color: var(--pk-fg) !important;
+}
+
+[class*='LoginButton'],
+[class*='AuthButton'] button {
+  background-color: var(--pk-accent) !important;
+  color: var(--pk-accent-on) !important;
+}
+
+/* Hide Decap credit mark under the custom logo */
+[class*='NetlifyCreditIcon'],
+[class*='AuthenticationPage'] > svg[class*='Icon'] {
+  display: none !important;
+}
+
+/* “← Go back to site” — product accent, not muted gray */
+[class*='GoBackButton'],
+[class*='GoBackButtonStyle'] {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+[class*='GoBackButton'] p,
+[class*='GoBackButtonStyle'] p,
+[class*='GoBackButtonStyle'] [class*='ButtonText'] {
+  color: var(--pk-accent) !important;
+}
+
+[class*='GoBackButton'] svg,
+[class*='GoBackButtonStyle'] svg {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+/* SVG fill leftovers from Decap blue active */
 svg[fill='#3a69c7'],
 svg [fill='#3a69c7'],
 [fill='#3a69c7'] {

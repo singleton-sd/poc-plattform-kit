@@ -32,14 +32,14 @@ describe('SingleSignOnController', () => {
       entraOid: 'oid',
       email: 'agent@example.com',
       name: 'Agent',
-      role: 'support-agent',
+      roles: ['support-agent', 'tenant-admin'],
       tenantId: null,
     };
     expect(controller.me(user)).toEqual({
       id: '1',
       email: 'agent@example.com',
       name: 'Agent',
-      role: 'support-agent',
+      roles: ['support-agent', 'tenant-admin'],
     });
   });
 });

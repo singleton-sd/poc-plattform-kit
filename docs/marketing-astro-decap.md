@@ -31,6 +31,34 @@ No WordPress, Gatsby, or always-on CMS server for the site itself.
 5. Merge to `main` runs Astro build; SWA serves the new HTML.
 6. Decap does **not** talk to Astro at runtime.
 
+## Admin UI customization
+
+Decap has **no official admin chrome theme API**. Colors live in
+[`decap-cms-ui-default/src/styles.js`](https://github.com/decaporg/decap-cms/blob/main/packages/decap-cms-ui-default/src/styles.js)
+and are internal ([issue #1727](https://github.com/decaporg/decap-cms/issues/1727)).
+Maintainers endorse CSS overrides ([discussion #7353](https://github.com/decaporg/decap-cms/discussions/7353));
+class names can change across releases.
+
+Supported Decap hooks we use:
+
+| Hook | File / config |
+| --- | --- |
+| CDN install (pinned) | `public/admin/index.html` → `decap-cms@3.15.1` (no `^`) |
+| `logo` / `show_in_header` | `public/admin/config.yml` + `brand-mark.svg` |
+| `CMS.registerPreviewStyle` | `admin-preview.js` → `/admin/preview.css` |
+| `CMS.registerPreviewTemplate('pages')` | `admin-preview.js` |
+| Built-in widgets + hints | `config.yml` fields |
+
+Product theme layers:
+
+| Layer | Role |
+| --- | --- |
+| `admin.css` | Maintainer-endorsed CSS overrides (solid `--pk-*` surfaces, nav vs CTA, editor) |
+| `admin-theme.js` | Unofficial Emotion hex remapper for `styles.js` `colorsRaw` leftovers; re-runs on `hashchange` |
+| `preview.css` | Preview iframe only (official `registerPreviewStyle` target) |
+
+Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
+
 ### Hosting
 
 | Piece | Extra host? |
@@ -47,6 +75,14 @@ No WordPress, Gatsby, or always-on CMS server for the site itself.
 | `/auth` | Redirect to GitHub authorize |
 | `/callback` | Exchange code → HTML `postMessage` handshake for Decap |
 | `/health` | Liveness |
+
+`ORIGINS` (Function App setting / Bicep `origins`) is a comma-separated list of
+**opener hostnames** (no scheme). Include the marketing SWA instance prefix so
+default + PR preview hosts can complete the Decap `postMessage` handshake:
+
+`plattform-kit.poc.singletonsd.com,purple-field-05048bf00*.azurestaticapps.net,localhost:4321`
+
+Do **not** use open `*.azurestaticapps.net` (any Azure customer’s Static Web App).
 
 `config.yml`:
 

@@ -1,7 +1,15 @@
 ﻿import { Controller, Get } from '@nestjs/common';
-import { ApiBearerAuth, ApiOAuth2, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOAuth2,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { toMeResponse, type AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
 import { CurrentUser } from './current-user.decorator';
+import { MeResponseDto } from './me-response.dto';
 
 @ApiTags('SingleSignOn')
 @Controller('api')
@@ -10,9 +18,9 @@ export class SingleSignOnController {
   @ApiBearerAuth()
   @ApiOAuth2([])
   @ApiOperation({ summary: 'Current authenticated user (cookie session or Bearer JWT)' })
-  @ApiResponse({ status: 200, description: 'Authenticated user profile' })
+  @ApiOkResponse({ type: MeResponseDto, description: 'Authenticated user profile' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  me(@CurrentUser() user: AuthenticatedUser) {
+  me(@CurrentUser() user: AuthenticatedUser): MeResponseDto {
     return toMeResponse(user);
   }
 }

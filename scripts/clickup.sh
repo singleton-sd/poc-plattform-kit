@@ -8,6 +8,7 @@
 #   ./scripts/clickup.sh get 86d3xxxx
 #   ./scripts/clickup.sh claim 86d3xxxx <claimToken> ["IN PROGRESS"]
 #   ./scripts/clickup.sh status 86d3xxxx "READY FOR REVIEW" [--clear-claim] [--url URL]
+#   ./scripts/clickup.sh handoff 86d3xxxx <pr> "READY FOR REVIEW" <claimToken>
 #   ./scripts/clickup.sh comment 86d3xxxx "text"
 #   ./scripts/clickup.sh field 86d3xxxx <fieldId> <value>
 #   ./scripts/clickup.sh preview 86d3xxxx https://...
@@ -174,6 +175,29 @@ print(json.dumps({
   "preview_url": fv(preview_id),
 }, indent=2))
 ' "$CLAIM_FIELD_ID" "$PREVIEW_FIELD_ID"
+    ;;
+  handoff)
+    task_id="${1:-}"; pr_number="${2:-}"; status="${3:-}"; claim_token="${4:-}"
+    [[ -n "$task_id" && -n "$pr_number" && -n "$status" && -n "$claim_token" ]] || \
+      die "handoff requires task id, PR number, status, and claim token"
+    before="$(api GET "/task/$task_id")"
+    existing="$(field_value "$before" "$CLAIM_FIELD_ID")"
+    [[ "$existing" == "$claim_token" ]] || \
+      die "Handoff refused: claim token mismatch for task $task_id"
+    repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    node "$repo_root/scripts/pr-handoff-gate.mjs" --pr "$pr_number"
+    pr_url="$(gh pr view "$pr_number" --json url --jq .url)"
+    api POST "/task/$task_id/field/$PREVIEW_FIELD_ID" \
+      "$(python3 -c 'import json,sys; print(json.dumps({"value":sys.argv[1]}))' "$pr_url")" >/dev/null
+    # Preserve the exclusive claim until the status transition succeeds.
+    api PUT "/task/$task_id" \
+      "$(python3 -c 'import json,sys; print(json.dumps({"status":sys.argv[1]}))' "$status")" >/dev/null
+    verify="$(api GET "/task/$task_id")"
+    got_status="$(printf '%s' "$verify" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("status") or {}).get("status", "").lower())')"
+    [[ "$got_status" == "${status,,}" ]] || \
+      die "Handoff verification failed: expected status '$status', got '$got_status'; claim retained"
+    api POST "/task/$task_id/field/$CLAIM_FIELD_ID" '{"value":""}' >/dev/null
+    echo "OK: PR gate passed; $task_id -> $status"
     ;;
   status)
     task_id="${1:-}"; status="${2:-}"; shift 2 || true

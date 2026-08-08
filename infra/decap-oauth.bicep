@@ -22,8 +22,8 @@ param keyVaultName string = 'ssd-pocpk-kv-dev-ae'
 @description('GitHub OAuth App client id (non-secret)')
 param oauthClientId string
 
-@description('Comma-separated Decap opener hostnames (no scheme)')
-param origins string = 'plattform-kit.poc.singletonsd.com,localhost:4321'
+@description('Comma-separated Decap opener hostnames (no scheme). Include purple-field-05048bf00*.azurestaticapps.net for marketing SWA default + PR preview hosts.')
+param origins string = 'plattform-kit.poc.singletonsd.com,purple-field-05048bf00*.azurestaticapps.net,localhost:4321'
 
 @description('KV secret name for GitHub OAuth client secret')
 param oauthClientSecretName string = 'github-decap-oauth-client-secret'
