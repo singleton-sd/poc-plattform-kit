@@ -58,6 +58,7 @@ Azure Static Web Apps **Free** includes PR preview environments.
 - Action: `Azure/static-web-apps-deploy@v1`
 - App location: `apps/web/out` (Next.js static export; workflow builds first)
 - Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
+- After deploy: `scripts/entra-spa-preview-redirect.sh add` registers the preview origin as an Entra **SPA** redirect URI (MSAL). On PR `closed`, the same script removes it before closing the SWA environment. Requires Graph `Application.ReadWrite.OwnedBy` + ownership on the Entra app (see `docs/sso.md`); missing rights soft-fail.
 
 **Marketing**
 
