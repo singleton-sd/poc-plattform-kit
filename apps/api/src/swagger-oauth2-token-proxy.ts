@@ -30,7 +30,8 @@ export function isAllowedSwaggerOauth2RedirectUri(
     if (url.protocol !== 'https:') {
       return false;
     }
-    if (url.pathname !== '/docs/oauth2-redirect.html') {
+    // Swagger at `/docs` may send `/oauth2-redirect.html` or `/docs/oauth2-redirect.html`.
+    if (url.pathname !== '/docs/oauth2-redirect.html' && url.pathname !== '/oauth2-redirect.html') {
       return false;
     }
     return /^ssd-pocpk-aca-pr-\d+-ae\.[a-z0-9-]+\.australiaeast\.azurecontainerapps\.io$/i.test(

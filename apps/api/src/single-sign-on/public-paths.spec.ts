@@ -10,6 +10,7 @@ describe('isPublicPath', () => {
     '/docs',
     '/docs/',
     '/docs/oauth2-redirect.html',
+    '/oauth2-redirect.html',
     '/docs-json',
   ])('allows %s', (path) => {
     expect(isPublicPath(path)).toBe(true);

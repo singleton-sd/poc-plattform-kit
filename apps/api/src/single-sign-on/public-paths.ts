@@ -21,5 +21,9 @@ export function isPublicPath(path: string): boolean {
   if (normalized === '/docs' || normalized.startsWith('/docs/') || normalized === '/docs-json') {
     return true;
   }
+  // Swagger UI default when mounted at `/docs` (no trailing slash).
+  if (normalized === '/oauth2-redirect.html') {
+    return true;
+  }
   return false;
 }

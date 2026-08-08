@@ -158,6 +158,44 @@ export function buildSwaggerOauth2RedirectHtml(): string {
  */
 export function buildSwaggerOauth2BridgeScript(): string {
   return `(function () {
+  // Prefer /docs/... on the current host. Swagger's default for path "/docs"
+  // (no trailing slash) incorrectly yields "{origin}/oauth2-redirect.html".
+  (function patchOauth2RedirectUrl() {
+    var path = '/docs/oauth2-redirect.html';
+    function desired() {
+      return window.location.origin + path;
+    }
+    function apply(ui) {
+      if (!ui || !ui.getSystem) {
+        return false;
+      }
+      try {
+        var configs = ui.getSystem().getConfigs();
+        if (configs && typeof configs === 'object' && typeof configs.set !== 'function') {
+          configs.oauth2RedirectUrl = desired();
+          return true;
+        }
+      } catch (err) {}
+      return false;
+    }
+    function run() {
+      if (apply(window.ui)) {
+        return;
+      }
+      var n = 0;
+      var id = setInterval(function () {
+        if (apply(window.ui) || ++n > 100) {
+          clearInterval(id);
+        }
+      }, 50);
+    }
+    if (document.readyState === 'complete') {
+      run();
+    } else {
+      window.addEventListener('load', run);
+    }
+  })();
+
   var CHANNEL = ${JSON.stringify(SWAGGER_OAUTH2_CHANNEL)};
   var STORAGE_KEY = ${JSON.stringify(SWAGGER_OAUTH2_STORAGE_KEY)};
   var handled = false;

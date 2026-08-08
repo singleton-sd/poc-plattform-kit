@@ -68,8 +68,9 @@ export function resolveSwaggerOAuthUrls(env: EnvBag = process.env): {
 
 /**
  * Optional absolute override for Swagger OAuth2 redirect.
- * Prefer unset so Swagger UI derives `{currentOrigin}/docs/oauth2-redirect.html`
- * (ACA PR previews must not redirect to prod AUTH_URL).
+ * Prefer unset: customJs patches `{currentOrigin}/docs/oauth2-redirect.html`
+ * (Swagger’s built-in default for `/docs` wrongly uses `/oauth2-redirect.html`,
+ * and baking AUTH_URL would send ACA previews to prod).
  */
 export function resolveSwaggerOAuth2RedirectUrl(env: EnvBag = process.env): string | undefined {
   return envTrim(env, 'SWAGGER_OAUTH2_REDIRECT_URL');

@@ -36,7 +36,7 @@ Swagger UI at `/docs` exposes an **oauth2** scheme (authorization code + PKCE) i
 | Redirect URI | Same-origin `{currentHost}/docs/oauth2-redirect.html` (Swagger UI derives this; optional override `SWAGGER_OAUTH2_REDIRECT_URL`). Do **not** default from prod `AUTH_URL` — that breaks ACA PR previews. |
 | Token URL | Same-origin relative `/docs/oauth2/token` (Nest proxy) |
 
-Register that redirect URI on the Entra app registration as a **Web** platform redirect (not SPA — SPA triggers Entra `/reprocess` loops with Swagger). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`. Each ACA PR host also needs its exact Web redirect (Entra has no wildcards), e.g. `https://ssd-pocpk-aca-pr-<n>-ae.<env>.australiaeast.azurecontainerapps.io/docs/oauth2-redirect.html`.
+Register that redirect URI on the Entra app registration as a **Web** platform redirect (not SPA — SPA triggers Entra `/reprocess` loops with Swagger). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`. Each ACA PR host also needs its exact Web redirect (Entra has no wildcards). Prefer `{acaHost}/docs/oauth2-redirect.html`; also register `{acaHost}/oauth2-redirect.html` because Swagger UI’s default for path `/docs` (no trailing slash) omits the `/docs` segment.
 
 Token exchange uses Nest `POST /docs/oauth2/token` (server adds `AZURE_AD_CLIENT_SECRET`) so the browser never calls Entra’s token endpoint. Entra’s login navigation can still break Swagger’s stock `window.opener` handoff; the API serves a custom `/docs/oauth2-redirect.html` plus a one-shot BroadcastChannel bridge on `/docs`.
 

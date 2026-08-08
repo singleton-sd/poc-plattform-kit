@@ -36,6 +36,14 @@ describe('isAllowedSwaggerOauth2RedirectUri', () => {
     ).toBe(true);
   });
 
+  it('allows ACA PR preview Swagger-default /oauth2-redirect.html', () => {
+    expect(
+      isAllowedSwaggerOauth2RedirectUri(
+        'https://ssd-pocpk-aca-pr-82-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io/oauth2-redirect.html',
+      ),
+    ).toBe(true);
+  });
+
   it('rejects unrelated hosts', () => {
     expect(
       isAllowedSwaggerOauth2RedirectUri('https://evil.example/docs/oauth2-redirect.html'),

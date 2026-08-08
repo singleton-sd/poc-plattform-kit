@@ -20,5 +20,7 @@ describe('swagger-oauth2-redirect', () => {
     expect(script).toContain(SWAGGER_OAUTH2_CHANNEL);
     expect(script).toContain('window.swaggerUIRedirectOauth2');
     expect(script).toContain('addEventListener');
+    expect(script).toContain('/docs/oauth2-redirect.html');
+    expect(script).toContain('oauth2RedirectUrl');
   });
 });
