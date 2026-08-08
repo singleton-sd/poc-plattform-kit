@@ -12,6 +12,7 @@ describe('swagger-oauth2-redirect', () => {
     expect(html).toContain(SWAGGER_OAUTH2_STORAGE_KEY);
     expect(html).toContain('BroadcastChannel');
     expect(html).toContain('swaggerUIRedirectOauth2');
+    expect(html).toContain('Swagger Authorize needs a popup');
   });
 
   it('bridge script listens for channel and storage events', () => {

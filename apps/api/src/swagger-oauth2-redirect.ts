@@ -6,7 +6,8 @@
  * throws SecurityError / null opener and never returns the auth code.
  *
  * Strategy: try opener (same-origin happy path), else BroadcastChannel +
- * localStorage for the main /docs tab (see swagger-oauth2-bridge.ts).
+ * localStorage/sessionStorage for the main /docs tab. Same-window Authorize
+ * cannot recover Swagger's in-memory oauth state — show guidance instead.
  */
 export const SWAGGER_OAUTH2_CHANNEL = 'swagger-ui-oauth2-redirect';
 export const SWAGGER_OAUTH2_STORAGE_KEY = 'swagger_ui_oauth2_redirect';
@@ -107,15 +108,44 @@ export function buildSwaggerOauth2RedirectHtml(): string {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (err) {}
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {}
   }
 
-  if (!completeViaOpener()) {
-    broadcastFallback();
+  var hasOpener = false;
+  try {
+    hasOpener = !!(window.opener && !window.opener.closed);
+  } catch (err) {
+    hasOpener = false;
   }
+
+  if (completeViaOpener()) {
+    try {
+      window.close();
+    } catch (err) {}
+    document.body.textContent = 'Authentication complete. You can close this window.';
+    return;
+  }
+
+  broadcastFallback();
+
+  if (!hasOpener) {
+    // Same-window Authorize destroyed Swagger's in-memory oauth callback.
+    document.body.innerHTML =
+      '<main style="font:16px/1.4 system-ui,sans-serif;max-width:36rem;margin:2rem auto;padding:0 1rem">' +
+      '<h1>Swagger Authorize needs a popup</h1>' +
+      '<p>Entra signed you in, but this tab replaced Swagger UI, so the access token could not be returned.</p>' +
+      '<p><a href="/docs">Back to Swagger</a>, click <strong>Authorize</strong> again, and <strong>allow popups</strong> for this site so login stays in a separate window.</p>' +
+      '</main>';
+    return;
+  }
+
   try {
     window.close();
   } catch (err) {}
-  document.body.textContent = 'Authentication complete. You can close this window.';
+  document.body.textContent =
+    'Authentication complete. If this window did not close, return to the Swagger /docs tab.';
 })();
 </script>
 </body>
@@ -225,10 +255,14 @@ export function buildSwaggerOauth2BridgeScript(): string {
   });
 
   try {
-    var existing = localStorage.getItem(STORAGE_KEY);
+    var existing =
+      sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
     if (existing) {
       complete(JSON.parse(existing));
     }
+  } catch (err) {}
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
   } catch (err) {}
 })();`;
 }
