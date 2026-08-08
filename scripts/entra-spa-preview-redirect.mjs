@@ -6,8 +6,10 @@
  *   node entra-spa-preview-redirect.mjs normalize <url>
  *   node entra-spa-preview-redirect.mjs build <defaultHostname> <pr> [region]
  *   node entra-spa-preview-redirect.mjs plan add|remove <spa.json> <origin>
+ *   node entra-spa-preview-redirect.mjs sweep-spa <spa.json> <openPrCsv> [region]
  *
  * `plan` prints UNCHANGED or a JSON array of redirectUris.
+ * `sweep-spa` prints UNCHANGED or JSON { next, remove, keep }.
  */
 
 import fs from 'node:fs';
@@ -85,6 +87,83 @@ export function removeRedirectUri(uris, origin) {
   return list.filter((u) => u !== normalized);
 }
 
+/**
+ * Parse a SWA Free PR preview origin.
+ * Host shape: `{unique}-{pr}.{region}.{rest}.azurestaticapps.net`
+ *
+ * @param {string} origin
+ * @returns {{ pr: string, region: string, unique: string } | null}
+ */
+export function parseSwaPrPreviewOrigin(origin) {
+  let normalized;
+  try {
+    normalized = normalizeOrigin(origin);
+  } catch {
+    return null;
+  }
+  const host = new URL(normalized).host.toLowerCase();
+  if (!host.endsWith('.azurestaticapps.net')) {
+    return null;
+  }
+  // unique-pr.region.…azurestaticapps.net (unique may contain hyphens)
+  const match = host.match(/^(.+)-(\d+)\.([a-z0-9-]+)\.(.+)$/);
+  if (!match) {
+    return null;
+  }
+  const unique = match[1];
+  const pr = match[2];
+  const region = match[3];
+  if (!unique || !pr || !region) {
+    return null;
+  }
+  return { unique, pr, region };
+}
+
+/**
+ * Drop SPA redirect URIs that look like SWA PR previews for closed PRs.
+ * Non-preview URIs (localhost, production default host, etc.) are kept.
+ *
+ * @param {string[]} uris
+ * @param {Iterable<string|number>} openPrNumbers
+ * @param {string} [expectedRegion] when set, only URIs in this region are treated as PR previews
+ * @returns {{ next: string[], remove: string[], keep: string[] }}
+ */
+export function sweepSpaPrPreviewRedirects(uris, openPrNumbers, expectedRegion = '') {
+  const open = new Set(
+    [...openPrNumbers]
+      .map((n) => String(n).trim())
+      .filter((n) => /^\d+$/.test(n)),
+  );
+  const regionFilter = String(expectedRegion ?? '').trim().toLowerCase();
+  const list = Array.isArray(uris) ? uris : [];
+  /** @type {string[]} */
+  const next = [];
+  /** @type {string[]} */
+  const remove = [];
+  /** @type {string[]} */
+  const keep = [];
+
+  for (const uri of list) {
+    const parsed = parseSwaPrPreviewOrigin(uri);
+    if (!parsed) {
+      next.push(uri);
+      continue;
+    }
+    if (regionFilter && parsed.region !== regionFilter) {
+      next.push(uri);
+      continue;
+    }
+    if (open.has(parsed.pr)) {
+      next.push(uri);
+      keep.push(uri);
+      continue;
+    }
+    remove.push(normalizeOrigin(uri));
+  }
+
+  return { next, remove, keep };
+}
+
 async function main(argv) {
   const [cmd, ...args] = argv;
   switch (cmd) {
@@ -116,9 +195,32 @@ async function main(argv) {
       }
       return;
     }
+    case 'sweep-spa': {
+      const spaPath = args[0];
+      const openCsv = args[1] ?? '';
+      const region = args[2] ?? 'eastasia';
+      if (!spaPath) {
+        throw new Error('sweep-spa requires: <spa.json> <openPrCsv> [region]');
+      }
+      const spa = JSON.parse(fs.readFileSync(spaPath, 'utf8')).spa ?? {};
+      const uris = Array.isArray(spa.redirectUris) ? spa.redirectUris : [];
+      const openPrs = openCsv
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const plan = sweepSpaPrPreviewRedirects(uris, openPrs, region);
+      if (plan.remove.length === 0) {
+        process.stdout.write('UNCHANGED\n');
+      } else {
+        process.stdout.write(JSON.stringify(plan) + '\n');
+      }
+      return;
+    }
     default: {
       const _exhaustive = cmd;
-      throw new Error(`usage: normalize|build|plan … (got ${_exhaustive ?? 'undefined'})`);
+      throw new Error(
+        `usage: normalize|build|plan|sweep-spa … (got ${_exhaustive ?? 'undefined'})`,
+      );
     }
   }
 }

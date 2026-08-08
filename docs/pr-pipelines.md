@@ -75,6 +75,32 @@ az rest --method patch \
   --body '{"properties":{"stagingEnvironmentPolicy":"Enabled"}}'
 ```
 
+### Preview orphan sweep (daily)
+
+Close hooks can miss leftovers (shared concurrency races, path-filtered `closed`
+events, Graph soft-fails). Workflow:
+[`.github/workflows/sweep-preview-orphans.yml`](../.github/workflows/sweep-preview-orphans.yml)
+runs daily (06:15 UTC) and on `workflow_dispatch` via
+[`scripts/sweep-preview-orphans.sh`](../scripts/sweep-preview-orphans.sh).
+
+| Target | Action when PR number is not open |
+| --- | --- |
+| ACA `ssd-pocpk-aca-pr-<n>-ae` | `az containerapp delete` |
+| SWA staging builds (web + marketing), except `default` | `az staticwebapp environment delete` |
+| ACR tags `pocpk-api:pr-<n>` / `pr-<n>-<sha>` | `az acr repository delete` |
+| Entra SPA redirect URIs matching SWA PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
+
+Manual dry-run:
+
+```bash
+gh workflow run sweep-preview-orphans.yml -f dry_run=true
+# or locally (az + gh logged in):
+./scripts/sweep-preview-orphans.sh --dry-run
+```
+
+OIDC uses the **main** federated credential (schedule / `workflow_dispatch` on
+`main`). Ensure FIC subjects cover `ref:refs/heads/main` (and ID-form if used).
+
 ### BE — Container Apps per PR (Path B — locked)
 
 Each API PR gets its own preview URL via **Azure Container Apps Consumption** (scale to zero).
@@ -108,6 +134,8 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 
 1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`): build `apps/api/Dockerfile`, push `…/pocpk-api:pr-<n>`, create/update Container App, comment preview URL (`/health`).
 2. **PR close:** delete `ssd-pocpk-aca-pr-<n>-ae`.
+3. **Daily orphan sweep:** `sweep-preview-orphans.yml` deletes leftovers if
+   close cleanup was skipped (path filters, cancelled run, Graph soft-fail).
 
 #### GitHub Azure auth (human)
 

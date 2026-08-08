@@ -26,10 +26,8 @@ on:
       - 'packages/**'
       - '.github/workflows/preview-api.yml'
 
-concurrency:
-  group: preview-api-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
+# Deploy and cleanup use separate concurrency groups so a late synchronize
+# cannot cancel the close cleanup (and vice versa).
 env:
   AZURE_RESOURCE_GROUP: rg-poc-plattform-kit
   ACA_ENV_NAME: ssd-pocpk-cae-dev-ae
@@ -45,6 +43,9 @@ jobs:
     # Require open state (not only action != closed) so a late synchronize
     # cannot recreate the app after cleanup on a closed/merged PR.
     if: github.event.pull_request.state == 'open'
+    concurrency:
+      group: preview-api-deploy-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -305,6 +306,9 @@ jobs:
   cleanup:
     name: Delete ephemeral ACA preview
     if: github.event.action == 'closed'
+    concurrency:
+      group: preview-api-cleanup-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
