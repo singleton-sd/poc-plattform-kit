@@ -9,6 +9,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
+import { CurrentUser } from './current-user.decorator';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
 import { TenantListResponseDto } from './dto/tenant-list-response.dto';
@@ -38,10 +40,13 @@ export class TenantController {
 
   @Post()
   @Roles('support-agent', 'tenant-admin')
-  @ApiCreatedResponse({ type: TenantResponseDto, description: 'Tenant created.' })
+  @ApiCreatedResponse({
+    type: TenantResponseDto,
+    description: 'Tenant created; the caller is auto-assigned as its owner.',
+  })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
-  create(@Body() dto: CreateTenantDto) {
-    return this.tenants.create(dto);
+  create(@Body() dto: CreateTenantDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.tenants.create(dto, user.id);
   }
 
   @Get(':id')
