@@ -2,6 +2,12 @@
 
 ## 2026-08-08
 
+- **@poc-plattform-kit/api** `0.21.0` → `0.22.0` (minor)
+- **@poc-plattform-kit/web** `0.14.1` → `0.15.0` (minor)
+- **@poc-plattform-kit/api-client** `0.11.0` → `0.12.0` (minor)
+- **@poc-plattform-kit/pillar-single-sign-on** `0.2.1` → `0.3.0` (minor)
+## 2026-08-08
+
 - **@poc-plattform-kit/api** `0.20.0` → `0.21.0` (minor)
 - **@poc-plattform-kit/pillar-permissions** `0.3.1` → `0.4.0` (minor)
 ## 2026-08-08
