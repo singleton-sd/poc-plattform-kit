@@ -8,6 +8,7 @@ import type { CreateTenantDtoSettings } from './createTenantDtoSettings';
 
 export interface CreateTenantDto {
   name: string;
-  slug: string;
+  /** URL-friendly identifier. Generated from name when omitted or blank; format and uniqueness are validated when supplied. */
+  slug?: string;
   settings?: CreateTenantDtoSettings;
 }

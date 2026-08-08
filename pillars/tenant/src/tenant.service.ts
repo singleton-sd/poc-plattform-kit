@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -11,6 +12,10 @@ import { CreateTenantDto } from './dto/create-tenant.dto';
 import { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenancyContext } from './tenancy.context';
+import { SLUG_PATTERN, slugify } from './slug.util';
+
+/** Bound on deterministic -N suffix retries when a slug is auto-generated. */
+const MAX_GENERATED_SLUG_ATTEMPTS = 50;
 
 type TenantRow = {
   id: string;
@@ -28,6 +33,11 @@ export type TenantRecord = {
   settings: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type TenantListPage = {
+  items: TenantRecord[];
+  nextCursor: string | null;
 };
 
 function isUniqueConflict(error: unknown): boolean {
@@ -64,8 +74,10 @@ export class TenantService {
     private readonly tenancy: TenancyContext,
   ) {}
 
-  async findAll(query: ListTenantsQueryDto): Promise<TenantRecord[]> {
+  async findAll(query: ListTenantsQueryDto): Promise<TenantListPage> {
     const q = query.q?.trim();
+    const take = Math.min(query.limit ?? 25, 100);
+
     const tenants = await this.prisma.tenant.findMany({
       ...(q
         ? {
@@ -75,65 +87,90 @@ export class TenantService {
           }
         : {}),
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      take: Math.min(query.limit ?? 25, 100),
+      // Fetch one extra row to detect whether another page follows, without a separate count query.
+      take: take + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
 
-    return tenants.map(toTenantRecord);
+    const hasMore = tenants.length > take;
+    const page = hasMore ? tenants.slice(0, take) : tenants;
+    const nextCursor = hasMore ? page[page.length - 1].id : null;
+
+    return { items: page.map(toTenantRecord), nextCursor };
   }
 
   async create(dto: CreateTenantDto): Promise<TenantRecord> {
     const settings = dto.settings ? JSON.stringify(dto.settings) : null;
+    const explicitSlug = dto.slug?.trim();
 
-    try {
-      const tenant = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const created = await tx.tenant.create({
-          data: {
-            name: dto.name,
-            slug: dto.slug,
-            settings,
-          },
-        });
-
-        await tx.tenantAudit.create({
-          data: {
-            entityType: 'Tenant',
-            entityId: created.id,
-            action: 'created',
-            changes: JSON.stringify({
-              name: created.name,
-              slug: created.slug,
-              settings: created.settings,
-            }),
-          },
-        });
-
-        const event: DomainEvent<{ name: string; slug: string }> = {
-          id: crypto.randomUUID(),
-          type: 'tenant.created',
-          pillar: 'tenant',
-          tenantId: created.id,
-          occurredAt: new Date().toISOString(),
-          payload: { name: created.name, slug: created.slug },
-        };
-
-        await tx.tenantOutbox.create({
-          data: {
-            eventType: event.type,
-            payload: JSON.stringify(event),
-            occurredAt: new Date(event.occurredAt),
-          },
-        });
-
-        return created;
-      });
-
-      return toTenantRecord(tenant);
-    } catch (error: unknown) {
-      if (isUniqueConflict(error)) {
-        throw new ConflictException('Tenant slug already exists');
-      }
-      throw error;
+    if (explicitSlug && !SLUG_PATTERN.test(explicitSlug)) {
+      throw new BadRequestException('slug must be lowercase alphanumeric with optional hyphens');
     }
+
+    const base = explicitSlug || slugify(dto.name);
+    const maxAttempts = explicitSlug ? 1 : MAX_GENERATED_SLUG_ATTEMPTS;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const candidateSlug = attempt === 1 ? base : `${base}-${attempt}`;
+
+      try {
+        const tenant = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const created = await tx.tenant.create({
+            data: {
+              name: dto.name,
+              slug: candidateSlug,
+              settings,
+            },
+          });
+
+          await tx.tenantAudit.create({
+            data: {
+              entityType: 'Tenant',
+              entityId: created.id,
+              action: 'created',
+              changes: JSON.stringify({
+                name: created.name,
+                slug: created.slug,
+                settings: created.settings,
+              }),
+            },
+          });
+
+          const event: DomainEvent<{ name: string; slug: string }> = {
+            id: crypto.randomUUID(),
+            type: 'tenant.created',
+            pillar: 'tenant',
+            tenantId: created.id,
+            occurredAt: new Date().toISOString(),
+            payload: { name: created.name, slug: created.slug },
+          };
+
+          await tx.tenantOutbox.create({
+            data: {
+              eventType: event.type,
+              payload: JSON.stringify(event),
+              occurredAt: new Date(event.occurredAt),
+            },
+          });
+
+          return created;
+        });
+
+        return toTenantRecord(tenant);
+      } catch (error: unknown) {
+        const isLastAttempt = attempt === maxAttempts;
+        if (isUniqueConflict(error) && !isLastAttempt) {
+          continue;
+        }
+        if (isUniqueConflict(error)) {
+          throw new ConflictException('Tenant slug already exists');
+        }
+        throw error;
+      }
+    }
+
+    /* istanbul ignore next -- loop always returns or throws */
+    throw new ConflictException('Tenant slug already exists');
   }
 
   async findOne(id: string): Promise<TenantRecord> {

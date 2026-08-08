@@ -353,7 +353,7 @@ resource marketingStaticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
   }
   properties: {
     allowConfigFileUpdates: true
-    stagingEnvironmentPolicy: 'Disabled'
+    stagingEnvironmentPolicy: 'Enabled'
   }
 }
 

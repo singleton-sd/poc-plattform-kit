@@ -9,10 +9,11 @@ describe('TenantController', () => {
   });
 
   it('passes validated list filters to the service', async () => {
-    const tenants = { findAll: jest.fn().mockResolvedValue([]) };
+    const page = { items: [], nextCursor: null };
+    const tenants = { findAll: jest.fn().mockResolvedValue(page) };
     const controller = new TenantController(tenants as never);
 
-    await expect(controller.findAll({ q: 'acme', limit: 5 })).resolves.toEqual([]);
+    await expect(controller.findAll({ q: 'acme', limit: 5 })).resolves.toEqual(page);
     expect(tenants.findAll).toHaveBeenCalledWith({ q: 'acme', limit: 5 });
   });
 });
