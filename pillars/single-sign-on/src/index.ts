@@ -1,5 +1,6 @@
 ﻿export {
   mapEntraClaims,
+  normalizeEntraRoles,
   toMeResponse,
   type EntraClaims,
   type AuthenticatedUser,
