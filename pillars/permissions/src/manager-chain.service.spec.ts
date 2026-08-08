@@ -18,7 +18,10 @@ function credentialReturning(token: string | null): TokenCredential {
 describe('ManagerChainService', () => {
   it('returns an empty chain when the user has no manager (404)', async () => {
     const fetchFn = jest.fn().mockResolvedValue(jsonResponse(404));
-    const service = new ManagerChainService({ credential: credentialReturning('t'), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1')).resolves.toEqual([]);
     expect(fetchFn).toHaveBeenCalledWith(
@@ -32,7 +35,10 @@ describe('ManagerChainService', () => {
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, { id: 'manager-1' }))
       .mockResolvedValueOnce(jsonResponse(404));
-    const service = new ManagerChainService({ credential: credentialReturning('t'), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1')).resolves.toEqual(['manager-1']);
   });
@@ -43,7 +49,10 @@ describe('ManagerChainService', () => {
       .mockResolvedValueOnce(jsonResponse(200, { id: 'manager-1' }))
       .mockResolvedValueOnce(jsonResponse(200, { id: 'manager-2' }))
       .mockResolvedValueOnce(jsonResponse(404));
-    const service = new ManagerChainService({ credential: credentialReturning('t'), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1')).resolves.toEqual(['manager-1', 'manager-2']);
   });
@@ -54,7 +63,10 @@ describe('ManagerChainService', () => {
       const next = `${current}-up`;
       return Promise.resolve(jsonResponse(200, { id: next }));
     });
-    const service = new ManagerChainService({ credential: credentialReturning('t'), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1', { maxDepth: 3 })).resolves.toEqual([
       'user-1-up',
@@ -69,7 +81,10 @@ describe('ManagerChainService', () => {
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, { id: 'manager-1' }))
       .mockResolvedValueOnce(jsonResponse(200, { id: 'user-1' }));
-    const service = new ManagerChainService({ credential: credentialReturning('t'), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1', { maxDepth: 10 })).resolves.toEqual([
       'manager-1',
@@ -77,13 +92,13 @@ describe('ManagerChainService', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it('caches a direct-manager lookup within the TTL', async () => {
+  it('caches a definitive lookup (found manager, and confirmed no-manager) within the TTL', async () => {
     const fetchFn = jest
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, { id: 'manager-1' }))
       .mockResolvedValueOnce(jsonResponse(404));
     let now = 0;
-    const service = new ManagerChainService({
+    const service = ManagerChainService.createForTesting({
       credential: credentialReturning('t'),
       fetchFn,
       now: () => now,
@@ -106,7 +121,7 @@ describe('ManagerChainService', () => {
       .mockResolvedValueOnce(jsonResponse(404));
     let now = 0;
     process.env.MANAGER_CHAIN_CACHE_TTL_MS = '500';
-    const service = new ManagerChainService({
+    const service = ManagerChainService.createForTesting({
       credential: credentialReturning('t'),
       fetchFn,
       now: () => now,
@@ -120,25 +135,59 @@ describe('ManagerChainService', () => {
     delete process.env.MANAGER_CHAIN_CACHE_TTL_MS;
   });
 
-  it('treats a missing Graph token as no manager instead of throwing', async () => {
+  it('treats a missing Graph token as no manager instead of throwing, and does not cache it', async () => {
     const fetchFn = jest.fn();
-    const service = new ManagerChainService({ credential: credentialReturning(null), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning(null),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1')).resolves.toEqual([]);
     expect(fetchFn).not.toHaveBeenCalled();
+
+    // A retry should acquire a token again rather than trusting a cached failure.
+    await service.getManagerChain('user-1');
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 
-  it('treats a Graph error response as no manager instead of throwing', async () => {
+  it('treats a permission-denied response (403) as no manager, logs it, and does not cache it', async () => {
+    const fetchFn = jest.fn().mockResolvedValue(jsonResponse(403));
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
+
+    await expect(service.getManagerChain('user-1')).resolves.toEqual([]);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+
+    // Not cached: a second call retries Graph instead of trusting the denial forever.
+    await service.getManagerChain('user-1');
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a Graph error response (5xx) as no manager instead of throwing, and does not cache it', async () => {
     const fetchFn = jest.fn().mockResolvedValue(jsonResponse(503));
-    const service = new ManagerChainService({ credential: credentialReturning('t'), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1')).resolves.toEqual([]);
+
+    await service.getManagerChain('user-1');
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it('treats a fetch rejection as no manager instead of throwing', async () => {
+  it('treats a fetch rejection as no manager instead of throwing, and does not cache it', async () => {
     const fetchFn = jest.fn().mockRejectedValue(new Error('network down'));
-    const service = new ManagerChainService({ credential: credentialReturning('t'), fetchFn });
+    const service = ManagerChainService.createForTesting({
+      credential: credentialReturning('t'),
+      fetchFn,
+    });
 
     await expect(service.getManagerChain('user-1')).resolves.toEqual([]);
+
+    await service.getManagerChain('user-1');
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 });

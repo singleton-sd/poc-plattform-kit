@@ -11,6 +11,12 @@ interface CacheEntry {
   expiresAt: number;
 }
 
+interface DirectManagerResult {
+  managerId: string | null;
+  /** Only definitive outcomes (a resolved manager, or a confirmed 404) are cacheable. */
+  cacheable: boolean;
+}
+
 export interface ManagerChainDependencies {
   credential?: TokenCredential;
   fetchFn?: typeof fetch;
@@ -22,19 +28,27 @@ export interface ManagerChainDependencies {
  * manager, and so on) via Microsoft Graph `/users/{id}/manager`. Read-only —
  * never writes to Entra. Feeds Access Request approver computation alongside
  * tenant admins (see Architecture Doc "Permissions & Access Requests").
+ *
+ * Constructor takes no arguments so Nest's DI container can instantiate this
+ * class directly (an interface-typed constructor parameter compiles to an
+ * unregistered `Object` provider and breaks app boot). Use
+ * `ManagerChainService.createForTesting(...)` to override the Graph
+ * credential/fetch/clock in tests.
  */
 @Injectable()
 export class ManagerChainService {
   private readonly logger = new Logger(ManagerChainService.name);
-  private readonly credential: TokenCredential;
-  private readonly fetchFn: typeof fetch;
-  private readonly now: () => number;
+  private credential: TokenCredential = new DefaultAzureCredential();
+  private fetchFn: typeof fetch = fetch;
+  private now: () => number = () => Date.now();
   private readonly cache = new Map<string, CacheEntry>();
 
-  constructor(dependencies: ManagerChainDependencies = {}) {
-    this.credential = dependencies.credential ?? new DefaultAzureCredential();
-    this.fetchFn = dependencies.fetchFn ?? fetch;
-    this.now = dependencies.now ?? (() => Date.now());
+  static createForTesting(dependencies: ManagerChainDependencies): ManagerChainService {
+    const service = new ManagerChainService();
+    if (dependencies.credential) service.credential = dependencies.credential;
+    if (dependencies.fetchFn) service.fetchFn = dependencies.fetchFn;
+    if (dependencies.now) service.now = dependencies.now;
+    return service;
   }
 
   private get maxDepth(): number {
@@ -81,37 +95,64 @@ export class ManagerChainService {
       return cached.managerId;
     }
 
-    const managerId = await this.fetchDirectManager(userId);
-    this.cache.set(userId, { managerId, expiresAt: this.now() + this.cacheTtlMs });
-    return managerId;
+    const result = await this.fetchDirectManager(userId);
+    if (result.cacheable) {
+      this.cache.set(userId, {
+        managerId: result.managerId,
+        expiresAt: this.now() + this.cacheTtlMs,
+      });
+    }
+    return result.managerId;
   }
 
-  private async fetchDirectManager(userId: string): Promise<string | null> {
+  /**
+   * Only a resolved manager or a confirmed 404 ("definitely no manager") are
+   * cacheable. Token failures, 401/403, throttling, 5xx, and network errors
+   * are transient/operational — caching those would suppress correct
+   * resolution for a full TTL window after Graph recovers.
+   */
+  private async fetchDirectManager(userId: string): Promise<DirectManagerResult> {
+    let token;
     try {
-      const token = await this.credential.getToken(GRAPH_SCOPE);
-      if (!token) {
-        this.logger.warn('Unable to acquire a Graph token; treating manager as unresolved');
-        return null;
-      }
+      token = await this.credential.getToken(GRAPH_SCOPE);
+    } catch (error) {
+      this.logger.warn(`Graph token acquisition failed for ${userId}: ${(error as Error).message}`);
+      return { managerId: null, cacheable: false };
+    }
+    if (!token) {
+      this.logger.warn('Unable to acquire a Graph token; treating manager as unresolved');
+      return { managerId: null, cacheable: false };
+    }
 
-      const response = await this.fetchFn(
+    let response: Response;
+    try {
+      response = await this.fetchFn(
         `${GRAPH_BASE_URL}/users/${encodeURIComponent(userId)}/manager?$select=id`,
         { headers: { Authorization: `Bearer ${token.token}` } },
       );
-
-      if (response.status === 404) {
-        return null;
-      }
-      if (!response.ok) {
-        this.logger.warn(`Graph manager lookup failed for ${userId}: HTTP ${response.status}`);
-        return null;
-      }
-
-      const body = (await response.json()) as { id?: unknown };
-      return typeof body.id === 'string' && body.id ? body.id : null;
     } catch (error) {
       this.logger.warn(`Graph manager lookup errored for ${userId}: ${(error as Error).message}`);
-      return null;
+      return { managerId: null, cacheable: false };
     }
+
+    if (response.status === 404) {
+      return { managerId: null, cacheable: true };
+    }
+    if (response.status === 401 || response.status === 403) {
+      this.logger.error(
+        `Graph manager lookup for ${userId} was denied (HTTP ${response.status}). The API's ` +
+          'identity likely lacks the Microsoft Graph application permission "User.Read.All" ' +
+          '(admin consent required) — see Architecture Doc "Permissions & Access Requests".',
+      );
+      return { managerId: null, cacheable: false };
+    }
+    if (!response.ok) {
+      this.logger.warn(`Graph manager lookup failed for ${userId}: HTTP ${response.status}`);
+      return { managerId: null, cacheable: false };
+    }
+
+    const body = (await response.json()) as { id?: unknown };
+    const managerId = typeof body.id === 'string' && body.id ? body.id : null;
+    return { managerId, cacheable: true };
   }
 }
