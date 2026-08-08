@@ -1,11 +1,26 @@
 /**
  * Preview pane iframe styles — official CMS.registerPreviewStyle target.
  * Mirrors marketing token roles + home / [slug] layouts.
+ *
+ * Token sheet vars are gated on [data-theme='dark']. Decap’s preview iframe
+ * has no data-theme by default (admin-preview.js stamps it). Mirror the needed
+ * --colors-* / font tokens on :root so contrast works even before that runs.
  */
 @import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
 @import url('https://cdn.jsdelivr.net/npm/@fontsource/open-sauce-sans@5.3.0/index.css');
 
-html {
+:root {
+  /* Same values as tokens.design.singletonsd.com dark sheet (iframe bridge). */
+  --colors-gray-100: #f5f6f7;
+  --colors-gray-400: #b3b7bd;
+  --colors-gray-700: #60656b;
+  --colors-gray-800: #44484d;
+  --colors-gray-900: #292c30;
+  --colors-yellow-light-400: #fdc94a;
+  --colors-yellow-light-900: #6b4500;
+  --font-families-heading: 'Open Sauce Sans';
+  --font-families-body: 'Open Sauce Sans';
+
   --pk-bg: var(--colors-gray-900);
   --pk-fg: var(--colors-gray-100);
   --pk-muted: var(--colors-gray-400);
@@ -19,6 +34,7 @@ html {
   --accent-default: var(--pk-accent);
   --accent-on-accent: var(--pk-accent-on);
   --accent-bg: var(--pk-accent-bg);
+  color-scheme: dark;
 }
 
 html,
@@ -133,15 +149,29 @@ body {
   margin: 0 0 0.75rem;
 }
 
+/* Decap markdown widget injects light-theme colors — force product contrast. */
+.pk-preview,
+.pk-preview .pk-preview__body,
+.pk-preview .pk-preview__body p,
+.pk-preview .pk-preview__body li,
+.pk-preview .pk-preview__body span,
+.pk-preview .pk-preview__body div {
+  color: var(--pk-muted);
+}
+
 .pk-preview__body h1,
 .pk-preview__body h2,
-.pk-preview__body h3 {
-  color: var(--pk-fg);
+.pk-preview__body h3,
+.pk-preview__title,
+.pk-preview__brand,
+.pk-preview__headline {
+  color: var(--pk-fg) !important;
   font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
 }
 
-.pk-preview__body a {
-  color: var(--pk-accent);
+.pk-preview__body a,
+.pk-preview a {
+  color: var(--pk-accent) !important;
 }
 
 /* Fallback when preview template is not used */

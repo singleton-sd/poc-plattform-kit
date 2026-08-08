@@ -1,4 +1,4 @@
-/* global window, CMS, createClass, h */
+/* global window, document, CMS, createClass, h, MutationObserver */
 /**
  * Official Decap preview customization:
  * https://decapcms.org/docs/customization/
@@ -12,6 +12,30 @@
   if (!window.CMS) return;
 
   CMS.registerPreviewStyle('/admin/preview.css');
+
+  /**
+   * Token CSS is gated on [data-theme='dark']. Decap preview iframes omit it,
+   * so stamp the attribute whenever a preview frame mounts.
+   */
+  function stampPreviewTheme() {
+    const frames = document.querySelectorAll('iframe');
+    for (let i = 0; i < frames.length; i += 1) {
+      try {
+        const root = frames[i].contentDocument && frames[i].contentDocument.documentElement;
+        if (root && root.getAttribute('data-theme') !== 'dark') {
+          root.setAttribute('data-theme', 'dark');
+        }
+      } catch {
+        /* ignore cross-origin */
+      }
+    }
+  }
+
+  const previewObserver = new MutationObserver(stampPreviewTheme);
+  previewObserver.observe(document.documentElement, { childList: true, subtree: true });
+  window.setTimeout(stampPreviewTheme, 0);
+  window.setTimeout(stampPreviewTheme, 500);
+  window.setTimeout(stampPreviewTheme, 2000);
 
   const PagesPreview = createClass({
     render: function renderPagesPreview() {

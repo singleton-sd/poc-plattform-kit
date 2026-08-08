@@ -392,17 +392,24 @@ button[class*='green'] {
   color: var(--pk-fg) !important;
 }
 
-/* Override Decap text.fieldLabel (12px uppercase controlLabel) */
+/* Override Decap text.fieldLabel (12px uppercase controlLabel).
+   Decap paints labels on white/active pills — strip that chrome. */
 [class*='FieldLabel'],
-[class*='label'],
-label[class*='Label'] {
+label[class*='Label'],
+label[class*='FieldLabel'] {
   color: var(--pk-muted) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   font-size: 0.8rem !important;
   font-weight: 600 !important;
   letter-spacing: 0.04em !important;
   text-transform: uppercase !important;
   margin-bottom: 0.35rem !important;
+  padding: 0 !important;
   opacity: 1 !important;
+  display: block !important;
 }
 
 [class*='ControlHints'],
@@ -465,6 +472,27 @@ label[class*='Label'] {
 
 [class*='PreviewPane'] {
   border-left: 1px solid var(--pk-border) !important;
+}
+
+/* Soften default OS scrollbar against dark chrome */
+[class*='ControlPane']::-webkit-scrollbar,
+[class*='PreviewPane']::-webkit-scrollbar,
+[class*='Editor']::-webkit-scrollbar {
+  width: 0.65rem;
+  height: 0.65rem;
+}
+
+[class*='ControlPane']::-webkit-scrollbar-thumb,
+[class*='PreviewPane']::-webkit-scrollbar-thumb,
+[class*='Editor']::-webkit-scrollbar-thumb {
+  background: var(--pk-surface-raised);
+  border-radius: 0.35rem;
+}
+
+[class*='ControlPane']::-webkit-scrollbar-track,
+[class*='PreviewPane']::-webkit-scrollbar-track,
+[class*='Editor']::-webkit-scrollbar-track {
+  background: var(--pk-bg);
 }
 
 /* Login */
