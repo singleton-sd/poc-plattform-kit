@@ -172,7 +172,7 @@ body {
 }
 
 .pk-preview__body a,
-.pk-preview a {
+.pk-preview a:not(.pk-preview__cta) {
   color: var(--pk-accent) !important;
 }
 
