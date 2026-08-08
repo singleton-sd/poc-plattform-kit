@@ -15,3 +15,13 @@ Checks fail closed (`allowed: false`) until an OpenFGA adapter is configured.
 OpenFGA is hosted separately on Azure Container Apps Consumption; domain pillars
 call this pillar over synchronous HTTP or a bounded cache rather than embedding
 authorization rules.
+
+## Manager/reporting-line resolution
+
+`ManagerChainService` resolves a user's Entra reporting line (`/users/{id}/manager`
+via Microsoft Graph, read-only, never writes to Entra) for Access Request approver
+computation — an approver is either a tenant `admin` (OpenFGA `Check`) or someone
+in the requester's manager chain. Bounded by `MANAGER_CHAIN_MAX_DEPTH` (default 5)
+and cached for `MANAGER_CHAIN_CACHE_TTL_MS` (default 5 minutes) to avoid a Graph
+call on every request. See the Architecture Doc "Permissions & Access Requests
+(OpenFGA)" page for the full design.
