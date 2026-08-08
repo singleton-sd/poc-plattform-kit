@@ -101,13 +101,25 @@ a {
   box-shadow: none !important;
 }
 
-/* Logo — no floating gray tile */
+/* Logo — no floating gray tile; taller mark on login for subtitle */
 [class*='AppHeader'] img,
-[class*='AppHeader'] [class*='logo'],
+[class*='AppHeader'] [class*='logo'] {
+  background: transparent !important;
+  max-height: 2.5rem !important;
+  width: auto !important;
+}
+
+[class*='AuthenticationPage'] [class*='CustomIconWrapper'] {
+  width: min(18rem, 90vw) !important;
+  margin-bottom: 0.5rem !important;
+}
+
 [class*='AuthenticationPage'] img {
   background: transparent !important;
-  max-height: 2rem !important;
-  width: auto !important;
+  max-height: none !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
 }
 
 /* SidebarContainer */
@@ -559,6 +571,31 @@ label[class*='FieldLabel'] {
 [class*='AuthButton'] button {
   background-color: var(--pk-accent) !important;
   color: var(--pk-accent-on) !important;
+}
+
+/* Hide Decap credit mark under the custom logo */
+[class*='NetlifyCreditIcon'],
+[class*='AuthenticationPage'] > svg[class*='Icon'] {
+  display: none !important;
+}
+
+/* “← Go back to site” — product accent, not muted gray */
+[class*='GoBackButton'],
+[class*='GoBackButtonStyle'] {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
+}
+
+[class*='GoBackButton'] p,
+[class*='GoBackButtonStyle'] p,
+[class*='GoBackButtonStyle'] [class*='ButtonText'] {
+  color: var(--pk-accent) !important;
+}
+
+[class*='GoBackButton'] svg,
+[class*='GoBackButtonStyle'] svg {
+  color: var(--pk-accent) !important;
+  fill: var(--pk-accent) !important;
 }
 
 /* SVG fill leftovers from Decap blue active */

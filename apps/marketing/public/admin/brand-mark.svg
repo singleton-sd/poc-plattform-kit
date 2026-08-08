@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" role="img" aria-label="Platform Kit">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" role="img" aria-label="Platform Kit Content Admin">
   <text
     x="0"
     y="28"
-    font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif"
+    font-family="Open Sauce Sans, ui-sans-serif, system-ui, Segoe UI, sans-serif"
     font-size="22"
     font-weight="700"
     letter-spacing="-0.04em"
@@ -13,11 +13,22 @@
   <text
     x="148"
     y="28"
-    font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif"
+    font-family="Open Sauce Sans, ui-sans-serif, system-ui, Segoe UI, sans-serif"
     font-size="22"
     font-weight="700"
     fill="#fdc94a"
   >
     .
+  </text>
+  <text
+    x="0"
+    y="52"
+    font-family="Open Sauce Sans, ui-sans-serif, system-ui, Segoe UI, sans-serif"
+    font-size="14"
+    font-weight="500"
+    letter-spacing="0.02em"
+    fill="#b3b7bd"
+  >
+    Content admin
   </text>
 </svg>
