@@ -22,7 +22,9 @@
     "resolve:conflicts": "powershell -ExecutionPolicy Bypass -File ./scripts/resolve-merge-conflicts.ps1",
     "release": "node ./scripts/release-changed.mjs",
     "release:ci": "node ./scripts/release-changed.mjs --ci",
-    "prepare": "husky"
+    "prepare": "husky",
+    "pr:gate": "node scripts/pr-handoff-gate.mjs",
+    "test:pr-automation": "node scripts/pr-handoff-gate.test.mjs && bash scripts/clickup-handoff.test.sh && bash scripts/recover-clickup-pr.test.sh && bash scripts/complete-clickup-on-merge.test.sh"
   },
   "lint-staged": {
     "*": "prettier --write --ignore-unknown",
