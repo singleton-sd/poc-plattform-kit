@@ -7,8 +7,8 @@ export interface Me {
   id: string;
   email: string;
   name: string | null;
-  /** Coarse AuthN role from SingleSignOn (e.g. 'tenant-admin', 'support-agent'). */
-  role: string | null;
+  /** Coarse AuthN roles from SingleSignOn (e.g. 'tenant-admin', 'support-agent'). */
+  roles: string[];
 }
 
 /**

@@ -60,7 +60,7 @@ describe('EntraJwtStrategy', () => {
       entraOid: 'oid-1',
       email: 'agent@example.com',
       name: 'Agent',
-      role: 'support-agent',
+      roles: ['support-agent'],
       id: 'oid-1',
       tenantId: null,
     });

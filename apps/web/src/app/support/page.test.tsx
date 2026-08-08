@@ -49,7 +49,7 @@ describe('SupportPage', () => {
 
   it('restricts access when the user lacks the support-agent role', () => {
     mockUseMe.mockReturnValue({
-      data: { role: 'tenant-admin' },
+      data: { roles: ['tenant-admin'] },
       isLoading: false,
       isError: false,
     });
@@ -76,7 +76,19 @@ describe('SupportPage', () => {
 
   it('renders the shell for a support-agent', () => {
     mockUseMe.mockReturnValue({
-      data: { role: 'support-agent' },
+      data: { roles: ['support-agent'] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<SupportPage />);
+
+    expect(screen.getByTestId('support-shell')).toBeInTheDocument();
+  });
+
+  it('renders the shell when support-agent is one of multiple roles', () => {
+    mockUseMe.mockReturnValue({
+      data: { roles: ['tenant-admin', 'support-agent'] },
       isLoading: false,
       isError: false,
     });
@@ -88,7 +100,7 @@ describe('SupportPage', () => {
 
   it('looks up and displays a tenant by id for a support-agent', () => {
     mockUseMe.mockReturnValue({
-      data: { role: 'support-agent' },
+      data: { roles: ['support-agent'] },
       isLoading: false,
       isError: false,
     });
@@ -143,7 +155,7 @@ describe('SupportPage', () => {
     },
   ])('shows the tenant $name state', ({ query, message, role }) => {
     mockUseMe.mockReturnValue({
-      data: { role: 'support-agent' },
+      data: { roles: ['support-agent'] },
       isLoading: false,
       isError: false,
     });
