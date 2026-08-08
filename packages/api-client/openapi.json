@@ -358,7 +358,7 @@
         "flows": {
           "authorizationCode": {
             "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-            "tokenUrl": "https://api.plattform-kit.poc.singletonsd.com/docs/oauth2/token",
+            "tokenUrl": "/docs/oauth2/token",
             "scopes": {
               "openid": "Sign in",
               "profile": "User profile",

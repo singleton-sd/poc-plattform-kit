@@ -56,15 +56,15 @@ describe('swagger.config', () => {
   });
 
   describe('resolveSwaggerOAuth2RedirectUrl', () => {
-    it('uses AUTH_URL + /docs/oauth2-redirect.html', () => {
+    it('returns undefined so Swagger UI uses the current host (preview-safe)', () => {
       expect(
         resolveSwaggerOAuth2RedirectUrl({
           AUTH_URL: 'https://api.plattform-kit.poc.singletonsd.com/',
         }),
-      ).toBe('https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html');
+      ).toBeUndefined();
     });
 
-    it('prefers SWAGGER_OAUTH2_REDIRECT_URL', () => {
+    it('prefers SWAGGER_OAUTH2_REDIRECT_URL when set', () => {
       expect(
         resolveSwaggerOAuth2RedirectUrl({
           SWAGGER_OAUTH2_REDIRECT_URL: 'http://localhost:3001/docs/oauth2-redirect.html',
@@ -75,7 +75,7 @@ describe('swagger.config', () => {
   });
 
   describe('buildOpenApiDocumentConfig', () => {
-    it('includes oauth2 with tenant-specific Entra URLs when configured', () => {
+    it('uses same-origin relative token proxy URL (not AUTH_URL / prod)', () => {
       const doc = buildOpenApiDocumentConfig({
         AZURE_AD_TENANT_ID: 'tenant-1',
         AZURE_AD_CLIENT_ID: 'client-1',
@@ -90,7 +90,7 @@ describe('swagger.config', () => {
         flows: {
           authorizationCode: {
             authorizationUrl: 'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/authorize',
-            tokenUrl: 'https://api.example.com/docs/oauth2/token',
+            tokenUrl: '/docs/oauth2/token',
           },
         },
       });
@@ -103,7 +103,7 @@ describe('swagger.config', () => {
         flows: {
           authorizationCode: {
             authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-            tokenUrl: 'https://api.plattform-kit.poc.singletonsd.com/docs/oauth2/token',
+            tokenUrl: '/docs/oauth2/token',
           },
         },
       });
@@ -112,7 +112,7 @@ describe('swagger.config', () => {
   });
 
   describe('buildSwaggerUiOptions', () => {
-    it('enables PKCE and prefills clientId', () => {
+    it('enables PKCE and prefills clientId without hardcoding prod redirect', () => {
       const options = buildSwaggerUiOptions({
         AZURE_AD_CLIENT_ID: 'client-1',
         AZURE_AD_API_AUDIENCE: 'api://platform-kit',
@@ -120,14 +120,13 @@ describe('swagger.config', () => {
       });
       expect(options.swaggerOptions).toMatchObject({
         persistAuthorization: true,
-        oauth2RedirectUrl:
-          'https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html',
         initOAuth: {
           clientId: 'client-1',
           usePkceWithAuthorizationCodeGrant: true,
           scopes: expect.arrayContaining(['openid', 'client-1/.default']),
         },
       });
+      expect(options.swaggerOptions?.oauth2RedirectUrl).toBeUndefined();
       expect(options.customJsStr).toEqual(expect.stringContaining('BroadcastChannel'));
     });
   });

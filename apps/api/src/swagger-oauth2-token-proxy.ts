@@ -7,17 +7,38 @@ function envTrim(env: EnvBag, key: string): string | undefined {
   return value || undefined;
 }
 
-/** Absolute token proxy URL used as OAuth2 tokenUrl in Swagger. */
-export function resolveSwaggerTokenProxyUrl(env: EnvBag = process.env): string | undefined {
-  const explicit = envTrim(env, 'SWAGGER_OAUTH2_TOKEN_URL');
-  if (explicit) {
-    return explicit;
+/**
+ * Token proxy path for Swagger OAuth2.
+ * Default is same-origin relative so ACA PR hosts do not call prod AUTH_URL.
+ */
+export function resolveSwaggerTokenProxyUrl(env: EnvBag = process.env): string {
+  return envTrim(env, 'SWAGGER_OAUTH2_TOKEN_URL') ?? '/docs/oauth2/token';
+}
+
+/** True when redirect_uri is allowed for the Swagger token proxy. */
+export function isAllowedSwaggerOauth2RedirectUri(
+  redirectUri: string,
+  env: EnvBag = process.env,
+): boolean {
+  const allowed = allowedSwaggerOauth2RedirectUris(env);
+  if (allowed.has(redirectUri)) {
+    return true;
   }
-  const authUrl = envTrim(env, 'AUTH_URL');
-  if (!authUrl) {
-    return undefined;
+  // Per-PR API previews: https://ssd-pocpk-aca-pr-<n>-ae.*.azurecontainerapps.io/...
+  try {
+    const url = new URL(redirectUri);
+    if (url.protocol !== 'https:') {
+      return false;
+    }
+    if (url.pathname !== '/docs/oauth2-redirect.html') {
+      return false;
+    }
+    return /^ssd-pocpk-aca-pr-\d+-ae\.[a-z0-9-]+\.australiaeast\.azurecontainerapps\.io$/i.test(
+      url.hostname,
+    );
+  } catch {
+    return false;
   }
-  return `${authUrl.replace(/\/+$/, '')}/docs/oauth2/token`;
 }
 
 export function allowedSwaggerOauth2RedirectUris(env: EnvBag = process.env): Set<string> {
@@ -30,7 +51,9 @@ export function allowedSwaggerOauth2RedirectUris(env: EnvBag = process.env): Set
   if (explicit) {
     uris.add(explicit);
   }
+  uris.add('http://localhost:3000/docs/oauth2-redirect.html');
   uris.add('http://localhost:3001/docs/oauth2-redirect.html');
+  uris.add('https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html');
   return uris;
 }
 
@@ -96,7 +119,7 @@ export function mountSwaggerOauth2TokenProxy(expressApp: Express, env: EnvBag = 
       }
 
       const redirectUri = body.redirect_uri?.trim();
-      if (!redirectUri || !allowedSwaggerOauth2RedirectUris(env).has(redirectUri)) {
+      if (!redirectUri || !isAllowedSwaggerOauth2RedirectUri(redirectUri, env)) {
         res.status(400).json({ error: 'invalid_redirect_uri' });
         return;
       }

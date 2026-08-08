@@ -67,19 +67,12 @@ export function resolveSwaggerOAuthUrls(env: EnvBag = process.env): {
 }
 
 /**
- * Absolute Swagger OAuth2 redirect URL registered in Entra as a SPA redirect URI.
- * Defaults to `{AUTH_URL}/docs/oauth2-redirect.html`.
+ * Optional absolute override for Swagger OAuth2 redirect.
+ * Prefer unset so Swagger UI derives `{currentOrigin}/docs/oauth2-redirect.html`
+ * (ACA PR previews must not redirect to prod AUTH_URL).
  */
 export function resolveSwaggerOAuth2RedirectUrl(env: EnvBag = process.env): string | undefined {
-  const explicit = envTrim(env, 'SWAGGER_OAUTH2_REDIRECT_URL');
-  if (explicit) {
-    return explicit;
-  }
-  const authUrl = envTrim(env, 'AUTH_URL');
-  if (!authUrl) {
-    return undefined;
-  }
-  return `${authUrl.replace(/\/+$/, '')}/docs/oauth2-redirect.html`;
+  return envTrim(env, 'SWAGGER_OAUTH2_REDIRECT_URL');
 }
 
 /** Shared DocumentBuilder config for runtime Swagger UI and offline OpenAPI export. */
@@ -96,9 +89,8 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
   // tokenUrl is our Nest proxy (not Entra) so Swagger can exchange codes without
   // browser CORS / exposing client_secret — Web redirect URIs required on Entra.
   const tenantId = envTrim(env, 'AZURE_AD_TENANT_ID') ?? 'common';
-  const tokenUrl =
-    resolveSwaggerTokenProxyUrl(env) ??
-    'https://api.plattform-kit.poc.singletonsd.com/docs/oauth2/token';
+  // Same-origin relative URL so ACA PR previews hit their own proxy, not prod AUTH_URL.
+  const tokenUrl = resolveSwaggerTokenProxyUrl(env) ?? '/docs/oauth2/token';
   const oauthUrls = {
     authorizationUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
     tokenUrl,

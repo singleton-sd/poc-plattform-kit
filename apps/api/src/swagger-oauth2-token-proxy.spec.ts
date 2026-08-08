@@ -1,14 +1,45 @@
 import type { Express, Request, Response } from 'express';
 import {
+  isAllowedSwaggerOauth2RedirectUri,
   mountSwaggerOauth2TokenProxy,
   resolveSwaggerTokenProxyUrl,
 } from './swagger-oauth2-token-proxy';
 
 describe('resolveSwaggerTokenProxyUrl', () => {
-  it('uses AUTH_URL + /docs/oauth2/token', () => {
+  it('uses same-origin relative path so ACA previews do not hit prod', () => {
     expect(
       resolveSwaggerTokenProxyUrl({ AUTH_URL: 'https://api.plattform-kit.poc.singletonsd.com/' }),
-    ).toBe('https://api.plattform-kit.poc.singletonsd.com/docs/oauth2/token');
+    ).toBe('/docs/oauth2/token');
+  });
+});
+
+describe('isAllowedSwaggerOauth2RedirectUri', () => {
+  it('allows localhost docs redirect', () => {
+    expect(
+      isAllowedSwaggerOauth2RedirectUri('http://localhost:3000/docs/oauth2-redirect.html'),
+    ).toBe(true);
+  });
+
+  it('allows prod API docs redirect', () => {
+    expect(
+      isAllowedSwaggerOauth2RedirectUri(
+        'https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html',
+      ),
+    ).toBe(true);
+  });
+
+  it('allows ACA PR preview docs redirect', () => {
+    expect(
+      isAllowedSwaggerOauth2RedirectUri(
+        'https://ssd-pocpk-aca-pr-82-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io/docs/oauth2-redirect.html',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects unrelated hosts', () => {
+    expect(
+      isAllowedSwaggerOauth2RedirectUri('https://evil.example/docs/oauth2-redirect.html'),
+    ).toBe(false);
   });
 });
 
