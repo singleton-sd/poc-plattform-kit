@@ -22,6 +22,28 @@
         ]
       }
     },
+    "/changelog": {
+      "get": {
+        "operationId": "ChangelogController_getChangelog",
+        "summary": "List recent client-facing API changes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All recorded API releases and their client-facing changes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangelogResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Changelog"
+        ]
+      }
+    },
     "/tenants": {
       "get": {
         "operationId": "TenantController_findAll",
@@ -279,7 +301,7 @@
       "post": {
         "operationId": "PermissionsController_check",
         "summary": "Check a fine-grained authorization decision",
-        "description": "Evaluates a subject, action, and resource tuple. The stub fails closed until OpenFGA is configured.",
+        "description": "Evaluates a subject, action, and resource tuple. Fails closed until OpenFGA is configured. One-time grants are revoked after the first successful allow.",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -298,6 +320,94 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CheckPermissionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/permissions/grants": {
+      "post": {
+        "operationId": "PermissionsController_grant",
+        "summary": "Grant a permission (permanent, temporary, or one-time)",
+        "description": "Writes an OpenFGA relationship tuple. Temporary grants use condition not_yet_expired. One-time grants are consumed on the next successful Check. Trusted internal callers only — approver AuthZ is enforced by the Access Request workflow.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantPermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantPermissionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/permissions/grants/revoke": {
+      "post": {
+        "operationId": "PermissionsController_revoke",
+        "summary": "Revoke a previously granted permission",
+        "description": "Deletes the OpenFGA relationship tuple (and any one-time marker). Trusted internal callers only.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokePermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokePermissionResponseDto"
                 }
               }
             }
@@ -398,6 +508,71 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "ChangelogChangeDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "New"
+          },
+          "summary": {
+            "type": "string",
+            "example": "Add audit history"
+          },
+          "reason": {
+            "type": "string",
+            "example": "So administrators can explain account changes."
+          }
+        },
+        "required": [
+          "type",
+          "summary"
+        ]
+      },
+      "ChangelogReleaseDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "example": "0.22.0"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-08-08",
+            "format": "date"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangelogChangeDto"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "date",
+          "changes"
+        ]
+      },
+      "ChangelogResponseDto": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "type": "string",
+            "example": "@poc-plattform-kit/api"
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangelogReleaseDto"
+            }
+          }
+        },
+        "required": [
+          "product",
+          "releases"
         ]
       },
       "TenantResponseDto": {
@@ -565,6 +740,106 @@
         },
         "required": [
           "allowed"
+        ]
+      },
+      "GrantPermissionDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "example": "user:alice",
+            "description": "OpenFGA subject identifier."
+          },
+          "action": {
+            "type": "string",
+            "example": "update",
+            "description": "OpenFGA relation or permission."
+          },
+          "resource": {
+            "type": "string",
+            "example": "tenant:acme",
+            "description": "OpenFGA resource identifier."
+          },
+          "grantType": {
+            "type": "string",
+            "enum": [
+              "permanent",
+              "temporary",
+              "one_time"
+            ],
+            "example": "permanent",
+            "description": "permanent | temporary (OpenFGA expiry condition) | one_time (revoked after first successful Check)."
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-12-31T23:59:59.000Z",
+            "description": "Required when grantType is temporary — absolute expiry (ISO-8601)."
+          }
+        },
+        "required": [
+          "subject",
+          "action",
+          "resource",
+          "grantType"
+        ]
+      },
+      "GrantPermissionResponseDto": {
+        "type": "object",
+        "properties": {
+          "granted": {
+            "type": "boolean",
+            "example": true
+          },
+          "grantType": {
+            "type": "string",
+            "enum": [
+              "permanent",
+              "temporary",
+              "one_time"
+            ],
+            "example": "permanent"
+          }
+        },
+        "required": [
+          "granted",
+          "grantType"
+        ]
+      },
+      "RevokePermissionDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "example": "user:alice",
+            "description": "OpenFGA subject identifier."
+          },
+          "action": {
+            "type": "string",
+            "example": "update",
+            "description": "OpenFGA relation or permission."
+          },
+          "resource": {
+            "type": "string",
+            "example": "tenant:acme",
+            "description": "OpenFGA resource identifier."
+          }
+        },
+        "required": [
+          "subject",
+          "action",
+          "resource"
+        ]
+      },
+      "RevokePermissionResponseDto": {
+        "type": "object",
+        "properties": {
+          "revoked": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "revoked"
         ]
       },
       "PermissionsHealthResponseDto": {

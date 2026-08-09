@@ -75,6 +75,32 @@ az rest --method patch \
   --body '{"properties":{"stagingEnvironmentPolicy":"Enabled"}}'
 ```
 
+### Preview orphan sweep (daily)
+
+Close hooks can miss leftovers (shared concurrency races, path-filtered `closed`
+events, Graph soft-fails). Workflow:
+[`.github/workflows/sweep-preview-orphans.yml`](../.github/workflows/sweep-preview-orphans.yml)
+runs daily (06:15 UTC) and on `workflow_dispatch` via
+[`scripts/sweep-preview-orphans.sh`](../scripts/sweep-preview-orphans.sh).
+
+| Target | Action when PR number is not open |
+| --- | --- |
+| ACA `ssd-pocpk-aca-pr-<n>-ae` | `az containerapp delete` |
+| SWA staging builds (web + marketing), except `default` | `az staticwebapp environment delete` |
+| ACR tags `pocpk-api:pr-<n>` / `pr-<n>-<sha>` | `az acr repository delete` |
+| Entra SPA redirect URIs matching SWA PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
+
+Manual dry-run:
+
+```bash
+gh workflow run sweep-preview-orphans.yml -f dry_run=true
+# or locally (az + gh logged in):
+./scripts/sweep-preview-orphans.sh --dry-run
+```
+
+OIDC uses the **main** federated credential (schedule / `workflow_dispatch` on
+`main`). Ensure FIC subjects cover `ref:refs/heads/main` (and ID-form if used).
+
 ### BE — Container Apps per PR (Path B — locked)
 
 Each API PR gets its own preview URL via **Azure Container Apps Consumption** (scale to zero).
@@ -108,6 +134,8 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 
 1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`): build `apps/api/Dockerfile`, push `…/pocpk-api:pr-<n>`, create/update Container App, comment preview URL (`/health`).
 2. **PR close:** delete `ssd-pocpk-aca-pr-<n>-ae`.
+3. **Daily orphan sweep:** `sweep-preview-orphans.yml` deletes leftovers if
+   close cleanup was skipped (path filters, cancelled run, Graph soft-fail).
 
 #### GitHub Azure auth (human)
 
@@ -120,6 +148,25 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 5. Image push + ACA registry attach use OIDC → KV `acr-admin-*` (never GitHub Secrets / `AZURE_CREDENTIALS`).
 
 Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health`.
+
+### OpenFGA authZ engine (shared CAE — not per-PR)
+
+Fine-grained `Check()` runs against a **shared** OpenFGA Container App on the same CAE (not an ephemeral PR app).
+
+| Resource | Name | Notes |
+| --- | --- | --- |
+| Container App | `ssd-pocpk-openfga-dev-ae` | `openfga/openfga` pinned tag; min replicas 1 |
+| Azure Files | `ssdpocpkstofga` / `openfga-data` | SQLite datastore (**beta**); durability without container-local disk |
+| Entra app | `api://ssd-pocpk-openfga` | OIDC authn; assignment-required; Nest App Service MI only (PR ACA MIs not assigned — preview Check fail-closed) |
+| App Config | `app:openfga:*` | `apiUrl` / `storeId` / `authorizationModelId` / `audience` |
+
+Provision / re-bootstrap (idempotent; OIDC login same Variables as above — no GitHub Secrets):
+
+```powershell
+powershell -File ./infra/deploy-openfga.ps1
+```
+
+Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: `infra/README.md` § Permissions / OpenFGA.
 
 ## Production deploy on `main` (locked)
 
@@ -226,14 +273,13 @@ status transition:
 
 ```bash
 ./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>
-# Reviewer uses the same command with READY FOR HUMAN.
 ```
 
 The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp. The gate
 pins the PR head SHA, requires all path-applicable CI and preview checks to
 appear and finish successfully, requires a mergeable/non-dirty PR, rejects the
 hygiene labels, rejects unresolved review threads, and waits for a 90-second
-reviewer quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
+external-feedback quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
 Override polling only for diagnostics with `PR_GATE_QUIET_SECONDS`,
 `PR_GATE_TIMEOUT_SECONDS`, and `PR_GATE_POLL_SECONDS`.
 
@@ -242,6 +288,15 @@ publishes the commit status context `pr-handoff-gate`. Configure the `main`
 ruleset to require this context together with the API/web CI checks. The workflow
 restarts on pushes, CI/preview completion, reviews, and review/issue comments so
 late bot feedback moves the status back to pending/failure before stabilising.
+
+Open the `pr-handoff-gate` status link to see the workflow run summary. It lists
+every current blocker beside a specific next action. `Waiting` means checks or
+the reviewer quiet period are still in progress; `Blocked` means an action is
+required. A cancelled check is called out separately and should be re-run before
+changing code. Superseded gate runs queue instead of cancelling the active run;
+this guarantees that every run reaches its summary and final-status steps. A
+stale run detects that the PR head changed, exits with that explicit blocker,
+and then allows the replacement run to evaluate the new commit.
 
 ## Asynchronous ClickUp recovery
 

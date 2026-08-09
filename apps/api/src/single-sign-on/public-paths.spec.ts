@@ -5,6 +5,8 @@ describe('isPublicPath', () => {
     '/',
     '/health',
     '/health/',
+    '/changelog',
+    '/changelog/',
     '/api/auth',
     '/api/auth/callback/microsoft-entra-id',
     '/docs',

@@ -7,7 +7,7 @@
 # Label lifecycle:
 # - needs-rebase: set when mergeable_state=dirty; cleared only when state is known and not dirty
 # - ci-failed: set on watched workflow failure; cleared when no FAILURE checks remain on the PR
-# - has-feedback: set on Bugbot/collaborator comments; cleared on PR synchronize (new push)
+# - has-feedback: set on supported review-bot/collaborator comments; cleared on PR synchronize (new push)
 
 name: PR hygiene
 
@@ -60,7 +60,7 @@ jobs:
           }
           ensure "needs-rebase" "d93f0b" "PR has merge conflicts with base"
           ensure "ci-failed" "b60205" "Required or PR CI check failed"
-          ensure "has-feedback" "0e8a16" "Bugbot or human feedback on the PR"
+          ensure "has-feedback" "0e8a16" "Review bot or human feedback on the PR"
 
   conflict-on-pr:
     needs: ensure-labels
@@ -174,7 +174,7 @@ jobs:
           }
           ensure "ci-failed" "b60205" "Required or PR CI check failed"
           ensure "needs-rebase" "d93f0b" "PR has merge conflicts with base"
-          ensure "has-feedback" "0e8a16" "Bugbot or human feedback on the PR"
+          ensure "has-feedback" "0e8a16" "Review bot or human feedback on the PR"
 
       - name: Sync ci-failed label
         env:
@@ -275,19 +275,19 @@ jobs:
           LOWER=$(echo "$AUTHOR" | tr '[:upper:]' '[:lower:]')
           INTERESTING=0
           case "$LOWER" in
-            *bugbot*|cursor*|cursor\[bot\]|*cursoragent*) INTERESTING=1 ;;
+            *bugbot*|cursor*|cursor\[bot\]|*cursoragent*|*codex*|*chatgpt*) INTERESTING=1 ;;
           esac
           case "$ASSOCIATION" in
             OWNER|MEMBER|COLLABORATOR|CONTRIBUTOR) INTERESTING=1 ;;
           esac
 
           if [ "$INTERESTING" -ne 1 ]; then
-            echo "Skip: not Bugbot/human collaborator"
+            echo "Skip: not a supported review bot/human collaborator"
             exit 0
           fi
 
           if ! gh label list --repo "$GITHUB_REPOSITORY" --search "has-feedback" --json name --jq '.[].name' | grep -Fxq "has-feedback"; then
-            gh label create "has-feedback" --repo "$GITHUB_REPOSITORY" --color "0e8a16" --description "Bugbot or human feedback on the PR" || true
+            gh label create "has-feedback" --repo "$GITHUB_REPOSITORY" --color "0e8a16" --description "Review bot or human feedback on the PR" || true
           fi
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label has-feedback || true
           MARKER="<!-- pr-hygiene:has-feedback -->"

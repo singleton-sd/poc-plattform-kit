@@ -1,0 +1,63 @@
+---
+import Button from '../ui/Button.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  eyebrow?: string;
+  headline: string;
+  subheadline?: string;
+  primaryCta?: { label: string; href: string };
+  secondaryCta?: { label: string; href: string };
+  class?: string;
+}
+
+const {
+  eyebrow,
+  headline,
+  subheadline,
+  primaryCta,
+  secondaryCta,
+  class: className = '',
+} = Astro.props;
+---
+
+<section class:list={['bg-bg-hero', className]}>
+  <PageContainer class="flex flex-col items-center px-5 py-16 text-center md:py-24 lg:py-[7.5rem]">
+    {
+      eyebrow ? (
+        <p class="m-0 mb-6 text-body-sm font-bold uppercase tracking-wide text-accent">
+          {eyebrow}
+        </p>
+      ) : null
+    }
+    <h1 class="m-0 max-w-3xl font-heading text-h1 text-fg md:text-display">
+      {headline}
+    </h1>
+    {
+      subheadline ? (
+        <p class="mt-6 m-0 max-w-2xl text-base leading-relaxed text-fg-muted md:text-lg">
+          {subheadline}
+        </p>
+      ) : null
+    }
+    <div class="mt-4 max-w-2xl text-base leading-relaxed text-fg-muted empty:hidden">
+      <slot />
+    </div>
+    <div class="mt-10 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-center">
+      {
+        primaryCta ? (
+          <Button href={primaryCta.href} size="lg">
+            {primaryCta.label}
+          </Button>
+        ) : null
+      }
+      {
+        secondaryCta ? (
+          <Button href={secondaryCta.href} variant="outline" size="lg">
+            {secondaryCta.label}
+          </Button>
+        ) : null
+      }
+    </div>
+  </PageContainer>
+</section>

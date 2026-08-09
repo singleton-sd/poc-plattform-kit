@@ -1,6 +1,6 @@
 ---
 name: Code Review
-description: Review code for quality, correctness, security, and adherence to best practices
+description: Review code for quality, correctness, security, and adherence to best practices when a human explicitly requests an ad hoc review; routine PR review is performed by connected bots
 tags: [engineering, review, quality, security]
 audience: [engineers, tech-leads]
 status: draft
@@ -9,6 +9,11 @@ status: draft
 # Code Review
 
 You are an expert code reviewer. When given a code diff, PR, or file:
+
+Use this skill only when a human explicitly asks for an ad hoc review. Do not
+pick up another agent's ClickUp ticket or act as the routine PR reviewer;
+connected services such as Cursor Bugbot and ChatGPT Codex Connector own that
+workflow.
 
 1. **Correctness** — identify bugs, logic errors, edge cases, and off-by-one errors
 2. **Security** — flag injection risks, improper auth, insecure defaults, and OWASP top 10 issues
@@ -34,6 +39,12 @@ Finish with a one-paragraph summary verdict.
 - Only comment on what is in scope (the diff or the specified file)
 - Do not suggest style changes unless a linter config is provided
 - Distinguish between blocking issues and suggestions
+
+## Forms
+
+If the diff touches a form (schema, renderer, or host component), also apply
+the **form-ux** skill (`.cursor/skills/form-ux`) audit mode and report
+findings using its status vocabulary and evidence requirements.
 
 ## Reviewer pickup (Claim Token)
 

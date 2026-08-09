@@ -45,6 +45,8 @@ Default data-entry forms use **Zod → JSON Schema → [JSON Forms](https://json
 
 Before building or changing forms, read and apply the **schema-driven-forms** skill (`.cursor/skills/schema-driven-forms`). Produce both schema transformation and React wiring. Escape hatch for highly custom UX: hand-built controls + Zod.
 
+Also apply the **form-ux** skill (`.cursor/skills/form-ux`) for submission validity, inline-validation timing, character limits, pre-fill, password UX, and forgiving-input rules — it complements schema-driven-forms rather than replacing it.
+
 ---
 
 ## State Separation Rule

@@ -8,13 +8,33 @@ Owns: fine-grained authZ — can subject X perform action Y on resource Z (ReBAC
 - **Publishes:** `permission.denied` (optional audit), relationship-change events as needed.
 - **Consumes:** identity/tenant events needed to keep tuples in sync (details in stub ticket).
 
-## Stub behavior
+## Runtime behavior
 
-The Nest module exposes `POST /permissions/check` and `GET /permissions/health`.
-Checks fail closed (`allowed: false`) until an OpenFGA adapter is configured.
-OpenFGA is hosted separately on Azure Container Apps Consumption; domain pillars
-call this pillar over synchronous HTTP or a bounded cache rather than embedding
-authorization rules.
+The Nest module exposes:
+
+| Route | Purpose |
+| --- | --- |
+| `POST /permissions/check` | OpenFGA Check (fails closed until configured) |
+| `POST /permissions/grants` | Grant permanent / temporary / one-time access |
+| `POST /permissions/grants/revoke` | Delete the relationship tuple (+ one-time marker) |
+| `GET /permissions/health` | Pillar health |
+
+When `OPENFGA_AUDIENCE` is set, `PermissionsService` acquires an Entra token via
+managed identity (`DefaultAzureCredential`) and calls OpenFGA with
+`Authorization: Bearer …` for Check and Write.
+
+Grant types:
+
+| Type | Behavior |
+| --- | --- |
+| `permanent` | Plain OpenFGA tuple write |
+| `temporary` | Tuple with condition `not_yet_expired` (`expiry_time`); Check passes `current_time` — no scheduled job |
+| `one_time` | Action tuple + `one_time_grant:{resource}\|{action}#pending` marker; first successful Check deletes both |
+
+OpenFGA runs on ACA Consumption (`ssd-pocpk-openfga-dev-ae`). Model DSL:
+`infra/openfga/model.fga` (re-push via `infra/deploy-openfga.ps1` after model changes).
+Approver AuthZ for who may call grant/revoke is owned by the Access Request
+workflow ticket — these endpoints assume a trusted internal caller for now.
 
 ## Manager/reporting-line resolution
 

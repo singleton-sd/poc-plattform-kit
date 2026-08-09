@@ -1,0 +1,16 @@
+export type IconName =
+  | 'menu'
+  | 'close'
+  | 'chevron-down'
+  | 'arrow-right'
+  | 'check'
+  | 'check-circle'
+  | 'alert-triangle'
+  | 'database'
+  | 'lock'
+  | 'users'
+  | 'zap'
+  | 'loader'
+  | 'github'
+  | 'twitter'
+  | 'image';

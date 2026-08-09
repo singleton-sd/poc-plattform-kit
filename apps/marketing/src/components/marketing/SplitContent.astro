@@ -1,0 +1,99 @@
+---
+import Icon from '../ui/Icon.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  bullets?: string[];
+  link?: { label: string; href: string };
+  imageAlt?: string;
+  imageSrc?: string;
+  imageLoading?: 'eager' | 'lazy';
+  reverse?: boolean;
+  class?: string;
+}
+
+const {
+  eyebrow,
+  title,
+  body,
+  bullets = [],
+  link,
+  imageAlt = 'Illustration',
+  imageSrc,
+  imageLoading = 'lazy',
+  reverse = false,
+  class: className = '',
+} = Astro.props;
+---
+
+<section class:list={['py-16 md:py-24', className]}>
+  <PageContainer>
+    <div
+      class:list={[
+        'grid items-center gap-10 md:grid-cols-2 md:gap-16',
+        reverse ? 'md:[&>*:first-child]:order-2' : '',
+      ]}
+    >
+      <div class="space-y-4">
+        {
+          eyebrow ? (
+            <p class="m-0 text-body-sm font-bold uppercase tracking-wide text-accent">{eyebrow}</p>
+          ) : null
+        }
+        <h2 class="m-0 font-heading text-h2 text-fg">{title}</h2>
+        <p class="m-0 text-base leading-relaxed text-fg-muted">{body}</p>
+        {
+          bullets.length > 0 ? (
+            <ul class="m-0 flex list-none flex-col gap-3 p-0">
+              {bullets.map((item) => (
+                <li class="flex items-center gap-2 text-[15px] font-medium text-fg">
+                  <span class="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : null
+        }
+        <slot name="body" />
+        {
+          link ? (
+            <a
+              href={link.href}
+              class="inline-flex items-center gap-2 text-body-sm font-bold text-accent transition hover:text-accent-hover"
+            >
+              {link.label}
+              <Icon name="arrow-right" size={14} />
+            </a>
+          ) : null
+        }
+        <slot />
+      </div>
+      <div class="min-h-[16rem] md:min-h-[22.5rem]">
+        <slot name="media">
+          <div
+            class="flex h-full min-h-[16rem] items-center justify-center overflow-hidden rounded-xl border border-border bg-bg-muted text-fg-subtle md:min-h-[22.5rem]"
+          >
+            {
+              imageSrc ? (
+                <img
+                  src={imageSrc}
+                  alt={imageAlt}
+                  width={600}
+                  height={360}
+                  loading={imageLoading}
+                  decoding="async"
+                  class="h-full w-full object-cover"
+                />
+              ) : (
+                <Icon name="image" size={48} label={imageAlt} />
+              )
+            }
+          </div>
+        </slot>
+      </div>
+    </div>
+  </PageContainer>
+</section>
