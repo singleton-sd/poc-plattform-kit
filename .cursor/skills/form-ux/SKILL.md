@@ -35,11 +35,11 @@ Prevent invalid submission while clearly explaining what is incomplete or wrong.
 Required:
 
 - Required fields carry a visible marker (e.g. `*`, "required") **and** a programmatic signal (`required`, `aria-required="true"`, or schema `required` reflected into the UI).
-- Invalid submission is blocked through **every** entry point: submit button click, Enter-key (native form submit), and any programmatic `submit()` call. The gate must live in the submit handler / form-level validation, not only in a button's `disabled` attribute — a disabled button does not stop a native form `submit` event triggered by Enter in another field, and does not stop a caller invoking the handler directly.
-- On a blocked submit attempt, the user is told **which** field(s) are missing or invalid — not just that "the form is invalid". A single generic message that names only the first error is a partial pass at best; per-field messaging (or a summary that links/scrolls to each invalid field) is the full pass.
+- Invalid submission is blocked through **every** entry point: submit button click, Enter-key (native form submit), and any programmatic submission. The gate must live in the submit handler / form-level validation, not only in a button's `disabled` attribute — a disabled button does not stop a native form `submit` event triggered by Enter in another field, and does not stop a caller invoking the handler directly. For programmatic submission specifically: trigger it via `formEl.requestSubmit()`, which fires the same `submit` event and constraint validation as a real click — never the legacy `formEl.submit()`, which bypasses both and reaches the network with no client gate at all.
+- On a blocked submit attempt, the user is told **which** field(s) are missing or invalid — not just that "the form is invalid". A single generic message that names only the first error is a partial pass at best; per-field messaging (or a summary that links/scrolls to each invalid field) is the full pass. This still applies to a field the user never interacted with (never blurred) — a submit attempt is itself a validation trigger (see Rule 2), so an untouched invalid field must show its error once submission is attempted, not stay silent because blur never fired.
 - **Invalid** and **pending** are distinct states. A pending (in-flight) submit disables the control and shows a busy affordance ("Saving…"); an invalid form should visibly signal invalidity (e.g. a disabled-with-reason or visibly flagged control) independent of whether a request is in flight. Do not use one `disabled` condition to mean both.
 
-**Audit checks:** find the submit handler. Confirm it re-validates before calling the mutation/fetch, regardless of what the trigger button's `disabled` state is. Confirm the error message construction — does it enumerate all invalid fields or only the first? Confirm the "disabled" condition on the submit control — is it `isPending` only, or `isPending || !isValid`?
+**Audit checks:** find the submit handler. Confirm it re-validates before calling the mutation/fetch, regardless of what the trigger button's `disabled` state is. Confirm the error message construction — does it enumerate all invalid fields or only the first? Confirm the "disabled" condition on the submit control — is it `isPending` only, or `isPending || !isValid`? Search for any `.submit()` call on a form element and flag it — it skips both the `submit` event and constraint validation, so this rule's gate cannot run.
 
 ---
 
@@ -187,8 +187,9 @@ function TextControlRenderer(props: ControlProps) {
   const inputId = id || path;
   const invalid = Boolean(errors);
   const maxLength = schema.maxLength;
-  const touched = useTouched(path); // first shown on blur, not on mount — Rule 2
-  const showError = invalid && touched;
+  const touched = useTouched(path); // first shown on blur — Rule 2
+  const submitAttempted = useFormSubmitAttempted(); // host sets this true on a blocked submit
+  const showError = invalid && (touched || submitAttempted);
 
   return (
     <div className="flex flex-col gap-1">
@@ -200,6 +201,8 @@ function TextControlRenderer(props: ControlProps) {
         id={inputId}
         value={data ?? ''}
         maxLength={maxLength}
+        required={required}
+        aria-required={required || undefined}
         aria-invalid={showError}
         aria-describedby={
           [showError ? `${inputId}-error` : null, maxLength ? `${inputId}-count` : null]
@@ -227,6 +230,12 @@ export const textControlTester: RankedTester = rankWith(3, isStringControl);
 export const TextControl = withJsonFormsControlProps(TextControlRenderer);
 ```
 
+`showError` reacts to **either** signal — blur (`touched`) or a blocked submit attempt
+(`submitAttempted`, set by the host's submit handler and read here from shared/context
+state) — so an untouched-but-invalid field still explains itself when the user submits
+without ever blurring it (e.g. pressing Enter right after focusing a single field). A
+blur-only predicate would silently hide that error, contradicting Rule 1.
+
 A blur-tracked `validationMode` (or an equivalent per-field "touched" model, as above) is required if the schema-driven host sets a validation mode that hides errors — see the audit checks in Rule 2. A hardcoded "always hide errors" mode with no toggle is a Rule 2 failure regardless of what the renderer is capable of.
 
 ### Example: hand-built React form
@@ -242,7 +251,13 @@ function SignupForm() {
   const errors = validate(values); // pure function, same shape as server DTO rules
 
   function handleSubmit(e: FormEvent) {
-    e.preventDefault(); // catches button click, Enter-key, and programmatic submit alike
+    // Fires on button click and Enter-key alike (both dispatch a `submit` event
+    // this listener catches). It does NOT fire for a bare `formEl.submit()` call —
+    // that native method bypasses both the `submit` event and constraint
+    // validation. Route any programmatic submission through
+    // `formEl.requestSubmit()` instead (or call this same handler directly), or
+    // this gate is silently skippable.
+    e.preventDefault();
     setAttempted(true);
     if (Object.keys(errors).length > 0) return; // Rule 1: block + rely on per-field errors below
     onSubmit(normalise(values)); // Rule 6: submit the normalised value
@@ -251,6 +266,8 @@ function SignupForm() {
   return (
     <form onSubmit={handleSubmit}>
       <input
+        required
+        aria-required="true"
         aria-invalid={Boolean(errors.email) && attempted}
         aria-describedby={errors.email && attempted ? 'email-error' : undefined}
         value={values.email}
