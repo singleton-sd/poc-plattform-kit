@@ -13,4 +13,7 @@ export type IconName =
   | 'loader'
   | 'github'
   | 'twitter'
-  | 'image';
+  | 'image'
+  | 'mail'
+  | 'globe'
+  | 'git-branch';
