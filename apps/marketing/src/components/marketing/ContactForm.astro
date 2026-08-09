@@ -42,10 +42,10 @@ const reachItems: ReachItem[] = [
     icon: 'globe',
   },
   {
-    label: 'GitLab Repository',
-    value: 'gitlab.com/singleton-sd',
-    href: 'https://gitlab.com/singleton-sd',
-    icon: 'git-branch',
+    label: 'GitHub Repository',
+    value: 'github.com/singleton-sd/poc-plattform-kit',
+    href: 'https://github.com/singleton-sd/poc-plattform-kit',
+    icon: 'github',
   },
 ];
 ---
@@ -168,6 +168,13 @@ const reachItems: ReachItem[] = [
   const successPanel = document.getElementById('contact-success');
   const formError = document.getElementById('contact-form-error');
   const resetButton = document.getElementById('contact-reset')?.querySelector('button');
+  const fieldIds = [
+    'contact-name',
+    'contact-email',
+    'contact-subject',
+    'contact-message',
+  ] as const;
+  let attemptedSubmit = false;
 
   function setFieldError(id: string, message: string | null) {
     const field = document.getElementById(id) as
@@ -182,17 +189,18 @@ const reachItems: ReachItem[] = [
     if (existing) existing.remove();
 
     field.removeAttribute('aria-invalid');
-    field.classList.remove('border-status-error');
-    const borderHost =
-      field.tagName === 'INPUT' ? field.parentElement : field;
+    field.removeAttribute('aria-describedby');
+    const borderHost = field.tagName === 'INPUT' ? field.parentElement : field;
     borderHost?.classList.remove('border-status-error');
 
     if (!message || !wrapper) return;
 
+    const errorId = `${id}-error`;
     field.setAttribute('aria-invalid', 'true');
+    field.setAttribute('aria-describedby', errorId);
     borderHost?.classList.add('border-status-error');
     const error = document.createElement('p');
-    error.id = `${id}-error`;
+    error.id = errorId;
     error.className = 'm-0 text-caption text-status-error';
     error.textContent = message;
     wrapper.appendChild(error);
@@ -210,10 +218,7 @@ const reachItems: ReachItem[] = [
     if (!name) ok = false;
 
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    setFieldError(
-      'contact-email',
-      emailOk ? null : 'Enter a valid email address.',
-    );
+    setFieldError('contact-email', emailOk ? null : 'Enter a valid email address.');
     if (!emailOk) ok = false;
 
     setFieldError('contact-subject', subject ? null : 'Select a subject.');
@@ -228,8 +233,15 @@ const reachItems: ReachItem[] = [
     return ok;
   }
 
+  function revalidateIfNeeded() {
+    if (!attemptedSubmit) return;
+    const ok = validate();
+    formError?.classList.toggle('hidden', ok);
+  }
+
   form?.addEventListener('submit', (event) => {
     event.preventDefault();
+    attemptedSubmit = true;
     const ok = validate();
     formError?.classList.toggle('hidden', ok);
     if (!ok) return;
@@ -240,11 +252,18 @@ const reachItems: ReachItem[] = [
     formError?.classList.add('hidden');
   });
 
+  for (const id of fieldIds) {
+    const field = document.getElementById(id);
+    field?.addEventListener('blur', revalidateIfNeeded);
+    field?.addEventListener('input', revalidateIfNeeded);
+    field?.addEventListener('change', revalidateIfNeeded);
+  }
+
   resetButton?.addEventListener('click', () => {
+    attemptedSubmit = false;
     form?.reset();
-    ['contact-name', 'contact-email', 'contact-subject', 'contact-message'].forEach(
-      (id) => setFieldError(id, null),
-    );
+    fieldIds.forEach((id) => setFieldError(id, null));
+    formError?.classList.add('hidden');
     successPanel?.classList.add('hidden');
     formPanel?.classList.remove('hidden');
   });
