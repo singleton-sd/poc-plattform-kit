@@ -1,0 +1,74 @@
+---
+interface Props {
+  monthlyLabel?: string;
+  yearlyLabel?: string;
+  class?: string;
+}
+
+const {
+  monthlyLabel = 'Monthly billing',
+  yearlyLabel = 'Yearly (Save 20%)',
+  class: className = '',
+} = Astro.props;
+---
+
+<div
+  class:list={[
+    'inline-flex items-center gap-3 rounded-md border border-border bg-bg p-1',
+    className,
+  ]}
+  data-pricing-toggle
+>
+  <button
+    type="button"
+    class="rounded-sm px-4 py-2 text-body-sm font-semibold text-fg-inverse bg-bg-inverse"
+    data-pricing-period="monthly"
+    aria-pressed="true"
+  >
+    {monthlyLabel}
+  </button>
+  <button
+    type="button"
+    class="rounded-sm px-4 py-2 text-body-sm font-medium text-fg-muted"
+    data-pricing-period="yearly"
+    aria-pressed="false"
+  >
+    {yearlyLabel}
+  </button>
+</div>
+
+<script>
+  function bindPricingToggle() {
+    document.querySelectorAll('[data-pricing-toggle]').forEach((root) => {
+      if (!(root instanceof HTMLElement) || root.dataset.bound === 'true') return;
+      root.dataset.bound = 'true';
+      const buttons = root.querySelectorAll<HTMLButtonElement>('[data-pricing-period]');
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const period = button.dataset.pricingPeriod ?? 'monthly';
+          buttons.forEach((candidate) => {
+            const active = candidate === button;
+            candidate.setAttribute('aria-pressed', String(active));
+            candidate.classList.toggle('bg-bg-inverse', active);
+            candidate.classList.toggle('text-fg-inverse', active);
+            candidate.classList.toggle('font-semibold', active);
+            candidate.classList.toggle('text-fg-muted', !active);
+            candidate.classList.toggle('font-medium', !active);
+          });
+          document.dispatchEvent(
+            new CustomEvent('pricing:period', { detail: { period } }),
+          );
+          document.querySelectorAll('[data-price-monthly]').forEach((node) => {
+            if (!(node instanceof HTMLElement)) return;
+            const monthly = node.dataset.priceMonthly ?? '';
+            const yearly = node.dataset.priceYearly ?? monthly;
+            node.textContent = period === 'yearly' ? yearly : monthly;
+          });
+        });
+      });
+    });
+  }
+
+  bindPricingToggle();
+  document.addEventListener('astro:page-load', bindPricingToggle);
+</script>

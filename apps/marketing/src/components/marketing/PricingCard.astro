@@ -1,0 +1,82 @@
+---
+import Button from '../ui/Button.astro';
+import Icon from '../ui/Icon.astro';
+
+interface Props {
+  name: string;
+  price: string;
+  priceYearly?: string;
+  periodLabel?: string;
+  description: string;
+  features: string[];
+  cta: { label: string; href: string };
+  highlighted?: boolean;
+  ctaVariant?: 'primary' | 'outline' | 'ghost';
+  class?: string;
+}
+
+const {
+  name,
+  price,
+  priceYearly,
+  periodLabel = '/mo',
+  description,
+  features,
+  cta,
+  highlighted = false,
+  ctaVariant = highlighted ? 'primary' : 'outline',
+  class: className = '',
+} = Astro.props;
+---
+
+<article
+  class:list={[
+    'flex h-full flex-col gap-6 rounded-lg border bg-bg p-6 shadow-sm',
+    highlighted ? 'border-2 border-accent shadow-md' : 'border-border',
+    className,
+  ]}
+>
+  <div class="space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="m-0 font-heading text-h3 text-fg">{name}</h3>
+      {
+        highlighted ? (
+          <span class="rounded-sm bg-accent-bg px-2 py-1 text-caption font-semibold text-accent">
+            Popular
+          </span>
+        ) : null
+      }
+    </div>
+    <p class="m-0 text-body-sm text-fg-muted">{description}</p>
+  </div>
+
+  <div class="flex items-baseline gap-1">
+    <span
+      class="font-heading text-h1 text-fg"
+      data-price-monthly={price}
+      data-price-yearly={priceYearly ?? price}
+    >
+      {price}
+    </span>
+    {
+      periodLabel && price !== 'Custom' ? (
+        <span class="text-body-sm text-fg-muted">{periodLabel}</span>
+      ) : null
+    }
+  </div>
+
+  <ul class="m-0 flex flex-1 list-none flex-col gap-3 p-0">
+    {
+      features.map((feature) => (
+        <li class="flex items-start gap-2 text-body-sm text-fg">
+          <Icon name="check" size={16} class="mt-0.5 shrink-0 text-accent" />
+          <span>{feature}</span>
+        </li>
+      ))
+    }
+  </ul>
+
+  <Button href={cta.href} variant={ctaVariant} fullWidth>
+    {cta.label}
+  </Button>
+</article>

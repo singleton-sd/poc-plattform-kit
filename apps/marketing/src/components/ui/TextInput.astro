@@ -1,0 +1,67 @@
+---
+interface Props {
+  id: string;
+  name?: string;
+  label: string;
+  type?: 'text' | 'email' | 'password' | 'tel' | 'url' | 'search' | 'number';
+  placeholder?: string;
+  helper?: string;
+  error?: string;
+  value?: string;
+  suffix?: string;
+  required?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  name = id,
+  label,
+  type = 'text',
+  placeholder,
+  helper,
+  error,
+  value,
+  suffix,
+  required = false,
+  class: className = '',
+} = Astro.props;
+
+const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
+---
+
+<div class:list={['flex w-full flex-col gap-2', className]}>
+  <label for={id} class="text-body-sm font-medium text-fg">{label}</label>
+  <div
+    class:list={[
+      'flex items-center gap-2 rounded-md border bg-bg px-3 py-3 text-body-sm transition',
+      error
+        ? 'border-status-error'
+        : 'border-border focus-within:border-2 focus-within:border-accent focus-within:px-[11px] focus-within:py-[11px]',
+    ]}
+  >
+    <input
+      id={id}
+      name={name}
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      required={required}
+      aria-invalid={error ? 'true' : undefined}
+      aria-describedby={describedBy}
+      class="min-w-0 flex-1 border-0 bg-transparent p-0 text-fg outline-none placeholder:text-fg-subtle"
+    />
+    {suffix ? <span class="shrink-0 text-fg-subtle">{suffix}</span> : null}
+  </div>
+  {
+    error ? (
+      <p id={`${id}-error`} class="m-0 text-caption text-status-error">
+        {error}
+      </p>
+    ) : helper ? (
+      <p id={`${id}-helper`} class="m-0 text-caption text-fg-muted">
+        {helper}
+      </p>
+    ) : null
+  }
+</div>

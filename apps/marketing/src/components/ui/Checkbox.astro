@@ -1,0 +1,31 @@
+---
+interface Props {
+  id: string;
+  name?: string;
+  label: string;
+  checked?: boolean;
+  value?: string;
+  class?: string;
+}
+
+const {
+  id,
+  name = id,
+  label,
+  checked = false,
+  value = 'on',
+  class: className = '',
+} = Astro.props;
+---
+
+<label class:list={['inline-flex cursor-pointer items-start gap-3 text-body-sm text-fg', className]}>
+  <input
+    id={id}
+    name={name}
+    type="checkbox"
+    value={value}
+    checked={checked}
+    class="mt-0.5 size-4 shrink-0 rounded-sm border border-border accent-accent"
+  />
+  <span>{label}</span>
+</label>
