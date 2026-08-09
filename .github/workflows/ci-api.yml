@@ -10,6 +10,9 @@ on:
       - 'scripts/check-client-changelogs.mjs'
       - 'scripts/check-client-changelogs.test.mjs'
       - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - 'scripts/check-permissions-catalog.mjs'
       - 'scripts/check-permissions-catalog.test.mjs'
       - 'scripts/register-permission.mjs'
@@ -31,6 +34,9 @@ on:
       - 'scripts/check-client-changelogs.mjs'
       - 'scripts/check-client-changelogs.test.mjs'
       - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - 'scripts/check-permissions-catalog.mjs'
       - 'scripts/check-permissions-catalog.test.mjs'
       - 'scripts/register-permission.mjs'
@@ -74,7 +80,7 @@ jobs:
         run: pnpm openapi:check
 
       - name: Changelog projection drift check
-        run: pnpm changelog:check
+        run: pnpm changelog:test && pnpm changelog:check
 
       - name: Permissions catalog drift check
         run: pnpm permissions:check

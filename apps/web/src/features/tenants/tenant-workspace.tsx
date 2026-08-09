@@ -21,7 +21,12 @@ import { TenantTable } from './tenant-table';
 const SEARCH_DEBOUNCE_MS = 300;
 const LIST_LIMIT = 100;
 
-export function TenantWorkspace() {
+type TenantWorkspaceProps = {
+  /** Coarse UI permission supplied by the authenticated page boundary. */
+  canCreate?: boolean;
+};
+
+export function TenantWorkspace({ canCreate = true }: TenantWorkspaceProps) {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -107,15 +112,17 @@ export function TenantWorkspace() {
         </div>
         <div className="flex items-center gap-3">
           <TenantSearch value={searchInput} onChange={setSearchInput} />
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex shrink-0 items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on"
-            data-testid="tenant-create-open"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Create Tenant
-          </button>
+          {canCreate ? (
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex shrink-0 items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on"
+              data-testid="tenant-create-open"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Create Tenant
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -133,7 +140,7 @@ export function TenantWorkspace() {
       ) : isEmpty && isSearching ? (
         <TenantSearchEmptyState onClearSearch={() => setSearchInput('')} />
       ) : isEmpty ? (
-        <TenantEmptyState onCreate={() => setCreateOpen(true)} />
+        <TenantEmptyState canCreate={canCreate} onCreate={() => setCreateOpen(true)} />
       ) : (
         <>
           <TenantTable tenants={items} onSelect={setSelectedTenantId} />
