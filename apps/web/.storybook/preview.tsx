@@ -25,6 +25,10 @@ const preview: Preview = {
     a11y: {
       test: 'error',
     },
+    chromatic: {
+      // One deliberate Chromium viewport keeps the initial snapshot budget small.
+      viewports: [1280],
+    },
     controls: {
       expanded: true,
     },
