@@ -2,6 +2,11 @@
 # Source of truth for infra/deploy-openfga.ps1 (pushed as authorization model).
 # Actions on type tenant match PermissionsService Check() relation names
 # (create / update / delete / read) used by Nest route mappings.
+#
+# Temporary grants use condition not_yet_expired (tuple context expiry_time;
+# Check supplies current_time). One-time grants write a companion marker on
+# type one_time_grant; PermissionsService deletes the action tuple after the
+# first successful Check.
 
 model
   schema 1.1
@@ -13,9 +18,18 @@ type user
 
 type tenant
   relations
-    define admin: [user]
-    define member: [user] or admin
-    define create: admin
-    define update: admin
-    define delete: admin
-    define read: member
+    define admin: [user, user with not_yet_expired]
+    define member: [user, user with not_yet_expired] or admin
+    define create: [user, user with not_yet_expired] or admin
+    define update: [user, user with not_yet_expired] or admin
+    define delete: [user, user with not_yet_expired] or admin
+    define read: [user, user with not_yet_expired] or member
+
+# Marker objects: one_time_grant:{resource}|{action} → pending: [user]
+type one_time_grant
+  relations
+    define pending: [user]
+
+condition not_yet_expired(current_time: timestamp, expiry_time: timestamp) {
+  current_time < expiry_time
+}
