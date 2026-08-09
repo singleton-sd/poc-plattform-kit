@@ -1,0 +1,42 @@
+---
+import type { FeatureItem } from '../../lib/marketing-types';
+import FeatureCard from './FeatureCard.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  eyebrow?: string;
+  title?: string;
+  features: FeatureItem[];
+  class?: string;
+}
+
+const { eyebrow, title, features, class: className = '' } = Astro.props;
+---
+
+<section class:list={['py-16 md:py-20', className]}>
+  <PageContainer>
+    {
+      eyebrow || title ? (
+        <div class="mb-10 max-w-2xl">
+          {eyebrow ? (
+            <p class="m-0 mb-2 text-body-sm font-semibold uppercase tracking-wide text-accent">
+              {eyebrow}
+            </p>
+          ) : null}
+          {title ? <h2 class="m-0 font-heading text-h2 text-fg">{title}</h2> : null}
+        </div>
+      ) : null
+    }
+    <div class="grid gap-6 md:grid-cols-3">
+      {
+        features.map((feature) => (
+          <FeatureCard
+            title={feature.title}
+            description={feature.description}
+            icon={feature.icon}
+          />
+        ))
+      }
+    </div>
+  </PageContainer>
+</section>

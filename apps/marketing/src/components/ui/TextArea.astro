@@ -1,0 +1,56 @@
+---
+interface Props {
+  id: string;
+  name?: string;
+  label: string;
+  placeholder?: string;
+  helper?: string;
+  error?: string;
+  rows?: number;
+  required?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  name = id,
+  label,
+  placeholder,
+  helper,
+  error,
+  rows = 5,
+  required = false,
+  class: className = '',
+} = Astro.props;
+
+const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
+---
+
+<div class:list={['flex w-full flex-col gap-2', className]}>
+  <label for={id} class="text-body-sm font-medium text-fg">{label}</label>
+  <textarea
+    id={id}
+    name={name}
+    rows={rows}
+    placeholder={placeholder}
+    required={required}
+    aria-invalid={error ? 'true' : undefined}
+    aria-describedby={describedBy}
+    class:list={[
+      'w-full rounded-md border bg-bg-muted px-3 py-3 text-body-sm text-fg outline-none transition placeholder:text-fg-subtle',
+      'focus:border-2 focus:border-accent focus:bg-bg',
+      error ? 'border-status-error' : 'border-border',
+    ]}
+  ><slot /></textarea>
+  {
+    error ? (
+      <p id={`${id}-error`} class="m-0 text-caption text-status-error">
+        {error}
+      </p>
+    ) : helper ? (
+      <p id={`${id}-helper`} class="m-0 text-caption text-fg-muted">
+        {helper}
+      </p>
+    ) : null
+  }
+</div>

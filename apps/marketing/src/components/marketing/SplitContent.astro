@@ -1,0 +1,50 @@
+---
+import Icon from '../ui/Icon.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  title: string;
+  body: string;
+  imageAlt?: string;
+  imageSrc?: string;
+  reverse?: boolean;
+  class?: string;
+}
+
+const {
+  title,
+  body,
+  imageAlt = 'Illustration',
+  imageSrc,
+  reverse = false,
+  class: className = '',
+} = Astro.props;
+---
+
+<section class:list={['py-16 md:py-20', className]}>
+  <PageContainer>
+    <div
+      class:list={[
+        'grid items-center gap-10 md:grid-cols-2 md:gap-16',
+        reverse ? 'md:[&>*:first-child]:order-2' : '',
+      ]}
+    >
+      <div class="space-y-4">
+        <h2 class="m-0 font-heading text-h2 text-fg">{title}</h2>
+        <p class="m-0 text-base leading-relaxed text-fg-muted">{body}</p>
+        <slot />
+      </div>
+      <div
+        class="flex min-h-[16rem] items-center justify-center rounded-lg border border-border bg-bg-muted text-fg-subtle"
+      >
+        {
+          imageSrc ? (
+            <img src={imageSrc} alt={imageAlt} class="h-full w-full rounded-lg object-cover" />
+          ) : (
+            <Icon name="image" size={48} label={imageAlt} />
+          )
+        }
+      </div>
+    </div>
+  </PageContainer>
+</section>
