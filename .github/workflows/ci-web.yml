@@ -11,6 +11,12 @@ on:
       - 'packages/**'
       - 'scripts/validate-staticwebapp-config.mjs'
       - 'scripts/validate-staticwebapp-config.test.mjs'
+      - 'scripts/check-client-changelogs.mjs'
+      - 'scripts/check-client-changelogs.test.mjs'
+      - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -27,6 +33,12 @@ on:
       - 'packages/**'
       - 'scripts/validate-staticwebapp-config.mjs'
       - 'scripts/validate-staticwebapp-config.test.mjs'
+      - 'scripts/check-client-changelogs.mjs'
+      - 'scripts/check-client-changelogs.test.mjs'
+      - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -61,6 +73,9 @@ jobs:
       - name: Prettier check
         run: pnpm format:check
 
+      - name: Changelog projection drift check
+        run: pnpm changelog:test && pnpm changelog:check
+
       - name: Lint (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run lint
@@ -71,6 +86,7 @@ jobs:
       - name: Build (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run build
+          pnpm --filter @poc-plattform-kit/web run build-storybook
           pnpm --filter @poc-plattform-kit/marketing... run build
           pnpm --filter @poc-plattform-kit/marketing-oauth... run build
 

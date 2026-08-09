@@ -8,3 +8,4 @@ pnpm-lock.yaml
 infra/main.json
 packages/api-client/src/generated
 packages/api-client/openapi.json
+apps/web/public/mockServiceWorker.js

@@ -12,6 +12,7 @@ interface Props {
   label: string;
   options: Option[];
   value?: string;
+  placeholder?: string;
   helper?: string;
   error?: string;
   required?: boolean;
@@ -24,6 +25,7 @@ const {
   label,
   options,
   value,
+  placeholder,
   helper,
   error,
   required = false,
@@ -34,7 +36,17 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
 ---
 
 <div class:list={['flex w-full flex-col gap-2', className]}>
-  <label for={id} class="text-body-sm font-medium text-fg">{label}</label>
+  <label for={id} class="text-body-sm font-semibold text-fg">
+    {label}
+    {
+      required ? (
+        <span class="text-accent" aria-hidden="true">
+          {' '}
+          *
+        </span>
+      ) : null
+    }
+  </label>
   <div class="relative">
     <select
       id={id}
@@ -48,6 +60,13 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
         error ? 'border-status-error' : 'border-border',
       ]}
     >
+      {
+        placeholder ? (
+          <option value="" disabled selected={!value}>
+            {placeholder}
+          </option>
+        ) : null
+      }
       {
         options.map((option) => (
           <option value={option.value} selected={option.value === value}>

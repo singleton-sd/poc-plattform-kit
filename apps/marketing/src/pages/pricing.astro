@@ -1,17 +1,128 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import PageContainer from '../components/shell/PageContainer.astro';
+import Hero from '../components/marketing/Hero.astro';
+import PricingGrid from '../components/marketing/PricingGrid.astro';
+import PricingComparison from '../components/marketing/PricingComparison.astro';
+import CtaBanner from '../components/marketing/CtaBanner.astro';
+import { appCta } from '../lib/nav';
+import type { PricingTier } from '../lib/marketing-types';
+
+const tiers: PricingTier[] = [
+  {
+    name: 'Starter',
+    price: '$0',
+    priceYearly: '$0',
+    periodLabel: '/mo',
+    description: 'For side projects and experiments evaluating tenant limits.',
+    features: [
+      'Up to 3 tenants',
+      'Community support channel',
+      'Basic authentication rules',
+      'Design tokens access',
+    ],
+    cta: { label: 'Get started free', href: appCta.href },
+    ctaVariant: 'outline',
+  },
+  {
+    name: 'Developer Pro',
+    price: '$29',
+    priceYearly: '$24.65',
+    periodLabel: '/mo',
+    description: 'For growing teams shipping real, production-grade products.',
+    features: [
+      'Unlimited active tenants',
+      'Priority engineering support',
+      'Enterprise SSO integration',
+      'Advanced role management',
+      'Schema-driven dynamic forms',
+      'Dedicated API Client SDK',
+    ],
+    cta: { label: 'Start free trial', href: appCta.href },
+    highlighted: true,
+    ctaVariant: 'primary',
+  },
+  {
+    name: 'Enterprise',
+    price: 'Custom',
+    priceYearly: 'Custom',
+    periodLabel: '',
+    description: 'For organizations with complex data isolation & governance needs.',
+    features: [
+      'Everything in Developer Pro',
+      'Custom SLAs & deployment',
+      'Dedicated Slack & Phone support',
+      'On-premise database option',
+      'Custom third-party integrations',
+    ],
+    cta: { label: 'Contact sales', href: '/contact' },
+    ctaVariant: 'outline',
+  },
+];
+
+const comparisonRows = [
+  {
+    capability: 'Active Tenants',
+    starter: 'Up to 3',
+    pro: 'Unlimited',
+    enterprise: 'Unlimited + Custom Clusters',
+  },
+  {
+    capability: 'Workspace Isolation',
+    starter: 'Logical Partition',
+    pro: 'Logical + Route Level',
+    enterprise: 'Physical server isolating',
+  },
+  {
+    capability: 'SSO Authentication',
+    starter: 'cross' as const,
+    pro: 'check' as const,
+    enterprise: 'check' as const,
+  },
+  {
+    capability: 'Design Tokens API',
+    starter: 'check' as const,
+    pro: 'check' as const,
+    enterprise: 'check' as const,
+  },
+  {
+    capability: 'Form Schema Engine',
+    starter: 'cross' as const,
+    pro: 'check' as const,
+    enterprise: 'check' as const,
+  },
+  {
+    capability: 'SLA Guarantees',
+    starter: 'None',
+    pro: '99.9% Uptime',
+    enterprise: '99.99% Custom SLA',
+  },
+  {
+    capability: 'Support Channels',
+    starter: 'Community Discord',
+    pro: 'Priority Email 24h',
+    enterprise: 'Dedicated Slack & Phone',
+  },
+];
 ---
 
 <BaseLayout
   title="Pricing — Platform Kit"
-  description="Platform Kit pricing. Full page content lands in a follow-up ticket."
+  description="Simple, transparent Platform Kit pricing. Choose Starter, Developer Pro, or Enterprise."
 >
-  <PageContainer class="py-16 md:py-24">
-    <p class="m-0 mb-3 text-body-sm font-semibold uppercase tracking-wide text-accent">Pricing</p>
-    <h1 class="m-0 font-heading text-h1 text-fg">Plans and billing</h1>
-    <p class="mt-4 m-0 max-w-2xl text-base leading-relaxed text-fg-muted">
-      Placeholder route for the shared shell. Full Pricing page content is tracked separately.
-    </p>
-  </PageContainer>
+  <Hero
+    eyebrow="Pricing"
+    headline="Simple, transparent pricing."
+    subheadline="SaaS multi-tenancy solved. Choose a plan that scales with your platform. All plans include logical workspace isolation, Next.js integrations, and modern SDK access."
+    class="pb-10 md:pb-12"
+  />
+
+  <PricingGrid tiers={tiers} />
+
+  <PricingComparison rows={comparisonRows} />
+
+  <CtaBanner
+    title="Questions about pricing?"
+    description="Talk with the team about tenancy limits, SSO, and enterprise deployment options."
+    cta={{ label: 'Contact our team', href: '/contact' }}
+  />
 </BaseLayout>

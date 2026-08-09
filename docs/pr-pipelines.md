@@ -75,6 +75,32 @@ az rest --method patch \
   --body '{"properties":{"stagingEnvironmentPolicy":"Enabled"}}'
 ```
 
+### Preview orphan sweep (daily)
+
+Close hooks can miss leftovers (shared concurrency races, path-filtered `closed`
+events, Graph soft-fails). Workflow:
+[`.github/workflows/sweep-preview-orphans.yml`](../.github/workflows/sweep-preview-orphans.yml)
+runs daily (06:15 UTC) and on `workflow_dispatch` via
+[`scripts/sweep-preview-orphans.sh`](../scripts/sweep-preview-orphans.sh).
+
+| Target | Action when PR number is not open |
+| --- | --- |
+| ACA `ssd-pocpk-aca-pr-<n>-ae` | `az containerapp delete` |
+| SWA staging builds (web + marketing), except `default` | `az staticwebapp environment delete` |
+| ACR tags `pocpk-api:pr-<n>` / `pr-<n>-<sha>` | `az acr repository delete` |
+| Entra SPA redirect URIs matching SWA PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
+
+Manual dry-run:
+
+```bash
+gh workflow run sweep-preview-orphans.yml -f dry_run=true
+# or locally (az + gh logged in):
+./scripts/sweep-preview-orphans.sh --dry-run
+```
+
+OIDC uses the **main** federated credential (schedule / `workflow_dispatch` on
+`main`). Ensure FIC subjects cover `ref:refs/heads/main` (and ID-form if used).
+
 ### BE — Container Apps per PR (Path B — locked)
 
 Each API PR gets its own preview URL via **Azure Container Apps Consumption** (scale to zero).
@@ -107,13 +133,15 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 #### Workflow behaviour (`preview-api.yml`)
 
 1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`):
-   - Resolve `PREVIEW_SEED_SCENARIOS` from the PR body (`<!-- preview-scenarios: name1, name2 -->`, defaulting to `demo` — see [`docs/preview-scenarios.md`](../docs/preview-scenarios.md)).
+   - Resolve `PREVIEW_SEED_SCENARIOS` from the PR body (a `Preview scenarios: name1, name2` line, defaulting to `demo` — see [`docs/preview-scenarios.md`](../docs/preview-scenarios.md)).
    - Build `apps/api/Dockerfile` with `--build-arg PREVIEW_SEED_SCENARIOS=...` — every PR preview gets its **own isolated, disposable SQLite database**, seeded and verified at build time, baked into the image as an immutable template. It never resolves or mutates the shared Azure SQL database.
    - Push `…/pocpk-api:pr-<n>`, create/update the Container App with explicit `DATABASE_URL=file:/app/data/preview.db` and `AZURE_SERVICEBUS_CONNECTION_STRING=` (empty) — App Configuration cannot override either (explicit env vars win), so a preview can never resolve the shared `secret:database-url`, and `OutboxDrainerService` stays disabled so no seeded outbox row can ever reach the real Service Bus.
    - Wait for `GET /health/db` (proves Prisma can query the container's writable copy of the seeded database — `docker-entrypoint.sh` already re-verifies every declared scenario's fixtures before Nest starts listening at all).
    - Comment the preview URL, database mode, active scenarios, reset behaviour, and a link to `docs/preview-scenarios.md` for test instructions.
 2. **PR close:** delete `ssd-pocpk-aca-pr-<n>-ae`.
 3. **Reset:** redeploying (any new commit) copies the immutable template back over the writable database — mutations made while testing never persist. Max replicas stays `1`.
+4. **Daily orphan sweep:** `sweep-preview-orphans.yml` deletes leftovers if
+   close cleanup was skipped (path filters, cancelled run, Graph soft-fail).
 
 #### GitHub Azure auth (human)
 

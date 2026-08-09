@@ -1,8 +1,14 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/marketing/Hero.astro';
+import FeatureGrid from '../components/marketing/FeatureGrid.astro';
+import TrustStrip from '../components/marketing/TrustStrip.astro';
+import SplitContent from '../components/marketing/SplitContent.astro';
+import TenantIsolationSchematic from '../components/marketing/TenantIsolationSchematic.astro';
+import CtaBanner from '../components/marketing/CtaBanner.astro';
 import { getEntry } from 'astro:content';
 import { appCta } from '../lib/nav';
+import type { FeatureItem } from '../lib/marketing-types';
 
 const home = await getEntry('pages', 'home');
 if (!home) {
@@ -10,19 +16,74 @@ if (!home) {
 }
 const { Content } = await home.render();
 const { title, description, brand, headline, ctaLabel, ctaUrl } = home.data;
+
+const features: FeatureItem[] = [
+  {
+    title: 'Tenant Management',
+    description:
+      'Isolate workspace data records dynamically. Map separate logical partitions or separate physical database servers safely.',
+    icon: 'database',
+  },
+  {
+    title: 'Authentication & Roles',
+    description:
+      'Assign enterprise single-sign-on integration paths or configure complex nested team permission structures effortlessly.',
+    icon: 'users',
+  },
+  {
+    title: 'Design Token System',
+    description:
+      'Control multi-brand styling through platform-wide centralized design system properties tailored to active developers.',
+    icon: 'zap',
+  },
+];
+
+const primaryHref = ctaUrl ?? appCta.href;
 ---
 
 <BaseLayout title={title} description={description}>
   <Hero
-    eyebrow={brand ?? 'Platform Kit'}
+    eyebrow={brand ?? 'Platform Kit Introductory'}
     headline={headline ?? 'Multi-tenant infrastructure, ready to ship.'}
     primaryCta={{
-      label: ctaLabel ?? appCta.label,
-      href: ctaUrl ?? appCta.href,
+      label: ctaLabel ?? 'Get started today',
+      href: primaryHref,
+    }}
+    secondaryCta={{
+      label: 'View technical features',
+      href: '/features',
     }}
   >
-    <div class="[&_p]:m-0">
+    <div class="[&_p]:m-0 [&_p+p]:mt-3">
       <Content />
     </div>
   </Hero>
+
+  <FeatureGrid
+    eyebrow="Features"
+    title="Everything you need to manage tenants"
+    description="Provision isolated environments effortlessly and configure authorization boundaries at native speeds."
+    features={features}
+    align="center"
+  />
+
+  <TrustStrip items={['Singleton SD', 'Next.js', 'TypeScript', 'Tailwind CSS']} />
+
+  <SplitContent
+    eyebrow="Developer friendly"
+    title="Engineered for continuous scale"
+    body="Never re-architect database layers again. Platform Kit abstracts complex tenancy logic so your engineering group can ship functional, brand-customized workspaces on robust logic foundations. Deploy secure development clones in seconds."
+    link={{
+      label: 'Learn more about continuous delivery',
+      href: '/features',
+    }}
+  >
+    <TenantIsolationSchematic slot="media" />
+  </SplitContent>
+
+  <CtaBanner
+    title="Ready to consolidate your platform?"
+    description="Deliver logical query boundaries and safe tenant isolation rules straight to your clients."
+    cta={{ label: 'Get started free', href: primaryHref }}
+  />
 </BaseLayout>

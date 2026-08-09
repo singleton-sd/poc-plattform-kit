@@ -2,24 +2,34 @@
 
 import { AlertIcon, PlusIcon } from '@/components/icons';
 
-export function TenantEmptyState({ onCreate }: { onCreate: () => void }) {
+export function TenantEmptyState({
+  onCreate,
+  canCreate = true,
+}: {
+  onCreate: () => void;
+  canCreate?: boolean;
+}) {
   return (
     <div
       className="flex flex-col items-center gap-3 px-4 py-16 text-center"
       data-testid="tenant-empty-state"
     >
-      <h2 className="font-heading text-lg font-semibold text-fg">Create your first tenant</h2>
+      <h2 className="font-heading text-lg font-semibold text-fg">
+        {canCreate ? 'Create your first tenant' : 'No tenants available'}
+      </h2>
       <p className="max-w-sm text-sm text-fg-muted">
         Tenants represent organisations using your platform.
       </p>
-      <button
-        type="button"
-        onClick={onCreate}
-        className="mt-2 inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on"
-      >
-        <PlusIcon className="h-4 w-4" />
-        Create Tenant
-      </button>
+      {canCreate ? (
+        <button
+          type="button"
+          onClick={onCreate}
+          className="mt-2 inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Create Tenant
+        </button>
+      ) : null}
     </div>
   );
 }
