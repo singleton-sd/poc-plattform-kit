@@ -1,5 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { HTTP_CODE_METADATA } from '@nestjs/common/constants';
+import { PermissionGrantType } from './dto/grant-permission.dto';
 import { PermissionsController } from './permissions.controller';
 import { PermissionsService } from './permissions.service';
 
@@ -23,6 +24,35 @@ describe('PermissionsController', () => {
 
     await expect(controller.check(request)).resolves.toEqual({ allowed: false });
     expect(permissions.check).toHaveBeenCalledWith(request);
+  });
+
+  it('delegates grants and revokes to the permissions service', async () => {
+    const permissions = {
+      grant: jest
+        .fn()
+        .mockResolvedValue({ granted: true, grantType: PermissionGrantType.Permanent }),
+      revoke: jest.fn().mockResolvedValue({ revoked: true }),
+    } as unknown as PermissionsService;
+    const controller = new PermissionsController(permissions);
+    const grantRequest = {
+      subject: 'user:alice',
+      action: 'update',
+      resource: 'tenant:one',
+      grantType: PermissionGrantType.Permanent,
+    };
+    const revokeRequest = {
+      subject: 'user:alice',
+      action: 'update',
+      resource: 'tenant:one',
+    };
+
+    await expect(controller.grant(grantRequest)).resolves.toEqual({
+      granted: true,
+      grantType: PermissionGrantType.Permanent,
+    });
+    await expect(controller.revoke(revokeRequest)).resolves.toEqual({ revoked: true });
+    expect(permissions.grant).toHaveBeenCalledWith(grantRequest);
+    expect(permissions.revoke).toHaveBeenCalledWith(revokeRequest);
   });
 
   it('reports the permissions pillar health', () => {
