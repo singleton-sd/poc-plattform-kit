@@ -62,7 +62,15 @@ if ! command -v az >/dev/null 2>&1; then
   exit 1
 fi
 
-mapfile -t OPEN_PRS < <(gh pr list --state open --json number --jq '.[].number' | tr -d '\r' | sort -n)
+# Capture status outside process substitution so a failed `gh` aborts before
+# deletes (empty OPEN_SET would treat every preview as orphaned).
+# Explicit high --limit: gh defaults to 30 and would drop higher-numbered open PRs.
+open_prs_raw=""
+if ! open_prs_raw="$(gh pr list --state open --limit 1000 --json number --jq '.[].number')"; then
+  echo "error: gh pr list failed — refusing to sweep (open-PR discovery required)" >&2
+  exit 1
+fi
+mapfile -t OPEN_PRS < <(printf '%s\n' "$open_prs_raw" | tr -d '\r' | awk 'NF' | sort -n)
 declare -A OPEN_SET=()
 for n in "${OPEN_PRS[@]:-}"; do
   [[ -n "$n" ]] && OPEN_SET["$n"]=1

@@ -26,8 +26,8 @@ on:
       - 'packages/**'
       - '.github/workflows/preview-api.yml'
 
-# Deploy and cleanup use separate concurrency groups so a late synchronize
-# cannot cancel the close cleanup (and vice versa).
+# Deploy and cleanup share one per-PR group so a close run cancels an in-flight
+# deploy (and vice versa). cancel-in-progress on both prevents recreate-after-delete.
 env:
   AZURE_RESOURCE_GROUP: rg-poc-plattform-kit
   ACA_ENV_NAME: ssd-pocpk-cae-dev-ae
@@ -44,7 +44,7 @@ jobs:
     # cannot recreate the app after cleanup on a closed/merged PR.
     if: github.event.pull_request.state == 'open'
     concurrency:
-      group: preview-api-deploy-${{ github.event.pull_request.number }}
+      group: preview-api-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
@@ -139,8 +139,18 @@ jobs:
         env:
           APP_NAME: ${{ steps.acr.outputs.app_name }}
           IMAGE: ${{ steps.acr.outputs.image }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Recheck immediately before mutation: a close/cleanup may have started
+          # after the earlier open-state check while this job was still building.
+          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
+          if [ "$state" != "open" ]; then
+            echo "::notice::PR is '$state' before ACA mutate — skipping deploy to avoid recreate-after-cleanup."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
           ACR_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-username --query value -o tsv)
           ACR_PASS=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-password --query value -o tsv)
           LOGIN_SERVER="${{ steps.acr.outputs.login_server }}"
@@ -230,7 +240,7 @@ jobs:
           echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
 
       - name: Smoke preview /health
-        if: steps.open.outputs.open == 'true'
+        if: steps.open.outputs.open == 'true' && steps.deploy.outputs.skipped != 'true'
         env:
           PREVIEW_URL: ${{ steps.deploy.outputs.url }}
           APP_NAME: ${{ steps.acr.outputs.app_name }}
@@ -255,7 +265,7 @@ jobs:
           exit 1
 
       - name: Comment preview URL on PR
-        if: steps.open.outputs.open == 'true'
+        if: steps.open.outputs.open == 'true' && steps.deploy.outputs.skipped != 'true'
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.deploy.outputs.url }}
@@ -307,8 +317,8 @@ jobs:
     name: Delete ephemeral ACA preview
     if: github.event.action == 'closed'
     concurrency:
-      group: preview-api-cleanup-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
+      group: preview-api-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -30,8 +30,10 @@ permissions:
   # gh pr list needs issues/metadata; pull-requests:read covers open PR numbers
   pull-requests: read
 
+# Share Entra SPA redirect concurrency with preview-web.yml — both read-modify-
+# PATCH spa.redirectUris; overlapping runs can clobber each other.
 concurrency:
-  group: sweep-preview-orphans
+  group: entra-spa-preview-redirects
   cancel-in-progress: false
 
 env:
