@@ -64,16 +64,20 @@ export function writeProductHistory(product, releases) {
 }
 
 function main() {
+  const dryRun = process.argv.includes('--dry-run');
   const tags = git(['tag', '--list']).split('\n').filter(Boolean);
   for (const [product, paths] of Object.entries(PRODUCTS)) {
     const releases = backfillProduct(product, paths, tags);
-    if (!releases.length) throw new Error(`No release tags found for ${product}`);
-    writeProductHistory(product, releases);
+    if (!releases.length) {
+      throw new Error(`No release tags found for ${product}; run git fetch origin --tags`);
+    }
+    if (!dryRun) writeProductHistory(product, releases);
     console.log(
-      `Wrote ${releases.length} releases to ${CLIENT_CHANGELOG_TARGETS[product].markdown}`,
+      `${dryRun ? 'Would write' : 'Wrote'} ${releases.length} releases to ${CLIENT_CHANGELOG_TARGETS[product].markdown}`,
     );
   }
 
+  if (dryRun) return;
   // Ensure the generated files can be read after writing them.
   for (const targets of Object.values(CLIENT_CHANGELOG_TARGETS)) {
     parseProductChangelog(readFileSync(resolve(ROOT, targets.markdown), 'utf8'));

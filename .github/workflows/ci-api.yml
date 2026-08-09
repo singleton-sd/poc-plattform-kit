@@ -10,6 +10,9 @@ on:
       - 'scripts/check-client-changelogs.mjs'
       - 'scripts/check-client-changelogs.test.mjs'
       - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - '.github/workflows/ci-api.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -26,6 +29,9 @@ on:
       - 'scripts/check-client-changelogs.mjs'
       - 'scripts/check-client-changelogs.test.mjs'
       - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - '.github/workflows/ci-api.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -64,7 +70,7 @@ jobs:
         run: pnpm openapi:check
 
       - name: Changelog projection drift check
-        run: pnpm changelog:check
+        run: pnpm changelog:test && pnpm changelog:check
 
       - name: Prettier check
         run: pnpm format:check
