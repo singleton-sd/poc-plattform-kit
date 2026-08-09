@@ -14,10 +14,8 @@ const home = await getEntry('pages', 'home');
 if (!home) {
   throw new Error('Missing content: pages/home');
 }
-
+const { Content } = await home.render();
 const { title, description, brand, headline, ctaLabel, ctaUrl } = home.data;
-const subheadline =
-  'SaaS multi-tenancy solved. Provision secure isolated developer workspaces, control authorization and roles out-of-the-box, and govern everything via your unified administration panel built with Next.js, Tailwind CSS, and Singleton SD tokens.';
 
 const features: FeatureItem[] = [
   {
@@ -47,7 +45,6 @@ const primaryHref = ctaUrl ?? appCta.href;
   <Hero
     eyebrow={brand ?? 'Platform Kit Introductory'}
     headline={headline ?? 'Multi-tenant infrastructure, ready to ship.'}
-    subheadline={subheadline}
     primaryCta={{
       label: ctaLabel ?? 'Get started today',
       href: primaryHref,
@@ -56,7 +53,11 @@ const primaryHref = ctaUrl ?? appCta.href;
       label: 'View technical features',
       href: '/features',
     }}
-  />
+  >
+    <div class="[&_p]:m-0 [&_p+p]:mt-3">
+      <Content />
+    </div>
+  </Hero>
 
   <FeatureGrid
     eyebrow="Features"
