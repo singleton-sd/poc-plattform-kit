@@ -3,17 +3,20 @@
 
 Preview scenario declaration (required for apps/api/**, pillars/**, packages/db/**
 changes — see docs/preview-scenarios.md and AGENTS.md "Preview scenario delivery
-standard"). Uncomment exactly one of the two blocks below and fill it in; CI
-(validate-preview-scenarios.yml) rejects a PR that touches those paths with
-neither block present, an unknown scenario name, or a scenario that fails to
-seed.
+standard"). Fill in the "Preview scenarios:" line below with either:
 
-Declaring scenarios:
-<!-- preview-scenarios: pillar/tenant/settings, pillar/x/y -->
+  Preview scenarios: pillar/tenant/settings, pillar/x/y
 
-Exemption (only when the change genuinely needs no preview data — docs,
-CI/workflow-only, infra-only, etc.):
-<!-- preview-scenario: not-applicable: <reason> -->
+or an explicit exemption with a reason, for changes that genuinely need no
+preview data (docs, CI/workflow-only, infra-only, a pure refactor):
+
+  Preview scenarios: not-applicable — CI workflow tweak only, no data model or endpoint change
+
+This must be a plain, visible line (not an HTML comment) — some tooling used
+to open PRs in this repo strips HTML comments from the body before saving.
+CI (validate-preview-scenarios.yml) rejects a PR that touches those paths
+without this line filled in, an unknown scenario name, or a scenario that
+fails to seed.
 -->
 
 ## Summary
@@ -23,7 +26,8 @@ CI/workflow-only, infra-only, etc.):
 
 ## Preview scenarios
 
-- **Scenario(s):** <!-- e.g. pillar/tenant/settings, or "not-applicable: <reason>" -->
+Preview scenarios: <!-- fill in above, see the instructions at the top of this description -->
+
 - **Known SQLite vs SQL Server differences:** <!-- anything this preview can't prove; "none" if not applicable -->
 
 ## Test plan

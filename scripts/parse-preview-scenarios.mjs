@@ -3,8 +3,15 @@
 // See docs/preview-scenarios.md and AGENTS.md for the full delivery
 // requirement; this script only implements the parsing convention:
 //
-//   <!-- preview-scenarios: pillar/tenant/settings, pillar/x/y -->
-//   <!-- preview-scenario: not-applicable: <reason> -->
+//   Preview scenarios: pillar/tenant/settings, pillar/x/y
+//   Preview scenarios: not-applicable — <reason>
+//
+// A plain, visible line rather than an HTML comment: some GitHub tooling
+// (including the one this repo's agents use to create/edit PRs) strips
+// HTML comments from a PR body before storing it — likely a deliberate
+// defense against hidden/invisible instructions in PR descriptions — so a
+// `<!-- ... -->` convention silently never round-trips. A visible marker
+// line is also more transparent for a human reviewer.
 //
 // Used by .github/workflows/preview-api.yml to compute the
 // PREVIEW_SEED_SCENARIOS build-arg, and by the CI scenario-declaration
@@ -19,38 +26,38 @@ import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_SCENARIOS_CSV = 'demo';
 
-const SCENARIOS_PATTERN = /<!--\s*preview-scenarios:\s*(.*?)\s*-->/is;
-const NOT_APPLICABLE_PATTERN = /<!--\s*preview-scenario:\s*not-applicable:\s*(.*?)\s*-->/is;
+// Matches a line like "Preview scenarios: ..." or "Preview-scenarios: ...",
+// case-insensitive, anywhere in the body.
+const DECLARATION_LINE_PATTERN = /^[ \t]*preview[ -]scenarios?[ \t]*:[ \t]*(.+?)[ \t]*$/im;
+const NOT_APPLICABLE_PATTERN = /^not-applicable\b\s*[:\-–—]?\s*(.*)$/i;
 
 /**
  * Parses a PR body for a preview scenario declaration.
  * Returns one of:
  *   { kind: 'scenarios', names: string[] }
  *   { kind: 'not-applicable', reason: string }
- *   { kind: 'empty' }   — the tag is present but names are empty
+ *   { kind: 'empty' }   — the marker is present but names/reason are empty
  *   { kind: 'unset' }   — no declaration found at all
  */
 export function parsePreviewScenarioDeclaration(body) {
   const text = body ?? '';
+  const match = text.match(DECLARATION_LINE_PATTERN);
+  if (!match) {
+    return { kind: 'unset' };
+  }
 
-  const notApplicable = text.match(NOT_APPLICABLE_PATTERN);
+  const value = match[1].trim();
+  const notApplicable = value.match(NOT_APPLICABLE_PATTERN);
   if (notApplicable) {
     const reason = notApplicable[1].trim();
-    return reason.length > 0
-      ? { kind: 'not-applicable', reason }
-      : { kind: 'not-applicable', reason: '' };
+    return { kind: 'not-applicable', reason };
   }
 
-  const scenarios = text.match(SCENARIOS_PATTERN);
-  if (scenarios) {
-    const names = scenarios[1]
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    return names.length > 0 ? { kind: 'scenarios', names } : { kind: 'empty' };
-  }
-
-  return { kind: 'unset' };
+  const names = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return names.length > 0 ? { kind: 'scenarios', names } : { kind: 'empty' };
 }
 
 /**

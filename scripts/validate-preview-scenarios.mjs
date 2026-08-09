@@ -42,8 +42,8 @@ export function validateDeclaration(declaration, changedFiles) {
         ok: false,
         errors: [
           'This PR touches apps/api/**, pillars/**, or packages/db/** and must declare preview ' +
-            'scenarios (`<!-- preview-scenarios: name1, name2 -->`) or an explicit exemption ' +
-            '(`<!-- preview-scenario: not-applicable: <reason> -->`). See docs/preview-scenarios.md.',
+            'scenarios with a "Preview scenarios: name1, name2" line, or an explicit exemption ' +
+            '("Preview scenarios: not-applicable — <reason>"). See docs/preview-scenarios.md.',
         ],
       };
     }

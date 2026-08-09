@@ -233,19 +233,19 @@ Read curated skills under `.cursor/skills/` before coding (backend, frontend, te
 
 Ephemeral API PR previews run against an isolated, disposable **SQLite** database seeded from named **preview scenarios** — see [`docs/preview-scenarios.md`](docs/preview-scenarios.md) for the full framework (registry, catalog, naming convention, CLI). This is the delivery requirement layered on top of it.
 
-**A PR touching `apps/api/**`, `pillars/**`, or `packages/db/**` must declare its preview scenarios in the PR body:**
+**A PR touching `apps/api/**`, `pillars/**`, or `packages/db/**` must declare its preview scenarios as a plain, visible line in the PR body** (not an HTML comment — some tooling used to open PRs in this repo strips HTML comments from the body before saving, so a hidden-comment convention silently never round-trips):
 
-```html
-<!-- preview-scenarios: pillar/tenant/settings, feature/my-feature/happy-path -->
+```text
+Preview scenarios: pillar/tenant/settings, feature/my-feature/happy-path
 ```
 
 or an explicit exemption with a reason, for changes that genuinely need no preview data (docs, CI/workflow-only, infra-only, a pure refactor with no behavior change):
 
-```html
-<!-- preview-scenario: not-applicable: CI workflow tweak only, no data model or endpoint change -->
+```text
+Preview scenarios: not-applicable — CI workflow tweak only, no data model or endpoint change
 ```
 
-`.github/workflows/validate-preview-scenarios.yml` (`scripts/validate-preview-scenarios.mjs`) enforces this: it fails a PR that touches those paths with neither block present, rejects unknown scenario names with the full supported list, and proves every declared scenario actually seeds + verifies against a real throwaway SQLite database — not just that the declaration parses. `.github/pull_request_template.md` has the fields already scaffolded.
+`.github/workflows/validate-preview-scenarios.yml` (`scripts/validate-preview-scenarios.mjs`) enforces this: it fails a PR that touches those paths with neither line present, rejects unknown scenario names with the full supported list, and proves every declared scenario actually seeds + verifies against a real throwaway SQLite database — not just that the declaration parses. `.github/pull_request_template.md` has the field already scaffolded.
 
 **What each kind of ticket adds:**
 

@@ -167,29 +167,32 @@ start (`apps/api/docker-entrypoint.sh`) before Nest starts serving traffic.
 
 See [`AGENTS.md`](../AGENTS.md) § "Preview scenario delivery standard" for
 the full requirement and enforcement (`validate-preview-scenarios.yml`).
-Examples of the PR body declaration:
+The declaration is a plain, visible `Preview scenarios:` line in the PR
+body — not an HTML comment, since some tooling used to open PRs in this
+repo strips HTML comments before saving, which would silently break a
+hidden-comment convention. Examples:
 
 **A feature/pillar PR:**
 
-```html
-<!-- preview-scenarios: pillar/tenant/multi-membership, pillar/tenant/settings -->
+```text
+Preview scenarios: pillar/tenant/multi-membership, pillar/tenant/settings
 ```
 
 **A platform pillar foundation PR** (only an Outbox/Audit scaffold so far):
 
-```html
-<!-- preview-scenarios: pillar/contact/outbox-safe -->
+```text
+Preview scenarios: pillar/contact/outbox-safe
 ```
 
 **A data-dependent bug fix** (regression fixture kept after the fix lands):
 
-```html
-<!-- preview-scenarios: bug/86d3xxxx/duplicate-membership-on-retry -->
+```text
+Preview scenarios: bug/86d3xxxx/duplicate-membership-on-retry
 ```
 
 **A change that genuinely needs no preview data** (docs, CI/workflow-only,
 infra-only, a pure refactor):
 
-```html
-<!-- preview-scenario: not-applicable: Prettier config change only, no runtime behavior affected -->
+```text
+Preview scenarios: not-applicable — Prettier config change only, no runtime behavior affected
 ```
