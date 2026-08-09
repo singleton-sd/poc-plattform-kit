@@ -35,6 +35,12 @@ Finish with a one-paragraph summary verdict.
 - Do not suggest style changes unless a linter config is provided
 - Distinguish between blocking issues and suggestions
 
+## Forms
+
+If the diff touches a form (schema, renderer, or host component), also apply
+the **form-ux** skill (`.cursor/skills/form-ux`) audit mode and report
+findings using its status vocabulary and evidence requirements.
+
 ## Reviewer pickup (Claim Token)
 
 Before reviewing a ClickUp ticket in **READY FOR REVIEW**, run the exclusive
