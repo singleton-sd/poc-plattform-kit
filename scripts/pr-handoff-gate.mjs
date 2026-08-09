@@ -74,6 +74,29 @@ function gh(args, options = {}) {
   return result.stdout;
 }
 
+export function isRateLimitError(message) {
+  return /rate limit/i.test(message ?? '');
+}
+
+// Many PRs can trigger this gate at once (five workflow_run sources, plus
+// review/comment events), and they share the GitHub App installation's API
+// rate limit. A transient limit hit must not be treated as "PR not ready" —
+// that would report a false failure. Retry until the limit clears or the
+// gate's own deadline passes.
+async function retryOnRateLimit(fn, { pollMs, deadline }) {
+  for (;;) {
+    try {
+      return fn();
+    } catch (error) {
+      if (!isRateLimitError(error.message) || Date.now() >= deadline) throw error;
+      process.stderr.write(
+        `GitHub API rate limit hit, retrying in ${pollMs}ms: ${error.message}\n`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    }
+  }
+}
+
 function paginated(endpoint) {
   const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `${endpoint}?per_page=100`]));
   return pages.flat();
@@ -172,11 +195,19 @@ function loadSnapshot(number, observedHeadOid) {
 }
 
 export async function runGate({ pr, quietMs, timeoutMs, pollMs, once = false }) {
-  const initial = JSON.parse(gh(['pr', 'view', String(pr), '--json', 'headRefOid']));
-  const observedHeadOid = initial.headRefOid;
   const deadline = Date.now() + timeoutMs;
+  const initial = JSON.parse(
+    await retryOnRateLimit(() => gh(['pr', 'view', String(pr), '--json', 'headRefOid']), {
+      pollMs,
+      deadline,
+    }),
+  );
+  const observedHeadOid = initial.headRefOid;
   while (Date.now() <= deadline) {
-    const snapshot = loadSnapshot(pr, observedHeadOid);
+    const snapshot = await retryOnRateLimit(() => loadSnapshot(pr, observedHeadOid), {
+      pollMs,
+      deadline,
+    });
     const result = evaluateSnapshot(snapshot, Date.now(), quietMs);
     if (result.ready) {
       process.stdout.write(`PR #${pr} handoff gate passed at ${snapshot.headOid}\n`);
