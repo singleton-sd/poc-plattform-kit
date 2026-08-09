@@ -114,9 +114,11 @@ const reachItems: ReachItem[] = [
             Thanks — your message was prepared successfully. Backend delivery is
             stubbed for this template and will land in a follow-up ticket.
           </Alert>
-          <Button id="contact-reset" type="button" variant="outline" size="lg">
-            Send another message
-          </Button>
+          <div id="contact-reset">
+            <Button type="button" variant="outline" size="lg">
+              Send another message
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -165,7 +167,7 @@ const reachItems: ReachItem[] = [
   const formPanel = document.getElementById('contact-form-panel');
   const successPanel = document.getElementById('contact-success');
   const formError = document.getElementById('contact-form-error');
-  const resetButton = document.getElementById('contact-reset');
+  const resetButton = document.getElementById('contact-reset')?.querySelector('button');
 
   function setFieldError(id: string, message: string | null) {
     const field = document.getElementById(id) as
