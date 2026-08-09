@@ -8,10 +8,15 @@ import { CLIENT_CHANGELOG_TARGETS, parseProductChangelog } from './client-change
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 function assertNewestFirst(releases, product) {
+  for (const release of releases) {
+    if (!semver.valid(release.version)) {
+      throw new Error(`${product}: ${release.version} is not a valid semantic version`);
+    }
+  }
   for (let index = 1; index < releases.length; index += 1) {
     const previous = releases[index - 1]?.version;
     const current = releases[index]?.version;
-    if (!semver.valid(previous) || !semver.valid(current) || semver.lt(previous, current)) {
+    if (semver.lt(previous, current)) {
       throw new Error(`${product}: releases must use newest-first semantic version order`);
     }
   }

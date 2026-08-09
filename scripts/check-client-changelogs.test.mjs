@@ -59,3 +59,14 @@ test('rejects releases that are not newest first', () => {
     /newest-first semantic version order/,
   );
 });
+
+test('rejects a single release with a non-semantic version', () => {
+  assert.throws(
+    () =>
+      validateProductProjection('@poc-plattform-kit/web', '## not-a-version — 2026-08-09', {
+        product: '@poc-plattform-kit/web',
+        releases: [{ version: 'not-a-version', date: '2026-08-09', changes: [] }],
+      }),
+    /valid semantic version/,
+  );
+});
