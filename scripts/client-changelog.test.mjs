@@ -3,7 +3,12 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { clientFacingChanges, updateClientChangelogs } from './client-changelog.mjs';
+import {
+  clientFacingChanges,
+  formatProductChangelog,
+  parseProductChangelog,
+  updateClientChangelogs,
+} from './client-changelog.mjs';
 
 test('turns releasable conventional commits into public changes', () => {
   assert.deepEqual(
@@ -71,4 +76,23 @@ test('prepends and limits generated product releases', () => {
   assert.equal(output.releases.length, 20);
   assert.equal(output.releases[0].version, '1.0.20');
   assert.equal(output.releases.at(-1).version, '1.0.1');
+  const markdown = readFileSync(join(root, 'apps/web/CHANGELOG.md'), 'utf8');
+  assert.match(markdown, /^# Changelog/);
+  assert.deepEqual(parseProductChangelog(markdown), output.releases);
+});
+
+test('round-trips summaries and reasons through the canonical Markdown', () => {
+  const releases = [
+    {
+      version: '2.0.0',
+      date: '2026-08-09',
+      changes: [
+        { type: 'Breaking', summary: 'Replace identifiers', reason: 'Use stable IDs.' },
+        { type: 'Fixed', summary: 'Preserve filters' },
+      ],
+    },
+  ];
+  const markdown = formatProductChangelog('@poc-plattform-kit/api', releases);
+  assert.match(markdown, /generated from conventional commits by the release-it workflow/);
+  assert.deepEqual(parseProductChangelog(markdown), releases);
 });

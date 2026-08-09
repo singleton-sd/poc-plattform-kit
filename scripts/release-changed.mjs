@@ -279,7 +279,11 @@ function updateChangelog(releases) {
   const section = [
     `## ${date}`,
     '',
-    ...releases.map((r) => `- **${r.name}** \`${r.version}\` → \`${r.next}\` (${r.increment})`),
+    ...releases.map((r) => {
+      const target = CLIENT_CHANGELOG_TARGETS[r.name];
+      const name = target ? `[${r.name}](${target.markdown})` : r.name;
+      return `- **${name}** \`${r.version}\` → \`${r.next}\` (${r.increment})`;
+    }),
     '',
   ].join('\n');
 
@@ -453,8 +457,8 @@ function main() {
   }
   run('git', ['add', 'CHANGELOG.md']);
   for (const release of releases) {
-    const target = CLIENT_CHANGELOG_TARGETS[release.name];
-    if (target) run('git', ['add', target]);
+    const targets = CLIENT_CHANGELOG_TARGETS[release.name];
+    if (targets) run('git', ['add', targets.markdown, targets.data]);
   }
   if (apiReleased) {
     run('git', ['add', ...OPENAPI_CLIENT_PATHS]);
