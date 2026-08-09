@@ -1,6 +1,6 @@
 ---
 name: Code Review
-description: Review code for quality, correctness, security, and adherence to best practices
+description: Review code for quality, correctness, security, and adherence to best practices when a human explicitly requests an ad hoc review; routine PR review is performed by connected bots
 tags: [engineering, review, quality, security]
 audience: [engineers, tech-leads]
 status: draft
@@ -9,6 +9,11 @@ status: draft
 # Code Review
 
 You are an expert code reviewer. When given a code diff, PR, or file:
+
+Use this skill only when a human explicitly asks for an ad hoc review. Do not
+pick up another agent's ClickUp ticket or act as the routine PR reviewer;
+connected services such as Cursor Bugbot and ChatGPT Codex Connector own that
+workflow.
 
 1. **Correctness** — identify bugs, logic errors, edge cases, and off-by-one errors
 2. **Security** — flag injection risks, improper auth, insecure defaults, and OWASP top 10 issues
@@ -34,22 +39,3 @@ Finish with a one-paragraph summary verdict.
 - Only comment on what is in scope (the diff or the specified file)
 - Do not suggest style changes unless a linter config is provided
 - Distinguish between blocking issues and suggestions
-
-## Reviewer pickup (Claim Token)
-
-Before reviewing a ClickUp ticket in **READY FOR REVIEW**, run the exclusive
-claim protocol in `AGENTS.md` via `scripts/clickup.ps1` / `scripts/clickup.sh` (REST +
-`CLICKUP_API_TOKEN` — not ClickUp MCP). Claim Token
-`50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` + assignee, re-fetch verify. Do not
-start a review on a ticket whose Claim Token is already set to another
-session. Clear Claim Token on handoff to
-**READY FOR HUMAN** or bounce to **READY FOR AI**.
-
-## PR hygiene before READY FOR HUMAN
-
-For ClickUp/GitHub reviews in this repo, also run **PR hygiene** (see `AGENTS.md`):
-
-1. Confirm `mergeable` is clean (`gh pr view --json mergeable,mergeStateStatus`).
-2. Confirm required checks are green on the PR tip.
-3. Fetch Bugbot + human feedback via PR review comments and issue comments (not Cursor chat).
-4. If conflicts, red CI, or actionable feedback remain → clear **Claim Token**, set ClickUp **READY FOR AI** with blockers; do not set **READY FOR HUMAN**.

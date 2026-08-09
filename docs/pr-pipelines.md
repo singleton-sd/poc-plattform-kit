@@ -245,14 +245,13 @@ status transition:
 
 ```bash
 ./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>
-# Reviewer uses the same command with READY FOR HUMAN.
 ```
 
 The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp. The gate
 pins the PR head SHA, requires all path-applicable CI and preview checks to
 appear and finish successfully, requires a mergeable/non-dirty PR, rejects the
 hygiene labels, rejects unresolved review threads, and waits for a 90-second
-reviewer quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
+external-feedback quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
 Override polling only for diagnostics with `PR_GATE_QUIET_SECONDS`,
 `PR_GATE_TIMEOUT_SECONDS`, and `PR_GATE_POLL_SECONDS`.
 
@@ -261,6 +260,15 @@ publishes the commit status context `pr-handoff-gate`. Configure the `main`
 ruleset to require this context together with the API/web CI checks. The workflow
 restarts on pushes, CI/preview completion, reviews, and review/issue comments so
 late bot feedback moves the status back to pending/failure before stabilising.
+
+Open the `pr-handoff-gate` status link to see the workflow run summary. It lists
+every current blocker beside a specific next action. `Waiting` means checks or
+the reviewer quiet period are still in progress; `Blocked` means an action is
+required. A cancelled check is called out separately and should be re-run before
+changing code. Superseded gate runs queue instead of cancelling the active run;
+this guarantees that every run reaches its summary and final-status steps. A
+stale run detects that the PR head changed, exits with that explicit blocker,
+and then allows the replacement run to evaluate the new commit.
 
 ## Asynchronous ClickUp recovery
 

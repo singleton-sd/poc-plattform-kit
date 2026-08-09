@@ -58,14 +58,60 @@ export function evaluateSnapshot(snapshot, nowMs, quietMs) {
     blockers.push(`${snapshot.unresolvedThreads} unresolved review thread(s)`);
   if (missing.length) blockers.push(`checks not registered: ${missing.join(', ')}`);
   if (pending.length) blockers.push(`checks pending: ${pending.join(', ')}`);
-  if (failed.length)
-    blockers.push(`checks failed: ${failed.map((check) => check.name).join(', ')}`);
+  for (const check of failed) {
+    blockers.push(`check failed: ${check.name} (${check.conclusion})`);
+  }
   if (incomplete.length && !pending.length && !failed.length) {
     blockers.push(`checks not successful: ${incomplete.map((check) => check.name).join(', ')}`);
   }
   const quietFor = nowMs - snapshot.lastActivityMs;
   if (quietFor < quietMs) blockers.push(`review quiet period: ${quietFor}ms/${quietMs}ms`);
   return { ready: blockers.length === 0, blockers };
+}
+
+export function blockerAction(blocker) {
+  if (blocker === 'PR head changed') return 'Wait for the gate run for the latest commit.';
+  if (blocker.startsWith('mergeability is')) return 'Merge origin/main and resolve the conflicts.';
+  if (blocker.startsWith('blocking labels:'))
+    return 'Open the labelled PR problem, fix it, and remove the label.';
+  if (blocker.includes('unresolved review thread'))
+    return 'Address or resolve every open review thread.';
+  if (blocker.startsWith('checks not registered:'))
+    return 'Wait for the named workflows to start; re-run them if they never appear.';
+  if (blocker.startsWith('checks pending:')) return 'Wait for the named checks to finish.';
+  if (blocker.startsWith('check failed:'))
+    return blocker.includes('(CANCELLED)')
+      ? 'Re-run the cancelled checks; no code change is needed unless they cancel again.'
+      : 'Open the failed checks, fix their errors, and push a new commit.';
+  if (blocker.startsWith('checks not successful:'))
+    return 'Re-run the named cancelled or incomplete checks.';
+  if (blocker.startsWith('review quiet period:'))
+    return 'Wait for the reviewer quiet period; no action is required.';
+  return 'Inspect the gate log for details.';
+}
+
+export function formatGateReport({ pr, snapshot, result }) {
+  const lines = [
+    `## PR #${pr} handoff gate`,
+    '',
+    result.ready
+      ? '✅ **Ready to hand off.** All required checks passed and feedback is stable.'
+      : '⏳ **Not ready to hand off.** Work through the items below.',
+    '',
+  ];
+  if (!result.ready) {
+    lines.push('| Blocker | What to do |', '| --- | --- |');
+    for (const blocker of result.blockers) {
+      lines.push(`| ${blocker.replaceAll('|', '\\|')} | ${blockerAction(blocker)} |`);
+    }
+    lines.push('');
+  }
+  lines.push(
+    `**Commit checked:** \`${snapshot.headOid}\``,
+    '',
+    '_This summary shows the final state observed by this workflow run._',
+  );
+  return `${lines.join('\n')}\n`;
 }
 
 function gh(args, options = {}) {
@@ -194,7 +240,7 @@ function loadSnapshot(number, observedHeadOid) {
   };
 }
 
-export async function runGate({ pr, quietMs, timeoutMs, pollMs, once = false }) {
+export async function runGate({ pr, quietMs, timeoutMs, pollMs, once = false, reportFile }) {
   const deadline = Date.now() + timeoutMs;
   const initial = JSON.parse(
     await retryOnRateLimit(() => gh(['pr', 'view', String(pr), '--json', 'headRefOid']), {
@@ -209,6 +255,10 @@ export async function runGate({ pr, quietMs, timeoutMs, pollMs, once = false }) 
       deadline,
     });
     const result = evaluateSnapshot(snapshot, Date.now(), quietMs);
+    if (reportFile) {
+      const { writeFileSync } = await import('node:fs');
+      writeFileSync(reportFile, formatGateReport({ pr, snapshot, result }));
+    }
     if (result.ready) {
       process.stdout.write(`PR #${pr} handoff gate passed at ${snapshot.headOid}\n`);
       return;
@@ -234,6 +284,7 @@ function parseArgs(argv) {
       Number(value('--timeout-seconds', process.env.PR_GATE_TIMEOUT_SECONDS ?? '1800')) * 1000,
     pollMs: Number(value('--poll-seconds', process.env.PR_GATE_POLL_SECONDS ?? '10')) * 1000,
     once: argv.includes('--once'),
+    reportFile: value('--report-file', process.env.PR_GATE_REPORT_FILE),
   };
 }
 
