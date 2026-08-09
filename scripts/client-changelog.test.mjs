@@ -13,7 +13,7 @@ import {
 test('turns releasable conventional commits into public changes', () => {
   assert.deepEqual(
     clientFacingChanges([
-      'feat: SSDOP-42 Add audit history\n\nSo administrators can explain account changes.',
+      'feat: SSDOP-42 Add audit history (#42)\n\nSo administrators can explain account changes.',
       'fix(api): 86d3zfgek Preserve filters',
       'chore: Update tooling',
     ]),
@@ -58,7 +58,7 @@ test('ignores Markdown structure when selecting explanatory prose', () => {
   );
 });
 
-test('prepends and limits generated product releases', () => {
+test('prepends releases without dropping historical versions', () => {
   const root = mkdtempSync(join(tmpdir(), 'client-changelog-'));
   const releases = Array.from({ length: 21 }, (_, index) => ({
     name: '@poc-plattform-kit/web',
@@ -73,9 +73,9 @@ test('prepends and limits generated product releases', () => {
   const output = JSON.parse(
     readFileSync(join(root, 'apps/web/src/content/changelog.json'), 'utf8'),
   );
-  assert.equal(output.releases.length, 20);
+  assert.equal(output.releases.length, 21);
   assert.equal(output.releases[0].version, '1.0.20');
-  assert.equal(output.releases.at(-1).version, '1.0.1');
+  assert.equal(output.releases.at(-1).version, '1.0.0');
   const markdown = readFileSync(join(root, 'apps/web/CHANGELOG.md'), 'utf8');
   assert.match(markdown, /^# Changelog/);
   assert.deepEqual(parseProductChangelog(markdown), output.releases);

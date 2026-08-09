@@ -29,7 +29,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "The 20 most recent API releases and their changes.",
+            "description": "All recorded API releases and their client-facing changes.",
             "content": {
               "application/json": {
                 "schema": {

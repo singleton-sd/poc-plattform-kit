@@ -7,8 +7,292 @@
       "changes": [
         {
           "type": "New",
-          "summary": "Release notes are now available in the app",
-          "reason": "So people can quickly understand what changed and why."
+          "summary": "Return all Entra app roles",
+          "reason": "Preserve roles[] on AuthenticatedUser and /api/me so"
+        }
+      ]
+    },
+    {
+      "version": "0.14.1",
+      "date": "2026-08-08",
+      "changes": [
+        {
+          "type": "Fixed",
+          "summary": "Harden outbox delivery"
+        }
+      ]
+    },
+    {
+      "version": "0.14.0",
+      "date": "2026-08-08",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "cursor pagination for GET /tenants + Load more in the UI",
+          "reason": "Per follow-up request, implement real pagination instead of leaving the"
+        },
+        {
+          "type": "New",
+          "summary": "responsive tenant admin UI + optional/auto-generated slug",
+          "reason": "Replace the developer-oriented /tenants workspace with a responsive admin"
+        },
+        {
+          "type": "Fixed",
+          "summary": "SWA web previews now hit their own PR's API preview",
+          "reason": "Root cause of the empty tenant table on this PR's preview: preview-web.yml"
+        },
+        {
+          "type": "Fixed",
+          "summary": "address Codex review — restore Enter-to-submit and by-ID lookup",
+          "reason": "the drawer's footer buttons via the HTML `form` attribute) instead of"
+        }
+      ]
+    },
+    {
+      "version": "0.13.0",
+      "date": "2026-08-08",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add permissions route guard"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Enable configured OpenFGA checks"
+        }
+      ]
+    },
+    {
+      "version": "0.12.0",
+      "date": "2026-08-08",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add Swagger Entra OAuth2 Authorize",
+          "reason": "Wire authorization-code + PKCE in Swagger UI, redirect API"
+        }
+      ]
+    },
+    {
+      "version": "0.11.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add MSAL Bearer auth for SWA previews",
+          "reason": "SWA hosts cannot share Auth.js cookies; use MSAL popup +"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Fix Bearer /api/me after MSAL redirect",
+          "reason": "Cache redirect access tokens, accept upn on Nest claim"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Use MSAL redirect to avoid Entra COOP",
+          "reason": "Popup login fails when Entra sets Cross-Origin-Opener-Policy"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Clarify missing MSAL env on preview sign-in",
+          "reason": "Surface a clearer error when NEXT_PUBLIC_AZURE_AD_*"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address MSAL preview review feedback",
+          "reason": "Default api:// scope, keep active MSAL account, and"
+        }
+      ]
+    },
+    {
+      "version": "0.10.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Service Bus topic naming + Audit/Reporting subscription stubs",
+          "reason": "Document topic/subscription naming in packages/events with exhaustive,"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Give packages/events a real dist build for runtime consumers",
+          "reason": "Codex review on PR #75: apps/api's compiled production entrypoint"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Make packages/events CommonJS to match ts-node/jest tooling",
+          "reason": "apps/api's openapi:export script loads the Nest app graph via ts-node in"
+        }
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add tenant support search"
+        },
+        {
+          "type": "New",
+          "summary": "Add support tenant lookup"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Resolve support shell conflict"
+        }
+      ]
+    },
+    {
+      "version": "0.8.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add JSON Forms demo"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address form review feedback"
+        }
+      ]
+    },
+    {
+      "version": "0.7.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Align admin branding with marketing",
+          "reason": "Share product token palette and Platform Kit wordmark"
+        },
+        {
+          "type": "New",
+          "summary": "Cross-subdomain SSO cookies (Option B)",
+          "reason": "Keep SWA Free: share Auth.js cookies across app/api hosts and"
+        },
+        {
+          "type": "New",
+          "summary": "Harden web telemetry"
+        },
+        {
+          "type": "New",
+          "summary": "Add Auth.js Entra login page"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Emit flat API dist for ACA preview",
+          "reason": "Clear build path maps and set rootDir so nest emits"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Point auth at API host; login at /"
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Wire web tenants to generated api-client",
+          "reason": "Use Orval TanStack hooks for tenant create/read/update, configure"
+        }
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add permissions stub"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Stabilize client output"
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Enforce Nest API AuthN",
+          "reason": "Global session/JWT APP_GUARD with public allowlist, Roles gate,"
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add App Insights telemetry and alerts",
+          "reason": "Wire LAW + App Insights, Nest OTel/Pino, web client telemetry,"
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add hub conflict playbook",
+          "reason": "Add resolve-merge-conflicts.ps1 and pnpm resolve:conflicts so agents"
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add path-aware release-it versioning"
+        },
+        {
+          "type": "New",
+          "summary": "OpenAPI export + packages/api-client (Orval)",
+          "reason": "Commit Nest OpenAPI as the contract, generate a TanStack Query"
+        },
+        {
+          "type": "New",
+          "summary": "SingleSignOn Entra JWT + Auth.js cookies",
+          "reason": "Nest hosts Auth.js at /api/auth and GET /api/me; JWT guard"
+        },
+        {
+          "type": "New",
+          "summary": "Tenant stub + tenancy context",
+          "reason": "Tenant Nest module with ALS context from x-tenant-id,"
+        },
+        {
+          "type": "New",
+          "summary": "Add Notifications pillar (ClickUp 86d3xa2u4)",
+          "reason": "Lock ninth pillar for outbound email/SMS/WhatsApp with"
+        },
+        {
+          "type": "New",
+          "summary": "Add Next PWA SPA shell, tokens, Support page",
+          "reason": "Tailwind mapped to Singleton SD design token CSS variables"
+        },
+        {
+          "type": "New",
+          "summary": "Add Prisma Outbox/Audit schema per pillar",
+          "reason": "models for all seven pillars, sqlserver provider"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Harden me fetch and support errors"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address bugbot and CI for web SPA"
         }
       ]
     }

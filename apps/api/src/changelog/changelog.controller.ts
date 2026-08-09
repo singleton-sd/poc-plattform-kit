@@ -9,7 +9,7 @@ export class ChangelogController {
   @Get()
   @ApiOperation({ summary: 'List recent client-facing API changes' })
   @ApiOkResponse({
-    description: 'The 20 most recent API releases and their changes.',
+    description: 'All recorded API releases and their client-facing changes.',
     type: ChangelogResponseDto,
   })
   getChangelog(): ChangelogResponseDto {

@@ -31,6 +31,11 @@ export default function ChangelogPage() {
               </time>
             </header>
             <ul className="mt-5 space-y-5">
+              {release.changes.length === 0 ? (
+                <li className="text-fg-muted">
+                  No client-facing changes were recorded for this release.
+                </li>
+              ) : null}
               {release.changes.map((change) => (
                 <li key={`${change.type}-${change.summary}`}>
                   <p>

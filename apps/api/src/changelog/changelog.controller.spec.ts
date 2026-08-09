@@ -18,5 +18,7 @@ describe('ChangelogController', () => {
         ]),
       }),
     );
+    expect(result.releases).toHaveLength(22);
+    expect(result.releases.at(-1)?.version).toBe('0.1.0');
   });
 });

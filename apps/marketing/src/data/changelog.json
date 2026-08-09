@@ -7,8 +7,89 @@
       "changes": [
         {
           "type": "New",
-          "summary": "Release notes are now available on the website",
-          "reason": "So visitors can see how Platform Kit is evolving."
+          "summary": "Overhaul Decap admin visual theme",
+          "reason": "Pin Decap 3.15.1 and apply maintainer-endorsed CSS overrides"
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Theme Decap admin yellow and black",
+          "reason": "Override Emotion chrome with product charcoal/gold tokens and"
+        }
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Allow Decap page create and marketing 404",
+          "reason": "Enable new Pages in admin, build non-home slugs dynamically, and serve a real 404 instead of the homepage fallback."
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Align admin branding with marketing",
+          "reason": "Share product token palette and Platform Kit wordmark"
+        },
+        {
+          "type": "New",
+          "summary": "Add Decap GitHub OAuth proxy",
+          "reason": "Azure Function Consumption for Decap /admin GitHub login;"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Decap admin config path and body mount",
+          "reason": "Relative config.yml from /admin resolved to /config.yml (404). Absolute"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Remove duplicate marketing SWA /admin route",
+          "reason": "Azure Static Web Apps treats /admin and /admin/ as the same route and"
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2026-08-07",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add Astro Tailwind Decap marketing site",
+          "reason": "Replace the static HTML marketing stub with Astro SSG, Tailwind,"
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add marketing privacy and terms",
+          "reason": "Add /privacy and /terms pages plus footer links on the"
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Custom domains under singletonsd.com",
+          "reason": "Wire marketing/app/api hostnames, B1 App Service, marketing SWA,"
         }
       ]
     }

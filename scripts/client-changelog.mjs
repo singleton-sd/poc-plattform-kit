@@ -33,6 +33,7 @@ export function clientFacingChanges(messages) {
     const summary = match[3]
       .replace(/^[A-Z]{1,5}-\d+\s+/, '')
       .replace(/^86[a-z0-9]+\s+/i, '')
+      .replace(/\s+\(#\d+\)$/, '')
       .trim();
     const reason =
       breakingFooter ??
@@ -121,7 +122,7 @@ export function updateClientChangelogs(root, releases, date) {
         changes: clientFacingChanges(release.messages),
       },
       ...existing,
-    ].slice(0, 20);
+    ];
 
     mkdirSync(dirname(markdownPath), { recursive: true });
     writeFileSync(markdownPath, formatProductChangelog(release.name, next));
