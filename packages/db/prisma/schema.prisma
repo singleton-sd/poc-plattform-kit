@@ -71,6 +71,12 @@ model TenantInvitation {
   createdAt       DateTime  @default(now())
   respondedAt     DateTime?
 
+  // NOTE: the migration also hand-writes a filtered UNIQUE NONCLUSTERED
+  // index on ([tenantId], [email]) WHERE [status] = 'pending'
+  // (tenant_invitations_pending_email_key) to close a duplicate-invite race.
+  // Prisma's schema DSL has no filtered-unique-index syntax, so it can't be
+  // declared here -- see packages/db/prisma/migrations/20260809120000_add_tenant_invitations/migration.sql
+  // and TenantInvitationService.create().
   @@index([tenantId, email])
   @@map("tenant_invitations")
 }

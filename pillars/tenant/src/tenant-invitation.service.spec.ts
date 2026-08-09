@@ -35,6 +35,7 @@ describe('TenantInvitationService', () => {
       findMany: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     tenantMembership: { findFirst: jest.Mock };
     tenantAudit: { create: jest.Mock };
@@ -50,11 +51,13 @@ describe('TenantInvitationService', () => {
         findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       tenantMembership: { findFirst: jest.fn() },
       tenantAudit: { create: jest.fn() },
       tenantOutbox: { create: jest.fn() },
     };
+    prisma.tenantInvitation.updateMany.mockResolvedValue({ count: 0 });
     service = new TenantInvitationService(prisma as never);
   });
 
@@ -233,6 +236,64 @@ describe('TenantInvitationService', () => {
       expect(prisma.tenantInvitation.create).not.toHaveBeenCalled();
     });
 
+    it('does not let an expired pending invitation block a fresh one to the same email', async () => {
+      // The expiry sweep flips the stale row out of "pending" first; the
+      // duplicate check then finds nothing pending and lets the new invite
+      // through.
+      prisma.tenantInvitation.updateMany.mockResolvedValue({ count: 1 });
+      prisma.tenantInvitation.findFirst.mockResolvedValue(null);
+
+      const result = await service.create(
+        't1',
+        { email: 'invitee@example.test', role: 'member' },
+        user({ roles: ['tenant-admin'] }),
+      );
+
+      expect(result.id).toBe('inv-1');
+      expect(prisma.tenantInvitation.updateMany).toHaveBeenCalledWith({
+        where: {
+          tenantId: 't1',
+          email: 'invitee@example.test',
+          status: 'pending',
+          expiresAt: { lte: expect.any(Date) },
+        },
+        data: { status: 'expired' },
+      });
+      expect(prisma.tenantInvitation.create).toHaveBeenCalled();
+    });
+
+    it('translates a unique-constraint race on the pending-invitation index into Conflict', async () => {
+      // Simulates two near-simultaneous creates: both pass the findFirst
+      // duplicate check (e.g. it raced with another request's not-yet-
+      // committed insert), so the DB is the actual arbiter via the filtered
+      // unique index and this request's insert loses with P2002.
+      prisma.tenantInvitation.findFirst.mockResolvedValue(null);
+      prisma.$transaction.mockRejectedValue(
+        Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+      );
+
+      await expect(
+        service.create(
+          't1',
+          { email: 'invitee@example.test', role: 'member' },
+          user({ roles: ['tenant-admin'] }),
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rethrows non-conflict errors from the create transaction as-is', async () => {
+      prisma.tenantInvitation.findFirst.mockResolvedValue(null);
+      prisma.$transaction.mockRejectedValue(new Error('boom'));
+
+      await expect(
+        service.create(
+          't1',
+          { email: 'invitee@example.test', role: 'member' },
+          user({ roles: ['tenant-admin'] }),
+        ),
+      ).rejects.toThrow('boom');
+    });
+
     it('rejects the caller when the coarse guard fails', async () => {
       prisma.tenantMembership.findFirst.mockResolvedValue(null);
 
@@ -276,18 +337,21 @@ describe('TenantInvitationService', () => {
   });
 
   describe('revoke', () => {
-    it('marks a pending invitation revoked and writes an audit entry', async () => {
-      prisma.tenantInvitation.findFirst.mockResolvedValue(invitationRow);
+    beforeEach(() => {
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
         fn(prisma),
       );
-      prisma.tenantInvitation.update.mockResolvedValue({ ...invitationRow, status: 'revoked' });
+    });
+
+    it('marks a pending invitation revoked and writes an audit entry', async () => {
+      prisma.tenantInvitation.findFirst.mockResolvedValue(invitationRow);
+      prisma.tenantInvitation.updateMany.mockResolvedValue({ count: 1 });
       prisma.tenantAudit.create.mockResolvedValue({});
 
       await service.revoke('t1', 'inv-1', user({ roles: ['tenant-admin'] }));
 
-      expect(prisma.tenantInvitation.update).toHaveBeenCalledWith({
-        where: { id: 'inv-1' },
+      expect(prisma.tenantInvitation.updateMany).toHaveBeenCalledWith({
+        where: { id: 'inv-1', tenantId: 't1', status: 'pending' },
         data: expect.objectContaining({ status: 'revoked' }),
       });
       expect(prisma.tenantAudit.create).toHaveBeenCalledWith(
@@ -312,11 +376,34 @@ describe('TenantInvitationService', () => {
 
     it('throws Conflict when the invitation is no longer pending', async () => {
       prisma.tenantInvitation.findFirst.mockResolvedValue({ ...invitationRow, status: 'accepted' });
+      prisma.tenantInvitation.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(
         service.revoke('t1', 'inv-1', user({ roles: ['tenant-admin'] })),
       ).rejects.toThrow(ConflictException);
-      expect(prisma.tenantInvitation.update).not.toHaveBeenCalled();
+      expect(prisma.tenantAudit.create).not.toHaveBeenCalled();
+    });
+
+    it('409s the loser of two concurrent revokes on the same invitation', async () => {
+      // Both requests pass the initial findFirst (still 'pending' from each
+      // request's point of view), but only the first request's atomic
+      // updateMany actually matches a status:'pending' row -- the second's
+      // where clause no longer matches anything once the first has landed,
+      // so it comes back with count: 0 and this request must 409 instead of
+      // silently succeeding a second time.
+      prisma.tenantInvitation.findFirst.mockResolvedValue(invitationRow);
+      prisma.tenantAudit.create.mockResolvedValue({});
+
+      prisma.tenantInvitation.updateMany.mockResolvedValueOnce({ count: 1 });
+      await service.revoke('t1', 'inv-1', user({ roles: ['tenant-admin'] }));
+
+      prisma.tenantInvitation.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(
+        service.revoke('t1', 'inv-1', user({ roles: ['tenant-admin'] })),
+      ).rejects.toThrow(ConflictException);
+
+      expect(prisma.tenantInvitation.updateMany).toHaveBeenCalledTimes(2);
+      expect(prisma.tenantAudit.create).toHaveBeenCalledTimes(1);
     });
 
     it('rejects the caller when the coarse guard fails', async () => {
