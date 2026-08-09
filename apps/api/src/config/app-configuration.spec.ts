@@ -34,6 +34,7 @@ describe('loadAppConfiguration', () => {
         setting('app:openfga:apiUrl', 'https://openfga.example.test'),
         setting('app:openfga:storeId', 'store-1'),
         setting('app:openfga:authorizationModelId', 'model-1'),
+        setting('app:openfga:audience', 'api://ssd-pocpk-openfga'),
         setting('app:azureAd:swaggerScope', 'entra-client-id/.default'),
         setting(
           'secret:database-url',
@@ -79,6 +80,7 @@ describe('loadAppConfiguration', () => {
     expect(process.env.OPENFGA_API_URL).toBe('https://openfga.example.test');
     expect(process.env.OPENFGA_STORE_ID).toBe('store-1');
     expect(process.env.OPENFGA_AUTHORIZATION_MODEL_ID).toBe('model-1');
+    expect(process.env.OPENFGA_AUDIENCE).toBe('api://ssd-pocpk-openfga');
     expect(process.env.AZURE_AD_SWAGGER_SCOPE).toBe('entra-client-id/.default');
     expect(process.env.AUTH_SECRET).toBe('auth-js-secret');
     expect(process.env.AZURE_AD_CLIENT_SECRET).toBe('entra-client-secret');
