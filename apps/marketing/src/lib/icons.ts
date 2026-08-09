@@ -10,6 +10,7 @@ export type IconName =
   | 'lock'
   | 'users'
   | 'zap'
+  | 'loader'
   | 'github'
   | 'twitter'
   | 'image';
