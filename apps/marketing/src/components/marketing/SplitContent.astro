@@ -10,6 +10,7 @@ interface Props {
   link?: { label: string; href: string };
   imageAlt?: string;
   imageSrc?: string;
+  imageLoading?: 'eager' | 'lazy';
   reverse?: boolean;
   class?: string;
 }
@@ -22,6 +23,7 @@ const {
   link,
   imageAlt = 'Illustration',
   imageSrc,
+  imageLoading = 'lazy',
   reverse = false,
   class: className = '',
 } = Astro.props;
@@ -81,6 +83,8 @@ const {
                   alt={imageAlt}
                   width={600}
                   height={360}
+                  loading={imageLoading}
+                  decoding="async"
                   class="h-full w-full object-cover"
                 />
               ) : (
