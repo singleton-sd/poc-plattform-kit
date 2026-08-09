@@ -32,7 +32,7 @@ the body becomes the reason shown beneath it. Ticket IDs and a trailing pull-req
 number are removed from the public summary.
 
 ```text
-feat(changelog): 86d3example let customers filter release notes (#123)
+feat(changelog): 86d3example Let customers filter release notes (#123)
 
 Customers can find changes for the product they use without scanning unrelated releases.
 ```
@@ -83,8 +83,10 @@ pnpm changelog:backfill:dry-run
 ```
 
 Use `pnpm changelog:backfill` only when intentionally reconstructing all three histories.
-It rewrites the canonical Markdown and JSON from tagged commits. The command refuses to
-run if the local tag set does not cover every version already recorded in the changelogs.
+It rewrites the canonical Markdown and JSON from tagged commits. Before writing any files,
+it validates that the local tag set covers every version already recorded for the API, app,
+and marketing changelogs. If any product is incomplete, the command fails without rewriting
+the others.
 
 ## Troubleshooting
 

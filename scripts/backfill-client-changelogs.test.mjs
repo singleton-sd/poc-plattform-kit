@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertCompleteTagHistory, versionsFromTags } from './backfill-client-changelogs.mjs';
+import {
+  assertCompleteTagHistory,
+  validateBackfillCoverage,
+  versionsFromTags,
+} from './backfill-client-changelogs.mjs';
 
 test('selects and semantically orders tags for one product', () => {
   assert.deepEqual(
@@ -37,4 +41,27 @@ test('accepts tags covering every existing release', () => {
       [{ version: '0.9.0' }, { version: '1.0.0' }],
     ),
   );
+});
+
+test('preflights every product before any history rewrite can begin', () => {
+  const reads = [];
+  assert.throws(
+    () =>
+      validateBackfillCoverage(
+        [
+          '@poc-plattform-kit/api@1.0.0',
+          '@poc-plattform-kit/web@1.0.0',
+          '@poc-plattform-kit/marketing@1.0.0',
+        ],
+        (relativePath) => {
+          reads.push(relativePath);
+          if (relativePath.includes('web')) {
+            return '# Changelog\n\n## 1.0.0 — 2026-01-01\n\n### New\n\n- Add release history\n\n## 0.9.0 — 2025-12-01\n\n### Fixed\n\n- Patch filters\n';
+          }
+          return '# Changelog\n\n## 1.0.0 — 2026-01-01\n\n### New\n\n- Add release history\n';
+        },
+      ),
+    /@poc-plattform-kit\/web.*missing 0\.9\.0/,
+  );
+  assert.deepEqual(reads, ['apps/api/CHANGELOG.md', 'apps/web/CHANGELOG.md']);
 });

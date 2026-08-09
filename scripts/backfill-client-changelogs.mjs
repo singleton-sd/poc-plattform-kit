@@ -75,20 +75,34 @@ export function writeProductHistory(product, releases) {
   );
 }
 
+export function validateBackfillCoverage(tags, readMarkdown) {
+  for (const product of Object.keys(PRODUCTS)) {
+    const targets = CLIENT_CHANGELOG_TARGETS[product];
+    const taggedVersions = versionsFromTags(product, tags);
+    const existingReleases = parseProductChangelog(readMarkdown(targets.markdown));
+    assertCompleteTagHistory(product, existingReleases, taggedVersions);
+  }
+}
+
 function main() {
   const dryRun = process.argv.includes('--dry-run');
   const tags = git(['tag', '--list']).split('\n').filter(Boolean);
+  const readMarkdown = (relativePath) => readFileSync(resolve(ROOT, relativePath), 'utf8');
+
+  // Validate every product before rewriting any history.
+  validateBackfillCoverage(tags, readMarkdown);
+
+  const plans = [];
   for (const [product, paths] of Object.entries(PRODUCTS)) {
     const targets = CLIENT_CHANGELOG_TARGETS[product];
-    const taggedVersions = versionsFromTags(product, tags);
-    const existingReleases = parseProductChangelog(
-      readFileSync(resolve(ROOT, targets.markdown), 'utf8'),
-    );
-    assertCompleteTagHistory(product, existingReleases, taggedVersions);
     const releases = backfillProduct(product, paths, tags);
     if (!releases.length) {
       throw new Error(`No release tags found for ${product}; run git fetch origin --tags`);
     }
+    plans.push({ product, targets, releases });
+  }
+
+  for (const { product, targets, releases } of plans) {
     if (!dryRun) writeProductHistory(product, releases);
     console.log(
       `${dryRun ? 'Would write' : 'Wrote'} ${releases.length} releases to ${targets.markdown}`,
