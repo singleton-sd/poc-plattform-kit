@@ -1,6 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/marketing/Hero.astro';
 import { getEntry } from 'astro:content';
+import { appCta } from '../lib/nav';
 
 const home = await getEntry('pages', 'home');
 if (!home) {
@@ -11,41 +13,16 @@ const { title, description, brand, headline, ctaLabel, ctaUrl } = home.data;
 ---
 
 <BaseLayout title={title} description={description}>
-  <main class="mx-auto max-w-xl px-6 pb-12 pt-[clamp(3rem,12vh,6rem)] text-center">
-    <p class="mb-5 font-heading text-[clamp(2.25rem,7vw,3.5rem)] font-bold leading-none tracking-tight">
-      {brand}<span class="text-accent">.</span>
-    </p>
-    <h1 class="mb-3 font-heading text-[clamp(1.15rem,2.5vw,1.35rem)] font-medium tracking-tight">
-      {headline}
-    </h1>
-    <div class="mb-8 text-base leading-relaxed text-fg-muted [&_p]:m-0">
+  <Hero
+    eyebrow={brand ?? 'Platform Kit'}
+    headline={headline ?? 'Multi-tenant infrastructure, ready to ship.'}
+    primaryCta={{
+      label: ctaLabel ?? appCta.label,
+      href: ctaUrl ?? appCta.href,
+    }}
+  >
+    <div class="[&_p]:m-0">
       <Content />
     </div>
-    {
-      ctaLabel && ctaUrl ? (
-        <a
-          class="inline-block rounded bg-accent px-6 py-3 font-semibold text-accent-on transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          href={ctaUrl}
-        >
-          {ctaLabel}
-        </a>
-      ) : null
-    }
-  </main>
-  <footer class="mx-auto max-w-xl px-6 pb-10 text-center">
-    <nav aria-label="Legal" class="flex flex-wrap justify-center gap-5">
-      <a
-        class="text-fg-muted hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        href="/privacy"
-      >
-        Privacy Policy
-      </a>
-      <a
-        class="text-fg-muted hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        href="/terms"
-      >
-        Terms of Service
-      </a>
-    </nav>
-  </footer>
+  </Hero>
 </BaseLayout>

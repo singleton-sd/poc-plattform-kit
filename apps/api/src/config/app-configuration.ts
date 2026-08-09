@@ -18,6 +18,7 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:openfga:apiUrl': 'OPENFGA_API_URL',
   'app:openfga:storeId': 'OPENFGA_STORE_ID',
   'app:openfga:authorizationModelId': 'OPENFGA_AUTHORIZATION_MODEL_ID',
+  'app:openfga:audience': 'OPENFGA_AUDIENCE',
   'secret:appinsights-connection-string': 'APPLICATIONINSIGHTS_CONNECTION_STRING',
   'secret:auth-secret': 'AUTH_SECRET',
   'secret:azure-ad-client-secret': 'AZURE_AD_CLIENT_SECRET',

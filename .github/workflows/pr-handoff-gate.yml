@@ -1,0 +1,183 @@
+name: PR handoff gate
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  issue_comment:
+    types: [created, edited, deleted]
+  workflow_run:
+    workflows:
+      - CI Web
+      - CI API
+      - Preview Web (SWA)
+      - Preview Marketing (SWA)
+      - Preview API (Container Apps)
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  checks: read
+  statuses: write
+
+jobs:
+  gate:
+    if: >
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request_review' ||
+      github.event_name == 'pull_request_review_comment' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.pull_requests[0] != null)
+    runs-on: ubuntu-latest
+    concurrency:
+      # A workflow_run can have no associated PR. The job guard skips those
+      # events; run_id also prevents an empty key from cancelling useful runs.
+      group: pr-handoff-gate-${{ github.event.pull_request.number || github.event.issue.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
+      # A cancelled job cannot run the final status/summary steps and can leave
+      # an unexplained pending context like PR #101. Queue replacements instead.
+      cancel-in-progress: false
+    steps:
+      - name: Resolve pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PR: ${{ github.event.pull_request.number || github.event.issue.number || github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          set -euo pipefail
+          # PRs across the repo share the installation's API rate limit, so a
+          # burst of concurrent gate runs can trip it here before the node
+          # script (which already retries) ever starts. Retry transient
+          # rate-limit failures the same way.
+          gh_api_retry() {
+            local attempt=0 delay=5 output
+            while true; do
+              if output=$(gh api "$@" 2>&1); then
+                printf '%s' "$output"
+                return 0
+              fi
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 6 ] || ! printf '%s' "$output" | grep -qi 'rate limit'; then
+                printf '%s\n' "$output" >&2
+                return 1
+              fi
+              echo "gh api rate limited (attempt $attempt/6), retrying in ${delay}s" >&2
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+          PR="$EVENT_PR"
+          if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+            echo 'No pull request linked to event' >&2
+            exit 1
+          fi
+          SHA=$(gh_api_retry "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.sha)
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Mark handoff gate pending
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh_api_retry() {
+            local attempt=0 delay=5 output
+            while true; do
+              if output=$(gh api "$@" 2>&1); then
+                printf '%s' "$output"
+                return 0
+              fi
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 6 ] || ! printf '%s' "$output" | grep -qi 'rate limit'; then
+                printf '%s\n' "$output" >&2
+                return 1
+              fi
+              echo "gh api rate limited (attempt $attempt/6), retrying in ${delay}s" >&2
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+          gh_api_retry -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -f state=pending \
+            -f context=pr-handoff-gate \
+            -f description='Waiting: open the gate run for blockers and next actions' \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >/dev/null
+
+      - name: Check out trusted gate implementation
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Wait for stable handoff state
+        id: gate
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f scripts/pr-handoff-gate.mjs ]; then
+            echo 'Gate implementation is being bootstrapped by this PR; defer enforcement until merged.'
+            exit 0
+          fi
+          node scripts/pr-handoff-gate.mjs --pr '${{ steps.pr.outputs.number }}' \
+            --timeout-seconds 1200 --report-file "$RUNNER_TEMP/pr-handoff-gate.md"
+
+      - name: Show blockers and next actions
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/pr-handoff-gate.md" ]; then
+            cat "$RUNNER_TEMP/pr-handoff-gate.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '%s\n' \
+              '## PR handoff gate' \
+              '' \
+              '❌ **The gate could not inspect the pull request.** Open the failed' \
+              'step above, fix its infrastructure or API error, then re-run the job.' \
+              >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish handoff gate result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pr.outputs.sha }}
+          OUTCOME: ${{ steps.gate.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          gh_api_retry() {
+            local attempt=0 delay=5 output
+            while true; do
+              if output=$(gh api "$@" 2>&1); then
+                printf '%s' "$output"
+                return 0
+              fi
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 6 ] || ! printf '%s' "$output" | grep -qi 'rate limit'; then
+                printf '%s\n' "$output" >&2
+                return 1
+              fi
+              echo "gh api rate limited (attempt $attempt/6), retrying in ${delay}s" >&2
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+          if [ "$OUTCOME" = success ]; then
+            STATE=success
+            DESCRIPTION='CI green, mergeable, and reviewer feedback stable'
+          else
+            STATE=failure
+            DESCRIPTION='Blocked: open the gate run for blockers and next actions'
+          fi
+          gh_api_retry -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -f state="$STATE" \
+            -f context=pr-handoff-gate \
+            -f description="$DESCRIPTION" \
+            -f target_url="$RUN_URL" >/dev/null
+          [ "$STATE" = success ]

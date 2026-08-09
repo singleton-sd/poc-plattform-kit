@@ -18,6 +18,9 @@ export function AppShellHeader() {
         <Link className="text-fg-muted hover:text-accent" href="/tenants">
           Tenants
         </Link>
+        <Link className="text-fg-muted hover:text-accent" href="/tenant">
+          Settings
+        </Link>
         <Link className="text-fg-muted hover:text-accent" href="/support">
           Support
         </Link>

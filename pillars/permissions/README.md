@@ -8,13 +8,17 @@ Owns: fine-grained authZ — can subject X perform action Y on resource Z (ReBAC
 - **Publishes:** `permission.denied` (optional audit), relationship-change events as needed.
 - **Consumes:** identity/tenant events needed to keep tuples in sync (details in stub ticket).
 
-## Stub behavior
+## Runtime behavior
 
 The Nest module exposes `POST /permissions/check` and `GET /permissions/health`.
-Checks fail closed (`allowed: false`) until an OpenFGA adapter is configured.
-OpenFGA is hosted separately on Azure Container Apps Consumption; domain pillars
-call this pillar over synchronous HTTP or a bounded cache rather than embedding
-authorization rules.
+Checks fail closed (`allowed: false`) until App Config seeds `OPENFGA_API_URL` +
+`OPENFGA_STORE_ID` (see `infra/deploy-openfga.ps1`). When `OPENFGA_AUDIENCE` is
+set, `PermissionsService` acquires an Entra token via managed identity
+(`DefaultAzureCredential`) and calls OpenFGA with `Authorization: Bearer …`.
+
+OpenFGA runs on ACA Consumption (`ssd-pocpk-openfga-dev-ae`); domain pillars call
+this pillar over synchronous HTTP or a bounded cache rather than embedding
+authorization rules. Model DSL: `infra/openfga/model.fga`.
 
 ## Manager/reporting-line resolution
 

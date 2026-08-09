@@ -35,7 +35,7 @@ export default function SupportPage() {
     );
   }
 
-  if (me?.role !== SUPPORT_ROLE) {
+  if (!me?.roles?.includes(SUPPORT_ROLE)) {
     return (
       <div className="min-h-screen text-fg">
         <AppShellHeader />

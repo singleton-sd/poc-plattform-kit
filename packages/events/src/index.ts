@@ -24,6 +24,7 @@ export type NotificationsTrailConsumerName = 'audit' | 'reporting' | 'support';
 export type DomainEventType =
   | 'tenant.created'
   | 'tenant.updated'
+  | 'tenant.member_added'
   | 'user.created'
   | 'user.name_changed'
   | 'permission.denied'
@@ -105,6 +106,7 @@ export const NOTIFICATIONS_TRAIL_CONSUMERS = Object.keys(
 const domainEventTypeSet: Record<DomainEventType, true> = {
   'tenant.created': true,
   'tenant.updated': true,
+  'tenant.member_added': true,
   'user.created': true,
   'user.name_changed': true,
   'permission.denied': true,

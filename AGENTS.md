@@ -66,7 +66,7 @@ After push / PR open:
 1. `gh pr checks --watch` (or loop-on-ci) until required checks green (or document skip-only failures).
 2. `gh pr view --json mergeable,mergeStateStatus` → must be `MERGEABLE` / not `DIRTY`.
 3. If dirty: follow **Shared hub files / conflict playbook** below (`git merge origin/main` then `pnpm resolve:conflicts`), push, re-check CI.
-4. Set **Preview URL** (`preview` / `status -Url`) to the PR; comment on ClickUp only if needed for blockers (avoid duplicate PR-link comments).
+4. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`; raw `status` transitions are forbidden for PR-backed work. This atomically gates CI registration/completion, mergeability, unresolved review threads, blocking labels, and the reviewer quiet period before setting Preview URL and clearing the claim.
 5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop — do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
 
 #### Reviewer (before READY FOR HUMAN)
