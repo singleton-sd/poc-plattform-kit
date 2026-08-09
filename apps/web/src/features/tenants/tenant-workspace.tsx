@@ -140,7 +140,7 @@ export function TenantWorkspace({ canCreate = true }: TenantWorkspaceProps) {
       ) : isEmpty && isSearching ? (
         <TenantSearchEmptyState onClearSearch={() => setSearchInput('')} />
       ) : isEmpty ? (
-        <TenantEmptyState onCreate={() => setCreateOpen(true)} />
+        <TenantEmptyState canCreate={canCreate} onCreate={() => setCreateOpen(true)} />
       ) : (
         <>
           <TenantTable tenants={items} onSelect={setSelectedTenantId} />

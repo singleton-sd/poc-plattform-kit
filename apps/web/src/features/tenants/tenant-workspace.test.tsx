@@ -181,6 +181,20 @@ describe('TenantWorkspace', () => {
     expect(screen.queryByRole('dialog', { name: 'Create tenant' })).not.toBeInTheDocument();
   });
 
+  it('hides empty-state creation when the page permission is restricted', () => {
+    findAllState = {
+      data: { data: { items: [], nextCursor: null } },
+      isLoading: false,
+      isError: false,
+      refetch: findAllRefetch,
+    };
+
+    render(<TenantWorkspace canCreate={false} />);
+
+    expect(screen.getByText('No tenants available')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create Tenant' })).not.toBeInTheDocument();
+  });
+
   it('opens the details drawer when a tenant row is selected', () => {
     renderWorkspace();
 
