@@ -23,6 +23,8 @@
     "release": "node ./scripts/release-changed.mjs",
     "release:ci": "node ./scripts/release-changed.mjs --ci",
     "changelog:check": "node ./scripts/check-client-changelogs.mjs",
+    "permissions:check": "node ./scripts/check-permissions-catalog.mjs",
+    "permissions:register": "node ./scripts/register-permission.mjs",
     "prepare": "husky",
     "pr:gate": "node scripts/pr-handoff-gate.mjs",
     "test:pr-automation": "node scripts/pr-handoff-gate.test.mjs && bash scripts/clickup-handoff.test.sh && bash scripts/recover-clickup-pr.test.sh && bash scripts/complete-clickup-on-merge.test.sh"

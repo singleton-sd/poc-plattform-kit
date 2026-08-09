@@ -7,20 +7,21 @@ import {
 } from '@nestjs/common';
 import { PermissionsService } from '@poc-plattform-kit/pillar-permissions';
 import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
+import { matchRoutePermission } from './route-permissions';
 
 interface PermissionRequest {
   method: string;
   route?: { path?: string };
-  params?: { id?: string };
+  params?: Record<string, string | undefined>;
   user?: AuthenticatedUser;
 }
 
 /**
  * API-host mapping for fine-grained authorization.
  *
- * The first protected pattern maps `PATCH /tenants/:id` to:
- * `user:<local user id>`, `update`, `tenant:<route id>`.
- * Add mappings here rather than embedding authorization rules in pillars.
+ * Route → OpenFGA Check() mappings live in
+ * `infra/openfga/permissions.manifest.json` (see docs/permissions.md).
+ * Keep authorization rules out of pillar controllers.
  */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -28,7 +29,7 @@ export class PermissionsGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<PermissionRequest>();
-    const permission = this.mapPermission(request);
+    const permission = matchRoutePermission(request);
     if (!permission) {
       return true;
     }
@@ -52,19 +53,5 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('Permission denied');
     }
     return true;
-  }
-
-  private mapPermission(request: PermissionRequest): { action: string; resource: string } | null {
-    if (
-      request.method.toUpperCase() === 'PATCH' &&
-      request.route?.path === '/tenants/:id' &&
-      request.params?.id
-    ) {
-      return {
-        action: 'update',
-        resource: `tenant:${request.params.id}`,
-      };
-    }
-    return null;
   }
 }
