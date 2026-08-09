@@ -142,6 +142,7 @@ jobs:
               '❌ **The gate could not inspect the pull request.** Open the failed' \
               'step above, fix its infrastructure or API error, then re-run the job.' \
               >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Publish handoff gate result
         if: always()
