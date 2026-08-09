@@ -1,0 +1,249 @@
+---
+import type { IconName } from '../../lib/icons';
+import Icon from '../ui/Icon.astro';
+import TextInput from '../ui/TextInput.astro';
+import Select from '../ui/Select.astro';
+import TextArea from '../ui/TextArea.astro';
+import Button from '../ui/Button.astro';
+import Alert from '../ui/Alert.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface ReachItem {
+  label: string;
+  value: string;
+  href: string;
+  icon: IconName;
+}
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+
+const subjects = [
+  { value: 'general', label: 'General inquiry' },
+  { value: 'sales', label: 'Sales / demo request' },
+  { value: 'support', label: 'Technical support' },
+  { value: 'partnership', label: 'Partnership' },
+];
+
+const reachItems: ReachItem[] = [
+  {
+    label: 'Email Support',
+    value: 'support@singletonsd.com',
+    href: 'mailto:support@singletonsd.com',
+    icon: 'mail',
+  },
+  {
+    label: 'Main Website',
+    value: 'singletonsd.com',
+    href: 'https://singletonsd.com',
+    icon: 'globe',
+  },
+  {
+    label: 'GitLab Repository',
+    value: 'gitlab.com/singleton-sd',
+    href: 'https://gitlab.com/singleton-sd',
+    icon: 'git-branch',
+  },
+];
+---
+
+<section class:list={['pb-20 pt-4 md:pb-[7.5rem] md:pt-10', className]}>
+  <PageContainer>
+    <div class="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_23.75rem] lg:gap-16">
+      <div class="relative">
+        <div id="contact-form-panel">
+          <form id="contact-form" class="flex flex-col gap-8" novalidate>
+            <div id="contact-form-error" class="hidden" role="alert">
+              <Alert variant="error">
+                Please fix the highlighted fields and try again.
+              </Alert>
+            </div>
+
+            <div class="flex flex-col gap-6">
+              <div class="grid gap-6 md:grid-cols-2">
+                <TextInput
+                  id="contact-name"
+                  name="name"
+                  label="First & Last Name"
+                  placeholder="e.g. John Doe"
+                  required
+                />
+                <TextInput
+                  id="contact-email"
+                  name="email"
+                  type="email"
+                  label="Email Address"
+                  placeholder="you@company.com"
+                  required
+                />
+              </div>
+              <Select
+                id="contact-subject"
+                name="subject"
+                label="Subject"
+                placeholder="Select an option"
+                options={subjects}
+                required
+              />
+              <TextArea
+                id="contact-message"
+                name="message"
+                label="Message"
+                placeholder="How can we help you?"
+                rows={5}
+                required
+              />
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <Button type="submit" size="lg" class="w-full sm:w-[12.5rem]">
+                Send message
+              </Button>
+              <p class="m-0 text-caption text-fg-muted">
+                We typically respond within 24 hours.
+              </p>
+            </div>
+          </form>
+        </div>
+
+        <div id="contact-success" class="hidden space-y-4" role="status">
+          <Alert variant="success">
+            Thanks — your message was prepared successfully. Backend delivery is
+            stubbed for this template and will land in a follow-up ticket.
+          </Alert>
+          <Button id="contact-reset" type="button" variant="outline" size="lg">
+            Send another message
+          </Button>
+        </div>
+      </div>
+
+      <aside
+        class="flex flex-col gap-8 rounded-xl border border-border bg-bg-muted p-6 md:p-10"
+      >
+        <div class="space-y-2">
+          <h2 class="m-0 font-heading text-h3 text-fg">Other ways to reach us</h2>
+          <p class="m-0 text-body-sm leading-relaxed text-fg-muted">
+            Need specialized assistance? You can directly contact our teams or browse
+            open code.
+          </p>
+        </div>
+        <hr class="m-0 border-0 border-t border-border" />
+        <ul class="m-0 flex list-none flex-col gap-5 p-0">
+          {
+            reachItems.map((item) => (
+              <li class="flex items-center gap-3">
+                <span class="inline-flex size-5 shrink-0 text-accent" aria-hidden="true">
+                  <Icon name={item.icon} size={20} />
+                </span>
+                <div class="min-w-0">
+                  <p class="m-0 text-[12px] font-bold uppercase tracking-wide text-fg-muted">
+                    {item.label}
+                  </p>
+                  <a
+                    href={item.href}
+                    class="text-body-sm font-semibold text-fg transition hover:text-accent"
+                    rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                    target={item.href.startsWith('http') ? '_blank' : undefined}
+                  >
+                    {item.value}
+                  </a>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+      </aside>
+    </div>
+  </PageContainer>
+</section>
+
+<script>
+  const form = document.getElementById('contact-form') as HTMLFormElement | null;
+  const formPanel = document.getElementById('contact-form-panel');
+  const successPanel = document.getElementById('contact-success');
+  const formError = document.getElementById('contact-form-error');
+  const resetButton = document.getElementById('contact-reset');
+
+  function setFieldError(id: string, message: string | null) {
+    const field = document.getElementById(id) as
+      | HTMLInputElement
+      | HTMLSelectElement
+      | HTMLTextAreaElement
+      | null;
+    if (!field) return;
+
+    const wrapper = field.closest('div.flex.w-full.flex-col') ?? field.parentElement;
+    const existing = document.getElementById(`${id}-error`);
+    if (existing) existing.remove();
+
+    field.removeAttribute('aria-invalid');
+    field.classList.remove('border-status-error');
+    const borderHost =
+      field.tagName === 'INPUT' ? field.parentElement : field;
+    borderHost?.classList.remove('border-status-error');
+
+    if (!message || !wrapper) return;
+
+    field.setAttribute('aria-invalid', 'true');
+    borderHost?.classList.add('border-status-error');
+    const error = document.createElement('p');
+    error.id = `${id}-error`;
+    error.className = 'm-0 text-caption text-status-error';
+    error.textContent = message;
+    wrapper.appendChild(error);
+  }
+
+  function validate(): boolean {
+    if (!form) return false;
+    let ok = true;
+    const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim();
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value.trim();
+    const subject = (form.elements.namedItem('subject') as HTMLSelectElement).value;
+    const message = (form.elements.namedItem('message') as HTMLTextAreaElement).value.trim();
+
+    setFieldError('contact-name', name ? null : 'Enter your first and last name.');
+    if (!name) ok = false;
+
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    setFieldError(
+      'contact-email',
+      emailOk ? null : 'Enter a valid email address.',
+    );
+    if (!emailOk) ok = false;
+
+    setFieldError('contact-subject', subject ? null : 'Select a subject.');
+    if (!subject) ok = false;
+
+    setFieldError(
+      'contact-message',
+      message.length >= 10 ? null : 'Enter a message of at least 10 characters.',
+    );
+    if (message.length < 10) ok = false;
+
+    return ok;
+  }
+
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const ok = validate();
+    formError?.classList.toggle('hidden', ok);
+    if (!ok) return;
+
+    // Stub: no backend yet — show success empty state for the template.
+    formPanel?.classList.add('hidden');
+    successPanel?.classList.remove('hidden');
+    formError?.classList.add('hidden');
+  });
+
+  resetButton?.addEventListener('click', () => {
+    form?.reset();
+    ['contact-name', 'contact-email', 'contact-subject', 'contact-message'].forEach(
+      (id) => setFieldError(id, null),
+    );
+    successPanel?.classList.add('hidden');
+    formPanel?.classList.remove('hidden');
+  });
+</script>
