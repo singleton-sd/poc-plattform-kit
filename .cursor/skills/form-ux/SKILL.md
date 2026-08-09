@@ -241,14 +241,13 @@ A blur-tracked `validationMode` (or an equivalent per-field "touched" model, as 
 ### Example: hand-built React form
 
 ```tsx
-function useTouched(name: string) {
-  /* returns [touched, markTouched] scoped per field */
-}
-
 function SignupForm() {
-  const [values, setValues] = useState({ email: '' });
-  const [attempted, setAttempted] = useState(false);
-  const errors = validate(values); // pure function, same shape as server DTO rules
+  const [rawEmail, setRawEmail] = useState('');
+  const [touched, setTouched] = useState(false); // Rule 2: first shown on blur...
+  const [attempted, setAttempted] = useState(false); // ...or on a submit attempt, whichever is first
+  const email = normalise(rawEmail); // Rule 6: normalise once; validate and submit THIS value
+  const errors = validate({ email }); // validates the normalised value, not the raw string
+  const showError = Boolean(errors.email) && (touched || attempted);
 
   function handleSubmit(e: FormEvent) {
     // Fires on button click and Enter-key alike (both dispatch a `submit` event
@@ -259,8 +258,8 @@ function SignupForm() {
     // this gate is silently skippable.
     e.preventDefault();
     setAttempted(true);
-    if (Object.keys(errors).length > 0) return; // Rule 1: block + rely on per-field errors below
-    onSubmit(normalise(values)); // Rule 6: submit the normalised value
+    if (errors.email) return; // Rule 1: block + rely on the per-field error below
+    onSubmit({ email }); // already the normalised value
   }
 
   return (
@@ -268,12 +267,13 @@ function SignupForm() {
       <input
         required
         aria-required="true"
-        aria-invalid={Boolean(errors.email) && attempted}
-        aria-describedby={errors.email && attempted ? 'email-error' : undefined}
-        value={values.email}
-        onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))}
+        aria-invalid={showError}
+        aria-describedby={showError ? 'email-error' : undefined}
+        value={rawEmail} // raw value while the user is still typing — Rule 6 doesn't rewrite it live
+        onBlur={() => setTouched(true)}
+        onChange={(e) => setRawEmail(e.target.value)}
       />
-      {errors.email && attempted ? (
+      {showError ? (
         <p id="email-error" role="alert">
           {errors.email}
         </p>
