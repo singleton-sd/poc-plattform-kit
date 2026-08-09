@@ -39,6 +39,20 @@ model Tenant {
   @@map("tenants")
 }
 
+/// Per-tenant membership + role (e.g. "owner"). Foundation for invitations
+/// and future per-tenant roles; fine-grained authZ stays with the
+/// Permissions pillar (OpenFGA) -- this table is identity/membership only.
+model TenantMembership {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      String
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, userId])
+  @@map("tenant_memberships")
+}
+
 model TenantOutbox {
   id            String    @id @default(cuid())
   eventType     String
