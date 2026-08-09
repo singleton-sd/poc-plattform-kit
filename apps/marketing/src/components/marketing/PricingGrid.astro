@@ -14,7 +14,7 @@ interface Props {
 const { title, tiers, showToggle = true, class: className = '' } = Astro.props;
 ---
 
-<section class:list={['py-16 md:py-20', className]}>
+<section class:list={['pb-16 md:pb-20', className]}>
   <PageContainer>
     {
       title ? (
@@ -23,12 +23,12 @@ const { title, tiers, showToggle = true, class: className = '' } = Astro.props;
     }
     {
       showToggle ? (
-        <div class="mb-10 flex justify-center">
+        <div class="mb-12 flex justify-center">
           <PricingToggle />
         </div>
       ) : null
     }
-    <div class="grid gap-6 md:grid-cols-3">
+    <div class="grid items-stretch gap-6 md:grid-cols-3">
       {
         tiers.map((tier) => (
           <PricingCard
