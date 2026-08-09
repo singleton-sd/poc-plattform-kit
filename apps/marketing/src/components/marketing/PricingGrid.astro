@@ -1,0 +1,49 @@
+---
+import type { PricingTier } from '../../lib/marketing-types';
+import PageContainer from '../shell/PageContainer.astro';
+import PricingCard from './PricingCard.astro';
+import PricingToggle from './PricingToggle.astro';
+
+interface Props {
+  title?: string;
+  tiers: PricingTier[];
+  showToggle?: boolean;
+  class?: string;
+}
+
+const { title, tiers, showToggle = true, class: className = '' } = Astro.props;
+---
+
+<section class:list={['py-16 md:py-20', className]}>
+  <PageContainer>
+    {
+      title ? (
+        <h2 class="mb-8 m-0 text-center font-heading text-h2 text-fg">{title}</h2>
+      ) : null
+    }
+    {
+      showToggle ? (
+        <div class="mb-10 flex justify-center">
+          <PricingToggle />
+        </div>
+      ) : null
+    }
+    <div class="grid gap-6 md:grid-cols-3">
+      {
+        tiers.map((tier) => (
+          <PricingCard
+            name={tier.name}
+            price={tier.price}
+            priceYearly={tier.priceYearly}
+            periodLabel={tier.periodLabel}
+            description={tier.description}
+            features={tier.features}
+            cta={tier.cta}
+            highlighted={tier.highlighted}
+            ctaVariant={tier.ctaVariant}
+          />
+        ))
+      }
+    </div>
+  </PageContainer>
+</section>

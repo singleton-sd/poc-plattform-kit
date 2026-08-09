@@ -261,6 +261,15 @@ ruleset to require this context together with the API/web CI checks. The workflo
 restarts on pushes, CI/preview completion, reviews, and review/issue comments so
 late bot feedback moves the status back to pending/failure before stabilising.
 
+Open the `pr-handoff-gate` status link to see the workflow run summary. It lists
+every current blocker beside a specific next action. `Waiting` means checks or
+the reviewer quiet period are still in progress; `Blocked` means an action is
+required. A cancelled check is called out separately and should be re-run before
+changing code. Superseded gate runs queue instead of cancelling the active run;
+this guarantees that every run reaches its summary and final-status steps. A
+stale run detects that the PR head changed, exits with that explicit blocker,
+and then allows the replacement run to evaluate the new commit.
+
 ## Asynchronous ClickUp recovery
 
 `.github/workflows/clickup-pr-recovery.yml` is the server-side safety net. It

@@ -1,0 +1,141 @@
+---
+import Button from '../ui/Button.astro';
+import Icon from '../ui/Icon.astro';
+import { appCta, primaryNav } from '../../lib/nav';
+
+interface Props {
+  currentPath?: string;
+  brand?: string;
+  tagline?: string;
+}
+
+const {
+  currentPath = '/',
+  brand = 'Platform Kit',
+  tagline = 'Singleton SD',
+} = Astro.props;
+
+function isActive(href: string) {
+  if (href === '/') return currentPath === '/';
+  return currentPath === href || currentPath.startsWith(`${href}/`);
+}
+---
+
+<header class="sticky top-0 z-40 border-b border-border bg-bg">
+  <div class="mx-auto flex h-14 max-w-content items-center justify-between px-5 md:h-16 md:px-10">
+    <a href="/" class="flex items-center gap-2 text-body-sm no-underline">
+      <span class="font-bold text-fg">{brand}</span>
+      <span class="size-1.5 rounded-full bg-accent" aria-hidden="true"></span>
+      <span class="hidden text-caption text-fg-muted sm:inline">{tagline}</span>
+    </a>
+
+    <nav class="hidden items-center gap-8 md:flex" aria-label="Primary">
+      {
+        primaryNav.map((link) => {
+          const active = isActive(link.href);
+          return (
+            <a
+              href={link.href}
+              class:list={[
+                'relative text-body-sm no-underline transition',
+                active
+                  ? 'font-semibold text-accent'
+                  : 'font-medium text-fg hover:text-accent',
+              ]}
+              aria-current={active ? 'page' : undefined}
+            >
+              {link.label}
+              {active ? (
+                <span
+                  class="absolute -bottom-1 left-0 h-0.5 w-4 bg-accent"
+                  aria-hidden="true"
+                />
+              ) : null}
+            </a>
+          );
+        })
+      }
+    </nav>
+
+    <div class="hidden md:block">
+      <Button href={appCta.href} size="md">{appCta.label}</Button>
+    </div>
+
+    <button
+      type="button"
+      class="inline-flex size-10 items-center justify-center rounded-md text-fg md:hidden"
+      aria-controls="mobile-nav"
+      aria-expanded="false"
+      data-mobile-nav-toggle
+    >
+      <Icon name="menu" size={24} label="Open menu" />
+    </button>
+  </div>
+
+  <div
+    id="mobile-nav"
+    class="fixed inset-0 z-50 hidden bg-bg md:hidden"
+    data-mobile-nav
+    hidden
+  >
+    <div class="flex h-full flex-col justify-between p-6">
+      <div class="flex flex-col gap-8">
+        <div class="flex items-center justify-between">
+          <a href="/" class="font-bold text-fg no-underline">{brand}</a>
+          <button
+            type="button"
+            class="inline-flex size-10 items-center justify-center rounded-md text-fg"
+            data-mobile-nav-close
+          >
+            <Icon name="close" size={24} label="Close menu" />
+          </button>
+        </div>
+        <nav class="flex flex-col gap-6" aria-label="Mobile primary">
+          {
+            primaryNav.map((link) => {
+              const active = isActive(link.href);
+              return (
+                <a
+                  href={link.href}
+                  class:list={[
+                    'font-heading text-[1.625rem] leading-tight no-underline',
+                    active ? 'text-accent' : 'text-fg',
+                  ]}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  {link.label}
+                </a>
+              );
+            })
+          }
+        </nav>
+      </div>
+      <Button href={appCta.href} size="lg" fullWidth>{appCta.label}</Button>
+    </div>
+  </div>
+</header>
+
+<script>
+  function bindMobileNav() {
+    const root = document.querySelector('[data-mobile-nav]');
+    const toggle = document.querySelector('[data-mobile-nav-toggle]');
+    const close = document.querySelector('[data-mobile-nav-close]');
+    if (!(root instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement)) return;
+
+    const setOpen = (open: boolean) => {
+      root.hidden = !open;
+      root.classList.toggle('hidden', !open);
+      toggle.setAttribute('aria-expanded', String(open));
+      document.body.style.overflow = open ? 'hidden' : '';
+    };
+
+    toggle.addEventListener('click', () => setOpen(true));
+    close?.addEventListener('click', () => setOpen(false));
+    root.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => setOpen(false));
+    });
+  }
+
+  bindMobileNav();
+  document.addEventListener('astro:page-load', bindMobileNav);
+</script>
