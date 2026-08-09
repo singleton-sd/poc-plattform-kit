@@ -14,6 +14,9 @@ on:
       - 'scripts/check-client-changelogs.mjs'
       - 'scripts/check-client-changelogs.test.mjs'
       - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -33,6 +36,9 @@ on:
       - 'scripts/check-client-changelogs.mjs'
       - 'scripts/check-client-changelogs.test.mjs'
       - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
       - '.github/workflows/ci-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -68,7 +74,7 @@ jobs:
         run: pnpm format:check
 
       - name: Changelog projection drift check
-        run: pnpm changelog:check
+        run: pnpm changelog:test && pnpm changelog:check
 
       - name: Lint (web + marketing + packages)
         run: |

@@ -30,6 +30,18 @@ export function versionsFromTags(product, tags) {
     .sort((left, right) => semver.compare(left.version, right.version));
 }
 
+export function assertCompleteTagHistory(product, existingReleases, taggedVersions) {
+  const available = new Set(taggedVersions.map(({ version }) => version));
+  const missing = existingReleases
+    .map(({ version }) => version)
+    .filter((version) => !available.has(version));
+  if (missing.length) {
+    throw new Error(
+      `Release tags are incomplete for ${product} (missing ${missing.join(', ')}); run git fetch origin --tags`,
+    );
+  }
+}
+
 function messagesBetween(fromTag, toTag, paths) {
   const range = fromTag ? `${fromTag}..${toTag}` : toTag;
   const output = git(['log', range, '--format=%B%x1e', '--', ...paths]);
@@ -64,16 +76,26 @@ export function writeProductHistory(product, releases) {
 }
 
 function main() {
+  const dryRun = process.argv.includes('--dry-run');
   const tags = git(['tag', '--list']).split('\n').filter(Boolean);
   for (const [product, paths] of Object.entries(PRODUCTS)) {
+    const targets = CLIENT_CHANGELOG_TARGETS[product];
+    const taggedVersions = versionsFromTags(product, tags);
+    const existingReleases = parseProductChangelog(
+      readFileSync(resolve(ROOT, targets.markdown), 'utf8'),
+    );
+    assertCompleteTagHistory(product, existingReleases, taggedVersions);
     const releases = backfillProduct(product, paths, tags);
-    if (!releases.length) throw new Error(`No release tags found for ${product}`);
-    writeProductHistory(product, releases);
+    if (!releases.length) {
+      throw new Error(`No release tags found for ${product}; run git fetch origin --tags`);
+    }
+    if (!dryRun) writeProductHistory(product, releases);
     console.log(
-      `Wrote ${releases.length} releases to ${CLIENT_CHANGELOG_TARGETS[product].markdown}`,
+      `${dryRun ? 'Would write' : 'Wrote'} ${releases.length} releases to ${targets.markdown}`,
     );
   }
 
+  if (dryRun) return;
   // Ensure the generated files can be read after writing them.
   for (const targets of Object.values(CLIENT_CHANGELOG_TARGETS)) {
     parseProductChangelog(readFileSync(resolve(ROOT, targets.markdown), 'utf8'));
