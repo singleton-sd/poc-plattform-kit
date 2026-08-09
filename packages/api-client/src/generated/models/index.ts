@@ -5,6 +5,9 @@
  * poc-plattform-kit API
  */
 
+export * from './changelogChangeDto';
+export * from './changelogReleaseDto';
+export * from './changelogResponseDto';
 export * from './checkPermissionDto';
 export * from './checkPermissionResponseDto';
 export * from './createTenantDto';

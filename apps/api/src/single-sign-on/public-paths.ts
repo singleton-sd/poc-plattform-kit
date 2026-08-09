@@ -15,6 +15,9 @@ export function isPublicPath(path: string): boolean {
   if (normalized === '/health' || normalized.startsWith('/health/')) {
     return true;
   }
+  if (normalized === '/changelog' || normalized.startsWith('/changelog/')) {
+    return true;
+  }
   if (normalized === '/api/auth' || normalized.startsWith('/api/auth/')) {
     return true;
   }
