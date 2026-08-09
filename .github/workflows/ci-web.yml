@@ -61,6 +61,9 @@ jobs:
       - name: Prettier check
         run: pnpm format:check
 
+      - name: Changelog projection drift check
+        run: pnpm changelog:check
+
       - name: Lint (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run lint
