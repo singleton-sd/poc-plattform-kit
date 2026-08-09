@@ -1,5 +1,7 @@
 export { CreateTenantDto } from './dto/create-tenant.dto';
+export { CreateTenantInvitationDto } from './dto/create-tenant-invitation.dto';
 export { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
+export { TenantInvitationResponseDto } from './dto/tenant-invitation-response.dto';
 export { TenantResponseDto } from './dto/tenant-response.dto';
 export { UpdateTenantDto } from './dto/update-tenant.dto';
 export { ClaimTenancyInterceptor } from './claim-tenancy.interceptor';
@@ -9,6 +11,9 @@ export { TenancyContext } from './tenancy.context';
 export type { TenancyStore } from './tenancy.context';
 export { TenancyMiddleware } from './tenancy.middleware';
 export { TenantController } from './tenant.controller';
+export { TenantInvitationController } from './tenant-invitation.controller';
+export { TenantInvitationService } from './tenant-invitation.service';
+export type { TenantInvitationRecord } from './tenant-invitation.service';
 export { TenantModule } from './tenant.module';
 export { TenantService } from './tenant.service';
 export type { TenantRecord, TenantMembershipRecord } from './tenant.service';

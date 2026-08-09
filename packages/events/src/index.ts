@@ -25,6 +25,7 @@ export type DomainEventType =
   | 'tenant.created'
   | 'tenant.updated'
   | 'tenant.member_added'
+  | 'tenant.invitation_created'
   | 'user.created'
   | 'user.name_changed'
   | 'permission.denied'
@@ -107,6 +108,7 @@ const domainEventTypeSet: Record<DomainEventType, true> = {
   'tenant.created': true,
   'tenant.updated': true,
   'tenant.member_added': true,
+  'tenant.invitation_created': true,
   'user.created': true,
   'user.name_changed': true,
   'permission.denied': true,

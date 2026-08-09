@@ -53,6 +53,28 @@ model TenantMembership {
   @@map("tenant_memberships")
 }
 
+/// Pending invitation for someone to join a tenant by email. Accept/decline
+/// handling lands in a follow-up ticket (86d3zetkn) and the send-the-email
+/// step lives in a Notifications ticket (86d3zetkq); this model only backs
+/// create/list/revoke. `token` is stored raw (not hashed) -- PoC-simple per
+/// the ticket, single-use via `status` transitions out of "pending".
+model TenantInvitation {
+  id              String    @id @default(cuid())
+  tenantId        String
+  email           String
+  role            String
+  invitedByUserId String
+  token           String    @unique
+  /// "pending" | "accepted" | "declined" | "revoked" | "expired"
+  status          String    @default("pending")
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+  respondedAt     DateTime?
+
+  @@index([tenantId, email])
+  @@map("tenant_invitations")
+}
+
 model TenantOutbox {
   id            String    @id @default(cuid())
   eventType     String
