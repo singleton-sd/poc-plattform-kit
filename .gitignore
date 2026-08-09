@@ -21,3 +21,12 @@ coverage/
 api-deploy.zip
 api-deploy.tar
 .pnpm-store/
+
+# Generated SQLite preview schema/client/database (packages/db) — build-time
+# only, derived from prisma/schema.prisma. Never commit preview databases.
+packages/db/prisma/schema.preview.prisma
+packages/db/prisma/generated/
+packages/db/prisma/preview*.db
+packages/db/prisma/preview*.db-journal
+packages/db/.tmp-preview-integration-*/
+
