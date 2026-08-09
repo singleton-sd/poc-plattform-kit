@@ -52,26 +52,25 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
      (also listed in `AGENTS.md` with Preview URL / Token Estimate / Token Spent).
    - **Browse ≠ claim.** Listing or reading tickets must not set Claim Token,
      assignee, or status.
-   - **Claim before plan/implement/review** (including Plan mode when asked to
+   - **Claim before plan/implement** (including Plan mode when asked to
      pick up a task):
-     1. `scripts/clickup.ps1 list -Status "READY FOR AI"` (or REVIEW).
+     1. `scripts/clickup.ps1 list -Status "READY FOR AI"`.
      2. `claimToken` = chat/session id or `agent-<uuid>`.
      3. `scripts/clickup.ps1 claim -TaskId <id> -ClaimToken <claimToken>
         -Status "IN PROGRESS"` (implementers; Claim Token only by default —
-        add `-AssignMe` only when an owner must show). Reviewers omit `-Status`.
+        add `-AssignMe` only when an owner must show).
      4. On claim race error, abort and pick another ticket.
-     5. Only then read details / implement / review.
+     5. Only then read details and implement.
    - **Handoff:** `scripts/clickup.ps1 status -TaskId <id> -Status "…"
      -ClearClaim`. Prefer `preview -Url <pr>` over a comment when the only
      payload is the PR link. Set Token Spent via `field` when finishing.
    - **Implementer:** claim → implement → PR → **PR hygiene** → Preview URL
      (or one handoff comment) → clear Claim Token → **READY FOR REVIEW**.
-   - **Reviewer:** claim on **READY FOR REVIEW** → review in a worktree →
-     **PR hygiene** → comments. Prefer assignee = reviewer; if the
-     implementer must stay visible, comment their identity before
-     reassigning. Before **READY FOR HUMAN**, re-check mergeable, required
-     CI, and all PR feedback. On conflict / CI red / actionable feedback →
-     clear Claim Token → **READY FOR AI** + blockers.
+   - **Automated review:** Cursor Bugbot, ChatGPT Codex Connector, and similar
+     GitHub bots review the PR after handoff. Agents must not pick up
+     **READY FOR REVIEW** tickets to review another agent's work. Agents may
+     address bot or human feedback only after the ticket returns to
+     **READY FOR AI**.
    - **Steward:** When asked to check open PRs after READY FOR HUMAN, re-poll
      mergeable / CI / new comments; bounce to READY FOR AI (clear Claim
      Token) when agent-fixable. May clear a Claim Token older than ~4h with
@@ -88,8 +87,7 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
      `az bicep build -f infra/main.bicep --outfile infra/main.json`.
    - **Hub ownership:** do not edit `.cursor/skills/**`, root `package.json`,
      `AGENTS.md` / `SETUP.md` / `docs/pr-pipelines.md`, or workflows unless
-     the ticket requires it. Skills sync = dedicated chore PR only. Reviewers
-     bounce incidental hub churn to **READY FOR AI**.
+     the ticket requires it. Skills sync = dedicated chore PR only.
    - When the task implementation is finished, do **not** mark it complete yet.
    - Mark a finished task complete only when the user explicitly asks, or when the user says to move to the next task.
    - If a requested status is rejected, inspect valid task/list statuses and use the closest valid equivalent.
@@ -111,14 +109,25 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
      Do not default to full-repo `pnpm format:check` / `pnpm lint` as the
      agent gate, and never bypass hooks with `--no-verify` for format/lint.
 
-5. Commit type selection:
+5. Human test plan:
+   - Every PR must include a **Test plan** written for a human, not just a list
+     of automated commands.
+   - Explain what changed, where the new or changed behavior can be found,
+     any setup or test data required, numbered steps to exercise it, and the
+     expected result for each step.
+   - Include preview URLs and the exact page, route, API endpoint, or workflow
+     to inspect when available.
+   - Add a **Feedback focus** section that tells the human where comments are
+     most useful. State explicitly when a change has no user-facing behavior.
+
+6. Commit type selection:
    - Use `feat` for new user-facing behavior, scripts, workflows, or capabilities.
    - Use `fix` for bug fixes.
    - Use `chore` for maintenance, scaffolding, config-only setup, or repository housekeeping.
    - Use `docs` for documentation-only changes.
    - Follow the repository's commit message format and length rules.
 
-6. Requirement drift and inconsistencies:
+7. Requirement drift and inconsistencies:
    - If task text conflicts with user clarification, repo conventions, or
      existing config names, ask the user before expanding scope.
    - Do not implement future-ticket behavior just because a ticket example
@@ -142,6 +151,13 @@ Staged files:
 
 Verified:
 - command that passed
+
+Human test plan:
+1. Where to find the change and what to do
+   Expected: observable result
+
+Feedback focus:
+- area where human comments are most useful
 
 Proposed commit message:
 type: Summary TICKET-ID
