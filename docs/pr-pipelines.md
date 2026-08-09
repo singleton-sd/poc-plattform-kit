@@ -273,14 +273,13 @@ status transition:
 
 ```bash
 ./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>
-# Reviewer uses the same command with READY FOR HUMAN.
 ```
 
 The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp. The gate
 pins the PR head SHA, requires all path-applicable CI and preview checks to
 appear and finish successfully, requires a mergeable/non-dirty PR, rejects the
 hygiene labels, rejects unresolved review threads, and waits for a 90-second
-reviewer quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
+external-feedback quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
 Override polling only for diagnostics with `PR_GATE_QUIET_SECONDS`,
 `PR_GATE_TIMEOUT_SECONDS`, and `PR_GATE_POLL_SECONDS`.
 
