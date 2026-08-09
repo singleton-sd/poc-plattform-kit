@@ -101,6 +101,25 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      # API previews use the shared development database. Apply committed,
+      # forward-only migrations before rolling out an image that may query a
+      # newly introduced table (for example tenant_memberships). Without this,
+      # the container can pass /health while feature requests fail with P2021.
+      - name: Apply database migrations
+        if: steps.open.outputs.open == 'true'
+        run: |
+          set -euo pipefail
+          DATABASE_URL=$(az keyvault secret show \
+            --vault-name "$KEY_VAULT_NAME" \
+            --name database-url \
+            --query value -o tsv)
+          echo "::add-mask::$DATABASE_URL"
+          export DATABASE_URL
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm dlx prisma@5.22.0 migrate deploy \
+            --schema packages/db/prisma/schema.prisma
+
       - name: Resolve ACR login server
         if: steps.open.outputs.open == 'true'
         id: acr
