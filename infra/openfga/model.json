@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "user",
+      "relations": {
+        "manager": {
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "tupleToUserset": {
+                  "tupleset": {
+                    "object": "",
+                    "relation": "manager"
+                  },
+                  "computedUserset": {
+                    "object": "",
+                    "relation": "manager"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "manager": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "tenant",
+      "relations": {
+        "admin": {
+          "this": {}
+        },
+        "member": {
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "admin"
+                }
+              }
+            ]
+          }
+        },
+        "create": {
+          "computedUserset": {
+            "object": "",
+            "relation": "admin"
+          }
+        },
+        "update": {
+          "computedUserset": {
+            "object": "",
+            "relation": "admin"
+          }
+        },
+        "delete": {
+          "computedUserset": {
+            "object": "",
+            "relation": "admin"
+          }
+        },
+        "read": {
+          "computedUserset": {
+            "object": "",
+            "relation": "member"
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
