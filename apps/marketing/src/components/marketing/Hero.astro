@@ -1,0 +1,66 @@
+---
+import Button from '../ui/Button.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  eyebrow?: string;
+  headline: string;
+  subheadline?: string;
+  primaryCta?: { label: string; href: string };
+  secondaryCta?: { label: string; href: string };
+  class?: string;
+}
+
+const {
+  eyebrow,
+  headline,
+  subheadline,
+  primaryCta,
+  secondaryCta,
+  class: className = '',
+} = Astro.props;
+---
+
+<section class:list={['bg-bg-hero', className]}>
+  <PageContainer class="flex flex-col items-center px-5 py-16 text-center md:py-24">
+    {
+      eyebrow ? (
+        <p class="m-0 mb-4 text-body-sm font-semibold uppercase tracking-wide text-accent">
+          {eyebrow}
+        </p>
+      ) : null
+    }
+    <h1 class="m-0 max-w-3xl font-heading text-h1 text-fg md:text-display">
+      {headline}
+    </h1>
+    {
+      subheadline ? (
+        <p class="mt-6 m-0 max-w-2xl text-base leading-relaxed text-fg-muted md:text-lg">
+          {subheadline}
+        </p>
+      ) : null
+    }
+    <div class="mt-4 max-w-2xl text-base leading-relaxed text-fg-muted empty:hidden">
+      <slot />
+    </div>
+    <div class="mt-8 flex flex-col items-center gap-4 sm:flex-row">
+      {
+        primaryCta ? (
+          <Button href={primaryCta.href} size="lg">
+            {primaryCta.label}
+          </Button>
+        ) : null
+      }
+      {
+        secondaryCta ? (
+          <a
+            href={secondaryCta.href}
+            class="text-body-sm font-semibold text-fg underline-offset-4 transition hover:text-accent hover:underline"
+          >
+            {secondaryCta.label}
+          </a>
+        ) : null
+      }
+    </div>
+  </PageContainer>
+</section>
