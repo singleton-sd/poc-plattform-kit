@@ -40,7 +40,9 @@ jobs:
       # A workflow_run can have no associated PR. The job guard skips those
       # events; run_id also prevents an empty key from cancelling useful runs.
       group: pr-handoff-gate-${{ github.event.pull_request.number || github.event.issue.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
-      cancel-in-progress: true
+      # A cancelled job cannot run the final status/summary steps and can leave
+      # an unexplained pending context like PR #101. Queue replacements instead.
+      cancel-in-progress: false
     steps:
       - name: Resolve pull request
         id: pr
@@ -106,7 +108,8 @@ jobs:
           gh_api_retry -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
             -f state=pending \
             -f context=pr-handoff-gate \
-            -f description='Waiting for CI and reviewer quiet period' >/dev/null
+            -f description='Waiting: open the gate run for blockers and next actions' \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >/dev/null
 
       - name: Check out trusted gate implementation
         uses: actions/checkout@v4
@@ -123,7 +126,21 @@ jobs:
             echo 'Gate implementation is being bootstrapped by this PR; defer enforcement until merged.'
             exit 0
           fi
-          node scripts/pr-handoff-gate.mjs --pr '${{ steps.pr.outputs.number }}' --timeout-seconds 1200
+          node scripts/pr-handoff-gate.mjs --pr '${{ steps.pr.outputs.number }}' \
+            --timeout-seconds 1200 --report-file "$RUNNER_TEMP/pr-handoff-gate.md"
+
+      - name: Show blockers and next actions
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/pr-handoff-gate.md" ]; then
+            cat "$RUNNER_TEMP/pr-handoff-gate.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## PR handoff gate
+
+          ❌ **The gate could not inspect the pull request.** Open the failed
+          step above, fix its infrastructure or API error, then re-run the job.
+          EOF
 
       - name: Publish handoff gate result
         if: always()
@@ -156,7 +173,7 @@ jobs:
             DESCRIPTION='CI green, mergeable, and reviewer feedback stable'
           else
             STATE=failure
-            DESCRIPTION='PR is not safe to hand off; inspect this run'
+            DESCRIPTION='Blocked: open the gate run for blockers and next actions'
           fi
           gh_api_retry -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
             -f state="$STATE" \
