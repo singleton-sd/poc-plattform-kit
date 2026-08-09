@@ -126,7 +126,7 @@ Same code shape and `validationMode="ValidateAndHide"` as F1 (`update-tenant-for
 
 | Rule | Applicability | Status | Evidence | User impact | Ownership | Suggested regression test |
 |---|---|---|---|---|---|---|
-| 1. Submission readiness | Applies — one required field (a non-empty id) | **Compliant** | `onSubmit` (`tenant-lookup.tsx:35-45`) guards on `tenantId.trim()` being non-empty before doing anything; the submit button is `disabled={!tenantId.trim() || query.isFetching}` (line 64) — this one **does** gate on validity, not just pending, unlike F1/F3. Enter-key and click both go through the same `onSubmit`. | Correct: button reflects invalidity, and submission is blocked either way. | — | Existing coverage unknown — no test file found for this component; add one asserting the disabled state tracks the trimmed value |
+| 1. Submission readiness | Applies — one required field (a non-empty id) | **Partially compliant** | `onSubmit` (`tenant-lookup.tsx:35-45`) guards on `tenantId.trim()` being non-empty before doing anything; the submit button is `disabled={!tenantId.trim() \|\| query.isFetching}` (line 64) — this one **does** gate on validity, not just pending, unlike F1/F3, and Enter-key/click both go through the same `onSubmit`. But the `<input>` itself (line 55-59) has neither `required` nor `aria-required` — the same programmatic-required-signal gap flagged as Non-compliant for R1–R5 above; a screen-reader user gets no indication this field is mandatory from the control itself. | Sighted users get correct blocking behaviour; screen-reader users aren't told the field is required. | Feature host (this file; not the shared renderer, since it's hand-built) | Existing coverage unknown — no test file found for this component; add one asserting `aria-required`/`required` is present, and that the disabled state tracks the trimmed value |
 | 2. Inline validation | The only "validation" is non-empty-string; there's no format rule beyond that | **Not applicable** | No `z` schema or format constraint governs this field — it's a free-text id looked up server-side (404 handled explicitly at lines 76-80). Rule 2 doesn't apply to a field with no validation rule. | — | — | — |
 | 3. Character limits | No declared max length | **Not applicable** | Plain `<input>` with no `maxLength`. | — | — | — |
 | 4. Pre-fill | No trusted prior tenant id exists for a fresh lookup | **Not applicable** | Support agents look up an arbitrary tenant; there is no "last tenant" context wired in. | — | — | — |
@@ -136,11 +136,11 @@ Same code shape and `validationMode="ValidateAndHide"` as F1 (`update-tenant-for
 
 ### F5 — `tenants/tenant-open-by-id.tsx:TenantOpenById`
 
-Same shape as F4 (guarded by `disabled={!tenantId.trim()}`, `tenant-open-by-id.tsx:22,60`) — **Compliant** for Rule 1, **Not applicable** for Rules 2–6 for the same reasons as F4. This component *does* have test coverage (`tenant-open-by-id.test.tsx`, passing).
+Same shape as F4 (guarded by `disabled={!tenantId.trim()}`, `tenant-open-by-id.tsx:22,60`) and the same gap — **Partially compliant** for Rule 1: submission is correctly blocked, but the `<input>` (`tenant-open-by-id.tsx:50-57`) has neither `required` nor `aria-required`. **Not applicable** for Rules 2–6 for the same reasons as F4. This component *does* have test coverage (`tenant-open-by-id.test.tsx`, passing) — extend it with the `aria-required` assertion.
 
 ### F6 — `tenant-settings/tenant-settings.tsx` — tenant-id lookup form
 
-Same shape and same **Compliant** Rule-1 verdict as F4/F5 (`disabled={!tenantIdInput.trim() || findQuery.isFetching}`, `tenant-settings.tsx:103`). Rules 2–6 **Not applicable** for the same reasons as F4.
+Same shape and same **Partially compliant** Rule-1 verdict as F4/F5 (`disabled={!tenantIdInput.trim() || findQuery.isFetching}`, `tenant-settings.tsx:103`; `<input>` at lines 93-98 has neither `required` nor `aria-required`). Rules 2–6 **Not applicable** for the same reasons as F4.
 
 ### F7 — `tenant-settings/tenant-settings.tsx` — settings JSON `<textarea>`
 
@@ -167,8 +167,8 @@ This field lives **outside** the `UpdateTenantForm`'s `<form>` element but is su
 
 | Status | Count (rule × form-or-renderer instances, excluding N/A) |
 |---|---|
-| Compliant | 6 (R4 partial-aria; F2 Rule 4 ×2 consumers counted once; F4/F5/F6 Rule 1; F3 Rule 6 `launchDate`; F7 Rule 4; F7 Rule 6) |
-| Partially compliant | 5 (F1/F2/F3 Rule 1; F7 Rule 1; F1 `name` Rule 6) |
+| Compliant | 5 (R4 partial-aria; F2 Rule 4 ×2 consumers counted once; F3 Rule 6 `launchDate`; F7 Rule 4; F7 Rule 6) |
+| Partially compliant | 8 (F1/F2/F3 Rule 1; F7 Rule 1; F1 `name` Rule 6; F4/F5/F6 Rule 1) |
 | Non-compliant | 8 (R1–R5 Rule 1; R1–R3 Rule 2 combined with F1/F2 hosts; R1 Rule 3; F1/F2 Rule 2; F1 slug Rule 6; F3 Rule 2; F7 Rule 2) |
 | Not applicable | the majority of remaining rule×form cells — see tables (each carries its own one-line reason per the skill's requirement) |
 | Unable to verify | 1 (F4 Rule 6) |
@@ -286,7 +286,25 @@ using it doesn't close the gap).
   already Compliant and fully tested — no change needed there.
 - **Depends on:** nothing.
 
-### Ticket 7 — Baseline tests for currently-untested form surfaces
+### Ticket 7 — Add `required`/`aria-required` to the hand-built lookup inputs
+
+**Feature adoption**, independent of Ticket 1 (same fix pattern, but these
+three forms are hand-built rather than JSON-Forms-driven, so Ticket 1's
+renderer fix doesn't reach them). Grouped into one ticket since all three
+share the identical one-line fix rather than filing one ticket per form.
+
+- **Files:** `apps/web/src/features/support/tenant-lookup.tsx`,
+  `apps/web/src/features/tenants/tenant-open-by-id.tsx`,
+  `apps/web/src/features/tenant-settings/tenant-settings.tsx` (the tenant-id
+  lookup `<input>` only, not the settings `<textarea>`)
+- **Change:** add `required` and `aria-required="true"` to each lookup
+  `<input>`, matching the same criterion Rule 1 already applies to the
+  shared renderers.
+- **Regression tests:** one assertion per component asserting
+  `aria-required`/`required` is present on the input.
+- **Depends on:** nothing.
+
+### Ticket 8 — Baseline tests for currently-untested form surfaces
 
 **Housekeeping**, unblocks confident future changes to F3 and F4.
 
