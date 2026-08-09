@@ -18,21 +18,36 @@ CI/workflow-only, infra-only, etc.):
 
 ## Summary
 
-<!-- What changed and why. -->
+- What changed and why?
+- Where is the new or changed behavior?
 
 ## Preview scenarios
 
 - **Scenario(s):** <!-- e.g. pillar/tenant/settings, or "not-applicable: <reason>" -->
-- **Preview test instructions:** <!-- exact steps a reviewer follows in the deployed preview -->
-- **Expected result:** <!-- what the reviewer should see -->
 - **Known SQLite vs SQL Server differences:** <!-- anything this preview can't prove; "none" if not applicable -->
 
 ## Test plan
 
-<!-- Automated tests added/updated. A preview scenario complements tests, it never replaces them. -->
+<!-- Write this for the human who will validate the PR. Do not only list CI commands. -->
 
-## Checklist
+### Setup
 
-- [ ] Tests added/updated for the behaviour change
-- [ ] Preview scenario declared above (or a justified `not-applicable` exemption)
-- [ ] Docs updated if the change affects a documented contract or workflow
+- Preview URL, environment, account/role, feature flag, or test data required:
+
+### Steps and expected results
+
+1. Go to the exact page, route, API endpoint, or workflow.
+   - **Expected:** Describe the observable result.
+2. Exercise an important alternate or error path.
+   - **Expected:** Describe the observable result.
+
+## Feedback focus
+
+- Which behavior, screen, API contract, or design decision should the human
+  comment on?
+- If there is no user-facing behavior, state that here and identify the files
+  or automation output to inspect instead.
+
+## Automated checks
+
+- `command` — result
