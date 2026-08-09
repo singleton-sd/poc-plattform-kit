@@ -102,5 +102,6 @@ const workflow = readFileSync(
 );
 assert.match(workflow, /cancel-in-progress: false/);
 assert.match(workflow, /target_url=.*github\.run_id/);
+assert.doesNotMatch(workflow, /<<['"]?EOF/);
 
 console.log('pr-handoff-gate tests passed');
