@@ -26,15 +26,20 @@ export function parseArgs(argv) {
     databaseUrl: undefined,
     list: false,
     verify: true,
+    verifyOnly: false,
   };
   for (const arg of argv) {
     if (arg === '--list') args.list = true;
     else if (arg === '--no-verify') args.verify = false;
+    else if (arg === '--verify-only') args.verifyOnly = true;
     else if (arg.startsWith('--scenarios=')) args.scenarios = arg.slice('--scenarios='.length);
     else if (arg.startsWith('--client=')) args.client = arg.slice('--client='.length);
     else if (arg.startsWith('--database-url='))
       args.databaseUrl = arg.slice('--database-url='.length);
     else throw new Error(`Unknown argument: ${arg}`);
+  }
+  if (args.verifyOnly && !args.verify) {
+    throw new Error('--verify-only and --no-verify are mutually exclusive');
   }
   return args;
 }
@@ -86,12 +91,20 @@ export async function run(argv, { env = process.env } = {}) {
   );
 
   try {
-    console.log(
-      `Seeding ${resolved.length} scenario(s) [requested: ${requested.join(', ')}]: ${resolved
-        .map((s) => s.name)
-        .join(', ')}`,
-    );
-    await seedResolvedScenarios(prisma, resolved);
+    if (args.verifyOnly) {
+      console.log(
+        `Verifying ${resolved.length} scenario(s) [requested: ${requested.join(', ')}]: ${resolved
+          .map((s) => s.name)
+          .join(', ')}`,
+      );
+    } else {
+      console.log(
+        `Seeding ${resolved.length} scenario(s) [requested: ${requested.join(', ')}]: ${resolved
+          .map((s) => s.name)
+          .join(', ')}`,
+      );
+      await seedResolvedScenarios(prisma, resolved);
+    }
 
     if (args.verify) {
       const results = await verifyResolvedScenarios(prisma, resolved);
@@ -101,11 +114,15 @@ export async function run(argv, { env = process.env } = {}) {
         if (!result.ok) failed = true;
       }
       if (failed) {
-        throw new Error('One or more preview scenarios failed verification after seeding.');
+        throw new Error('One or more preview scenarios failed verification.');
       }
     }
 
-    console.log('Preview scenario seeding complete.');
+    console.log(
+      args.verifyOnly
+        ? 'Preview scenario verification complete.'
+        : 'Preview scenario seeding complete.',
+    );
   } finally {
     await prisma.$disconnect();
   }

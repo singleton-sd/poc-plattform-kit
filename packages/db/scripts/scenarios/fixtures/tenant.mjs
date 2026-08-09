@@ -49,10 +49,22 @@ export function registerTenantScenarios(registry) {
         email: `acme-owner@${SYNTHETIC_DOMAIN}`,
         name: 'Seed Acme Owner',
       });
-      await upsertById(prisma.tenant, 'seed-tenant-acme-rocketry', {
-        name: 'Seed Acme Rocketry',
-        slug: 'seed-acme-rocketry',
-        settings: null,
+      // Not upsertById: `settings` is owned by pillar/tenant/settings once
+      // composed, so the update branch must not include it — otherwise
+      // re-seeding "owner" alone (e.g. a redeploy with a narrower
+      // PREVIEW_SEED_SCENARIOS) would silently reset it back to null.
+      await prisma.tenant.upsert({
+        where: { id: 'seed-tenant-acme-rocketry' },
+        create: {
+          id: 'seed-tenant-acme-rocketry',
+          name: 'Seed Acme Rocketry',
+          slug: 'seed-acme-rocketry',
+          settings: null,
+        },
+        update: {
+          name: 'Seed Acme Rocketry',
+          slug: 'seed-acme-rocketry',
+        },
       });
       await upsertById(prisma.tenantMembership, 'seed-owner-membership', {
         tenantId: 'seed-tenant-acme-rocketry',

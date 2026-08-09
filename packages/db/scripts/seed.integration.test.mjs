@@ -66,3 +66,19 @@ test(
     });
   },
 );
+
+test(
+  '--verify-only re-checks already-seeded fixtures without seeding again',
+  { timeout: 60_000 },
+  async () => {
+    // Simulates the entrypoint's post-copy readiness check on container
+    // start: the template was already seeded at build time, so a redeploy
+    // should only verify, never re-run seed().
+    await run([
+      '--verify-only',
+      '--scenarios=demo',
+      `--database-url=file:${dbPath}`,
+      `--client=${clientOutputDir}`,
+    ]);
+  },
+);

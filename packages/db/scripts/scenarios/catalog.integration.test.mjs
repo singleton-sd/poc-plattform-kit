@@ -109,6 +109,29 @@ test('tenant scenarios stay isolated from each other', async () => {
 });
 
 test(
+  're-seeding a narrower scenario set does not clobber fields owned by a previously composed scenario',
+  { timeout: 60_000 },
+  async () => {
+    // Regression: pillar/tenant/owner's tenant upsert must not reset
+    // `settings` back to null when re-seeded alone after pillar/tenant/
+    // settings already populated it (e.g. a redeploy with a narrower
+    // PREVIEW_SEED_SCENARIOS than the one that originally seeded the db).
+    const catalog = createCatalog();
+    await seedResolvedScenarios(prisma, catalog.resolve(['demo']));
+
+    const before = await prisma.tenant.findUnique({
+      where: { id: 'seed-tenant-acme-rocketry' },
+    });
+    assert.ok(before.settings, 'settings should be populated by the demo composition');
+
+    await seedResolvedScenarios(prisma, catalog.resolve(['pillar/tenant/owner']));
+
+    const after = await prisma.tenant.findUnique({ where: { id: 'seed-tenant-acme-rocketry' } });
+    assert.equal(after.settings, before.settings);
+  },
+);
+
+test(
   'a non-tenant pillar outbox-safe scenario composes independently of demo',
   { timeout: 60_000 },
   async () => {

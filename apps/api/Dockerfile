@@ -1,6 +1,7 @@
 # Nest API image for Azure Container Apps (Consumption) — PREVIEW ONLY.
 # Exposes PORT (default 3001). Build from repo root:
-#   docker build -f apps/api/Dockerfile -t api-preview .
+#   docker build -f apps/api/Dockerfile -t api-preview \
+#     --build-arg PREVIEW_SEED_SCENARIOS=demo .
 #
 # Production/App Service deploys use scripts/stage-api-deploy.sh (zip
 # deploy), never this Dockerfile, and always generate the canonical SQL
@@ -8,11 +9,13 @@
 #
 # This image instead derives a SQLite-compatible preview schema at build
 # time (scripts/generate-preview-schema.mjs), generates a SQLite Prisma
-# client from it, and materialises an immutable, seeded-empty SQLite
-# database template baked into the image. docker-entrypoint.sh copies that
-# template to a writable runtime path on every container start, so a
-# preview never resolves or mutates the shared Azure SQL database — see
-# AGENTS.md and docs/preview-scenarios.md.
+# client from it, seeds the named PREVIEW_SEED_SCENARIOS (build-time
+# seeding for deterministic cold starts — see scripts/seed.mjs), and
+# materialises the result as an immutable SQLite database template baked
+# into the image. docker-entrypoint.sh copies that template to a writable
+# runtime path on every container start, so a preview always resets to the
+# same deterministic seeded state and never resolves or mutates the shared
+# Azure SQL database — see AGENTS.md and docs/preview-scenarios.md.
 #
 # Runtime packaging otherwise mirrors scripts/stage-api-deploy.sh:
 #   - hoisted pnpm deploy --prod
@@ -33,6 +36,11 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY apps/api ./apps/api
 RUN pnpm --filter @poc-plattform-kit/api build
+
+# Named preview scenarios to bake into the immutable template (comma
+# separated — see docs/preview-scenarios.md). preview-api.yml passes the
+# scenarios declared by the PR; "demo" is the default baseline.
+ARG PREVIEW_SEED_SCENARIOS=demo
 
 # Derive the SQLite preview schema from the canonical SQL Server schema.
 # Fails the build with an actionable diagnostic (not a silently broken
@@ -68,11 +76,19 @@ RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index
   && DATABASE_URL="file:/out/prisma/preview-template.db" \
      node "$PRISMA_JS" generate --schema=/out/prisma/schema.preview.prisma \
   && test -f /out/node_modules/.prisma/client/index.js \
+  && node /app/packages/db/scripts/seed.mjs \
+       --scenarios="$PREVIEW_SEED_SCENARIOS" \
+       --database-url="file:/out/prisma/preview-template.db" \
+       --client=/out/node_modules/.prisma/client \
   && test -f /out/prisma/preview-template.db \
+  && printf '%s' "$PREVIEW_SEED_SCENARIOS" > /out/prisma/preview-scenarios.txt \
+  && mkdir -p /out/preview-scripts \
+  && cp -r /app/packages/db/scripts /out/preview-scripts/db-scripts \
   && DATABASE_URL="file:/out/prisma/preview-template.db" node -e "\
       const { PrismaClient } = require('@prisma/client'); \
       const p = new PrismaClient(); \
       p.tenant.findMany().then((rows) => { \
+        if (rows.length === 0) { throw new Error('seeded template has zero tenant rows'); } \
         console.log('prisma sqlite preview template ok, tenant rows:', rows.length); \
         return p.\$disconnect(); \
       }).catch((e) => { console.error(e); process.exit(1); });"

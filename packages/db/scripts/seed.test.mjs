@@ -32,6 +32,16 @@ test('parseArgs rejects an unknown flag', () => {
   assert.throws(() => parseArgs(['--bogus']), /Unknown argument/);
 });
 
+test('parseArgs accepts --verify-only', () => {
+  const args = parseArgs(['--verify-only']);
+  assert.equal(args.verifyOnly, true);
+  assert.equal(args.verify, true);
+});
+
+test('parseArgs rejects --verify-only combined with --no-verify', () => {
+  assert.throws(() => parseArgs(['--verify-only', '--no-verify']), /mutually exclusive/);
+});
+
 test('parseScenarioNames trims and drops empty entries', () => {
   assert.deepEqual(parseScenarioNames(' demo , pillar/tenant/owner ,,'), [
     'demo',
