@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateSnapshot, expectedChecks } from './pr-handoff-gate.mjs';
+import { evaluateSnapshot, expectedChecks, isRateLimitError } from './pr-handoff-gate.mjs';
 
 assert.deepEqual(expectedChecks(['apps/api/src/main.ts']), [
   'conflict-on-pr',
@@ -48,4 +48,9 @@ assert.match(
   evaluateSnapshot({ ...base, lastActivityMs: now - 1_000 }, now, 90_000).blockers.join(' '),
   /quiet period/,
 );
+assert.equal(isRateLimitError('API rate limit already exceeded for site ID installation.'), true);
+assert.equal(isRateLimitError('You have exceeded a secondary rate limit'), true);
+assert.equal(isRateLimitError('gh: pull request not found'), false);
+assert.equal(isRateLimitError(undefined), false);
+
 console.log('pr-handoff-gate tests passed');
