@@ -1,11 +1,15 @@
 'use client';
 
+import type { TenantResponseDto } from '@poc-plattform-kit/api-client';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { BrandMark } from '@/components/brand-mark';
-import { meKeys, useMe } from '@/features/auth/me';
+import { meKeys, useMe, type Me } from '@/features/auth/me';
 import { signIn, signOut } from '@/features/auth/auth-urls';
+import { CopyTenantIdButton } from '@/features/tenants/copy-tenant-id-button';
+import { OnboardingCard } from '@/features/onboarding/onboarding-card';
+import { dismissOnboarding, isOnboardingDismissed } from '@/features/onboarding/onboarding-store';
 
 /** Signed-out login surface (also used at `/` via HomeAuthGate). */
 export function LoginPanel() {
@@ -120,6 +124,46 @@ export function HomeAuthGate() {
   }
 
   return (
+    <SignedInHome
+      me={me}
+      signingOut={signingOut}
+      signOutError={signOutError}
+      onSignOut={() => void onSignOut()}
+    />
+  );
+}
+
+type SignedInHomeProps = {
+  me: Me;
+  signingOut: boolean;
+  signOutError: string | null;
+  onSignOut: () => void;
+};
+
+/**
+ * Signed-in home shell. Offers self-service tenant onboarding — see
+ * `apps/web/src/features/onboarding` — ahead of the existing admin console
+ * links, since `GET /api/me` does not yet expose tenant memberships to gate
+ * this more precisely (see `onboarding-store.ts`).
+ */
+function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeProps) {
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() =>
+    isOnboardingDismissed(me.id),
+  );
+  const [createdTenant, setCreatedTenant] = useState<TenantResponseDto | null>(null);
+
+  function handleOnboardingCreated(tenant: TenantResponseDto) {
+    dismissOnboarding(me.id);
+    setOnboardingDismissed(true);
+    setCreatedTenant(tenant);
+  }
+
+  function handleOnboardingDismiss() {
+    dismissOnboarding(me.id);
+    setOnboardingDismissed(true);
+  }
+
+  return (
     <main
       className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-6 pb-12 pt-[clamp(3rem,12vh,6rem)] text-center text-fg"
       data-testid="home-shell"
@@ -131,6 +175,29 @@ export function HomeAuthGate() {
       <p className="max-w-md text-base leading-relaxed text-fg-muted">
         Signed in as {me.email}. Manage tenants and support from here.
       </p>
+
+      {!onboardingDismissed ? (
+        <OnboardingCard onCreated={handleOnboardingCreated} onDismiss={handleOnboardingDismiss} />
+      ) : createdTenant ? (
+        <div
+          className="flex w-full max-w-md flex-col items-center gap-2 rounded border border-fg-subtle bg-bg-muted p-4 text-sm text-fg-muted"
+          data-testid="onboarding-success"
+        >
+          <p>
+            You&apos;re the owner of <strong className="text-fg">{createdTenant.name}</strong>.
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs" data-testid="onboarding-success-tenant-id">
+              {createdTenant.id}
+            </span>
+            <CopyTenantIdButton tenantId={createdTenant.id} />
+          </div>
+          <Link href="/tenant" className="text-accent underline-offset-2 hover:underline">
+            Manage your tenant
+          </Link>
+        </div>
+      ) : null}
+
       <nav aria-label="Primary" className="mt-2 flex flex-wrap justify-center gap-4">
         <Link
           className="inline-block rounded bg-accent px-6 py-3 font-semibold text-accent-on transition hover:-translate-y-0.5"
@@ -150,7 +217,7 @@ export function HomeAuthGate() {
         className="mt-4 text-sm text-fg-muted underline-offset-2 hover:text-accent hover:underline disabled:opacity-60"
         data-testid="login-sign-out"
         disabled={signingOut}
-        onClick={() => void onSignOut()}
+        onClick={onSignOut}
       >
         {signingOut ? 'Signing out…' : 'Sign out'}
       </button>

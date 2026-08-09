@@ -4,6 +4,7 @@ import { useMe } from '@/features/auth/me';
 import { signIn } from '@/features/auth/auth-urls';
 
 const invalidateQueries = jest.fn();
+const mutate = jest.fn();
 
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({
@@ -21,14 +22,63 @@ jest.mock('@/features/auth/auth-urls', () => ({
   signOut: jest.fn(),
 }));
 
+// The self-service onboarding card (rendered on the signed-in home shell)
+// reuses the generated create-tenant hook and JsonForms — stub both the
+// same way `tenant-create-drawer.test.tsx` / `onboarding-card.test.tsx` do
+// so this suite doesn't depend on live react-query / JsonForms internals.
+jest.mock('@poc-plattform-kit/api-client', () => ({
+  useTenantControllerCreate: (options: {
+    mutation?: { onSuccess?: (response: unknown) => void };
+  }) => ({
+    mutate: (variables: unknown) => {
+      mutate(variables);
+      options.mutation?.onSuccess?.({
+        data: { id: 't1', name: 'Acme', slug: 'acme' },
+      });
+    },
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
+jest.mock('@jsonforms/react', () => {
+  const actual = jest.requireActual('@jsonforms/react') as typeof import('@jsonforms/react');
+  return {
+    ...actual,
+    JsonForms: ({
+      data,
+      onChange,
+    }: {
+      data: Record<string, unknown>;
+      onChange: (event: { data: Record<string, unknown> }) => void;
+    }) => (
+      <div data-testid="jsonforms-stub">
+        <input
+          aria-label="Name"
+          value={String(data.name ?? '')}
+          onChange={(event) => onChange({ data: { ...data, name: event.target.value } })}
+        />
+        <input
+          aria-label="Slug"
+          value={String(data.slug ?? '')}
+          onChange={(event) => onChange({ data: { ...data, slug: event.target.value } })}
+        />
+      </div>
+    ),
+  };
+});
+
 const mockUseMe = useMe as jest.Mock;
 const mockSignIn = signIn as jest.Mock;
 
 describe('HomeAuthGate', () => {
   beforeEach(() => {
     mockSignIn.mockReset();
+    mutate.mockReset();
     invalidateQueries.mockReset();
     invalidateQueries.mockResolvedValue(undefined);
+    window.localStorage.clear();
   });
 
   it('shows a loading state while resolving the session', () => {
@@ -98,5 +148,91 @@ describe('HomeAuthGate', () => {
     expect(screen.getByTestId('home-shell')).toBeInTheDocument();
     expect(screen.getByTestId('brand-mark')).toHaveTextContent('Platform Kit.');
     expect(screen.getByTestId('login-sign-out')).toBeInTheDocument();
+  });
+
+  it('offers self-service onboarding on the home shell for a user with no known tenant', () => {
+    mockUseMe.mockReturnValue({
+      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<HomeAuthGate />);
+
+    expect(screen.getByTestId('onboarding-card')).toBeInTheDocument();
+    // Existing admin links stay reachable alongside onboarding.
+    expect(screen.getByRole('link', { name: 'Tenants' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Support' })).toBeInTheDocument();
+  });
+
+  it('lands the user in their new tenant as owner after self-service creation', async () => {
+    mockUseMe.mockReturnValue({
+      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<HomeAuthGate />);
+
+    fireEvent.click(screen.getByTestId('onboarding-create-open'));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByTestId('onboarding-create-submit'));
+
+    await waitFor(() => {
+      expect(mutate).toHaveBeenCalledWith({ data: { name: 'Acme', slug: undefined } });
+    });
+    expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onboarding-success')).toHaveTextContent('Acme');
+  });
+
+  it('dismisses onboarding without creating a tenant on "Not now"', () => {
+    mockUseMe.mockReturnValue({
+      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<HomeAuthGate />);
+    fireEvent.click(screen.getByTestId('onboarding-dismiss'));
+
+    expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('onboarding-success')).not.toBeInTheDocument();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('remembers onboarding was dismissed for the same user across remounts', () => {
+    mockUseMe.mockReturnValue({
+      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    const { unmount } = render(<HomeAuthGate />);
+    fireEvent.click(screen.getByTestId('onboarding-dismiss'));
+    unmount();
+
+    render(<HomeAuthGate />);
+
+    expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
+  });
+
+  it('still offers onboarding to a different user on the same browser', () => {
+    mockUseMe.mockReturnValue({
+      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+    const { unmount } = render(<HomeAuthGate />);
+    fireEvent.click(screen.getByTestId('onboarding-dismiss'));
+    unmount();
+
+    mockUseMe.mockReturnValue({
+      data: { id: 'user-2', email: 'b@b.co', name: 'B', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+    render(<HomeAuthGate />);
+
+    expect(screen.getByTestId('onboarding-card')).toBeInTheDocument();
   });
 });
