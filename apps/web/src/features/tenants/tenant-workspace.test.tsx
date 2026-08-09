@@ -174,6 +174,13 @@ describe('TenantWorkspace', () => {
     expect(screen.getByRole('dialog', { name: 'Create tenant' })).toBeInTheDocument();
   });
 
+  it('hides tenant creation when the page permission is restricted', () => {
+    render(<TenantWorkspace canCreate={false} />);
+
+    expect(screen.queryByTestId('tenant-create-open')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Create tenant' })).not.toBeInTheDocument();
+  });
+
   it('opens the details drawer when a tenant row is selected', () => {
     renderWorkspace();
 
