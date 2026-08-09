@@ -33,7 +33,7 @@ describe('TenantService', () => {
     };
     tenantAudit: { create: jest.Mock };
     tenantOutbox: { create: jest.Mock };
-    tenantMembership: { create: jest.Mock; findMany: jest.Mock };
+    tenantMembership: { create: jest.Mock; findMany: jest.Mock; count: jest.Mock };
   };
   let tenancy: TenancyContext;
   let service: TenantService;
@@ -49,7 +49,7 @@ describe('TenantService', () => {
       },
       tenantAudit: { create: jest.fn() },
       tenantOutbox: { create: jest.fn() },
-      tenantMembership: { create: jest.fn(), findMany: jest.fn() },
+      tenantMembership: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     };
     tenancy = new TenancyContext();
     service = new TenantService(prisma as never, tenancy);
@@ -430,6 +430,17 @@ describe('TenantService', () => {
       expect(prisma.tenantMembership.findMany).toHaveBeenCalledWith({
         where: { tenantId: 't1' },
         orderBy: { createdAt: 'asc' },
+      });
+    });
+  });
+
+  describe('countOwnedTenants', () => {
+    it('counts only owner-role memberships for the given user', async () => {
+      prisma.tenantMembership.count.mockResolvedValue(2);
+
+      await expect(service.countOwnedTenants('u1')).resolves.toBe(2);
+      expect(prisma.tenantMembership.count).toHaveBeenCalledWith({
+        where: { userId: 'u1', role: 'owner' },
       });
     });
   });

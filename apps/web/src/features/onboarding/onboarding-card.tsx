@@ -1,6 +1,9 @@
 'use client';
 
-import { useTenantControllerCreate, type TenantResponseDto } from '@poc-plattform-kit/api-client';
+import {
+  useTenantControllerCreateSelfService,
+  type TenantResponseDto,
+} from '@poc-plattform-kit/api-client';
 import { useState } from 'react';
 import { PlusIcon } from '@/components/icons';
 import { errorMessage, tenantPayload } from '@/features/tenants/api';
@@ -17,12 +20,16 @@ type OnboardingCardProps = {
  * Self-service "create your tenant" entry point for a signed-in user who
  * isn't a member of any tenant yet. Reuses the same `CreateTenantForm` /
  * validation schema as the admin-facing `TenantCreateDrawer`
- * (`apps/web/src/features/tenants`) and the same generated
- * `POST /tenants` hook, which already auto-assigns the caller as owner.
+ * (`apps/web/src/features/tenants`), but calls the generated
+ * `POST /tenants/self-service` hook -- not the admin `POST /tenants` hook,
+ * which is role-gated to support-agent/tenant-admin and 403s for a regular
+ * signed-in user. The self-service route requires only an authenticated
+ * session, auto-assigns the caller as owner, and is capped server-side
+ * (`SELF_SERVICE_TENANT_LIMIT`) -- see `TenantController.createSelfService`.
  */
 export function OnboardingCard({ onCreated, onDismiss }: OnboardingCardProps) {
   const [open, setOpen] = useState(false);
-  const mutation = useTenantControllerCreate({
+  const mutation = useTenantControllerCreateSelfService({
     mutation: {
       onSuccess: (response) => {
         const tenant = tenantPayload(response);

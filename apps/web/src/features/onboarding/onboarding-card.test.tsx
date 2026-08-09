@@ -9,7 +9,7 @@ let mutationState: {
 };
 
 jest.mock('@poc-plattform-kit/api-client', () => ({
-  useTenantControllerCreate: (options: {
+  useTenantControllerCreateSelfService: (options: {
     mutation?: { onSuccess?: (response: unknown) => void };
   }) => ({
     mutate: (variables: unknown) => {

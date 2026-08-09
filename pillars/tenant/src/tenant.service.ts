@@ -283,6 +283,15 @@ export class TenantService {
     });
   }
 
+  /**
+   * Count of tenants `userId` owns (an `owner`-role `TenantMembership` row).
+   * Used by the self-service creation route to enforce a per-user cap --
+   * see `TenantController.createSelfService`.
+   */
+  async countOwnedTenants(userId: string): Promise<number> {
+    return this.prisma.tenantMembership.count({ where: { userId, role: 'owner' } });
+  }
+
   private assertTenantAccess(id: string): void {
     const contextTenantId = this.tenancy.requireTenantId();
     if (contextTenantId !== id) {

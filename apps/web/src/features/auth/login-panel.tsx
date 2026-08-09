@@ -192,7 +192,10 @@ function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeP
             </span>
             <CopyTenantIdButton tenantId={createdTenant.id} />
           </div>
-          <Link href="/tenant" className="text-accent underline-offset-2 hover:underline">
+          <Link
+            href={`/tenant?tenantId=${encodeURIComponent(createdTenant.id)}`}
+            className="text-accent underline-offset-2 hover:underline"
+          >
             Manage your tenant
           </Link>
         </div>

@@ -23,11 +23,12 @@ jest.mock('@/features/auth/auth-urls', () => ({
 }));
 
 // The self-service onboarding card (rendered on the signed-in home shell)
-// reuses the generated create-tenant hook and JsonForms — stub both the
-// same way `tenant-create-drawer.test.tsx` / `onboarding-card.test.tsx` do
-// so this suite doesn't depend on live react-query / JsonForms internals.
+// reuses the generated create-tenant-self-service hook and JsonForms —
+// stub both the same way `tenant-create-drawer.test.tsx` /
+// `onboarding-card.test.tsx` do so this suite doesn't depend on live
+// react-query / JsonForms internals.
 jest.mock('@poc-plattform-kit/api-client', () => ({
-  useTenantControllerCreate: (options: {
+  useTenantControllerCreateSelfService: (options: {
     mutation?: { onSuccess?: (response: unknown) => void };
   }) => ({
     mutate: (variables: unknown) => {
@@ -183,6 +184,12 @@ describe('HomeAuthGate', () => {
     });
     expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
     expect(screen.getByTestId('onboarding-success')).toHaveTextContent('Acme');
+    // Carries the newly-created tenant's id into /tenant so the settings
+    // page's lookup form doesn't need it copy/pasted in manually.
+    expect(screen.getByRole('link', { name: 'Manage your tenant' })).toHaveAttribute(
+      'href',
+      '/tenant?tenantId=t1',
+    );
   });
 
   it('dismisses onboarding without creating a tenant on "Not now"', () => {
