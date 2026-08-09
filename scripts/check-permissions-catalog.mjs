@@ -15,6 +15,7 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const MANIFEST_REL = 'infra/openfga/permissions.manifest.json';
 const API_MANIFEST_REL = 'apps/api/src/permissions/permissions.manifest.json';
 const MODEL_FGA_REL = 'infra/openfga/model.fga';
+const MODEL_JSON_REL = 'infra/openfga/model.json';
 const GUARD_REL = 'apps/api/src/permissions/permissions.guard.ts';
 const ROUTE_MODULE_REL = 'apps/api/src/permissions/route-permissions.ts';
 
@@ -90,6 +91,17 @@ export function validateManifestShape(raw) {
     if (row.resourceIdParam != null && typeof row.resourceIdParam !== 'string') {
       throw new Error(`${label}: resourceIdParam must be a string when set`);
     }
+    if (row.resourceObjectId != null && typeof row.resourceObjectId !== 'string') {
+      throw new Error(`${label}: resourceObjectId must be a string when set`);
+    }
+    const hasParam = typeof row.resourceIdParam === 'string' && row.resourceIdParam.trim();
+    const hasObjectId = typeof row.resourceObjectId === 'string' && row.resourceObjectId.trim();
+    if (!hasParam && !hasObjectId) {
+      throw new Error(`${label}: set resourceIdParam or resourceObjectId`);
+    }
+    if (hasParam && !String(row.path).includes(`:${row.resourceIdParam}`)) {
+      throw new Error(`${label}: path "${row.path}" does not include :${row.resourceIdParam}`);
+    }
 
     const id = /** @type {string} */ (row.id);
     if (ids.has(id)) {
@@ -110,26 +122,44 @@ export function validateManifestShape(raw) {
 /**
  * @param {PermissionsManifest} manifest
  * @param {Map<string, Set<string>>} modelRelations
+ * @param {string} sourceLabel
  */
-export function assertManifestMatchesModel(manifest, modelRelations) {
+export function assertManifestMatchesModel(manifest, modelRelations, sourceLabel = MODEL_FGA_REL) {
   const errors = [];
   for (const entry of manifest.entries) {
     const relations = modelRelations.get(entry.resourceType);
     if (!relations) {
       errors.push(
-        `manifest entry "${entry.id}": resourceType "${entry.resourceType}" is not a type in ${MODEL_FGA_REL}`,
+        `manifest entry "${entry.id}": resourceType "${entry.resourceType}" is not a type in ${sourceLabel}`,
       );
       continue;
     }
     if (!relations.has(entry.action)) {
       errors.push(
-        `manifest entry "${entry.id}": action "${entry.action}" is not defined on type "${entry.resourceType}" in ${MODEL_FGA_REL}`,
+        `manifest entry "${entry.id}": action "${entry.action}" is not defined on type "${entry.resourceType}" in ${sourceLabel}`,
       );
     }
   }
   if (errors.length) {
     throw new Error(errors.join('\n'));
   }
+}
+
+/**
+ * Parse committed model.json type_definitions → relation names.
+ * @param {object} modelJson
+ * @returns {Map<string, Set<string>>}
+ */
+export function parseModelJsonRelations(modelJson) {
+  /** @type {Map<string, Set<string>>} */
+  const types = new Map();
+  for (const typeDef of modelJson?.type_definitions ?? []) {
+    if (!typeDef?.type || typeof typeDef.relations !== 'object' || !typeDef.relations) {
+      continue;
+    }
+    types.set(typeDef.type, new Set(Object.keys(typeDef.relations)));
+  }
+  return types;
 }
 
 /**
@@ -195,7 +225,9 @@ export function checkPermissionsCatalog(root = ROOT) {
 
   const manifest = validateManifestShape(JSON.parse(infraRaw));
   const modelRelations = parseModelFgaRelations(readFileSync(modelPath, 'utf8'));
-  assertManifestMatchesModel(manifest, modelRelations);
+  assertManifestMatchesModel(manifest, modelRelations, MODEL_FGA_REL);
+  const modelJson = JSON.parse(readFileSync(resolve(root, MODEL_JSON_REL), 'utf8'));
+  assertManifestMatchesModel(manifest, parseModelJsonRelations(modelJson), MODEL_JSON_REL);
   assertGuardUsesManifest(readFileSync(guardPath, 'utf8'), readFileSync(routeModulePath, 'utf8'));
 
   console.log(

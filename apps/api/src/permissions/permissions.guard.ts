@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PermissionsService } from '@poc-plattform-kit/pillar-permissions';
 import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
-import { matchRoutePermission } from './route-permissions';
+import { matchRoutePermission, PermissionMappingError } from './route-permissions';
 
 interface PermissionRequest {
   method: string;
@@ -29,7 +29,15 @@ export class PermissionsGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<PermissionRequest>();
-    const permission = matchRoutePermission(request);
+    let permission: { action: string; resource: string } | null;
+    try {
+      permission = matchRoutePermission(request);
+    } catch (error) {
+      if (error instanceof PermissionMappingError) {
+        throw new ForbiddenException(error.message);
+      }
+      throw error;
+    }
     if (!permission) {
       return true;
     }

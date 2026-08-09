@@ -49,13 +49,15 @@ test('validateManifestShape rejects duplicates', () => {
             path: '/tenants/:id',
             action: 'update',
             resourceType: 'tenant',
+            resourceIdParam: 'id',
           },
           {
             id: 'a',
             method: 'GET',
-            path: '/other',
+            path: '/other/:id',
             action: 'read',
             resourceType: 'tenant',
+            resourceIdParam: 'id',
           },
         ],
       }),
@@ -73,6 +75,7 @@ test('assertManifestMatchesModel fails on missing relation', () => {
         path: '/tenants/:id',
         action: 'delete',
         resourceType: 'tenant',
+        resourceIdParam: 'id',
       },
     ],
   });
@@ -94,7 +97,7 @@ test('assertGuardUsesManifest requires shared matcher', () => {
   assert.doesNotThrow(() =>
     assertGuardUsesManifest(
       `import { matchRoutePermission } from './route-permissions';\nmatchRoutePermission(req);`,
-      `export const PERMISSIONS_MANIFEST_RELATIVE = join('infra','openfga','permissions.manifest.json');`,
+      `export const PERMISSIONS_MANIFEST_RELATIVE = 'infra/openfga/permissions.manifest.json';\npermissions.manifest.json`,
     ),
   );
 });

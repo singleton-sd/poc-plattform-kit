@@ -1,4 +1,8 @@
-import { matchRoutePermission, type RoutePermissionEntry } from './route-permissions';
+import {
+  matchRoutePermission,
+  PermissionMappingError,
+  type RoutePermissionEntry,
+} from './route-permissions';
 
 describe('matchRoutePermission', () => {
   const entries: RoutePermissionEntry[] = [
@@ -9,6 +13,14 @@ describe('matchRoutePermission', () => {
       action: 'update',
       resourceType: 'tenant',
       resourceIdParam: 'id',
+    },
+    {
+      id: 'tenant.read-platform',
+      method: 'GET',
+      path: '/tenants/platform',
+      action: 'read',
+      resourceType: 'tenant',
+      resourceObjectId: 'platform',
     },
   ];
 
@@ -25,8 +37,8 @@ describe('matchRoutePermission', () => {
     ).toEqual({ action: 'update', resource: 'tenant:t-1' });
   });
 
-  it('returns null when the id param is missing', () => {
-    expect(
+  it('fails closed when the id param is missing', () => {
+    expect(() =>
       matchRoutePermission(
         {
           method: 'PATCH',
@@ -35,7 +47,16 @@ describe('matchRoutePermission', () => {
         },
         entries,
       ),
-    ).toBeNull();
+    ).toThrow(PermissionMappingError);
+  });
+
+  it('maps parameterless routes via resourceObjectId', () => {
+    expect(
+      matchRoutePermission(
+        { method: 'GET', route: { path: '/tenants/platform' }, params: {} },
+        entries,
+      ),
+    ).toEqual({ action: 'read', resource: 'tenant:platform' });
   });
 
   it('returns null for unmapped routes', () => {

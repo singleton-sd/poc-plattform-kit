@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
 export interface RoutePermissionEntry {
   id: string;
@@ -7,13 +7,23 @@ export interface RoutePermissionEntry {
   path: string;
   action: string;
   resourceType: string;
+  /** Nest `params` key; required unless `resourceObjectId` is set. */
   resourceIdParam?: string;
+  /** Literal OpenFGA object id when the route has no path param (e.g. singleton). */
+  resourceObjectId?: string;
   notes?: string;
 }
 
 export interface PermissionsManifest {
   version: number;
   entries: RoutePermissionEntry[];
+}
+
+export class PermissionMappingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermissionMappingError';
+  }
 }
 
 /** Canonical catalog (CI / register). Runtime Nest copy lives beside this module. */
@@ -29,56 +39,35 @@ export const API_PERMISSIONS_MANIFEST_RELATIVE = join(
 
 let cachedEntries: RoutePermissionEntry[] | null = null;
 
-export function findRepoRoot(startDir: string = process.cwd()): string {
-  let dir = startDir;
-  for (;;) {
-    if (existsSync(join(dir, 'pnpm-workspace.yaml'))) {
-      return dir;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) {
-      throw new Error(`Could not find repo root (pnpm-workspace.yaml) walking up from ${startDir}`);
-    }
-    dir = parent;
-  }
-}
-
 /**
  * Prefer the Nest-bundled copy next to this module (works in ACA `/app` images).
- * Fall back to repo-root paths for local scripts / monorepo cwd layouts.
+ * Never walks for a monorepo root — that breaks Docker/App Service layouts.
  */
-export function resolvePermissionsManifestPath(repoRoot?: string): string {
+export function resolvePermissionsManifestPath(): string {
   const besideModule = join(__dirname, 'permissions.manifest.json');
   if (existsSync(besideModule)) {
     return besideModule;
   }
-
-  const root = repoRoot ?? findRepoRoot();
-  const apiCopy = join(root, API_PERMISSIONS_MANIFEST_RELATIVE);
-  if (existsSync(apiCopy)) {
-    return apiCopy;
-  }
-  return join(root, PERMISSIONS_MANIFEST_RELATIVE);
+  throw new PermissionMappingError(
+    `permissions.manifest.json missing beside ${__dirname} (Nest asset copy / image packaging)`,
+  );
 }
 
-export function loadPermissionsManifest(repoRoot?: string): PermissionsManifest {
-  const path = resolvePermissionsManifestPath(repoRoot);
+export function loadPermissionsManifest(): PermissionsManifest {
+  const path = resolvePermissionsManifestPath();
   const raw = JSON.parse(readFileSync(path, 'utf8')) as PermissionsManifest;
   if (!raw || !Array.isArray(raw.entries)) {
-    throw new Error(`${path}: missing entries array`);
+    throw new PermissionMappingError(`${path}: missing entries array`);
   }
   return raw;
 }
 
-export function getRoutePermissionEntries(repoRoot?: string): RoutePermissionEntry[] {
-  if (!repoRoot && cachedEntries) {
+export function getRoutePermissionEntries(): RoutePermissionEntry[] {
+  if (cachedEntries) {
     return cachedEntries;
   }
-  const entries = loadPermissionsManifest(repoRoot).entries;
-  if (!repoRoot) {
-    cachedEntries = entries;
-  }
-  return entries;
+  cachedEntries = loadPermissionsManifest().entries;
+  return cachedEntries;
 }
 
 /** Test helper — clear the process-local cache. */
@@ -111,7 +100,9 @@ export function matchRoutePermission(
   if (entry.resourceIdParam) {
     const id = request.params?.[entry.resourceIdParam];
     if (!id) {
-      return null;
+      throw new PermissionMappingError(
+        `Permission "${entry.id}" requires params.${entry.resourceIdParam} for ${method} ${path}`,
+      );
     }
     return {
       action: entry.action,
@@ -119,8 +110,14 @@ export function matchRoutePermission(
     };
   }
 
-  return {
-    action: entry.action,
-    resource: entry.resourceType,
-  };
+  if (entry.resourceObjectId) {
+    return {
+      action: entry.action,
+      resource: `${entry.resourceType}:${entry.resourceObjectId}`,
+    };
+  }
+
+  throw new PermissionMappingError(
+    `Permission "${entry.id}" must set resourceIdParam or resourceObjectId`,
+  );
 }
