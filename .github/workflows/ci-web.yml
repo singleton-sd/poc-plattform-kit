@@ -80,6 +80,7 @@ jobs:
       - name: Build (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run build
+          pnpm --filter @poc-plattform-kit/web run build-storybook
           pnpm --filter @poc-plattform-kit/marketing... run build
           pnpm --filter @poc-plattform-kit/marketing-oauth... run build
 

@@ -4,6 +4,7 @@ dist-ssr/
 .astro/
 .next/
 out/
+storybook-static/
 next-env.d.ts
 .turbo/
 coverage/
