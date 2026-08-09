@@ -130,11 +130,11 @@ export function parseSwaPrPreviewOrigin(origin) {
  */
 export function sweepSpaPrPreviewRedirects(uris, openPrNumbers, expectedRegion = '') {
   const open = new Set(
-    [...openPrNumbers]
-      .map((n) => String(n).trim())
-      .filter((n) => /^\d+$/.test(n)),
+    [...openPrNumbers].map((n) => String(n).trim()).filter((n) => /^\d+$/.test(n)),
   );
-  const regionFilter = String(expectedRegion ?? '').trim().toLowerCase();
+  const regionFilter = String(expectedRegion ?? '')
+    .trim()
+    .toLowerCase();
   const list = Array.isArray(uris) ? uris : [];
   /** @type {string[]} */
   const next = [];
