@@ -18,25 +18,31 @@ const CHANGE_TYPES = {
 export function clientFacingChanges(messages) {
   return messages.flatMap((message) => {
     const [subject = '', ...bodyLines] = message.split('\n');
-    const match = subject.match(/^(feat|fix|perf)(?:\([^)]*\))?!?:\s*(.+)$/i);
-    if (!match) return [];
+    const match = subject.match(/^([a-z]+)(?:\([^)]*\))?(!)?:\s*(.+)$/i);
+    const breakingFooter = message.match(/^BREAKING CHANGE:\s*(.+)$/im)?.[1]?.trim();
+    const isBreaking = Boolean(match?.[2] || breakingFooter);
+    if (!match || (!isBreaking && !Object.hasOwn(CHANGE_TYPES, match[1].toLowerCase()))) {
+      return [];
+    }
 
-    const summary = match[2]
+    const summary = match[3]
       .replace(/^[A-Z]{1,5}-\d+\s+/, '')
       .replace(/^86[a-z0-9]+\s+/i, '')
       .trim();
-    const reason = bodyLines
-      .map((line) => line.trim())
-      .filter(
-        (line) =>
-          line &&
-          !line.startsWith('-') &&
-          !/^(breaking change|closes|fixes|refs|co-authored-by):/i.test(line),
-      )[0];
+    const reason =
+      breakingFooter ??
+      bodyLines
+        .map((line) => line.trim())
+        .filter(
+          (line) =>
+            line &&
+            !/^(?:[-*+]\s+|\d+\.\s+|#{1,6}\s+)/.test(line) &&
+            !/^(breaking change|closes|fixes|refs|co-authored-by):/i.test(line),
+        )[0];
 
     return [
       {
-        type: CHANGE_TYPES[match[1].toLowerCase()],
+        type: isBreaking ? 'Breaking' : CHANGE_TYPES[match[1].toLowerCase()],
         summary,
         ...(reason ? { reason } : {}),
       },

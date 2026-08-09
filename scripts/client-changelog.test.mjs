@@ -23,6 +23,36 @@ test('turns releasable conventional commits into public changes', () => {
   );
 });
 
+test('keeps breaking changes regardless of conventional commit type', () => {
+  assert.deepEqual(
+    clientFacingChanges([
+      'refactor(api)!: Replace legacy identifiers\n\nUse stable tenant IDs instead.',
+      'chore: Remove deprecated endpoint\n\nBREAKING CHANGE: Clients must use /v2/items.',
+    ]),
+    [
+      {
+        type: 'Breaking',
+        summary: 'Replace legacy identifiers',
+        reason: 'Use stable tenant IDs instead.',
+      },
+      {
+        type: 'Breaking',
+        summary: 'Remove deprecated endpoint',
+        reason: 'Clients must use /v2/items.',
+      },
+    ],
+  );
+});
+
+test('ignores Markdown structure when selecting explanatory prose', () => {
+  assert.deepEqual(
+    clientFacingChanges([
+      'feat: Add tenant search\n\n* feat: Add search input\n# Notes\nFind tenants faster.',
+    ]),
+    [{ type: 'New', summary: 'Add tenant search', reason: 'Find tenants faster.' }],
+  );
+});
+
 test('prepends and limits generated product releases', () => {
   const root = mkdtempSync(join(tmpdir(), 'client-changelog-'));
   const releases = Array.from({ length: 21 }, (_, index) => ({
