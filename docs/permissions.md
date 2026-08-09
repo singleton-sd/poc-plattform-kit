@@ -7,7 +7,8 @@ Fine-grained AuthZ lives in the **Permissions** pillar (`Check(subject, action, 
 | Artifact | Role |
 | --- | --- |
 | [`infra/openfga/model.fga`](../infra/openfga/model.fga) (+ `model.json`) | Authorization model (types / relations / conditions) |
-| [`infra/openfga/permissions.manifest.json`](../infra/openfga/permissions.manifest.json) | API route → `{action, resourceType}` mappings consumed by `PermissionsGuard` |
+| [`infra/openfga/permissions.manifest.json`](../infra/openfga/permissions.manifest.json) | Catalog source of truth (CI / register) |
+| [`apps/api/src/permissions/permissions.manifest.json`](../apps/api/src/permissions/permissions.manifest.json) | Nest/ACA runtime copy (must stay identical; bundled into `dist`) |
 | [`apps/api/src/permissions/route-permissions.ts`](../apps/api/src/permissions/route-permissions.ts) | Loads the manifest and resolves Nest `method` + `route.path` (+ param id) |
 
 ## Adding a new resource / action

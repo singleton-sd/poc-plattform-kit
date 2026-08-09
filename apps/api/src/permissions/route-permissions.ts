@@ -16,7 +16,18 @@ export interface PermissionsManifest {
   entries: RoutePermissionEntry[];
 }
 
+/** Canonical catalog (CI / register). Runtime Nest copy lives beside this module. */
 export const PERMISSIONS_MANIFEST_RELATIVE = join('infra', 'openfga', 'permissions.manifest.json');
+
+export const API_PERMISSIONS_MANIFEST_RELATIVE = join(
+  'apps',
+  'api',
+  'src',
+  'permissions',
+  'permissions.manifest.json',
+);
+
+let cachedEntries: RoutePermissionEntry[] | null = null;
 
 export function findRepoRoot(startDir: string = process.cwd()): string {
   let dir = startDir;
@@ -32,14 +43,47 @@ export function findRepoRoot(startDir: string = process.cwd()): string {
   }
 }
 
-export function loadPermissionsManifest(repoRoot?: string): PermissionsManifest {
+/**
+ * Prefer the Nest-bundled copy next to this module (works in ACA `/app` images).
+ * Fall back to repo-root paths for local scripts / monorepo cwd layouts.
+ */
+export function resolvePermissionsManifestPath(repoRoot?: string): string {
+  const besideModule = join(__dirname, 'permissions.manifest.json');
+  if (existsSync(besideModule)) {
+    return besideModule;
+  }
+
   const root = repoRoot ?? findRepoRoot();
-  const path = join(root, PERMISSIONS_MANIFEST_RELATIVE);
+  const apiCopy = join(root, API_PERMISSIONS_MANIFEST_RELATIVE);
+  if (existsSync(apiCopy)) {
+    return apiCopy;
+  }
+  return join(root, PERMISSIONS_MANIFEST_RELATIVE);
+}
+
+export function loadPermissionsManifest(repoRoot?: string): PermissionsManifest {
+  const path = resolvePermissionsManifestPath(repoRoot);
   const raw = JSON.parse(readFileSync(path, 'utf8')) as PermissionsManifest;
   if (!raw || !Array.isArray(raw.entries)) {
-    throw new Error(`${PERMISSIONS_MANIFEST_RELATIVE}: missing entries array`);
+    throw new Error(`${path}: missing entries array`);
   }
   return raw;
+}
+
+export function getRoutePermissionEntries(repoRoot?: string): RoutePermissionEntry[] {
+  if (!repoRoot && cachedEntries) {
+    return cachedEntries;
+  }
+  const entries = loadPermissionsManifest(repoRoot).entries;
+  if (!repoRoot) {
+    cachedEntries = entries;
+  }
+  return entries;
+}
+
+/** Test helper — clear the process-local cache. */
+export function clearRoutePermissionCache(): void {
+  cachedEntries = null;
 }
 
 export function matchRoutePermission(
@@ -50,7 +94,7 @@ export function matchRoutePermission(
   },
   entries?: RoutePermissionEntry[],
 ): { action: string; resource: string } | null {
-  const list = entries ?? loadPermissionsManifest().entries;
+  const list = entries ?? getRoutePermissionEntries();
   const method = (request.method ?? '').toUpperCase();
   const path = request.route?.path;
   if (!method || !path) {

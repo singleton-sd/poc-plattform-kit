@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "tenant.patch-by-id",
+      "method": "PATCH",
+      "path": "/tenants/:id",
+      "action": "update",
+      "resourceType": "tenant",
+      "resourceIdParam": "id",
+      "notes": "PermissionsGuard maps PATCH /tenants/:id → Check(user:<id>, update, tenant:<id>)"
+    }
+  ]
+}

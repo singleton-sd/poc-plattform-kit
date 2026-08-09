@@ -15,6 +15,7 @@ import { parseModelFgaRelations } from './check-permissions-catalog.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const MANIFEST_REL = 'infra/openfga/permissions.manifest.json';
+const API_MANIFEST_REL = 'apps/api/src/permissions/permissions.manifest.json';
 const MODEL_FGA_REL = 'infra/openfga/model.fga';
 const MODEL_JSON_REL = 'infra/openfga/model.json';
 
@@ -213,6 +214,7 @@ export function registerPermission({ root = ROOT, args }) {
   const apply = Boolean(args.apply);
 
   const manifestPath = resolve(root, MANIFEST_REL);
+  const apiManifestPath = resolve(root, API_MANIFEST_REL);
   const modelFgaPath = resolve(root, MODEL_FGA_REL);
   const modelJsonPath = resolve(root, MODEL_JSON_REL);
 
@@ -252,6 +254,7 @@ export function registerPermission({ root = ROOT, args }) {
   }
 
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  writeFileSync(apiManifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   if (fgaPlan.changed) {
     writeFileSync(
       modelFgaPath,

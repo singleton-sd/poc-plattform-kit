@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const MANIFEST_REL = 'infra/openfga/permissions.manifest.json';
+const API_MANIFEST_REL = 'apps/api/src/permissions/permissions.manifest.json';
 const MODEL_FGA_REL = 'infra/openfga/model.fga';
 const GUARD_REL = 'apps/api/src/permissions/permissions.guard.ts';
 const ROUTE_MODULE_REL = 'apps/api/src/permissions/route-permissions.ts';
@@ -142,8 +143,10 @@ export function assertGuardUsesManifest(guardSource, routeModuleSource) {
       `${ROUTE_MODULE_REL}: expected load path constant PERMISSIONS_MANIFEST_RELATIVE`,
     );
   }
-  if (!routeModuleSource.includes(MANIFEST_REL.replace(/\\/g, '/'))) {
-    // Windows join may use backslash in source — accept either form in the constant usage.
+  if (!routeModuleSource.includes('permissions.manifest.json')) {
+    throw new Error(
+      `${ROUTE_MODULE_REL}: must resolve a permissions.manifest.json beside the Nest module for ACA images`,
+    );
   }
   if (
     !guardSource.includes("from './route-permissions'") &&
@@ -162,15 +165,35 @@ export function assertGuardUsesManifest(guardSource, routeModuleSource) {
 }
 
 /**
+ * Infra + Nest copies of the manifest must stay identical (register updates both).
+ * @param {string} infraRaw
+ * @param {string} apiRaw
+ */
+export function assertManifestCopiesInSync(infraRaw, apiRaw) {
+  const infra = JSON.stringify(JSON.parse(infraRaw));
+  const api = JSON.stringify(JSON.parse(apiRaw));
+  if (infra !== api) {
+    throw new Error(
+      `${MANIFEST_REL} and ${API_MANIFEST_REL} diverge — keep them identical so Nest/ACA ships the same catalog`,
+    );
+  }
+}
+
+/**
  * @param {string} [root]
  */
 export function checkPermissionsCatalog(root = ROOT) {
   const manifestPath = resolve(root, MANIFEST_REL);
+  const apiManifestPath = resolve(root, API_MANIFEST_REL);
   const modelPath = resolve(root, MODEL_FGA_REL);
   const guardPath = resolve(root, GUARD_REL);
   const routeModulePath = resolve(root, ROUTE_MODULE_REL);
 
-  const manifest = validateManifestShape(JSON.parse(readFileSync(manifestPath, 'utf8')));
+  const infraRaw = readFileSync(manifestPath, 'utf8');
+  const apiRaw = readFileSync(apiManifestPath, 'utf8');
+  assertManifestCopiesInSync(infraRaw, apiRaw);
+
+  const manifest = validateManifestShape(JSON.parse(infraRaw));
   const modelRelations = parseModelFgaRelations(readFileSync(modelPath, 'utf8'));
   assertManifestMatchesModel(manifest, modelRelations);
   assertGuardUsesManifest(readFileSync(guardPath, 'utf8'), readFileSync(routeModulePath, 'utf8'));
