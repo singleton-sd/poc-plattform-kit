@@ -84,6 +84,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.pr.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           gh_api_retry() {
@@ -106,7 +107,8 @@ jobs:
           gh_api_retry -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
             -f state=pending \
             -f context=pr-handoff-gate \
-            -f description='Waiting for CI and reviewer quiet period' >/dev/null
+            -f description='Waiting for CI and reviewer quiet period' \
+            -f target_url="$RUN_URL" >/dev/null
 
       - name: Check out trusted gate implementation
         uses: actions/checkout@v4
@@ -152,12 +154,28 @@ jobs:
             done
           }
           if [ "$OUTCOME" = cancelled ]; then
-            # cancel-in-progress cancelled this run because a newer event for
-            # the same PR superseded it — that newer run will publish its own
-            # result. Posting failure here would just be a stale false
-            # negative racing against the real outcome.
-            echo 'Gate run superseded by a newer event for this PR; leaving the status to that run.'
-            exit 0
+            # cancel-in-progress cancels this run when a newer event for the
+            # same PR supersedes it, and that newer run posts its own
+            # "pending" (with its own target_url) within seconds of starting.
+            # But `cancelled` is also the generic outcome for e.g. a manual
+            # cancellation with no replacement run coming — so confirm a
+            # newer run actually took over before staying silent; otherwise
+            # the required check would hang on "pending" forever.
+            superseded=false
+            for _ in 1 2 3 4; do
+              CURRENT_URL=$(gh_api_retry "repos/$GITHUB_REPOSITORY/commits/$SHA/status" \
+                --jq '([.statuses[] | select(.context == "pr-handoff-gate")] | first).target_url // ""')
+              if [ -n "$CURRENT_URL" ] && [ "$CURRENT_URL" != "$RUN_URL" ]; then
+                superseded=true
+                break
+              fi
+              sleep 5
+            done
+            if [ "$superseded" = true ]; then
+              echo "Gate run superseded by a newer run ($CURRENT_URL) for this PR; leaving the status to that run."
+              exit 0
+            fi
+            echo 'Gate run was cancelled but no newer run was found for this PR; publishing a terminal failure instead of leaving the check pending forever.'
           fi
           if [ "$OUTCOME" = success ]; then
             STATE=success
