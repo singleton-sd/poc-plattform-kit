@@ -1,17 +1,108 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/marketing/Hero.astro';
+import SplitContent from '../components/marketing/SplitContent.astro';
+import FeatureGrid from '../components/marketing/FeatureGrid.astro';
+import ContactStrip from '../components/marketing/ContactStrip.astro';
+import CtaBanner from '../components/marketing/CtaBanner.astro';
 import PageContainer from '../components/shell/PageContainer.astro';
+import { appCta } from '../lib/nav';
+import type { FeatureItem } from '../lib/marketing-types';
+
+const values: FeatureItem[] = [
+  {
+    title: 'Open Source First',
+    description:
+      'We believe core system infrastructure should be completely auditable, transparent, and built collaboratively.',
+    icon: 'github',
+  },
+  {
+    title: 'Design-Driven Development',
+    description:
+      'Figma tokens and codebase variables are linked directly. Changes inside the canvas propagate straight to your production environments.',
+    icon: 'database',
+  },
+  {
+    title: 'Developer Experience',
+    description:
+      'Tools should disappear under your fingers. Platform Kit focuses deeply on fast local sandboxing and hyper-responsive interfaces.',
+    icon: 'zap',
+  },
+];
 ---
 
 <BaseLayout
   title="About — Platform Kit"
-  description="About Platform Kit. Full page content lands in a follow-up ticket."
+  description="Singleton Software Development builds next-generation architecture to solve SaaS multi-tenancy once and for all."
 >
-  <PageContainer class="py-16 md:py-24">
-    <p class="m-0 mb-3 text-body-sm font-semibold uppercase tracking-wide text-accent">About</p>
-    <h1 class="m-0 font-heading text-h1 text-fg">About Platform Kit</h1>
-    <p class="mt-4 m-0 max-w-2xl text-base leading-relaxed text-fg-muted">
-      Placeholder route for the shared shell. Full About page content is tracked separately.
-    </p>
-  </PageContainer>
+  <Hero
+    eyebrow="About"
+    headline="Singleton Software Development"
+    subheadline="We are a team of distributed software engineers and designers building next-generation architecture to solve SaaS multi-tenancy once and for all."
+  />
+
+  <SplitContent
+    title="Our mission"
+    body="We believe developers should focus on the core value of their application, not re-architecting isolation boundaries and database configurations. We build tools that help software groups deploy robust structural foundations in minutes."
+    bullets={[
+      'Unified design token delivery system',
+      'Uncompromising isolation SLAs',
+      'Standardized Next.js and Tailwind blocks',
+    ]}
+    imageSrc="/images/about/mission.png"
+    imageAlt="Abstract geometric gateway representing structural foundations for multi-tenant software"
+    imageLoading="eager"
+  />
+
+  <section class="bg-bg-muted py-16 md:py-20">
+    <PageContainer class="space-y-10">
+      <div class="max-w-3xl space-y-4">
+        <p class="m-0 text-body-sm font-bold uppercase tracking-wide text-accent">
+          The platform
+        </p>
+        <h2 class="m-0 font-heading text-h2 text-fg">Platform Kit Overview</h2>
+        <p class="m-0 text-base leading-relaxed text-fg-muted">
+          Designed to serve as a single source of truth for cross-platform software
+          groups. Platform Kit consolidates design system tokens, query routing
+          logic, schema-driven admin forms, and multitenant environments into a
+          single coherent system built exclusively on TypeScript.
+        </p>
+      </div>
+      <div
+        class="overflow-hidden rounded-xl border border-border bg-bg"
+      >
+        <img
+          src="/images/about/platform-overview.png"
+          alt="Isometric circuit-board illustration of Platform Kit architecture"
+          width={1536}
+          height={672}
+          loading="lazy"
+          decoding="async"
+          class="h-auto w-full object-cover"
+        />
+      </div>
+    </PageContainer>
+  </section>
+
+  <FeatureGrid
+    eyebrow="Core values"
+    title="How we approach software"
+    features={values}
+    align="center"
+  />
+
+  <ContactStrip
+    title="Have questions about Platform Kit or our SLA guidelines?"
+    cta={{ label: 'Visit Contact Page', href: '/contact' }}
+    email={{
+      label: 'Email us: support@singletonsd.com',
+      href: 'mailto:support@singletonsd.com',
+    }}
+  />
+
+  <CtaBanner
+    title="Consolidate your multi-tenant stack"
+    description="Adopt the design tokens and structural framework configured dynamically by modern software groups."
+    cta={{ label: 'Get started free', href: appCta.href }}
+  />
 </BaseLayout>
