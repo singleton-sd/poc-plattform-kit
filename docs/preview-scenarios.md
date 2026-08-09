@@ -168,9 +168,9 @@ start (`apps/api/docker-entrypoint.sh`) before Nest starts serving traffic.
 See [`AGENTS.md`](../AGENTS.md) § "Preview scenario delivery standard" for
 the full requirement and enforcement (`validate-preview-scenarios.yml`).
 The declaration is a plain, visible `Preview scenarios:` line in the PR
-body — not an HTML comment, since some tooling used to open PRs in this
-repo strips HTML comments before saving, which would silently break a
-hidden-comment convention. Examples:
+body — not an HTML comment, so it's easy for a human reviewer to spot and
+doesn't depend on a hidden comment surviving whatever tool opened or
+edited the PR. Examples:
 
 **A feature/pillar PR:**
 

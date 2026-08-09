@@ -233,7 +233,7 @@ Read curated skills under `.cursor/skills/` before coding (backend, frontend, te
 
 Ephemeral API PR previews run against an isolated, disposable **SQLite** database seeded from named **preview scenarios** — see [`docs/preview-scenarios.md`](docs/preview-scenarios.md) for the full framework (registry, catalog, naming convention, CLI). This is the delivery requirement layered on top of it.
 
-**A PR touching `apps/api/**`, `pillars/**`, or `packages/db/**` must declare its preview scenarios as a plain, visible line in the PR body** (not an HTML comment — some tooling used to open PRs in this repo strips HTML comments from the body before saving, so a hidden-comment convention silently never round-trips):
+**A PR touching `apps/api/**`, `pillars/**`, or `packages/db/**` must declare its preview scenarios as a plain, visible line in the PR body** (not an HTML comment — easier for a human reviewer to spot, and doesn't depend on a hidden comment surviving whatever tool opened/edited the PR):
 
 ```text
 Preview scenarios: pillar/tenant/settings, feature/my-feature/happy-path

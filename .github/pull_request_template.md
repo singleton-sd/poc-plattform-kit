@@ -12,11 +12,11 @@ preview data (docs, CI/workflow-only, infra-only, a pure refactor):
 
   Preview scenarios: not-applicable — CI workflow tweak only, no data model or endpoint change
 
-This must be a plain, visible line (not an HTML comment) — some tooling used
-to open PRs in this repo strips HTML comments from the body before saving.
-CI (validate-preview-scenarios.yml) rejects a PR that touches those paths
-without this line filled in, an unknown scenario name, or a scenario that
-fails to seed.
+This must be a plain, visible line (not an HTML comment) — easier for a
+human reviewer to spot, and doesn't depend on a hidden comment surviving
+whatever tool opened or edited the PR. CI (validate-preview-scenarios.yml)
+rejects a PR that touches those paths without this line filled in, an
+unknown scenario name, or a scenario that fails to seed.
 -->
 
 ## Summary

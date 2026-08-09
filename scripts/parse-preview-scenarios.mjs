@@ -6,12 +6,13 @@
 //   Preview scenarios: pillar/tenant/settings, pillar/x/y
 //   Preview scenarios: not-applicable — <reason>
 //
-// A plain, visible line rather than an HTML comment: some GitHub tooling
-// (including the one this repo's agents use to create/edit PRs) strips
-// HTML comments from a PR body before storing it — likely a deliberate
-// defense against hidden/invisible instructions in PR descriptions — so a
-// `<!-- ... -->` convention silently never round-trips. A visible marker
-// line is also more transparent for a human reviewer.
+// A plain, visible line rather than an HTML comment: it's easier for a
+// human reviewer to spot at a glance, and doesn't depend on trusting that
+// whatever tool opened or edited the PR preserved a hidden comment
+// verbatim (some PR-editing tools in this repo's agent workflow have been
+// observed not to round-trip `<!-- ... -->` content reliably when reading
+// a PR body back, even though the underlying GitHub payload does contain
+// it).
 //
 // Used by .github/workflows/preview-api.yml to compute the
 // PREVIEW_SEED_SCENARIOS build-arg, and by the CI scenario-declaration
