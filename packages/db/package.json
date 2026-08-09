@@ -8,10 +8,12 @@
     "generate": "prisma generate",
     "build": "prisma generate && tsc -p tsconfig.json",
     "lint": "echo \"lint:db stub\"",
-    "test": "prisma validate && node --test scripts/*.test.mjs",
+    "test": "prisma validate && node --test scripts/*.test.mjs scripts/scenarios/*.test.mjs",
     "preview:schema": "node scripts/generate-preview-schema.mjs",
     "preview:generate": "prisma generate --schema=prisma/schema.preview.prisma",
-    "preview:push": "prisma db push --schema=prisma/schema.preview.prisma --skip-generate --accept-data-loss"
+    "preview:push": "prisma db push --schema=prisma/schema.preview.prisma --skip-generate --accept-data-loss",
+    "preview:seed": "node scripts/seed.mjs",
+    "preview:scenarios:list": "node scripts/seed.mjs --list"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
