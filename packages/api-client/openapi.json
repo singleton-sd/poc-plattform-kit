@@ -105,7 +105,7 @@
         },
         "responses": {
           "201": {
-            "description": "Tenant created.",
+            "description": "Tenant created; the caller is auto-assigned as its owner.",
             "content": {
               "application/json": {
                 "schema": {

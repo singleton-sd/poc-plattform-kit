@@ -40,6 +40,14 @@ export type TenantListPage = {
   nextCursor: string | null;
 };
 
+export type TenantMembershipRecord = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  role: string;
+  createdAt: Date;
+};
+
 function isUniqueConflict(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -99,7 +107,7 @@ export class TenantService {
     return { items: page.map(toTenantRecord), nextCursor };
   }
 
-  async create(dto: CreateTenantDto): Promise<TenantRecord> {
+  async create(dto: CreateTenantDto, actorUserId: string): Promise<TenantRecord> {
     const settings = dto.settings ? JSON.stringify(dto.settings) : null;
     const explicitSlug = dto.slug?.trim();
 
@@ -136,7 +144,7 @@ export class TenantService {
             },
           });
 
-          const event: DomainEvent<{ name: string; slug: string }> = {
+          const createdEvent: DomainEvent<{ name: string; slug: string }> = {
             id: crypto.randomUUID(),
             type: 'tenant.created',
             pillar: 'tenant',
@@ -147,9 +155,38 @@ export class TenantService {
 
           await tx.tenantOutbox.create({
             data: {
-              eventType: event.type,
-              payload: JSON.stringify(event),
-              occurredAt: new Date(event.occurredAt),
+              eventType: createdEvent.type,
+              payload: JSON.stringify(createdEvent),
+              occurredAt: new Date(createdEvent.occurredAt),
+            },
+          });
+
+          // The creator becomes the tenant's owner; a durable membership row
+          // gives invitations and future per-tenant roles somewhere to
+          // attach. Fine-grained authZ stays with the Permissions pillar
+          // (OpenFGA) -- this is identity/membership only.
+          await tx.tenantMembership.create({
+            data: {
+              tenantId: created.id,
+              userId: actorUserId,
+              role: 'owner',
+            },
+          });
+
+          const memberAddedEvent: DomainEvent<{ userId: string; role: string }> = {
+            id: crypto.randomUUID(),
+            type: 'tenant.member_added',
+            pillar: 'tenant',
+            tenantId: created.id,
+            occurredAt: new Date().toISOString(),
+            payload: { userId: actorUserId, role: 'owner' },
+          };
+
+          await tx.tenantOutbox.create({
+            data: {
+              eventType: memberAddedEvent.type,
+              payload: JSON.stringify(memberAddedEvent),
+              occurredAt: new Date(memberAddedEvent.occurredAt),
             },
           });
 
@@ -236,6 +273,14 @@ export class TenantService {
     });
 
     return toTenantRecord(tenant);
+  }
+
+  /** Used by the invitation-accept flow to attach a new membership row. */
+  async listMemberships(tenantId: string): Promise<TenantMembershipRecord[]> {
+    return this.prisma.tenantMembership.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   private assertTenantAccess(id: string): void {
