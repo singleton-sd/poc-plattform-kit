@@ -151,6 +151,14 @@ jobs:
               delay=$((delay * 2))
             done
           }
+          if [ "$OUTCOME" = cancelled ]; then
+            # cancel-in-progress cancelled this run because a newer event for
+            # the same PR superseded it — that newer run will publish its own
+            # result. Posting failure here would just be a stale false
+            # negative racing against the real outcome.
+            echo 'Gate run superseded by a newer event for this PR; leaving the status to that run.'
+            exit 0
+          fi
           if [ "$OUTCOME" = success ]; then
             STATE=success
             DESCRIPTION='CI green, mergeable, and reviewer feedback stable'
