@@ -18,7 +18,7 @@ This is a **solo** GitHub identity repo. GitHub forbids self-approve, so **do no
 2. Require a pull request before merging; **require status checks** (CI workflows) to pass.
 3. **Do not** require approving reviews (blocks the same human/AI identity that authored the PR).
 4. Block force pushes and deletions; disallow direct pushes to `main`.
-5. **Human merge only** — agents never merge. AI reviews are **comments only** when the reviewer shares the author’s GitHub identity.
+5. **Human merge only** — agents never merge or review other agents' work. Connected review bots leave PR comments; the human validates the test plan and merges.
 
 ### Branch naming (agents + optional GitHub rules)
 
@@ -51,7 +51,8 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 - [x] Agents use REST [`scripts/clickup.ps1`](scripts/clickup.ps1) + `CLICKUP_API_TOKEN` (not ClickUp MCP for routine ops)
 - [ ] Implementer: pick tickets in **READY FOR AI** → claim via `scripts/clickup.ps1 claim` → **IN PROGRESS** → PR → **PR hygiene** (CI + mergeable) → **READY FOR REVIEW**
-- [ ] Reviewer: pick tickets in **READY FOR REVIEW** → claim via REST → hygiene (mergeable + CI + Bugbot/human feedback) → **READY FOR HUMAN**
+- [ ] Review bots: inspect PRs in **READY FOR REVIEW** and leave findings on GitHub; agents do not claim tickets for review
+- [ ] Human: follow the PR test plan, leave feature feedback, and merge only after CI and actionable bot findings are resolved
 - [ ] Assignment / Claim Token only when claiming work — not when browsing
 - [x] Merge automation: merged task branches set ClickUp to **COMPLETE** via OIDC → Key Vault (`clickup-api-token`) → ClickUp REST
 - [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`) from `.github/workflows/pr-hygiene.yml` — see `docs/pr-pipelines.md` / `AGENTS.md`

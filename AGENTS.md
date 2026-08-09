@@ -38,11 +38,11 @@ Agents often share one ClickUp identity (`assignees: ["me"]`), so **assignee alo
 
 ### Exclusive claim protocol
 
-1. Filter candidates via REST: `powershell -File scripts/clickup.ps1 list -Status "READY FOR AI"` (or `"READY FOR REVIEW"`). On Linux/Cloud: `./scripts/clickup.sh list "READY FOR AI"`. Script already drops rows with a Claim Token. Prefer oldest / unassigned.
+1. Filter candidates via REST: `powershell -File scripts/clickup.ps1 list -Status "READY FOR AI"`. On Linux/Cloud: `./scripts/clickup.sh list "READY FOR AI"`. Script already drops rows with a Claim Token. Prefer oldest / unassigned.
 2. Generate `claimToken` = Cursor chat/session id, or `agent-<uuid>` if unknown.
-3. Claim: `powershell -File scripts/clickup.ps1 claim -TaskId <id> -ClaimToken <claimToken> -Status "IN PROGRESS"` (implementer). Linux/Cloud: `./scripts/clickup.sh claim <id> <claimToken> "IN PROGRESS"`. Reviewers omit status (stay **READY FOR REVIEW**). Prefer Claim Token only (default); add `-AssignMe` only when an owner must show. Optionally set **Token Estimate** with `field`.
+3. Claim: `powershell -File scripts/clickup.ps1 claim -TaskId <id> -ClaimToken <claimToken> -Status "IN PROGRESS"` (implementer). Linux/Cloud: `./scripts/clickup.sh claim <id> <claimToken> "IN PROGRESS"`. Prefer Claim Token only (default); add `-AssignMe` only when an owner must show. Optionally set **Token Estimate** with `field`.
 4. `claim` refuses a nonempty foreign Claim Token, then re-fetches and verifies; on mismatch it throws — abort and pick another ticket.
-5. Only then read description / plan / implement or review (`get` returns description + custom fields).
+5. Only then read description, plan, and implement (`get` returns description + custom fields).
 6. On handoff: `powershell -File scripts/clickup.ps1 status -TaskId <id> -Status "READY FOR REVIEW" -ClearClaim` (Linux: `./scripts/clickup.sh status <id> "READY FOR REVIEW" --clear-claim`). Set **Token Spent** / **Preview URL** via `field` / `preview` when applicable. Prefer **Preview URL** over a ClickUp comment when the only payload is the PR link.
 
 **Browse ≠ claim.** Listing or reading tickets for triage must not set Claim Token, assignee, or status.
@@ -50,10 +50,11 @@ Agents often share one ClickUp identity (`assignees: ["me"]`), so **assignee alo
 **Stale claims.** If a ticket is **IN PROGRESS** with a Claim Token older than ~4h and no PR comment, steward/human may clear the token. Agents must not clear another session’s token unless the user asks.
 
 1. **Implementer** runs the exclusive claim protocol on **READY FOR AI** → implement in a **git worktree** → open PR → run **PR hygiene (implementer)** → set **Preview URL** (PR) → clear **Claim Token** → set **READY FOR REVIEW**.
-2. **Reviewer** (different AI) runs the exclusive claim protocol on **READY FOR REVIEW** → review PR in a **worktree** → run **PR hygiene (reviewer)** → post review on the **GitHub PR** (not ClickUp chatter) → clear **Claim Token** → set **READY FOR HUMAN** only if hygiene passes.
-3. **Human only** merges the PR and sets **COMPLETE**.
-4. Agents never approve or merge PRs. No self-review / self-approve (GitHub forbids it on solo identity).
-5. **Claim Token + assignment = claiming work.** Never set Claim Token or assignee when merely browsing. Only claim when starting implement or review work.
+2. **Review bots** (for example Cursor Bugbot or ChatGPT Codex Connector) review the PR on GitHub. Agents do not claim **READY FOR REVIEW** tickets or review other agents' work.
+3. Bot or human feedback that needs implementation returns the ticket to **READY FOR AI** for an agent to claim and address.
+4. **Human only** reviews the test plan, comments, merges the PR, and sets **COMPLETE**.
+5. Agents never approve or merge PRs. No self-review / self-approve (GitHub forbids it on solo identity).
+6. **Claim Token + assignment = claiming work.** Never set Claim Token or assignee when merely browsing. Only claim when starting implementation work.
 
 ### PR hygiene (mandatory)
 
@@ -66,19 +67,14 @@ After push / PR open:
 1. `gh pr checks --watch` (or loop-on-ci) until required checks green (or document skip-only failures).
 2. `gh pr view --json mergeable,mergeStateStatus` → must be `MERGEABLE` / not `DIRTY`.
 3. If dirty: follow **Shared hub files / conflict playbook** below (`git merge origin/main` then `pnpm resolve:conflicts`), push, re-check CI.
-4. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`; raw `status` transitions are forbidden for PR-backed work. This atomically gates CI registration/completion, mergeability, unresolved review threads, blocking labels, and the reviewer quiet period before setting Preview URL and clearing the claim.
+4. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`; raw `status` transitions are forbidden for PR-backed work. This atomically gates CI registration/completion, mergeability, unresolved review threads, blocking labels, and the external-feedback quiet period before setting Preview URL and clearing the claim.
 5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop — do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
 
-#### Reviewer (before READY FOR HUMAN)
+#### Automated review and human validation
 
-1. Re-fetch PR tip; confirm `mergeable` still clean.
-2. Confirm required checks green on tip.
-3. Pull **all** feedback (Bugbot does not appear in Cursor chat — treat it as a GitHub commenter):
-   - `gh api repos/singleton-sd/poc-plattform-kit/pulls/{n}/comments`
-   - `gh api repos/singleton-sd/poc-plattform-kit/issues/{n}/comments`
-   - `gh pr view {n} --comments` as fallback
-4. If actionable Bugbot/human feedback, red CI, or conflicts: clear **Claim Token**, set ClickUp **READY FOR AI**, comment blockers; do **not** set READY FOR HUMAN.
-5. Only then clear **Claim Token** and set READY FOR HUMAN.
+- Connected review bots inspect PRs after **READY FOR REVIEW**. Agents do not perform this review stage.
+- Every PR body must include a human-readable **Test plan** with setup, numbered steps, expected results, the exact feature location (preview URL/page/route/endpoint/workflow), and a **Feedback focus** section.
+- Bot or human findings that require code changes must return the ticket to **READY FOR AI**. The implementing agent re-fetches the PR tip and all feedback before making changes.
 
 #### Steward / after READY FOR HUMAN
 
@@ -86,11 +82,11 @@ When asked to “check open PRs” (or on a scheduled prompt): for each open PR 
 
 ### Solo-repo merge (locked)
 
-Branch protection must require **CI status checks** + **human merge**, but **must not** require approving reviews. When the AI reviewer shares the PR author’s GitHub identity, reviews are **comments only** (never “Approve”). See `SETUP.md`.
+Branch protection must require **CI status checks** + **human merge**, but **must not** require approving reviews. Connected review bots provide comments and agents never approve. See `SETUP.md`.
 
 ## Branch naming (locked)
 
-Implementer and reviewer worktrees **must** use this pattern:
+Implementer worktrees **must** use this pattern:
 
 ```
 feature/<clickup-task-id>-<kebab-title>
@@ -106,13 +102,13 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## Worktrees
 
-- Every implementer/reviewer subagent **must** use its own `git worktree` (and branch named per **Branch naming** above).
+- Every implementer subagent **must** use its own `git worktree` (and branch named per **Branch naming** above).
 - Never share a dirty `main` working tree across parallel agents.
 - Remove the worktree when the run finishes.
 
 ## Shared hub files (conflict prevention)
 
-Parallel PRs collide on shared “hub” paths. **Do not touch a hub unless the ticket requires it.** Reviewers bounce incidental hub churn to **READY FOR AI**.
+Parallel PRs collide on shared “hub” paths. **Do not touch a hub unless the ticket requires it.**
 
 | Hub | Touch only when | Notes |
 | --- | --- | --- |
@@ -219,7 +215,7 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
   `lint-staged` (never bypass with `--no-verify` for format/lint). Full-repo
   `pnpm format:check` / `pnpm lint` remain for humans/CI; also `pnpm test`,
   `pnpm build`. Manual staged check: `pnpm lint:staged`.
-- Humans only merge; agents open PRs and set ClickUp to **READY FOR REVIEW** / **READY FOR HUMAN**.
+- Humans only merge; agents open PRs and hand ClickUp tickets to **READY FOR REVIEW**. Review bots provide PR feedback; humans validate the test plan and decide when the work is ready to merge.
 - Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.
 
 ## Skills

@@ -20,7 +20,7 @@ When fixing a Bugbot (or other PR review-bot) finding:
    - Prefer a threaded reply on the exact review comment (`in_reply_to` / reply API).
    - If that fails, leave a PR comment that quotes the finding title and links the fixing commit.
    - Say what changed and which commit/PR tip contains the fix.
-5. Do not mark the finding fixed in chat only — the PR thread is the source of truth for reviewers.
+5. Do not mark the finding fixed in chat only — the PR thread is the source of truth for review bots and humans.
 
 ## Reply template
 
