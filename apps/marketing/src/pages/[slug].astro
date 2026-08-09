@@ -6,8 +6,9 @@ import { getCollection, type CollectionEntry } from 'astro:content';
 
 export async function getStaticPaths() {
   const pages = await getCollection('pages');
+  const legalSlugs = new Set(['privacy', 'terms']);
   return pages
-    .filter((entry) => entry.slug !== 'home')
+    .filter((entry) => legalSlugs.has(entry.slug))
     .map((entry) => ({
       params: { slug: entry.slug },
       props: { page: entry },
@@ -24,6 +25,7 @@ const { title, description, updated } = page.data;
 
 const contactTitle =
   page.slug === 'terms' ? 'Questions about these terms?' : 'Questions about this policy?';
+const contactEmail = 'hello@singletonsd.com';
 ---
 
 <BaseLayout title={title} description={description}>
@@ -47,6 +49,10 @@ const contactTitle =
     <article class="prose-legal">
       <Content />
     </article>
-    <LegalContactBanner title={contactTitle} />
+    <LegalContactBanner
+      title={contactTitle}
+      email={contactEmail}
+      emailHref={`mailto:${contactEmail}`}
+    />
   </PageContainer>
 </BaseLayout>
