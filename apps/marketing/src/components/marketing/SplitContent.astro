@@ -6,6 +6,7 @@ interface Props {
   eyebrow?: string;
   title: string;
   body: string;
+  bullets?: string[];
   link?: { label: string; href: string };
   imageAlt?: string;
   imageSrc?: string;
@@ -17,6 +18,7 @@ const {
   eyebrow,
   title,
   body,
+  bullets = [],
   link,
   imageAlt = 'Illustration',
   imageSrc,
@@ -25,7 +27,7 @@ const {
 } = Astro.props;
 ---
 
-<section class:list={['py-16 md:py-24', className]}>
+<section class:list={['py-10 md:py-16', className]}>
   <PageContainer>
     <div
       class:list={[
@@ -41,6 +43,18 @@ const {
         }
         <h2 class="m-0 font-heading text-h2 text-fg">{title}</h2>
         <p class="m-0 text-base leading-relaxed text-fg-muted">{body}</p>
+        {
+          bullets.length > 0 ? (
+            <ul class="m-0 flex list-none flex-col gap-3 p-0">
+              {bullets.map((item) => (
+                <li class="flex items-center gap-2 text-[15px] font-medium text-fg">
+                  <span class="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : null
+        }
         <slot name="body" />
         {
           link ? (
@@ -55,17 +69,19 @@ const {
         }
         <slot />
       </div>
-      <div class="min-h-[16rem]">
+      <div class="min-h-[16rem] md:min-h-[22.5rem]">
         <slot name="media">
           <div
-            class="flex h-full min-h-[16rem] items-center justify-center rounded-xl border border-border bg-bg-muted text-fg-subtle"
+            class="flex h-full min-h-[16rem] items-center justify-center overflow-hidden rounded-xl border border-border bg-bg-muted text-fg-subtle md:min-h-[22.5rem]"
           >
             {
               imageSrc ? (
                 <img
                   src={imageSrc}
                   alt={imageAlt}
-                  class="h-full w-full rounded-xl object-cover"
+                  width={600}
+                  height={360}
+                  class="h-full w-full object-cover"
                 />
               ) : (
                 <Icon name="image" size={48} label={imageAlt} />

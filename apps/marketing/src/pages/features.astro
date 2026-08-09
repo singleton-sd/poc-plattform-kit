@@ -1,17 +1,118 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import PageContainer from '../components/shell/PageContainer.astro';
+import Hero from '../components/marketing/Hero.astro';
+import SplitContent from '../components/marketing/SplitContent.astro';
+import FeatureGrid from '../components/marketing/FeatureGrid.astro';
+import CtaBanner from '../components/marketing/CtaBanner.astro';
+import { appCta } from '../lib/nav';
+import type { FeatureItem } from '../lib/marketing-types';
+
+const utilities: FeatureItem[] = [
+  {
+    title: 'Schema-driven Forms',
+    description:
+      'Instantly map structured JSON configuration inputs directly into robust interface controls safely.',
+    icon: 'database',
+  },
+  {
+    title: 'Generated API Client',
+    description:
+      'Auto-generate end-to-end type bindings straight from your live routing definitions in real-time.',
+    icon: 'loader',
+  },
+  {
+    title: 'GitHub Actions CI/CD',
+    description:
+      'Standardized integration templates compiled automatically to trigger client-side builds seamlessly.',
+    icon: 'github',
+  },
+  {
+    title: 'Responsive Shell',
+    description:
+      'A beautiful, production-ready workspace dashboard optimized for mobile and desktop screens.',
+    icon: 'menu',
+  },
+  {
+    title: 'Semantic Versioning',
+    description:
+      'Strict version boundaries prevent package conflicts when deploying global database patches.',
+    icon: 'check',
+  },
+  {
+    title: 'CDN Delivery',
+    description:
+      'Distribute assets globally using geographical replication points for ultra-low operational lag.',
+    icon: 'zap',
+  },
+];
 ---
 
 <BaseLayout
   title="Features — Platform Kit"
-  description="Platform Kit capabilities. Full page content lands in a follow-up ticket."
+  description="Multi-tenant scale with tenant management, authentication, design tokens, and developer utilities."
 >
-  <PageContainer class="py-16 md:py-24">
-    <p class="m-0 mb-3 text-body-sm font-semibold uppercase tracking-wide text-accent">Features</p>
-    <h1 class="m-0 font-heading text-h1 text-fg">Capabilities overview</h1>
-    <p class="mt-4 m-0 max-w-2xl text-base leading-relaxed text-fg-muted">
-      Placeholder route for the shared shell. Full Features page content is tracked separately.
-    </p>
-  </PageContainer>
+  <Hero
+    eyebrow="Features"
+    headline="Built for multi-tenant scale."
+    subheadline="SaaS architecture is difficult to build from scratch. Platform Kit handles physical and logical tenancy, access bounds, and dynamic client routing effortlessly out of the box."
+  />
+
+  <div class="pb-8 md:pb-16">
+    <SplitContent
+      eyebrow="Database routing"
+      title="Tenant Management"
+      body="Effortlessly establish database limits and mapping rules. Platform Kit abstracts complex schema routing so you can scale databases alongside customer growth."
+      bullets={[
+        'Dynamic Tenant CRUD',
+        'Slug-based secure routing',
+        'Physical & logical data isolation',
+      ]}
+      imageSrc="/images/features/tenant-management.png"
+      imageAlt="Three glowing tenant cubes on a grid representing isolated workspaces"
+      class="py-10 md:py-12"
+    />
+
+    <SplitContent
+      eyebrow="Security first"
+      title="Authentication & Access Control"
+      body="Secure every workspace boundary. Configure single-sign-on integration paths or configure nested team permissions structures straight from the admin panel."
+      bullets={[
+        'Enterprise SSO integration',
+        'Role-based granular permissions',
+        'Tenant-scoped user administration',
+      ]}
+      imageSrc="/images/features/auth-access.png"
+      imageAlt="Three glowing padlocks representing secured tenant access boundaries"
+      reverse
+      class="py-10 md:py-12"
+    />
+
+    <SplitContent
+      eyebrow="Centralized tokens"
+      title="Design Token System"
+      body="Enforce visual consistency across multiple white-labeled customer domains. Deliver design variables tailored directly to your developers with automated output pipelines."
+      bullets={[
+        'Centralized light & dark modes',
+        'Export to CSS, SCSS, and Tailwind',
+        'Figma Tokens Studio integration',
+      ]}
+      imageSrc="/images/features/design-tokens.png"
+      imageAlt="Floating design interface representing the Singleton SD token system"
+      class="py-10 md:py-12"
+    />
+  </div>
+
+  <FeatureGrid
+    eyebrow="Engineering utilities"
+    title="Developer tools that ship instantly"
+    features={utilities}
+    align="center"
+    class="bg-bg-muted py-16 md:py-20"
+  />
+
+  <CtaBanner
+    title="Start building with Platform Kit"
+    description="Plan database bounds, establish workspace permissions, and deploy safe development sandboxes in seconds."
+    cta={{ label: 'Get started free', href: appCta.href }}
+  />
 </BaseLayout>
