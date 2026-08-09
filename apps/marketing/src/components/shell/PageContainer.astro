@@ -1,0 +1,23 @@
+---
+type ContainerTag = 'div' | 'section' | 'main' | 'article';
+
+const {
+  class: className = '',
+  as: Tag = 'div',
+  narrow = false,
+} = Astro.props as {
+  class?: string;
+  as?: ContainerTag;
+  narrow?: boolean;
+};
+---
+
+<Tag
+  class:list={[
+    'mx-auto w-full px-5 md:px-10',
+    narrow ? 'max-w-2xl' : 'max-w-content',
+    className,
+  ]}
+>
+  <slot />
+</Tag>
