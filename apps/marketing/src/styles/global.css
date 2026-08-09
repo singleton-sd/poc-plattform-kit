@@ -183,7 +183,7 @@ body {
 }
 
 .prose-legal .callout {
-  @apply my-0 mb-12 flex flex-col gap-3 rounded-xl border-0 bg-bg-muted p-4 text-body-sm text-fg-muted md:p-6;
+  @apply my-0 mb-12 flex flex-col gap-3 rounded-xl border-0 bg-bg-muted px-6 py-6 text-body-sm text-fg-muted md:mb-14 md:gap-4 md:px-8 md:py-8;
 }
 
 .prose-legal .callout-label {
