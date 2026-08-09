@@ -1,0 +1,21 @@
+# Tenant-scoped authorization model for poc-plattform-kit (Permissions / OpenFGA).
+# Source of truth for infra/deploy-openfga.ps1 (pushed as authorization model).
+# Actions on type tenant match PermissionsService Check() relation names
+# (create / update / delete / read) used by Nest route mappings.
+
+model
+  schema 1.1
+
+type user
+  relations
+    # Recursive reporting-line escalation (Entra manager chain mirrored as tuples).
+    define manager: [user] or manager from manager
+
+type tenant
+  relations
+    define admin: [user]
+    define member: [user] or admin
+    define create: admin
+    define update: admin
+    define delete: admin
+    define read: member
