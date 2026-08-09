@@ -5,7 +5,9 @@ import {
   addRedirectUri,
   buildSwaPrPreviewOrigin,
   normalizeOrigin,
+  parseSwaPrPreviewOrigin,
   removeRedirectUri,
+  sweepSpaPrPreviewRedirects,
 } from './entra-spa-preview-redirect.mjs';
 
 const workflowUrl = new URL('../.github/workflows/preview-web.yml', import.meta.url);
@@ -54,6 +56,29 @@ test('removeRedirectUri drops exact origin only', () => {
     'http://localhost:3000',
     'https://kind-rock-0f409fe00.7.azurestaticapps.net',
   ]);
+});
+
+test('parseSwaPrPreviewOrigin extracts PR from preview host', () => {
+  assert.deepEqual(
+    parseSwaPrPreviewOrigin('https://kind-rock-0f409fe00-90.eastasia.7.azurestaticapps.net/'),
+    { unique: 'kind-rock-0f409fe00', pr: '90', region: 'eastasia' },
+  );
+  assert.equal(parseSwaPrPreviewOrigin('https://kind-rock-0f409fe00.7.azurestaticapps.net'), null);
+  assert.equal(parseSwaPrPreviewOrigin('http://localhost:3000'), null);
+});
+
+test('sweepSpaPrPreviewRedirects drops closed PR previews only', () => {
+  const prod = 'https://kind-rock-0f409fe00.7.azurestaticapps.net';
+  const open = 'https://kind-rock-0f409fe00-95.eastasia.7.azurestaticapps.net';
+  const closed = 'https://kind-rock-0f409fe00-44.eastasia.7.azurestaticapps.net';
+  const plan = sweepSpaPrPreviewRedirects(
+    ['http://localhost:3000', prod, open, closed],
+    [95, 97],
+    'eastasia',
+  );
+  assert.deepEqual(plan.remove, [closed]);
+  assert.deepEqual(plan.keep, [open]);
+  assert.deepEqual(plan.next, ['http://localhost:3000', prod, open]);
 });
 
 test('credentialed redirect jobs use only the trusted base helper', async () => {

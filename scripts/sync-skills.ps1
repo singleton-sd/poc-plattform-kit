@@ -12,6 +12,7 @@ $Skills = @(
   @{ Src = "engineering\backend"; Name = "backend" },
   @{ Src = "engineering\frontend"; Name = "frontend" },
   @{ Src = "engineering\schema-driven-forms"; Name = "schema-driven-forms" },
+  @{ Src = "engineering\form-ux"; Name = "form-ux" },
   @{ Src = "engineering\test-generation"; Name = "test-generation" },
   @{ Src = "engineering\code-review"; Name = "code-review" },
   @{ Src = "engineering\fix-bugbot"; Name = "fix-bugbot" },

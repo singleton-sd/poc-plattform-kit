@@ -278,6 +278,7 @@ apps/web/src/features/<domain>/
 ## Cross-links
 
 - Frontend skill: `.cursor/skills/frontend`
+- Form UX skill: `.cursor/skills/form-ux` — submission validity, inline-validation timing, character limits, pre-fill, password UX, and forgiving-input rules for every renderer and host form built on this pipeline. This skill stays authoritative for the pipeline itself; form-ux is authoritative for UX behaviour.
 - Tokens: https://tokens.design.singletonsd.com/
 - JSON Forms: https://jsonforms.io/
 - ClickUp Architecture Doc: https://app.clickup.com/90161394355/docs/2kz0kcnk-1416

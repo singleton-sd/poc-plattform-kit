@@ -60,27 +60,63 @@
           }
         },
         "create": {
-          "computedUserset": {
-            "object": "",
-            "relation": "admin"
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "admin"
+                }
+              }
+            ]
           }
         },
         "update": {
-          "computedUserset": {
-            "object": "",
-            "relation": "admin"
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "admin"
+                }
+              }
+            ]
           }
         },
         "delete": {
-          "computedUserset": {
-            "object": "",
-            "relation": "admin"
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "admin"
+                }
+              }
+            ]
           }
         },
         "read": {
-          "computedUserset": {
-            "object": "",
-            "relation": "member"
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "member"
+                }
+              }
+            ]
           }
         }
       },
@@ -90,10 +126,81 @@
             "directly_related_user_types": [
               {
                 "type": "user"
+              },
+              {
+                "type": "user",
+                "condition": "not_yet_expired"
               }
             ]
           },
           "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "user",
+                "condition": "not_yet_expired"
+              }
+            ]
+          },
+          "create": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "user",
+                "condition": "not_yet_expired"
+              }
+            ]
+          },
+          "update": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "user",
+                "condition": "not_yet_expired"
+              }
+            ]
+          },
+          "delete": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "user",
+                "condition": "not_yet_expired"
+              }
+            ]
+          },
+          "read": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "user",
+                "condition": "not_yet_expired"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "one_time_grant",
+      "relations": {
+        "pending": {
+          "this": {}
+        }
+      },
+      "metadata": {
+        "relations": {
+          "pending": {
             "directly_related_user_types": [
               {
                 "type": "user"
@@ -103,5 +210,19 @@
         }
       }
     }
-  ]
+  ],
+  "conditions": {
+    "not_yet_expired": {
+      "name": "not_yet_expired",
+      "expression": "current_time < expiry_time",
+      "parameters": {
+        "current_time": {
+          "type_name": "TYPE_NAME_TIMESTAMP"
+        },
+        "expiry_time": {
+          "type_name": "TYPE_NAME_TIMESTAMP"
+        }
+      }
+    }
+  }
 }
