@@ -9,6 +9,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
+import { CurrentUser } from './current-user.decorator';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
 import { TenantListResponseDto } from './dto/tenant-list-response.dto';
@@ -38,10 +40,20 @@ export class TenantController {
 
   @Post()
   @Roles('support-agent', 'tenant-admin')
-  @ApiCreatedResponse({ type: TenantResponseDto, description: 'Tenant created.' })
+  @ApiCreatedResponse({
+    type: TenantResponseDto,
+    description: 'Tenant created; the caller is auto-assigned as its owner.',
+  })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
-  create(@Body() dto: CreateTenantDto) {
-    return this.tenants.create(dto);
+  create(@Body() dto: CreateTenantDto, @CurrentUser() user: AuthenticatedUser) {
+    // AuthenticatedUser.id falls back to the Entra oid until a local User row
+    // exists for this session (see mapEntraClaims) -- no call site anywhere
+    // in the app passes localUserId today, so this stores that oid, same as
+    // every other consumer of AuthenticatedUser.id (e.g. GET /api/me).
+    // "Persist SSO User locally on sign-in" (ClickUp 86d3zbugm) is the
+    // tracked ticket that starts populating real local User.id values; no
+    // membership-specific fix belongs here.
+    return this.tenants.create(dto, user.id);
   }
 
   @Get(':id')

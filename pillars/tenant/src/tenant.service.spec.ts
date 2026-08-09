@@ -21,6 +21,7 @@ describe('TenantService', () => {
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
+  const actorUserId = 'actor-1';
 
   let prisma: {
     $transaction: jest.Mock;
@@ -32,6 +33,7 @@ describe('TenantService', () => {
     };
     tenantAudit: { create: jest.Mock };
     tenantOutbox: { create: jest.Mock };
+    tenantMembership: { create: jest.Mock; findMany: jest.Mock };
   };
   let tenancy: TenancyContext;
   let service: TenantService;
@@ -47,6 +49,7 @@ describe('TenantService', () => {
       },
       tenantAudit: { create: jest.fn() },
       tenantOutbox: { create: jest.fn() },
+      tenantMembership: { create: jest.fn(), findMany: jest.fn() },
     };
     tenancy = new TenancyContext();
     service = new TenantService(prisma as never, tenancy);
@@ -142,12 +145,16 @@ describe('TenantService', () => {
     });
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
 
-    const result = await service.create({
-      name: 'Acme',
-      slug: 'acme',
-      settings: { plan: 'pro' },
-    });
+    const result = await service.create(
+      {
+        name: 'Acme',
+        slug: 'acme',
+        settings: { plan: 'pro' },
+      },
+      actorUserId,
+    );
 
     expect(result).toEqual({ ...tenantRow, settings: { plan: 'pro' } });
     expect(prisma.tenant.create).toHaveBeenCalledWith({
@@ -175,6 +182,69 @@ describe('TenantService', () => {
     );
   });
 
+  it('auto-assigns the creator as owner via a membership row', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue(tenantRow);
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
+
+    await service.create({ name: 'Acme', slug: 'acme' }, actorUserId);
+
+    expect(prisma.tenantMembership.create).toHaveBeenCalledWith({
+      data: { tenantId: 't1', userId: actorUserId, role: 'owner' },
+    });
+  });
+
+  it('emits tenant.member_added alongside tenant.created', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue(tenantRow);
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
+
+    await service.create({ name: 'Acme', slug: 'acme' }, actorUserId);
+
+    expect(prisma.tenantOutbox.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'tenant.created',
+        }),
+      }),
+    );
+    const memberAddedCall = prisma.tenantOutbox.create.mock.calls.find(([call]) =>
+      (call.data.payload as string).includes('tenant.member_added'),
+    );
+    expect(memberAddedCall).toBeDefined();
+    const payload = JSON.parse(memberAddedCall![0].data.payload);
+    expect(payload).toMatchObject({
+      type: 'tenant.member_added',
+      tenantId: 't1',
+      payload: { userId: actorUserId, role: 'owner' },
+    });
+  });
+
+  it('rolls back tenant creation when the membership insert fails', async () => {
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+      fn(prisma),
+    );
+    prisma.tenant.create.mockResolvedValue(tenantRow);
+    prisma.tenantAudit.create.mockResolvedValue({});
+    prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockRejectedValue(new Error('membership insert failed'));
+
+    await expect(service.create({ name: 'Acme', slug: 'acme' }, actorUserId)).rejects.toThrow(
+      'membership insert failed',
+    );
+    // A real Prisma $transaction rolls the whole callback back on any
+    // rejection; this asserts the service doesn't swallow that failure or
+    // return a tenant that only appears to have been created.
+  });
+
   it('generates a normalized slug from the name when slug is omitted', async () => {
     prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
       fn(prisma),
@@ -182,8 +252,9 @@ describe('TenantService', () => {
     prisma.tenant.create.mockResolvedValue({ ...tenantRow, name: 'Acme Pty Ltd' });
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
 
-    await service.create({ name: 'Acme Pty Ltd' });
+    await service.create({ name: 'Acme Pty Ltd' }, actorUserId);
 
     expect(prisma.tenant.create).toHaveBeenCalledWith({
       data: { name: 'Acme Pty Ltd', slug: 'acme-pty-ltd', settings: null },
@@ -197,8 +268,9 @@ describe('TenantService', () => {
     prisma.tenant.create.mockResolvedValue(tenantRow);
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
 
-    await service.create({ name: 'Acme', slug: '   ' });
+    await service.create({ name: 'Acme', slug: '   ' }, actorUserId);
 
     expect(prisma.tenant.create).toHaveBeenCalledWith({
       data: { name: 'Acme', slug: 'acme', settings: null },
@@ -215,8 +287,9 @@ describe('TenantService', () => {
       .mockResolvedValueOnce({ ...tenantRow, slug: 'acme-3' });
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
 
-    const result = await service.create({ name: 'Acme' });
+    const result = await service.create({ name: 'Acme' }, actorUserId);
 
     expect(result.slug).toBe('acme-3');
     expect(prisma.tenant.create).toHaveBeenNthCalledWith(1, {
@@ -237,8 +310,9 @@ describe('TenantService', () => {
     prisma.tenant.create.mockResolvedValue({ ...tenantRow, slug: 'tenant' });
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
 
-    await service.create({ name: '日本語' });
+    await service.create({ name: '日本語' }, actorUserId);
 
     expect(prisma.tenant.create).toHaveBeenCalledWith({
       data: { name: '日本語', slug: 'tenant', settings: null },
@@ -252,8 +326,9 @@ describe('TenantService', () => {
     prisma.tenant.create.mockResolvedValue({ ...tenantRow, slug: 'custom-slug' });
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
 
-    await service.create({ name: 'Acme', slug: 'custom-slug' });
+    await service.create({ name: 'Acme', slug: 'custom-slug' }, actorUserId);
 
     expect(prisma.tenant.create).toHaveBeenCalledTimes(1);
     expect(prisma.tenant.create).toHaveBeenCalledWith({
@@ -262,7 +337,7 @@ describe('TenantService', () => {
   });
 
   it('rejects an explicitly supplied slug with an invalid format', async () => {
-    await expect(service.create({ name: 'Acme', slug: 'Not Valid!' })).rejects.toThrow(
+    await expect(service.create({ name: 'Acme', slug: 'Not Valid!' }, actorUserId)).rejects.toThrow(
       BadRequestException,
     );
     expect(prisma.tenant.create).not.toHaveBeenCalled();
@@ -274,7 +349,9 @@ describe('TenantService', () => {
     );
     prisma.tenant.create.mockRejectedValue(prismaKnownRequestError('P2002'));
 
-    await expect(service.create({ name: 'Acme', slug: 'acme' })).rejects.toThrow(ConflictException);
+    await expect(service.create({ name: 'Acme', slug: 'acme' }, actorUserId)).rejects.toThrow(
+      ConflictException,
+    );
     expect(prisma.tenant.create).toHaveBeenCalledTimes(1);
   });
 
@@ -285,8 +362,9 @@ describe('TenantService', () => {
     prisma.tenant.create.mockResolvedValue(tenantRow);
     prisma.tenantAudit.create.mockResolvedValue({});
     prisma.tenantOutbox.create.mockResolvedValue({});
+    prisma.tenantMembership.create.mockResolvedValue({});
 
-    await service.create({ name: '  Acme & Co.,  Ltd!!  ' });
+    await service.create({ name: '  Acme & Co.,  Ltd!!  ' }, actorUserId);
 
     expect(prisma.tenant.create).toHaveBeenCalledWith({
       data: { name: '  Acme & Co.,  Ltd!!  ', slug: 'acme-co-ltd', settings: null },
@@ -339,5 +417,20 @@ describe('TenantService', () => {
         data: expect.objectContaining({ eventType: 'tenant.updated' }),
       }),
     );
+  });
+
+  describe('listMemberships', () => {
+    it('reads memberships for a tenant ordered by creation time', async () => {
+      const rows = [
+        { id: 'm1', tenantId: 't1', userId: 'u1', role: 'owner', createdAt: tenantRow.createdAt },
+      ];
+      prisma.tenantMembership.findMany.mockResolvedValue(rows);
+
+      await expect(service.listMemberships('t1')).resolves.toEqual(rows);
+      expect(prisma.tenantMembership.findMany).toHaveBeenCalledWith({
+        where: { tenantId: 't1' },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
   });
 });

@@ -506,6 +506,9 @@ importers:
       '@poc-plattform-kit/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@poc-plattform-kit/pillar-single-sign-on':
+        specifier: workspace:*
+        version: link:../single-sign-on
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
