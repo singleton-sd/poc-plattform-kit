@@ -1,10 +1,19 @@
 # Tenant pillar
 
-Owns: tenants, tenancy boundaries, settings.
+Owns: tenants, tenancy boundaries, settings, per-tenant membership.
 
-Publishes: `tenant.created`, `tenant.updated` (via local Outbox).
+Publishes: `tenant.created`, `tenant.updated`, `tenant.member_added` (via local Outbox).
 
 Consumes: —
+
+## Membership
+
+`TenantMembership` (tenantId, userId, role; unique per tenant+user) is identity/membership
+only — the creator of a tenant is auto-assigned `role: "owner"` in the same transaction as
+tenant creation. Fine-grained authZ stays with the **Permissions** pillar (OpenFGA); this
+table doesn't enforce anything by itself, it's the foundation the invitation flow and future
+per-tenant roles attach to. `TenantService.listMemberships(tenantId)` is a plain read for
+that flow to consume.
 
 ## Tenancy context (DI)
 
