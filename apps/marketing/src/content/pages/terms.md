@@ -4,10 +4,13 @@ description: Platform Kit Terms of Service
 updated: '6 August 2026'
 ---
 
-<p class="callout">
+<aside class="callout">
+<p class="callout-label">Notice to Platform Operators</p>
+<p>
 This is a PoC sample agreement adapted from an open MIT SaaS template. It is not
 lawyer-reviewed legal advice and may be replaced with counsel-approved terms later.
 </p>
+</aside>
 
 ## 1. Agreement to Terms
 
@@ -26,9 +29,9 @@ use after changes constitutes acceptance where permitted by law.
 
 To use the Service you must:
 
-- Be at least 16 years of age (or the age of majority where higher)
-- Have legal capacity to enter a binding agreement
-- Not be prohibited from using the Service under applicable law
+1. Be at least 16 years of age (or the age of majority where higher)
+2. Have legal capacity to enter a binding agreement
+3. Not be prohibited from using the Service under applicable law
 
 If you use the Service on behalf of an organisation, you represent that you have authority
 to bind that organisation to these Terms.
@@ -48,12 +51,12 @@ proof-of-concept and is provided on an "as available" basis.
 
 You agree not to:
 
-- Violate law or third-party rights
-- Upload malware or attempt unauthorised access
-- Disrupt or overload the Service
-- Scrape or automate access without our written permission
-- Reverse engineer the Service except where law allows
-- Impersonate others or harvest personal data without consent
+1. Violate law or third-party rights
+2. Upload malware or attempt unauthorised access
+3. Disrupt or overload the Service
+4. Scrape or automate access without our written permission
+5. Reverse engineer the Service except where law allows
+6. Impersonate others or harvest personal data without consent
 
 Paid plans are not offered in this PoC. If billing is introduced later, additional terms
 will be posted before charges apply.
@@ -123,7 +126,7 @@ Service. If a provision is unenforceable, the rest remains in effect. Failure to
 provision is not a waiver. You may not assign these Terms without our consent; we may assign
 them without restriction.
 
-## 13. Contact
+## 13. Contact Us
 
 Questions about these Terms: [hello@singletonsd.com](mailto:hello@singletonsd.com)
 

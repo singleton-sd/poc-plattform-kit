@@ -1,0 +1,40 @@
+---
+import Icon from '../ui/Icon.astro';
+
+interface Props {
+  title?: string;
+  email?: string;
+  emailHref?: string;
+  class?: string;
+}
+
+const {
+  title = 'Questions about this policy?',
+  email = 'support@singletonsd.com',
+  emailHref = 'mailto:support@singletonsd.com',
+  class: className = '',
+} = Astro.props;
+---
+
+<aside
+  class:list={[
+    'mt-10 flex flex-col gap-4 rounded-xl bg-accent-bg p-5 md:mt-12 md:flex-row md:items-center md:gap-6 md:p-6',
+    className,
+  ]}
+>
+  <div
+    class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-bg text-accent md:size-10"
+    aria-hidden="true"
+  >
+    <Icon name="mail" size={20} />
+  </div>
+  <div class="min-w-0 space-y-1">
+    <p class="m-0 font-heading text-base font-bold text-fg md:text-[16px]">{title}</p>
+    <p class="m-0 text-body-sm text-fg-muted">
+      Contact us at{' '}
+      <a href={emailHref} class="font-bold text-accent no-underline hover:underline">
+        {email}
+      </a>
+    </p>
+  </div>
+</aside>
