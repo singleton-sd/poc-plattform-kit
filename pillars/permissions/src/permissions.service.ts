@@ -51,8 +51,13 @@ export class PermissionsService {
         return { allowed: false };
       }
 
-      await this.consumeOneTimeGrantIfPresent(request.subject, request.action, request.resource);
-      return { allowed: true };
+      const consumed = await this.consumeOneTimeGrantIfPresent(
+        request.subject,
+        request.action,
+        request.resource,
+      );
+      // Permanent/temporary (no marker) → allow. One-time only allows when consume succeeds.
+      return { allowed: consumed !== false };
     } catch {
       return { allowed: false };
     }
@@ -154,23 +159,34 @@ export class PermissionsService {
     }
   }
 
+  /**
+   * @returns `undefined` when not a one-time grant; `true` when consumed;
+   * `false` when a concurrent consumer already claimed it or delete failed.
+   */
   private async consumeOneTimeGrantIfPresent(
     subject: string,
     action: string,
     resource: string,
-  ): Promise<void> {
+  ): Promise<boolean | undefined> {
     const markerObject = oneTimeGrantObject(resource, action);
     const isOneTime = await this.openFgaCheck(subject, oneTimePendingRelation, markerObject);
     if (!isOneTime) {
-      return;
+      return undefined;
     }
 
-    await this.openFgaWrite({
-      deletes: [
-        { user: subject, relation: action, object: resource },
-        { user: subject, relation: oneTimePendingRelation, object: markerObject },
-      ],
+    // Delete marker first so a concurrent Check loses the race (marker already gone).
+    const markerDeleted = await this.openFgaWrite({
+      deletes: [{ user: subject, relation: oneTimePendingRelation, object: markerObject }],
     });
+    if (!markerDeleted) {
+      return false;
+    }
+
+    // Best-effort cleanup of the action tuple after the marker is claimed.
+    await this.openFgaWrite({
+      deletes: [{ user: subject, relation: action, object: resource }],
+    });
+    return true;
   }
 
   private async openFgaCheck(user: string, relation: string, object: string): Promise<boolean> {

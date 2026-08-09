@@ -220,12 +220,13 @@ describe('PermissionsService', () => {
     ]);
   });
 
-  it('revokes the action tuple and one-time marker after the first successful check', async () => {
+  it('revokes the one-time marker before allowing access (fail closed on delete)', async () => {
     configureOpenFga();
     (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ allowed: true }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ allowed: true }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ allowed: true }) }) // action check
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ allowed: true }) }) // marker check
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) }) // delete marker
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) }); // delete action
 
     await expect(
       new PermissionsService().check({
@@ -236,20 +237,12 @@ describe('PermissionsService', () => {
     ).resolves.toEqual({ allowed: true });
 
     expect(global.fetch).toHaveBeenNthCalledWith(
-      2,
-      'https://openfga.example.test/stores/store-1/check',
-      expect.objectContaining({
-        body: expect.stringContaining(oneTimeGrantObject('tenant:one', 'update')),
-      }),
-    );
-    expect(global.fetch).toHaveBeenNthCalledWith(
       3,
       'https://openfga.example.test/stores/store-1/write',
       expect.objectContaining({
         body: JSON.stringify({
           deletes: {
             tuple_keys: [
-              { user: 'user:alice', relation: 'update', object: 'tenant:one' },
               {
                 user: 'user:alice',
                 relation: 'pending',
@@ -261,6 +254,22 @@ describe('PermissionsService', () => {
         }),
       }),
     );
+  });
+
+  it('denies when one-time marker delete fails (lost race / write error)', async () => {
+    configureOpenFga();
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ allowed: true }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ allowed: true }) })
+      .mockResolvedValueOnce({ ok: false, status: 409 });
+
+    await expect(
+      new PermissionsService().check({
+        subject: 'user:alice',
+        action: 'update',
+        resource: 'tenant:one',
+      }),
+    ).resolves.toEqual({ allowed: false });
   });
 
   it('revokes via OpenFGA write deletes', async () => {
