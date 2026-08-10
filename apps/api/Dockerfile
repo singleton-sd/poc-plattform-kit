@@ -83,15 +83,7 @@ RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index
   && test -f /out/prisma/preview-template.db \
   && printf '%s' "$PREVIEW_SEED_SCENARIOS" > /out/prisma/preview-scenarios.txt \
   && mkdir -p /out/preview-scripts \
-  && cp -r /app/packages/db/scripts /out/preview-scripts/db-scripts \
-  && DATABASE_URL="file:/out/prisma/preview-template.db" node -e "\
-      const { PrismaClient } = require('@prisma/client'); \
-      const p = new PrismaClient(); \
-      p.tenant.findMany().then((rows) => { \
-        if (rows.length === 0) { throw new Error('seeded template has zero tenant rows'); } \
-        console.log('prisma sqlite preview template ok, tenant rows:', rows.length); \
-        return p.\$disconnect(); \
-      }).catch((e) => { console.error(e); process.exit(1); });"
+  && cp -r /app/packages/db/scripts /out/preview-scripts/db-scripts
 
 FROM node:20-alpine AS runner
 RUN apk add --no-cache openssl \

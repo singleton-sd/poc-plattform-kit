@@ -53,7 +53,8 @@ export function registerOutboxSafeScenarios(registry) {
           prisma[model].findUnique({ where: { id: pendingId } }),
         ]);
         if (!processed?.processedAt) return { ok: false, message: `${processedId} missing` };
-        if (pending?.processedAt) return { ok: false, message: `${pendingId} was not pending` };
+        if (!pending) return { ok: false, message: `${pendingId} missing` };
+        if (pending.processedAt) return { ok: false, message: `${pendingId} was not pending` };
         return { ok: true, message: `${pillar} outbox-safe rows present` };
       },
     });

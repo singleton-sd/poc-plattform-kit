@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   DEFAULT_SCENARIOS_CSV,
@@ -64,6 +66,35 @@ test('parsePreviewScenarioDeclaration only looks at the declaration line, not th
     kind: 'scenarios',
     names: ['pillar/tenant/settings'],
   });
+});
+
+test('parsePreviewScenarioDeclaration ignores an example "Preview scenarios:" line inside an HTML comment', () => {
+  const body = [
+    '<!--',
+    'Fill in the "Preview scenarios:" line below with either:',
+    '',
+    '  Preview scenarios: pillar/tenant/settings, pillar/x/y',
+    '-->',
+    '',
+    'Preview scenarios: pillar/tenant/owner',
+  ].join('\n');
+  assert.deepEqual(parsePreviewScenarioDeclaration(body), {
+    kind: 'scenarios',
+    names: ['pillar/tenant/owner'],
+  });
+});
+
+test('parsePreviewScenarioDeclaration returns "unset" when the only declaration-looking line is commented out', () => {
+  const body = '<!-- Preview scenarios: pillar/tenant/settings -->';
+  assert.deepEqual(parsePreviewScenarioDeclaration(body), { kind: 'unset' });
+});
+
+test('parsePreviewScenarioDeclaration parses the real PR template with only its instructional comment present', () => {
+  const templatePath = fileURLToPath(
+    new URL('../.github/pull_request_template.md', import.meta.url),
+  );
+  const template = readFileSync(templatePath, 'utf8');
+  assert.deepEqual(parsePreviewScenarioDeclaration(template), { kind: 'empty' });
 });
 
 test('resolveBuildScenarios joins a scenarios declaration into CSV', () => {

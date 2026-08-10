@@ -9,12 +9,23 @@ import {
 } from './registry.mjs';
 
 function baseScenario(name, overrides = {}) {
-  return { name, seed: async () => {}, ...overrides };
+  return { name, seed: async () => {}, verify: async () => ({ ok: true }), ...overrides };
 }
 
 test('define rejects a scenario without a seed function', () => {
   const registry = createScenarioRegistry();
-  assert.throws(() => registry.define({ name: 'x' }), /seed\(prisma\) function/);
+  assert.throws(
+    () => registry.define({ name: 'x', verify: async () => ({ ok: true }) }),
+    /seed\(prisma\) function/,
+  );
+});
+
+test('define rejects a scenario without a verify function', () => {
+  const registry = createScenarioRegistry();
+  assert.throws(
+    () => registry.define({ name: 'x', seed: async () => {} }),
+    /verify\(prisma\) function/,
+  );
 });
 
 test('define rejects duplicate scenario names', () => {
@@ -116,11 +127,4 @@ test('list/listNames expose registered scenarios sorted by name', () => {
     registry.list().map((s) => s.name),
     ['pillar/tenant/a', 'pillar/tenant/b'],
   );
-});
-
-test('a scenario without an explicit verify gets a default that reports ok', async () => {
-  const registry = createScenarioRegistry();
-  registry.define(baseScenario('pillar/tenant/a'));
-  const result = await registry.get('pillar/tenant/a').verify();
-  assert.equal(result.ok, true);
 });

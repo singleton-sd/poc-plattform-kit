@@ -40,8 +40,17 @@ const NOT_APPLICABLE_PATTERN = /^not-applicable\b\s*[:\-–—]?\s*(.*)$/i;
  *   { kind: 'empty' }   — the marker is present but names/reason are empty
  *   { kind: 'unset' }   — no declaration found at all
  */
+// Strips HTML comments before matching so instructional example text inside
+// a template's <!-- ... --> block (e.g. the scaffolded
+// ".github/pull_request_template.md" instructions, which themselves show
+// "Preview scenarios: pillar/tenant/settings, pillar/x/y" as an example) is
+// never mistaken for the author's actual visible declaration.
+function stripHtmlComments(text) {
+  return text.replace(/<!--[\s\S]*?-->/g, '');
+}
+
 export function parsePreviewScenarioDeclaration(body) {
-  const text = body ?? '';
+  const text = stripHtmlComments(body ?? '');
   const match = text.match(DECLARATION_LINE_PATTERN);
   if (!match) {
     return { kind: 'unset' };

@@ -32,6 +32,10 @@ export function createCatalog() {
     seed: async () => {
       // Composition-only: everything is seeded by the scenarios in dependsOn.
     },
+    verify: async () => ({
+      ok: true,
+      message: 'composition-only: see the composed pillar/tenant/* scenarios for verification',
+    }),
   });
 
   return registry;

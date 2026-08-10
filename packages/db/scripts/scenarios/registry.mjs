@@ -12,7 +12,7 @@
 //     conflictsWith: ['pillar/tenant/x'],  // optional, defaults to []
 //     testInstructions: '...',             // human-readable, for PR comments/docs
 //     seed: async (prisma) => { ... },     // idempotent — safe to re-run
-//     verify: async (prisma) => { ok, message },
+//     verify: async (prisma) => { ok, message },  // required — checks the fixture actually landed
 //   }
 //
 // Seeding is provider-neutral: `seed`/`verify` only ever call standard
@@ -66,6 +66,9 @@ export function createScenarioRegistry() {
     if (typeof scenario.seed !== 'function') {
       throw new Error(`Scenario "${scenario.name}" must define a seed(prisma) function.`);
     }
+    if (typeof scenario.verify !== 'function') {
+      throw new Error(`Scenario "${scenario.name}" must define a verify(prisma) function.`);
+    }
     if (scenarios.has(scenario.name)) {
       throw new DuplicateScenarioError(scenario.name);
     }
@@ -74,7 +77,6 @@ export function createScenarioRegistry() {
       conflictsWith: [],
       description: '',
       testInstructions: '',
-      verify: async () => ({ ok: true, message: 'no verification defined' }),
       ...scenario,
     });
     return registry;

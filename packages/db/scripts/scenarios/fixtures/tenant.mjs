@@ -279,7 +279,8 @@ export function registerTenantScenarios(registry) {
         prisma.tenantOutbox.findUnique({ where: { id: 'seed-tenant-outbox-safe-pending' } }),
       ]);
       if (!processed?.processedAt) return { ok: false, message: 'processed example missing' };
-      if (pending?.processedAt) return { ok: false, message: 'pending example was not pending' };
+      if (!pending) return { ok: false, message: 'pending example missing' };
+      if (pending.processedAt) return { ok: false, message: 'pending example was not pending' };
       return { ok: true, message: 'one processed and one pending safe outbox row present' };
     },
   });
