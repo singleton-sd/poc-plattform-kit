@@ -7,9 +7,6 @@
 
 export * from './accessRequestListResponseDto';
 export * from './accessRequestResponseDto';
-export * from './accessRequestResponseDtoDecidedById';
-export * from './accessRequestResponseDtoDenyReason';
-export * from './accessRequestResponseDtoGrantType';
 export * from './approveAccessRequestDto';
 export * from './approveAccessRequestDtoGrantType';
 export * from './changelogChangeDto';

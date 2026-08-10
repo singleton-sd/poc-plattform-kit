@@ -25,18 +25,24 @@ export class AccessRequestResponseDto {
   })
   status!: string;
 
-  @ApiProperty({ required: false, nullable: true, example: 'admin-1' })
+  @ApiProperty({ required: false, nullable: true, type: String, example: 'admin-1' })
   decidedById!: string | null;
 
   @ApiProperty({ required: false, nullable: true, type: String, format: 'date-time' })
   decidedAt!: string | null;
 
-  @ApiProperty({ required: false, nullable: true, example: 'Not justified' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    type: String,
+    example: 'Not justified',
+  })
   denyReason!: string | null;
 
   @ApiProperty({
     required: false,
     nullable: true,
+    type: String,
     example: 'permanent',
     description: 'permanent | temporary | one_time when approved',
   })

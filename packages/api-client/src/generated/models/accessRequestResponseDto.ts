@@ -4,9 +4,6 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
-import type { AccessRequestResponseDtoDecidedById } from './accessRequestResponseDtoDecidedById';
-import type { AccessRequestResponseDtoDenyReason } from './accessRequestResponseDtoDenyReason';
-import type { AccessRequestResponseDtoGrantType } from './accessRequestResponseDtoGrantType';
 
 export interface AccessRequestResponseDto {
   id: string;
@@ -18,16 +15,16 @@ export interface AccessRequestResponseDto {
   /** pending | approved | denied | expired */
   status: string;
   /** @nullable */
-  decidedById?: AccessRequestResponseDtoDecidedById;
+  decidedById?: string | null;
   /** @nullable */
   decidedAt?: string | null;
   /** @nullable */
-  denyReason?: AccessRequestResponseDtoDenyReason;
+  denyReason?: string | null;
   /**
    * permanent | temporary | one_time when approved
    * @nullable
    */
-  grantType?: AccessRequestResponseDtoGrantType;
+  grantType?: string | null;
   /** @nullable */
   expiresAt?: string | null;
   createdAt: string;

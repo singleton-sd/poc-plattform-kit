@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  GoneException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, GoneException, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
 import { AccessRequestService } from './access-request.service';
 import { PermissionGrantType } from './dto/grant-permission.dto';
@@ -176,15 +171,50 @@ describe('AccessRequestService', () => {
     );
   });
 
-  it('rejects unauthorized approve attempts', async () => {
+  it('returns permission denied when a non-admin non-manager tries to approve', async () => {
     prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
     managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
     permissions.check.mockResolvedValue({ allowed: false });
 
     await expect(
       service.approve('ar1', { grantType: PermissionGrantType.Permanent }, stranger),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toMatchObject({
+      response: { statusCode: 403, message: 'Not an eligible approver for this access request' },
+    });
     expect(permissions.grant).not.toHaveBeenCalled();
+  });
+
+  it('returns permission denied when a non-admin non-manager tries to deny', async () => {
+    prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
+    managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
+    permissions.check.mockResolvedValue({ allowed: false });
+
+    await expect(service.deny('ar1', { reason: 'nope' }, stranger)).rejects.toMatchObject({
+      response: { statusCode: 403, message: 'Not an eligible approver for this access request' },
+    });
+    expect(prisma.accessRequest.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a tenant admin (OpenFGA admin) to approve even when not the manager', async () => {
+    prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
+    managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
+    permissions.check.mockResolvedValue({ allowed: true });
+    permissions.grant.mockResolvedValue({
+      granted: true,
+      grantType: PermissionGrantType.Permanent,
+    });
+    prisma.accessRequest.update.mockResolvedValue({
+      ...pendingRow,
+      status: 'approved',
+      decidedById: stranger.id,
+      decidedAt: now,
+      grantType: PermissionGrantType.Permanent,
+    });
+
+    await expect(
+      service.approve('ar1', { grantType: PermissionGrantType.Permanent }, stranger),
+    ).resolves.toMatchObject({ status: 'approved', decidedById: stranger.id });
+    expect(permissions.grant).toHaveBeenCalled();
   });
 
   it('denies with optional reason and notifies requester via outbox', async () => {

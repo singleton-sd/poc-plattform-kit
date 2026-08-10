@@ -1105,7 +1105,7 @@
             "description": "pending | approved | denied | expired"
           },
           "decidedById": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "admin-1"
           },
@@ -1115,12 +1115,12 @@
             "format": "date-time"
           },
           "denyReason": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Not justified"
           },
           "grantType": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "permanent",
             "description": "permanent | temporary | one_time when approved"
