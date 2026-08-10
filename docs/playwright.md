@@ -2,8 +2,8 @@
 
 Playwright covers a deliberately small set of full-application browser journeys.
 Jest remains the unit/component logic layer, Storybook isolates deterministic UI
-states, Chromatic reviews component visuals, and Azure SWA remains the assembled
-preview for human testing.
+states (see [`docs/storybook.md`](./storybook.md)), Chromatic reviews component
+visuals, and Azure SWA remains the assembled preview for human testing.
 
 ## Initial scope
 

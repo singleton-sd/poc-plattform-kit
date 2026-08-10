@@ -208,7 +208,7 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
 5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
 6. ACR admin username/password live only in KV as `acr-admin-*` (written by `deploy-aca-preview.ps1`).
-7. Chromatic's project token lives only in KV as `chromatic-project-token`; see [`docs/chromatic.md`](docs/chromatic.md).
+7. Chromatic's project token lives only in KV as `chromatic-project-token`; see [`docs/chromatic.md`](docs/chromatic.md). Story catalogue conventions: [`docs/storybook.md`](docs/storybook.md).
 8. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
 
 ```bash

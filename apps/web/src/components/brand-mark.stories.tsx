@@ -20,4 +20,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Smoke: Story = {};
+export const Hero: Story = {};
+
+export const Header: Story = {
+  args: {
+    size: 'header',
+  },
+};
