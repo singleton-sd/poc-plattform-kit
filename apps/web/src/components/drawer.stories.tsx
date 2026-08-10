@@ -63,11 +63,12 @@ export const OpenNarrow: Story = {
   },
 };
 
-export const EscapeCloses: Story = {
+export const CloseViaHeader: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('dialog', { name: 'Create tenant' })).toBeVisible();
-    await userEvent.keyboard('{Escape}');
+    // Prefer the desktop Close control — Chromatic captures at 1280 by default.
+    await userEvent.click(canvas.getByRole('button', { name: 'Close' }));
     await expect(canvas.getByTestId('drawer-harness-status')).toHaveTextContent('Drawer closed');
     await expect(canvas.queryByRole('dialog')).not.toBeInTheDocument();
   },
