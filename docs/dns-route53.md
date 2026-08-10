@@ -40,6 +40,8 @@ powershell -File ./scripts/deploy-swa-from-kv.ps1 -ConfigPath ./infra/custom-dom
 - App: https://app.plattform-kit.poc.singletonsd.com
 - API: https://api.plattform-kit.poc.singletonsd.com (`/health`, `/docs`)
 
+Forward Email uses a **separate** mail hostname (`mail.plattform-kit.poc.singletonsd.com`) so MX/TXT do not collide with the marketing CNAME — see [email-forward-email.md](./email-forward-email.md).
+
 Live CNAME/TXT values live in `infra/custom-domains.pocpk.json` (source of truth
 for re-apply). App Service verification TXT uses Azure
 `customDomainVerificationId` (lowercased in Route53).

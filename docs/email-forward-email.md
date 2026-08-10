@@ -80,7 +80,7 @@ Never print or commit the token. Prefer User/Process env locally; production loa
 | `FORWARD_EMAIL_TOKEN` | `secret:forwardemail-api-key` (KV ref → secret `forwardemail-api-key`) | Required for live send / provisioning |
 | `FORWARD_EMAIL_BASE_URL` | `app:notifications:forwardEmailBaseUrl` | Default `https://api.forwardemail.net` |
 | `EMAIL_PROVIDER` | `app:notifications:emailProvider` | `development` (safe default) or `forward-email` |
-| `EMAIL_FROM_ADDRESS` | `app:notifications:emailFromAddress` | e.g. `noreply@plattform-kit.poc.singletonsd.com` |
+| `EMAIL_FROM_ADDRESS` | `app:notifications:emailFromAddress` | e.g. `noreply@mail.plattform-kit.poc.singletonsd.com` |
 | `EMAIL_FROM_NAME` | `app:notifications:emailFromName` | e.g. `Plattform Kit` |
 | `CONTACT_INBOX_ADDRESS` | `app:notifications:contactInboxAddress` | e.g. `hello@singletonsd.com` |
 | `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` for live send in production hosts |
@@ -109,7 +109,9 @@ If `EMAIL_PROVIDER` is unset and `NODE_ENV=production`, the factory still prefer
 
 ## DNS / Route53
 
-Mail domain (PoC default): **`plattform-kit.poc.singletonsd.com`** under hosted zone **`singletonsd.com`**.
+Mail domain (PoC default): **`mail.plattform-kit.poc.singletonsd.com`** under hosted zone **`singletonsd.com`**.
+
+Marketing stays on **`plattform-kit.poc.singletonsd.com`** (CNAME → Azure SWA). That hostname cannot carry MX/TXT (RFC 1034), so mail uses the dedicated `mail.` hostname instead. From address: **`noreply@mail.plattform-kit.poc.singletonsd.com`**.
 
 | Record | Purpose |
 | --- | --- |
@@ -139,7 +141,7 @@ powershell -File ./scripts/provision-forward-email.ps1
 
 # Custom domain / skip verify while DNS propagates
 powershell -File ./scripts/provision-forward-email.ps1 `
-  -Domain plattform-kit.poc.singletonsd.com `
+  -Domain mail.plattform-kit.poc.singletonsd.com `
   -ZoneDomain singletonsd.com `
   -Alias noreply `
   -AliasRecipient hello@singletonsd.com `
@@ -149,7 +151,7 @@ powershell -File ./scripts/provision-forward-email.ps1 `
 
 | Parameter | Default | Role |
 | --- | --- | --- |
-| `Domain` | `plattform-kit.poc.singletonsd.com` | Forward Email domain |
+| `Domain` | `mail.plattform-kit.poc.singletonsd.com` | Forward Email domain |
 | `ZoneDomain` | `singletonsd.com` | Route53 parent zone |
 | `Alias` / `AliasRecipient` | `noreply` / `hello@singletonsd.com` | Ensure forwarding alias |
 | `HostedZoneId` | (lookup) | Optional zone id override |
@@ -168,7 +170,7 @@ Behaviour highlights:
 6. Ensure alias after listing existing aliases.
 7. Change batches written **UTF-8 without BOM**. Token / Authorization never logged.
 
-TypeScript helpers used by tests / tooling live in `pillars/notifications/src/provisioning/forward-email-management.ts` (`getRequiredDnsRecords`, `mergeSpfInclude`). Prefer the PowerShell script for live Route53 writes.
+TypeScript helpers used by tests / tooling live in `packages/email/src/provisioning/forward-email-management.ts` (`getRequiredDnsRecords`, `mergeSpfInclude`). Prefer the PowerShell script for live Route53 writes.
 
 ## Troubleshooting
 
@@ -220,16 +222,16 @@ Re-run the script with `-Alias` / `-AliasRecipient`, or `POST /v1/domains/{domai
 - Cursor skill: [`.cursor/skills/forward-email/SKILL.md`](../.cursor/skills/forward-email/SKILL.md)
 - Upstream API: https://forwardemail.net/en/email-api
 
-## Known DNS constraint (marketing CNAME)
+## Mail topology (marketing CNAME vs Forward Email)
 
-`plattform-kit.poc.singletonsd.com` currently has a **CNAME** to Azure Static Web Apps (marketing).
-RFC 1034 forbids MX/TXT on the same name as a CNAME, so Forward Email **apex** verification TXT, SPF, and MX cannot be published there until the website hostname is moved (for example to `www.`) or a dedicated mail hostname is chosen.
+**Locked choice (Path B):** keep marketing on `plattform-kit.poc.singletonsd.com` (CNAME → SWA) and provision Forward Email on **`mail.plattform-kit.poc.singletonsd.com`**.
 
-`scripts/provision-forward-email.ps1` detects this conflict, skips apex MX/TXT, and still upserts child records:
+| Host | Role |
+| --- | --- |
+| `plattform-kit.poc.singletonsd.com` | Marketing website (CNAME) — no MX/TXT |
+| `mail.plattform-kit.poc.singletonsd.com` | Forward Email domain (MX / SPF / verification + DKIM / Return-Path / DMARC) |
+| From | `noreply@mail.plattform-kit.poc.singletonsd.com` |
 
-- DKIM TXT (`fe-*._domainkey.plattform-kit.poc`)
-- Return-Path CNAME (`fe-bounces.plattform-kit.poc`)
-- DMARC TXT (`_dmarc.plattform-kit.poc`)
+RFC 1034 forbids MX/TXT on the same name as a CNAME, so the marketing hostname cannot be the mail domain. The provision script still detects a CNAME on whatever `-Domain` you pass and skips apex MX/TXT in that case; with the PoC default `mail.…` there is no website CNAME, so full verification applies.
 
-Follow-up ticket: Resolve marketing CNAME vs Forward Email DNS conflict (https://app.clickup.com/t/86d3znh28).
-
+If an older Forward Email domain was created on `plattform-kit.poc.singletonsd.com` during foundation setup, leave or remove it in the Forward Email dashboard — production From/App Config should use the `mail.` domain only. Update App Config `app:notifications:emailFromAddress` (and redeploy marketing-edge if the Function still has the old default) when cutting over.
