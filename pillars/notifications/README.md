@@ -27,11 +27,13 @@ Owns: outbound messaging across channels (email, SMS, WhatsApp).
 
 Never put provider API keys in GitHub Secrets or git.
 
-## Stub layout
+## Provider layout
 
 ```
 src/providers/
-  email-provider.ts      # EmailProvider + Forward Email stub
+  email-provider.ts      # EmailProvider + Forward Email HTTP client
   sms-provider.ts        # SmsProvider + android-sms-gateway stub
   whatsapp-provider.ts   # WhatsAppProvider + Meta Cloud API stub
 ```
+
+Marketing brochure Contact uses a self-contained Forward Email client inside `apps/marketing-oauth` (Function zip deploy). The pillar provider is for Nest / `notifications.send` consumers.
