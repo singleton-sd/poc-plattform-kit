@@ -32,7 +32,9 @@ Decap GitHub OAuth routes already live on this Function App; Contact and OAuth s
 
 | Key | Purpose |
 | --- | --- |
-| `PUBLIC_MARKETING_API_BASE_URL` | Origin of `ssd-pocpk-decap-oauth-dev-ae` (custom hostname when added, else `*.azurewebsites.net`) |
+| `PUBLIC_MARKETING_API_BASE_URL` | Origin of `ssd-pocpk-decap-oauth-dev-ae` (default `https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net`) |
+
+Contact form posts to `{PUBLIC_MARKETING_API_BASE_URL}/contact`. Do **not** use Nest `PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` for brochure Contact.
 
 ## Forward Email + contact delivery config
 

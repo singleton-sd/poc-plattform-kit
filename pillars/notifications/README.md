@@ -67,8 +67,12 @@ src/
     development-email.provider.ts
     create-email-provider.ts
     email-provider.ts      # re-exports
-    sms-provider.ts        # android-sms-gateway (stub → real)
-    whatsapp-provider.ts   # Meta Cloud API (stub → real)
+    sms-provider.ts
+    whatsapp-provider.ts
   provisioning/
     forward-email-management.ts   # domains/aliases/DNS helpers (not runtime Route53)
 ```
+
+Marketing brochure Contact (`apps/marketing-oauth`) depends on this package. Function zip deploy vendors the built pillar into `node_modules` (see `scripts/deploy-decap-oauth.ps1`) so `workspace:*` is not required at runtime on Azure.
+
+`EmailProvider` requires `isConfigured()` — any Nest/queue stub or mock must implement it (not only `send`).

@@ -10,6 +10,7 @@ import { isAllowedOauthHostname, parseOrigins } from './login-script';
 export {
   buildContactEmailRequest,
   CONTACT_SUBJECTS,
+  hasForbiddenControls,
   validateContactInquiry,
   type ContactInquiryInput,
   type ContactSubject,

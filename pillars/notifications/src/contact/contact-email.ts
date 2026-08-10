@@ -23,38 +23,52 @@ const SUBJECT_LABELS: Record<ContactSubject, string> = {
   partnership: 'Partnership',
 };
 
-/** Practical email shape; rejects CR/LF and obvious header injection. */
+/** Practical email shape; rejects CR/LF and angle brackets. */
 const EMAIL_RE = /^[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+$/;
+
+/** Reject C0 / DEL. Names: no newlines. Messages: allow LF and tab only. */
+export function hasForbiddenControls(value: string, allowMessageWhitespace: boolean): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code === 0x7f) return true;
+    if (code >= 0x20) continue;
+    if (allowMessageWhitespace && (code === 0x09 || code === 0x0a)) continue;
+    return true;
+  }
+  return false;
+}
 
 export function validateContactInquiry(body: unknown): ContactValidationResult {
   if (!body || typeof body !== 'object') {
     return { ok: false, status: 400, error: 'Expected a JSON object body.' };
   }
   const record = body as Record<string, unknown>;
-  const name = typeof record.name === 'string' ? sanitizeHeaderValue(record.name) : '';
-  const email = typeof record.email === 'string' ? sanitizeHeaderValue(record.email) : '';
-  const subject = typeof record.subject === 'string' ? sanitizeHeaderValue(record.subject) : '';
+  const nameRaw = typeof record.name === 'string' ? record.name.trim() : '';
+  const emailRaw = typeof record.email === 'string' ? record.email.trim() : '';
+  const subjectRaw = typeof record.subject === 'string' ? record.subject.trim() : '';
   const message = typeof record.message === 'string' ? record.message.trim() : '';
 
-  if (!name || name.length > 120) {
+  if (!nameRaw || nameRaw.length > 120 || hasForbiddenControls(nameRaw, false)) {
     return { ok: false, status: 400, error: 'Enter a name (max 120 characters).' };
   }
-  if (!EMAIL_RE.test(email) || email.length > 254) {
+  if (!EMAIL_RE.test(emailRaw) || emailRaw.length > 254 || hasForbiddenControls(emailRaw, false)) {
     return { ok: false, status: 400, error: 'Enter a valid email address.' };
   }
-  if (!(CONTACT_SUBJECTS as readonly string[]).includes(subject)) {
+  if (!(CONTACT_SUBJECTS as readonly string[]).includes(subjectRaw)) {
     return { ok: false, status: 400, error: 'Select a valid subject.' };
   }
-  if (message.length < 10 || message.length > 5000) {
+  if (message.length < 10 || message.length > 5000 || hasForbiddenControls(message, true)) {
     return { ok: false, status: 400, error: 'Enter a message of 10–5000 characters.' };
-  }
-  if (/[\r\n]/.test(record.name as string) || /[\r\n]/.test(record.email as string)) {
-    return { ok: false, status: 400, error: 'Invalid characters in name or email.' };
   }
 
   return {
     ok: true,
-    value: { name, email, subject: subject as ContactSubject, message },
+    value: {
+      name: sanitizeHeaderValue(nameRaw),
+      email: sanitizeHeaderValue(emailRaw),
+      subject: subjectRaw as ContactSubject,
+      message,
+    },
   };
 }
 
@@ -83,7 +97,8 @@ export function buildContactEmailRequest(
     from: options.from,
     fromName: options.fromName,
     replyTo: dto.email,
-    subject: `[Plattform Kit] ${subjectLabel} — ${dto.name}`,
+    // Fixed label only — never interpolate free-text into the Subject header.
+    subject: `[Plattform Kit] ${subjectLabel}`,
     text,
     correlationId: options.correlationId,
   };

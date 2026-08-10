@@ -69,13 +69,16 @@ Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
 | Astro site | No — CI build + SWA |
 | GitHub OAuth login | **Yes** — Function App `ssd-pocpk-decap-oauth-dev-ae` |
 
-### OAuth proxy routes
+### OAuth / marketing-edge routes
 
 | Path | Role |
 | --- | --- |
 | `/auth` | Redirect to GitHub authorize |
 | `/callback` | Exchange code → HTML `postMessage` handshake for Decap |
+| `/contact` | Anonymous marketing Contact form (`POST` / `OPTIONS`) → Forward Email |
 | `/health` | Liveness |
+
+Astro Contact form posts to `{PUBLIC_MARKETING_API_BASE_URL}/contact` (not Nest).
 
 `ORIGINS` (Function App setting / Bicep `origins`) is a comma-separated list of
 **opener hostnames** (no scheme). Include the marketing SWA instance prefix so

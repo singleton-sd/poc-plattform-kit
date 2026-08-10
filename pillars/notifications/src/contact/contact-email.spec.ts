@@ -57,6 +57,7 @@ describe('buildContactEmailRequest / sendContactInquiryEmail', () => {
     assert.equal(built.to, 'hello@singletonsd.com');
     assert.equal(built.from, 'noreply@plattform-kit.poc.singletonsd.com');
     assert.equal(built.replyTo, 'jane@acme.com');
+    assert.equal(built.subject, '[Plattform Kit] Sales / demo request');
     assert.notEqual(built.from, dto.email);
 
     const sent = await sendContactInquiryEmail(dto, provider, {

@@ -125,6 +125,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/${forwardEmailSecretName}/)'
         }
         {
+          name: 'FORWARD_EMAIL_BASE_URL'
+          value: 'https://api.forwardemail.net'
+        }
+        {
           name: 'EMAIL_PROVIDER'
           value: 'forward-email'
         }
@@ -143,6 +147,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'CONTACT_INBOX_ADDRESS'
           value: contactInboxAddress
+        }
+        {
+          name: 'CONTACT_RATE_LIMIT_PER_MIN'
+          value: '5'
         }
       ]
     }

@@ -198,6 +198,32 @@ model SupportAudit {
 
 // --- Permissions ---
 
+/// Access request workflow: requester asks for a denied action; tenant admin
+/// or manager approves (permanent / temporary / one-time) or denies.
+model AccessRequest {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  requesterId        String
+  requesterEntraOid  String
+  action             String
+  resource           String
+  status             String
+  decidedById        String?
+  decidedAt          DateTime?
+  denyReason         String?
+  grantType          String?
+  /// When the pending request itself expires if still undecided.
+  requestExpiresAt   DateTime?
+  /// Absolute grant expiry when grantType is temporary (set on approve).
+  grantExpiresAt     DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([requesterId, status])
+  @@map("access_requests")
+}
+
 model PermissionsOutbox {
   id            String    @id @default(cuid())
   eventType     String
@@ -211,6 +237,18 @@ model PermissionsOutbox {
   createdAt     DateTime  @default(now())
 
   @@map("permissions_outbox")
+}
+
+model PermissionsAudit {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  changes    String
+  createdAt  DateTime @default(now())
+
+  @@map("permissions_audit")
 }
 
 // --- Notifications ---

@@ -1,12 +1,12 @@
 {
-  "name": "@poc-plattform-kit/events",
-  "version": "0.3.0",
+  "name": "@poc-plattform-kit/dto-map",
+  "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "echo \"lint:events stub\"",
+    "lint": "echo \"lint:dto-map stub\"",
     "test": "jest"
   },
   "devDependencies": {

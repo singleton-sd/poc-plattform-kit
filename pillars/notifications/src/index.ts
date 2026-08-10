@@ -27,6 +27,7 @@ export type {
 export {
   CONTACT_SUBJECTS,
   buildContactEmailRequest,
+  hasForbiddenControls,
   sendContactInquiryEmail,
   validateContactInquiry,
 } from './contact/contact-email';

@@ -21,8 +21,13 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccessRequestListResponseDto,
+  AccessRequestResponseDto,
+  ApproveAccessRequestDto,
   CheckPermissionDto,
   CheckPermissionResponseDto,
+  CreateAccessRequestDto,
+  DenyAccessRequestDto,
   GrantPermissionDto,
   GrantPermissionResponseDto,
   PermissionsHealthResponseDto,
@@ -489,3 +494,568 @@ export function usePermissionsControllerHealth<
 
   return query;
 }
+
+/**
+ * Captures subject/action/resource for the current user. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.
+ * @summary Create an access request for a denied action
+ */
+export type accessRequestControllerCreateResponse201 = {
+  data: AccessRequestResponseDto;
+  status: 201;
+};
+
+export type accessRequestControllerCreateResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessRequestControllerCreateResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessRequestControllerCreateResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessRequestControllerCreateResponseSuccess =
+  accessRequestControllerCreateResponse201 & {
+    headers: Headers;
+  };
+export type accessRequestControllerCreateResponseError = (
+  | accessRequestControllerCreateResponse400
+  | accessRequestControllerCreateResponse401
+  | accessRequestControllerCreateResponse403
+) & {
+  headers: Headers;
+};
+
+export type accessRequestControllerCreateResponse =
+  accessRequestControllerCreateResponseSuccess | accessRequestControllerCreateResponseError;
+
+export const getAccessRequestControllerCreateUrl = () => {
+  return `/permissions/access-requests`;
+};
+
+export const accessRequestControllerCreate = async (
+  createAccessRequestDto: CreateAccessRequestDto,
+  options?: RequestInit,
+): Promise<accessRequestControllerCreateResponse> => {
+  return customFetch<accessRequestControllerCreateResponse>(getAccessRequestControllerCreateUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAccessRequestDto),
+  });
+};
+
+export const getAccessRequestControllerCreateMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof accessRequestControllerCreate>>,
+    TError,
+    { data: CreateAccessRequestDto },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof accessRequestControllerCreate>>,
+  TError,
+  { data: CreateAccessRequestDto },
+  TContext
+> => {
+  const mutationKey = ['accessRequestControllerCreate'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof accessRequestControllerCreate>>,
+    { data: CreateAccessRequestDto }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return accessRequestControllerCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AccessRequestControllerCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof accessRequestControllerCreate>>
+>;
+export type AccessRequestControllerCreateMutationBody = CreateAccessRequestDto;
+export type AccessRequestControllerCreateMutationError = void;
+
+/**
+ * @summary Create an access request for a denied action
+ */
+export const useAccessRequestControllerCreate = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof accessRequestControllerCreate>>,
+      TError,
+      { data: CreateAccessRequestDto },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof accessRequestControllerCreate>>,
+  TError,
+  { data: CreateAccessRequestDto },
+  TContext
+> => {
+  const mutationOptions = getAccessRequestControllerCreateMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Returns non-expired pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s manager chain member. Does not mutate expired rows.
+ * @summary List pending access requests visible to the caller
+ */
+export type accessRequestControllerListPendingResponse200 = {
+  data: AccessRequestListResponseDto;
+  status: 200;
+};
+
+export type accessRequestControllerListPendingResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessRequestControllerListPendingResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessRequestControllerListPendingResponseSuccess =
+  accessRequestControllerListPendingResponse200 & {
+    headers: Headers;
+  };
+export type accessRequestControllerListPendingResponseError = (
+  accessRequestControllerListPendingResponse400 | accessRequestControllerListPendingResponse401
+) & {
+  headers: Headers;
+};
+
+export type accessRequestControllerListPendingResponse =
+  | accessRequestControllerListPendingResponseSuccess
+  | accessRequestControllerListPendingResponseError;
+
+export const getAccessRequestControllerListPendingUrl = () => {
+  return `/permissions/access-requests/pending`;
+};
+
+export const accessRequestControllerListPending = async (
+  options?: RequestInit,
+): Promise<accessRequestControllerListPendingResponse> => {
+  return customFetch<accessRequestControllerListPendingResponse>(
+    getAccessRequestControllerListPendingUrl(),
+    {
+      ...options,
+      method: 'GET',
+    },
+  );
+};
+
+export const getAccessRequestControllerListPendingQueryKey = () => {
+  return [`/permissions/access-requests/pending`] as const;
+};
+
+export const getAccessRequestControllerListPendingQueryOptions = <
+  TData = Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+  TError = void,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListPending>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getAccessRequestControllerListPendingQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof accessRequestControllerListPending>>> = ({
+    signal,
+  }) => accessRequestControllerListPending({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type AccessRequestControllerListPendingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof accessRequestControllerListPending>>
+>;
+export type AccessRequestControllerListPendingQueryError = void;
+
+export function useAccessRequestControllerListPending<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListPending>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+          TError,
+          Awaited<ReturnType<typeof accessRequestControllerListPending>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useAccessRequestControllerListPending<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListPending>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+          TError,
+          Awaited<ReturnType<typeof accessRequestControllerListPending>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useAccessRequestControllerListPending<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListPending>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List pending access requests visible to the caller
+ */
+
+export function useAccessRequestControllerListPending<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListPending>>,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListPending>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getAccessRequestControllerListPendingQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Caller must be a same-tenant eligible approver (not the requester). Claims the row, then calls Grant API; rolls back / revokes on failure.
+ * @summary Approve an access request and grant the permission
+ */
+export type accessRequestControllerApproveResponse200 = {
+  data: AccessRequestResponseDto;
+  status: 200;
+};
+
+export type accessRequestControllerApproveResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessRequestControllerApproveResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessRequestControllerApproveResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessRequestControllerApproveResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessRequestControllerApproveResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessRequestControllerApproveResponse410 = {
+  data: void;
+  status: 410;
+};
+
+export type accessRequestControllerApproveResponseSuccess =
+  accessRequestControllerApproveResponse200 & {
+    headers: Headers;
+  };
+export type accessRequestControllerApproveResponseError = (
+  | accessRequestControllerApproveResponse400
+  | accessRequestControllerApproveResponse401
+  | accessRequestControllerApproveResponse403
+  | accessRequestControllerApproveResponse404
+  | accessRequestControllerApproveResponse409
+  | accessRequestControllerApproveResponse410
+) & {
+  headers: Headers;
+};
+
+export type accessRequestControllerApproveResponse =
+  accessRequestControllerApproveResponseSuccess | accessRequestControllerApproveResponseError;
+
+export const getAccessRequestControllerApproveUrl = (id: string) => {
+  return `/permissions/access-requests/${id}/approve`;
+};
+
+export const accessRequestControllerApprove = async (
+  id: string,
+  approveAccessRequestDto: ApproveAccessRequestDto,
+  options?: RequestInit,
+): Promise<accessRequestControllerApproveResponse> => {
+  return customFetch<accessRequestControllerApproveResponse>(
+    getAccessRequestControllerApproveUrl(id),
+    {
+      ...options,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      body: JSON.stringify(approveAccessRequestDto),
+    },
+  );
+};
+
+export const getAccessRequestControllerApproveMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof accessRequestControllerApprove>>,
+    TError,
+    { id: string; data: ApproveAccessRequestDto },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof accessRequestControllerApprove>>,
+  TError,
+  { id: string; data: ApproveAccessRequestDto },
+  TContext
+> => {
+  const mutationKey = ['accessRequestControllerApprove'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof accessRequestControllerApprove>>,
+    { id: string; data: ApproveAccessRequestDto }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return accessRequestControllerApprove(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AccessRequestControllerApproveMutationResult = NonNullable<
+  Awaited<ReturnType<typeof accessRequestControllerApprove>>
+>;
+export type AccessRequestControllerApproveMutationBody = ApproveAccessRequestDto;
+export type AccessRequestControllerApproveMutationError = void;
+
+/**
+ * @summary Approve an access request and grant the permission
+ */
+export const useAccessRequestControllerApprove = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof accessRequestControllerApprove>>,
+      TError,
+      { id: string; data: ApproveAccessRequestDto },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof accessRequestControllerApprove>>,
+  TError,
+  { id: string; data: ApproveAccessRequestDto },
+  TContext
+> => {
+  const mutationOptions = getAccessRequestControllerApproveMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Caller must be a same-tenant eligible approver (not the requester).
+ * @summary Deny an access request
+ */
+export type accessRequestControllerDenyResponse200 = {
+  data: AccessRequestResponseDto;
+  status: 200;
+};
+
+export type accessRequestControllerDenyResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessRequestControllerDenyResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessRequestControllerDenyResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessRequestControllerDenyResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessRequestControllerDenyResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessRequestControllerDenyResponse410 = {
+  data: void;
+  status: 410;
+};
+
+export type accessRequestControllerDenyResponseSuccess = accessRequestControllerDenyResponse200 & {
+  headers: Headers;
+};
+export type accessRequestControllerDenyResponseError = (
+  | accessRequestControllerDenyResponse400
+  | accessRequestControllerDenyResponse401
+  | accessRequestControllerDenyResponse403
+  | accessRequestControllerDenyResponse404
+  | accessRequestControllerDenyResponse409
+  | accessRequestControllerDenyResponse410
+) & {
+  headers: Headers;
+};
+
+export type accessRequestControllerDenyResponse =
+  accessRequestControllerDenyResponseSuccess | accessRequestControllerDenyResponseError;
+
+export const getAccessRequestControllerDenyUrl = (id: string) => {
+  return `/permissions/access-requests/${id}/deny`;
+};
+
+export const accessRequestControllerDeny = async (
+  id: string,
+  denyAccessRequestDto: DenyAccessRequestDto,
+  options?: RequestInit,
+): Promise<accessRequestControllerDenyResponse> => {
+  return customFetch<accessRequestControllerDenyResponse>(getAccessRequestControllerDenyUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(denyAccessRequestDto),
+  });
+};
+
+export const getAccessRequestControllerDenyMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof accessRequestControllerDeny>>,
+    TError,
+    { id: string; data: DenyAccessRequestDto },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof accessRequestControllerDeny>>,
+  TError,
+  { id: string; data: DenyAccessRequestDto },
+  TContext
+> => {
+  const mutationKey = ['accessRequestControllerDeny'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof accessRequestControllerDeny>>,
+    { id: string; data: DenyAccessRequestDto }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return accessRequestControllerDeny(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AccessRequestControllerDenyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof accessRequestControllerDeny>>
+>;
+export type AccessRequestControllerDenyMutationBody = DenyAccessRequestDto;
+export type AccessRequestControllerDenyMutationError = void;
+
+/**
+ * @summary Deny an access request
+ */
+export const useAccessRequestControllerDeny = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof accessRequestControllerDeny>>,
+      TError,
+      { id: string; data: DenyAccessRequestDto },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof accessRequestControllerDeny>>,
+  TError,
+  { id: string; data: DenyAccessRequestDto },
+  TContext
+> => {
+  const mutationOptions = getAccessRequestControllerDenyMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};

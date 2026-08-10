@@ -97,6 +97,33 @@ const mixedReport = formatGateReport({ pr: 101, snapshot: base, result: mixedFai
 assert.match(mixedReport, /Re-run the cancelled checks/);
 assert.match(mixedReport, /Open the failed checks/);
 
+assert.equal(
+  evaluateSnapshot(
+    {
+      ...base,
+      expected: ['has-feedback'],
+      checks: [
+        {
+          name: 'has-feedback',
+          status: 'COMPLETED',
+          conclusion: 'CANCELLED',
+          completedAt: '2026-01-01T00:00:00Z',
+        },
+        {
+          name: 'has-feedback',
+          status: 'COMPLETED',
+          conclusion: 'SUCCESS',
+          completedAt: '2026-01-01T00:01:00Z',
+        },
+      ],
+    },
+    now,
+    90_000,
+  ).ready,
+  true,
+  'superseded CANCELLED rollup entries must not block when latest is SUCCESS',
+);
+
 const workflow = readFileSync(
   new URL('../.github/workflows/pr-handoff-gate.yml', import.meta.url),
   'utf8',
@@ -105,10 +132,10 @@ assert.match(workflow, /cancel-in-progress: false/);
 assert.match(workflow, /RUN_URL: .*github\.run_id/);
 assert.doesNotMatch(workflow, /<<['"]?EOF/);
 
-const runBlocks = [...workflow.matchAll(/^ {8}run: \|\n((?:^ {10}.*(?:\n|$))*)/gm)];
+const runBlocks = [...workflow.matchAll(/^ {8}run: \|\r?\n((?:^ {10}.*(?:\r?\n|$))*)/gm)];
 assert.ok(runBlocks.length > 0, 'expected workflow run blocks');
 for (const [, indentedScript] of runBlocks) {
-  const script = indentedScript.replace(/^ {10}/gm, '');
+  const script = indentedScript.replace(/^ {10}/gm, '').replace(/\r\n/g, '\n');
   const syntaxCheck = spawnSync('bash', ['-n'], { input: script, encoding: 'utf8' });
   assert.equal(syntaxCheck.status, 0, syntaxCheck.stderr);
 }
