@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # ClickUp REST CLI (bash) — Linux / Cursor Cloud fallback when PowerShell is absent.
-# Auth: CLICKUP_API_TOKEN (never print it). Same ops list defaults as clickup.ps1.
+# Auth: CLICKUP_API_TOKEN (never print it). Default Delivery list 901616287298
+# (override with CLICKUP_LIST_ID for Ideas & Discovery 901616397764 or
+# Human & Operations 901616397767).
 #
 # Usage:
 #   ./scripts/clickup.sh me
 #   ./scripts/clickup.sh list "READY FOR AI"
+#   CLICKUP_LIST_ID=901616397764 ./scripts/clickup.sh list
 #   ./scripts/clickup.sh get 86d3xxxx
 #   ./scripts/clickup.sh claim 86d3xxxx <claimToken> ["IN PROGRESS"]
 #   ./scripts/clickup.sh status 86d3xxxx "READY FOR REVIEW" [--clear-claim] [--url URL]
@@ -12,7 +15,7 @@
 #   ./scripts/clickup.sh comment 86d3xxxx "text"
 #   ./scripts/clickup.sh field 86d3xxxx <fieldId> <value>
 #   ./scripts/clickup.sh preview 86d3xxxx https://...
-#   ./scripts/clickup.sh create "Title" ["TO DO"] [estimate]
+#   ./scripts/clickup.sh create "Title" ["BACKLOG"] [estimate]
 #   ./scripts/clickup.sh depend <childId> <parentId>
 
 set -euo pipefail

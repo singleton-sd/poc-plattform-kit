@@ -8,11 +8,19 @@
 
 ## ClickUp (locked)
 
-- **Tickets / ops list only:** https://app.clickup.com/90161394355/v/li/901616287298 (`list_id=901616287298`, workspace `90161394355`, space PoC)
+Workspace `90161394355`, space PoC, Plattform Kit folder. Use **exactly** these workflow lists — do **not** create Web/API/Marketing/pillar-specific lists (those are task classifications: Area / Pillar / Work Type / Execution).
+
+| List | ID | Purpose |
+| --- | --- | --- |
+| **Delivery** | `901616287298` | Approved implementation work; **claim / AI loop / PR handoff queue** |
+| **Ideas & Discovery** | `901616397764` | Unresolved ideas, spikes, design questions |
+| **Human & Operations** | `901616397767` | Standalone manual gates (portal setup, billing, human-entered secrets, etc.) |
+
+- **Delivery (claim queue):** https://app.clickup.com/90161394355/v/li/901616287298
 - **Architecture Doc:** https://app.clickup.com/90161394355/docs/2kz0kcnk-1416
 - **Docs folder:** https://app.clickup.com/90161394355/v/f/901610744236/90165834867 (`folder_id=901610744236`)
-- Do **not** create a separate Platform Kit space/list.
-- **Custom fields** on ops list `901616287298`:
+- Do **not** create a separate Platform Kit space or extra workflow lists.
+- **Custom fields** on Delivery `901616287298` (claim/handoff):
 
 | Field | Type | UUID | Usage |
 | --- | --- | --- | --- |
@@ -21,16 +29,22 @@
 | **Token Estimate** | number | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set when the task is planned |
 | **Token Spent** | number | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Set when the task is finished |
 
-- **Access (locked):** use REST via [`scripts/clickup.ps1`](scripts/clickup.ps1) (Windows) or [`scripts/clickup.sh`](scripts/clickup.sh) (Linux / Cursor Cloud) + env `CLICKUP_API_TOKEN`. **Do not use ClickUp MCP** for routine list/get/claim/status/comment — MCP burns a shared rate budget and can lock the workspace for ~10h. On HTTP 429, stop ClickUp calls in that chat (no retries/spin). Custom field writes must use Set Custom Field Value (`…/task/{id}/field/{field_id}`), not Update Task. Bootstrap Claim Token field: [`scripts/ensure-claim-token-field.ps1`](scripts/ensure-claim-token-field.ps1).
+- **Access (locked):** use REST via [`scripts/clickup.ps1`](scripts/clickup.ps1) (Windows) or [`scripts/clickup.sh`](scripts/clickup.sh) (Linux / Cursor Cloud) + env `CLICKUP_API_TOKEN`. Default `-ListId` is Delivery; pass `-ListId 901616397764` or `901616397767` when creating/listing Ideas & Discovery or Human & Operations. **Do not use ClickUp MCP** for routine list/get/claim/status/comment — MCP burns a shared rate budget and can lock the workspace for ~10h. On HTTP 429, stop ClickUp calls in that chat (no retries/spin). Custom field writes must use Set Custom Field Value (`…/task/{id}/field/{field_id}`), not Update Task. Bootstrap Claim Token field: [`scripts/ensure-claim-token-field.ps1`](scripts/ensure-claim-token-field.ps1).
 
 ## ClickUp statuses
 
+**Delivery** (`901616287298`) — AI claim/handoff:
+
 | Group | Statuses |
 | --- | --- |
-| Not started | `TO DO` |
+| Not started | `BACKLOG`, `TO DO` (prefer `BACKLOG` for new unrefined work; `TO DO` retained for compatibility) |
 | Active | `IN PROGRESS`, `READY FOR AI` |
 | Done | `READY FOR REVIEW`, `READY FOR HUMAN` |
 | Closed | `COMPLETE` |
+
+`READY FOR HUMAN` means AI review + PR hygiene passed and a **human should merge** (or give final approval). It is **not** a bucket for standalone manual work — put those on **Human & Operations**.
+
+**Ideas & Discovery** / **Human & Operations** use a simpler set only: `TO DO`, `IN PROGRESS`, `COMPLETE`. Do not invent Delivery statuses on those lists.
 
 ## AI loop (mandatory)
 

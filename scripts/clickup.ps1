@@ -2,7 +2,8 @@
 # strict rate budget and locks the workspace for hours).
 #
 # Auth: CLICKUP_API_TOKEN from process / User / Machine env (never print it).
-# Defaults: workspace 90161394355, ops list 901616287298.
+# Defaults: workspace 90161394355, Delivery list 901616287298.
+# Other workflow lists: Ideas & Discovery 901616397764, Human & Operations 901616397767.
 #
 # Custom field values use POST /task/{id}/field/{field_id} (not Update Task).
 # On Linux/Cloud without PowerShell, use scripts/clickup.sh instead.
@@ -10,13 +11,15 @@
 # Usage:
 #   powershell -File scripts/clickup.ps1 me
 #   powershell -File scripts/clickup.ps1 list -Status "READY FOR AI"
+#   powershell -File scripts/clickup.ps1 list -ListId 901616397764
 #   powershell -File scripts/clickup.ps1 get -TaskId 86d3xxxx
 #   powershell -File scripts/clickup.ps1 claim -TaskId 86d3xxxx -ClaimToken <session> [-Status "IN PROGRESS"] [-AssignMe]
 #   powershell -File scripts/clickup.ps1 status -TaskId 86d3xxxx -Status "READY FOR REVIEW" [-ClearClaim] [-Url https://...]
 #   powershell -File scripts/clickup.ps1 comment -TaskId 86d3xxxx -Text "..."
 #   powershell -File scripts/clickup.ps1 field -TaskId 86d3xxxx -FieldId <uuid> -Value "..."
 #   powershell -File scripts/clickup.ps1 preview -TaskId 86d3xxxx -Url "https://..."
-#   powershell -File scripts/clickup.ps1 create -Name "..." [-Status "TO DO"] [-Description "..."] [-Estimate 50000]
+#   powershell -File scripts/clickup.ps1 create -Name "..." [-Status "BACKLOG"] [-Description "..."] [-Estimate 50000]
+#   powershell -File scripts/clickup.ps1 create -ListId 901616397767 -Name "..." -Status "TO DO" -Description "..."
 #   powershell -File scripts/clickup.ps1 depend -TaskId 86d3xxxx -DependsOn 86d3yyyy
 
 [CmdletBinding()]
