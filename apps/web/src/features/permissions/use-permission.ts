@@ -6,7 +6,7 @@ import type {
   CreateAccessRequestDto,
 } from '@poc-plattform-kit/api-client';
 import { useMe } from '@/features/auth/me';
-import { checkPermission, createAccessRequest, listMyAccessRequests } from './api';
+import { checkPermission, createAccessRequest, formatApiError, listMyAccessRequests } from './api';
 
 export type UsePermissionArgs = {
   action: string;
@@ -50,6 +50,9 @@ export function usePermission({ action, resource, enabled = true }: UsePermissio
     subject,
     isLoading: me.isLoading || (ready && checkQuery.isLoading),
     isError: checkQuery.isError,
+    errorMessage: checkQuery.isError
+      ? formatApiError(checkQuery.error, 'Could not verify permission. Try again.')
+      : null,
     allowed: checkQuery.data?.allowed === true,
     denied: checkQuery.data?.allowed === false,
     latestRequest,
@@ -70,4 +73,8 @@ export function useRequestAccess() {
       });
     },
   });
+}
+
+export function requestAccessErrorMessage(error: unknown): string {
+  return formatApiError(error, 'Could not submit the request. Try again.');
 }

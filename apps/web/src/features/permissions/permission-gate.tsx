@@ -40,6 +40,24 @@ export function PermissionGate({
     );
   }
 
+  if (permission.isError) {
+    return (
+      <div className="flex flex-wrap items-center gap-2" data-testid="permission-gate-error">
+        <p className="text-sm text-fg" role="alert">
+          {permission.errorMessage}
+        </p>
+        <button
+          type="button"
+          onClick={() => void permission.refetch()}
+          className="rounded border border-fg-subtle px-3 py-2 text-sm text-fg"
+          data-testid="permission-gate-retry"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (permission.allowed) {
     return <>{children}</>;
   }

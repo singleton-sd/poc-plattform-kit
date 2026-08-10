@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { CreateAccessRequestDto } from '@poc-plattform-kit/api-client';
-import { useRequestAccess } from './use-permission';
+import { requestAccessErrorMessage, useRequestAccess } from './use-permission';
 
 type RequestAccessDialogProps = {
   open: boolean;
@@ -98,8 +98,8 @@ export function RequestAccessDialog({
         ) : null}
 
         {request.isError ? (
-          <p className="mt-3 text-sm text-fg" role="alert">
-            Could not submit the request. Try again.
+          <p className="mt-3 text-sm text-fg" role="alert" data-testid="request-access-error">
+            {requestAccessErrorMessage(request.error)}
           </p>
         ) : null}
 
