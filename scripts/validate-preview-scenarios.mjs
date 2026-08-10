@@ -25,6 +25,21 @@ const DB_PACKAGE_ROOT = join(REPO_ROOT, 'packages', 'db');
 
 const DATA_AFFECTING_PREFIXES = ['apps/api/', 'pillars/', 'packages/db/'];
 
+/**
+ * Runs a Prisma CLI command, printing its stdout/stderr on failure so a CI
+ * schema-transform or db-push failure shows Prisma's own diagnostic instead
+ * of just "Command failed with exit code 1".
+ */
+function runPrisma(prismaBin, args, options) {
+  try {
+    return execFileSync(prismaBin, args, { ...options, stdio: 'pipe', encoding: 'utf8' });
+  } catch (error) {
+    if (error.stdout) console.error(error.stdout);
+    if (error.stderr) console.error(error.stderr);
+    throw error;
+  }
+}
+
 export function touchesDataAffectingPaths(changedFiles) {
   return changedFiles.some((file) => DATA_AFFECTING_PREFIXES.some((p) => file.startsWith(p)));
 }
@@ -105,15 +120,14 @@ export async function seedAndVerifyDeclaredScenarios(names) {
 
     const env = { ...process.env, DATABASE_URL: `file:${dbPath}` };
     const prismaBin = join(DB_PACKAGE_ROOT, 'node_modules', '.bin', 'prisma');
-    execFileSync(
+    runPrisma(
       prismaBin,
       ['db', 'push', `--schema=${schemaPath}`, '--skip-generate', '--accept-data-loss'],
-      { cwd: DB_PACKAGE_ROOT, env, stdio: 'pipe' },
+      { cwd: DB_PACKAGE_ROOT, env },
     );
-    execFileSync(prismaBin, ['generate', `--schema=${schemaPath}`], {
+    runPrisma(prismaBin, ['generate', `--schema=${schemaPath}`], {
       cwd: DB_PACKAGE_ROOT,
       env,
-      stdio: 'pipe',
     });
 
     const { PrismaClient } = await import(join(clientOutputDir, 'index.js'));

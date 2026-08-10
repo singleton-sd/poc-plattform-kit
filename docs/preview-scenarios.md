@@ -53,11 +53,8 @@ preview schema:
 Example diagnostic (native type / unsupported construct):
 
 ```text
-Error: Unsupported native type @db.VarChar found in model `User.email`
-  at validateSchema (/app/packages/db/scripts/generate-preview-schema.mjs:42:15)
-  Details: The SQLite connector does not support @db.VarChar. Either remove
-  the native type, map the field differently for previews, or run a dedicated
-  SQL Server integration test. See docs/preview-scenarios.md for guidance.
+Canonical schema is not SQLite-preview compatible:
+  - line 11: native type attribute "@db.NVarChar" has no portable SQLite mapping — remove it or add an explicit preview mapping
 ```
 
 
