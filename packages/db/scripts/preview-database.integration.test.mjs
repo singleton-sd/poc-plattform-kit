@@ -41,12 +41,12 @@ before(() => {
   execFileSync(
     prismaBin,
     ['db', 'push', `--schema=${schemaPath}`, '--skip-generate', '--accept-data-loss'],
-    { cwd: PACKAGE_ROOT, env, stdio: 'pipe' },
+    { cwd: PACKAGE_ROOT, env, stdio: 'inherit' },
   );
   execFileSync(prismaBin, ['generate', `--schema=${schemaPath}`], {
     cwd: PACKAGE_ROOT,
     env,
-    stdio: 'pipe',
+    stdio: 'inherit',
   });
 });
 

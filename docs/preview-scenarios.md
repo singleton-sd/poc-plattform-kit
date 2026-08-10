@@ -50,6 +50,17 @@ types, `@@schema(...)`, `Unsupported(...)`, `enum` declarations) and fails
 loudly with an actionable diagnostic instead of silently producing a broken
 preview schema:
 
+Example diagnostic (native type / unsupported construct):
+
+```text
+Error: Unsupported native type @db.VarChar found in model `User.email`
+  at validateSchema (/app/packages/db/scripts/generate-preview-schema.mjs:42:15)
+  Details: The SQLite connector does not support @db.VarChar. Either remove
+  the native type, map the field differently for previews, or run a dedicated
+  SQL Server integration test. See docs/preview-scenarios.md for guidance.
+```
+
+
 ```bash
 pnpm --filter @poc-plattform-kit/db run preview:schema   # writes prisma/schema.preview.prisma
 pnpm --filter @poc-plattform-kit/db run preview:generate # generates the SQLite client

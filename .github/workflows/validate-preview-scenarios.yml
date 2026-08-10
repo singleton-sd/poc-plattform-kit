@@ -8,6 +8,10 @@ name: Validate preview scenarios
 
 on:
   pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'packages/db/**'
+      - 'pillars/**'
     types: [opened, edited, synchronize, reopened]
 
 concurrency:
