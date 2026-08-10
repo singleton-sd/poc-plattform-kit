@@ -1,11 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL?.replace(/\/$/, '');
+import { resolvePlaywrightBaseUrl } from './e2e/allowed-origins';
+
+const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL?.trim()
+  ? resolvePlaywrightBaseUrl()
+  : undefined;
 const localBaseUrl = 'http://127.0.0.1:4173';
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
   testDir: './e2e',
+  testMatch: /.*\.spec\.ts/,
   outputDir: 'test-results',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

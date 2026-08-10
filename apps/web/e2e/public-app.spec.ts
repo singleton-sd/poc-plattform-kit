@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
 
+import {
+  collectAllowedOrigins,
+  isAllowedPlaywrightRequestUrl,
+  resolvePlaywrightBaseUrl,
+} from './allowed-origins';
+
+const allowedOrigins = collectAllowedOrigins(resolvePlaywrightBaseUrl());
+
 test.beforeEach(async ({ context, page }) => {
   // The public suite is intentionally signed out. This observes the real app's
   // 401 handling without introducing an Entra bypass or test credential.
@@ -11,11 +19,14 @@ test.beforeEach(async ({ context, page }) => {
     }),
   );
 
-  // A local run must not drift into production, preview, telemetry, or token
-  // hosts. Navigation under test stays on the configured application origin.
-  await context.route(/^https?:\/\/(?!(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$))/, (route) =>
-    route.abort('blockedbyclient'),
-  );
+  // Keep navigation on the configured application origin (local export or
+  // PLAYWRIGHT_BASE_URL). Abort production, telemetry, token, and other hosts.
+  await context.route('**/*', (route) => {
+    if (isAllowedPlaywrightRequestUrl(route.request().url(), allowedOrigins)) {
+      return route.continue();
+    }
+    return route.abort('blockedbyclient');
+  });
 });
 
 test('boots the signed-out application as an installable web app', async ({ page }) => {
