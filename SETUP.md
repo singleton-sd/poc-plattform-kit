@@ -140,7 +140,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`, `chromatic-project-token`
 
 **Entra / Auth.js (App Config → Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` → `AUTH_SECRET`, `secret:azure-ad-client-secret` → `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
 
@@ -208,7 +208,8 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
 5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
 6. ACR admin username/password live only in KV as `acr-admin-*` (written by `deploy-aca-preview.ps1`).
-7. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
+7. Chromatic's project token lives only in KV as `chromatic-project-token`; see [`docs/chromatic.md`](docs/chromatic.md).
+8. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
 
 ```bash
 az role assignment create \
@@ -231,6 +232,7 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
+| `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook visual regression via OIDC → KV `chromatic-project-token` |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** via OIDC → KV (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |

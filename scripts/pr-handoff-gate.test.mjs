@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   blockerAction,
@@ -101,7 +102,15 @@ const workflow = readFileSync(
   'utf8',
 );
 assert.match(workflow, /cancel-in-progress: false/);
-assert.match(workflow, /target_url=.*github\.run_id/);
+assert.match(workflow, /RUN_URL: .*github\.run_id/);
 assert.doesNotMatch(workflow, /<<['"]?EOF/);
+
+const runBlocks = [...workflow.matchAll(/^ {8}run: \|\n((?:^ {10}.*(?:\n|$))*)/gm)];
+assert.ok(runBlocks.length > 0, 'expected workflow run blocks');
+for (const [, indentedScript] of runBlocks) {
+  const script = indentedScript.replace(/^ {10}/gm, '');
+  const syntaxCheck = spawnSync('bash', ['-n'], { input: script, encoding: 'utf8' });
+  assert.equal(syntaxCheck.status, 0, syntaxCheck.stderr);
+}
 
 console.log('pr-handoff-gate tests passed');

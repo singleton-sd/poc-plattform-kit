@@ -6,6 +6,7 @@ import SiteHeader from '../components/shell/SiteHeader.astro';
 interface Props {
   title: string;
   description?: string;
+  ogImage?: string;
   theme?: 'light' | 'dark';
   showShell?: boolean;
 }
@@ -13,11 +14,16 @@ interface Props {
 const {
   title,
   description = '',
+  ogImage,
   theme = 'light',
   showShell = true,
 } = Astro.props;
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url).href;
+const resolvedOgImage = ogImage
+  ? new URL(ogImage, Astro.site ?? Astro.url).href
+  : undefined;
 ---
 
 <!doctype html>
@@ -27,6 +33,16 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     {description ? <meta name="description" content={description} /> : null}
     <title>{title}</title>
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    {description ? <meta property="og:description" content={description} /> : null}
+    <meta property="og:url" content={canonicalUrl} />
+    {resolvedOgImage ? <meta property="og:image" content={resolvedOgImage} /> : null}
+    <meta name="twitter:card" content={resolvedOgImage ? 'summary_large_image' : 'summary'} />
+    <meta name="twitter:title" content={title} />
+    {description ? <meta name="twitter:description" content={description} /> : null}
+    {resolvedOgImage ? <meta name="twitter:image" content={resolvedOgImage} /> : null}
   </head>
   <body class="flex min-h-screen flex-col bg-bg text-fg antialiased">
     {showShell ? <SiteHeader currentPath={currentPath} /> : null}

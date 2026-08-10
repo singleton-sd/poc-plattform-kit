@@ -27,7 +27,17 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
 ---
 
 <div class:list={['flex w-full flex-col gap-2', className]}>
-  <label for={id} class="text-body-sm font-medium text-fg">{label}</label>
+  <label for={id} class="text-body-sm font-semibold text-fg">
+    {label}
+    {
+      required ? (
+        <span class="text-accent" aria-hidden="true">
+          {' '}
+          *
+        </span>
+      ) : null
+    }
+  </label>
   <textarea
     id={id}
     name={name}
@@ -37,8 +47,8 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={describedBy}
     class:list={[
-      'w-full rounded-md border bg-bg-muted px-3 py-3 text-body-sm text-fg outline-none transition placeholder:text-fg-subtle',
-      'focus:border-2 focus:border-accent focus:bg-bg',
+      'w-full rounded-md border bg-bg px-3 py-3 text-body-sm text-fg outline-none transition placeholder:text-fg-subtle',
+      'focus:border-2 focus:border-accent',
       error ? 'border-status-error' : 'border-border',
     ]}
   ><slot /></textarea>

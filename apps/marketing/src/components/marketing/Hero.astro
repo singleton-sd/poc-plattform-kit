@@ -22,10 +22,10 @@ const {
 ---
 
 <section class:list={['bg-bg-hero', className]}>
-  <PageContainer class="flex flex-col items-center px-5 py-16 text-center md:py-24">
+  <PageContainer class="flex flex-col items-center px-5 py-16 text-center md:py-24 lg:py-[7.5rem]">
     {
       eyebrow ? (
-        <p class="m-0 mb-4 text-body-sm font-semibold uppercase tracking-wide text-accent">
+        <p class="m-0 mb-6 text-body-sm font-bold uppercase tracking-wide text-accent">
           {eyebrow}
         </p>
       ) : null
@@ -43,7 +43,7 @@ const {
     <div class="mt-4 max-w-2xl text-base leading-relaxed text-fg-muted empty:hidden">
       <slot />
     </div>
-    <div class="mt-8 flex flex-col items-center gap-4 sm:flex-row">
+    <div class="mt-10 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-center">
       {
         primaryCta ? (
           <Button href={primaryCta.href} size="lg">
@@ -53,12 +53,9 @@ const {
       }
       {
         secondaryCta ? (
-          <a
-            href={secondaryCta.href}
-            class="text-body-sm font-semibold text-fg underline-offset-4 transition hover:text-accent hover:underline"
-          >
+          <Button href={secondaryCta.href} variant="outline" size="lg">
             {secondaryCta.label}
-          </a>
+          </Button>
         ) : null
       }
     </div>

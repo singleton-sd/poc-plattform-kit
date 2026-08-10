@@ -5,6 +5,7 @@ import { PrismaModule } from '@poc-plattform-kit/db';
 import { TenantModule } from '@poc-plattform-kit/pillar-tenant';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
+import { ChangelogModule } from './changelog/changelog.module';
 import { buildThrottleConfig } from './http-hardening';
 import { MessagingModule } from './messaging/messaging.module';
 import { PermissionsAuthorizationModule } from './permissions/permissions-authorization.module';
@@ -43,6 +44,7 @@ const usePrettyTransport =
     PrismaModule,
     MessagingModule,
     HealthModule,
+    ChangelogModule,
     TenantModule,
     SingleSignOnModule,
     PermissionsAuthorizationModule,

@@ -1,0 +1,53 @@
+---
+import Button from '../ui/Button.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  cta: { label: string; href: string };
+  email?: { label: string; href: string };
+  class?: string;
+}
+
+const {
+  eyebrow = 'Get in touch',
+  title,
+  cta,
+  email,
+  class: className = '',
+} = Astro.props;
+---
+
+<section
+  class:list={[
+    'border-y border-border bg-bg-muted py-16 md:py-20',
+    className,
+  ]}
+>
+  <PageContainer class="flex flex-col items-center gap-6 text-center">
+    <p class="m-0 text-body-sm font-bold uppercase tracking-wide text-accent">
+      {eyebrow}
+    </p>
+    <h2 class="m-0 max-w-3xl font-heading text-h3 text-fg md:text-[1.625rem]">
+      {title}
+    </h2>
+    <div
+      class="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6"
+    >
+      <Button href={cta.href} variant="outline" size="lg">
+        {cta.label}
+      </Button>
+      {
+        email ? (
+          <a
+            href={email.href}
+            class="text-[15px] font-semibold text-fg transition hover:text-accent"
+          >
+            {email.label}
+          </a>
+        ) : null
+      }
+    </div>
+  </PageContainer>
+</section>

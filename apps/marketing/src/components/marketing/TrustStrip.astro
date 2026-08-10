@@ -1,0 +1,40 @@
+---
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  label?: string;
+  items: string[];
+  class?: string;
+}
+
+const {
+  label = 'Built on leading tech',
+  items,
+  class: className = '',
+} = Astro.props;
+---
+
+<section
+  class:list={[
+    'border-y border-border bg-bg-muted py-8 md:py-8',
+    className,
+  ]}
+>
+  <PageContainer
+    class="flex flex-col items-center gap-6 md:flex-row md:justify-center md:gap-8"
+  >
+    <p class="m-0 text-center text-xs font-bold uppercase tracking-wide text-fg-subtle">
+      {label}
+    </p>
+    <span class="hidden h-px w-4 bg-border md:block" aria-hidden="true"></span>
+    <ul
+      class="m-0 flex list-none flex-wrap items-center justify-center gap-x-8 gap-y-3 p-0"
+    >
+      {
+        items.map((item) => (
+          <li class="font-heading text-body-sm font-extrabold text-fg">{item}</li>
+        ))
+      }
+    </ul>
+  </PageContainer>
+</section>

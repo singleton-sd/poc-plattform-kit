@@ -1,0 +1,98 @@
+# Daily / on-demand cleanup of PR preview leftovers not linked to open PRs.
+#
+# Cleans:
+#   - Orphan ACA apps ssd-pocpk-aca-pr-<n>-ae
+#   - Orphan SWA staging environments (web + marketing)
+#   - Orphan ACR tags pocpk-api:pr-<n>*
+#   - Orphan Entra SPA redirect URIs for closed SWA PR preview origins
+#
+# Auth: OIDC → Azure (same Variables as preview/deploy). Schedule uses the
+# main-branch federated credential (ref:refs/heads/main / ID-form equivalent).
+#
+# See docs/pr-pipelines.md § Preview orphan sweep.
+name: Sweep preview orphans
+
+on:
+  schedule:
+    # 06:15 UTC daily — after typical merge hours in AU/EU
+    - cron: '15 6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Log deletes only (no Azure mutations)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+  # gh pr list needs issues/metadata; pull-requests:read covers open PR numbers
+  pull-requests: read
+
+# Share Entra SPA redirect concurrency with preview-web.yml — both read-modify-
+# PATCH spa.redirectUris; overlapping runs can clobber each other.
+concurrency:
+  group: entra-spa-preview-redirects
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: rg-poc-plattform-kit
+  ACR_NAME: ssdpocpkacrdevae
+  IMAGE_REPO: pocpk-api
+  WEB_SWA_NAME: pocpk-web-si5fhs6dvxiha
+  MKT_SWA_NAME: ssd-pocpk-mkt-dev-ae
+
+jobs:
+  sweep:
+    name: Sweep orphan PR previews
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Require Azure OIDC Variables
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for v in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing GitHub Variable $v"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure OIDC Variables (see docs/pr-pipelines.md)."
+            exit 1
+          fi
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sweep orphans
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
+          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/sweep-preview-orphans.sh
+          if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
+            export DRY_RUN=1
+            echo "Running in dry-run mode"
+          else
+            export DRY_RUN=0
+          fi
+          ./scripts/sweep-preview-orphans.sh

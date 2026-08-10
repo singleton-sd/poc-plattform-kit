@@ -1,8 +1,8 @@
 // OpenFGA authZ engine — Azure Container Apps Consumption + Azure Files (SQLite beta).
 // Deploy: powershell -File ./infra/deploy-openfga.ps1
 // CAF: ssd-pocpk-openfga-dev-ae on existing CAE ssd-pocpk-cae-dev-ae.
-// Datastore: SQLite on Azure Files (not container-local). Beta engine — single replica only.
-// AuthN: OPENFGA_AUTHN_METHOD=oidc against Entra app api://ssd-pocpk-openfga (wired by deploy script).
+// Datastore: SQLite on EmptyDir (Azure Files SMB is unsuitable for SQLite; share kept for future backup).
+// AuthN: OPENFGA_AUTHN_METHOD=oidc against Entra app api://{tenant}/ssd-pocpk-openfga (wired by deploy script).
 
 @description('Azure region')
 param location string = resourceGroup().location
@@ -33,8 +33,8 @@ param oidcIssuer string
 @description('OIDC issuer alias (Entra v1 sts), e.g. https://sts.windows.net/{tenant}/')
 param oidcIssuerAlias string
 
-@description('OIDC audience / App ID URI for the OpenFGA Entra app registration')
-param openfgaAudience string = 'api://ssd-pocpk-openfga'
+@description('OIDC audience / App ID URI for the OpenFGA Entra app registration (tenant-scoped; bare api://ssd-pocpk-openfga is blocked by Entra verified-domain policy)')
+param openfgaAudience string = 'api://9a0e57d7-e58e-4e8b-814d-037cd7d9015c/ssd-pocpk-openfga'
 
 @description('HTTP target port for OpenFGA')
 param targetPort int = 8080
@@ -46,7 +46,9 @@ var tags = {
 }
 
 var openfgaImage = 'openfga/openfga:${openfgaImageTag}'
-var datastoreUri = 'file:/data/openfga.db'
+// Azure Files SMB does not support SQLite WAL reliably. Force DELETE journal + busy timeout
+// so migrate/run can create a non-empty DB on the share (plain file:/… often yields a 0-byte file).
+var datastoreUri = 'file:/data/openfga.db?_pragma=journal_mode(DELETE)&_pragma=busy_timeout(10000)&_pragma=synchronous(FULL)'
 
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2025-01-01' existing = {
   name: containerAppsEnvironmentName
@@ -119,8 +121,16 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
         {
           name: 'migrate'
           image: openfgaImage
+          // Explicit flags — migrate marks engine/uri as required; env alone is fragile.
           args: [
             'migrate'
+            '--datastore-engine'
+            'sqlite'
+            '--datastore-uri'
+            datastoreUri
+            '--timeout'
+            '5m'
+            '--verbose'
           ]
           env: [
             {
@@ -150,6 +160,10 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
           image: openfgaImage
           args: [
             'run'
+            '--datastore-engine'
+            'sqlite'
+            '--datastore-uri'
+            datastoreUri
           ]
           env: [
             {
@@ -183,6 +197,20 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'OPENFGA_PLAYGROUND_ENABLED'
               value: 'false'
+            }
+            {
+              // Azure Files SQLite writes are slow; default 3s request timeout fails CreateStore.
+              name: 'OPENFGA_REQUEST_TIMEOUT'
+              value: '30s'
+            }
+            {
+              name: 'OPENFGA_HTTP_UPSTREAM_TIMEOUT'
+              value: '30s'
+            }
+            {
+              // SQLite must be single-writer; default MaxOpenConns=30 hangs/times out on SMB.
+              name: 'OPENFGA_DATASTORE_MAX_OPEN_CONNS'
+              value: '1'
             }
           ]
           resources: {
@@ -218,15 +246,17 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
         }
       ]
       scale: {
-        // SQLite + Azure Files SMB is single-writer; keep exactly one replica.
+        // SQLite is single-writer; keep exactly one replica.
         minReplicas: 1
         maxReplicas: 1
       }
       volumes: [
         {
+          // Azure Files SMB cannot host SQLite reliably (locking + multi-second writes
+          // exceed OpenFGA request deadlines even with nobrl). Use EmptyDir for PoC;
+          // share ssdpocpkstofga/openfga-data remains for a future backup job / Postgres follow-up.
           name: 'openfga-data'
-          storageType: 'AzureFile'
-          storageName: caeStorage.name
+          storageType: 'EmptyDir'
         }
       ]
     }

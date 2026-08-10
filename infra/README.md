@@ -19,7 +19,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | App Configuration | **Free** | Non-secret config + KV references |
 | ACR | **Basic** | API PR images; alphanumeric name only |
 | Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
-| Container Apps (OpenFGA) | **Consumption** | `ssd-pocpk-openfga-dev-ae`; SQLite on Azure Files (beta) |
+| Container Apps (OpenFGA) | **Consumption** | `ssd-pocpk-openfga-dev-ae`; SQLite on EmptyDir (PoC) |
 | Log Analytics | **PerGB2018** | 30-day retention; shared by CAE + App Insights |
 | Application Insights | **Workspace-based** | Shared BE+FE sink |
 
@@ -56,7 +56,7 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | ACR | `ssdpocpkacrdevae` | CAF would be `ssd-pocpk-acr-dev-ae` (hyphens illegal) | Basic |
 | Ephemeral ACA (PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
 | OpenFGA Container App | `ssd-pocpk-openfga-dev-ae` | (CAF) | Consumption (min 1) |
-| OpenFGA Files (SQLite) | `ssdpocpkstofga` / share `openfga-data` | CAF alphanumeric | Standard_LRS |
+| OpenFGA Files (SQLite) | `ssdpocpkstofga` / share `openfga-data` | CAF alphanumeric | Standard_LRS (provisioned; SQLite PoC uses EmptyDir — share reserved for backup/Postgres follow-up) |
 
 ### Key Vault secret names (values never in git)
 
@@ -115,7 +115,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:openfga:apiUrl` | plain — OpenFGA HTTPS base URL → `OPENFGA_API_URL` |
 | `app:openfga:storeId` | plain — store id from bootstrap → `OPENFGA_STORE_ID` |
 | `app:openfga:authorizationModelId` | plain → `OPENFGA_AUTHORIZATION_MODEL_ID` |
-| `app:openfga:audience` | plain — `api://ssd-pocpk-openfga` → `OPENFGA_AUDIENCE` |
+| `app:openfga:audience` | plain — `api://{tenantId}/ssd-pocpk-openfga` → `OPENFGA_AUDIENCE` |
 
 ### Custom domains
 
@@ -172,9 +172,9 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 | Concern | Choice |
 | --- | --- |
 | Image | `openfga/openfga:v1.18.3` (pin in `infra/openfga.bicep`) |
-| Datastore | **SQLite** (`OPENFGA_DATASTORE_ENGINE=sqlite`) on Azure Files share `openfga-data` — **beta** engine; durable across restarts (not container-local). Single replica only (`minReplicas=1` / `maxReplicas=1`) because SQLite is single-writer. |
-| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://ssd-pocpk-openfga` (assignment-required). Nest API App Service system MI (`pocpk-api-si5fhs6dvxiha`) is the sole `OpenFga.Access` assignee. Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
-| Model | `infra/openfga/model.fga` (+ `model.json` for API push) — `user` (recursive `manager`), `tenant` roles `admin`/`member` → `create`/`update`/`delete`/`read` |
+| Datastore | **SQLite** on ACA **EmptyDir** (PoC). Azure Files SMB cannot host SQLite reliably (locking + multi-second writes exceed OpenFGA deadlines even with `nobrl`). Share `ssdpocpkstofga` / `openfga-data` is still provisioned for a future backup/Postgres follow-up. Single replica only (`minReplicas=1` / `maxReplicas=1`). Also set `OPENFGA_DATASTORE_MAX_OPEN_CONNS=1` and 30s request/upstream timeouts. |
+| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://{tenantId}/ssd-pocpk-openfga` (assignment-required; bare `api://ssd-pocpk-openfga` is blocked by verified-domain URI policy). Nest API App Service system MI (`pocpk-api-si5fhs6dvxiha`) is the sole `OpenFga.Access` assignee. Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
+| Model | `infra/openfga/model.fga` (+ `model.json` for API push) — `user` (`manager` direct + `in_manager_chain` transitive), `tenant` roles/actions as `[user, user with not_yet_expired]`, `one_time_grant` marker, condition `not_yet_expired` |
 | Bootstrap | `powershell -File ./infra/deploy-openfga.ps1` (idempotent: Bicep + Entra + store/model + App Config `app:openfga:*`) |
 
 ```powershell
