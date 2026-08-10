@@ -36,7 +36,9 @@ export const Populated: Story = {
   parameters: { msw: { handlers: { tenants: tenantsPopulatedHandlers } } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByText('Example North')).toBeInTheDocument();
+    await expect(
+      await canvas.findByRole('button', { name: 'View details for Example North' }),
+    ).toBeInTheDocument();
     await expect(canvas.getByTestId('tenant-create-open')).toBeInTheDocument();
   },
 };
@@ -46,10 +48,12 @@ export const CollectionEmpty: Story = {
   parameters: { msw: { handlers: { tenants: tenantsCollectionEmptyHandlers } } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const empty = await canvas.findByTestId('tenant-empty-state');
-    await expect(empty).toHaveTextContent('Create your first tenant');
-    await expect(empty).toHaveTextContent('Tenants represent organisations using your platform.');
-    await expect(canvas.getByRole('button', { name: /create tenant/i })).toBeEnabled();
+    const empty = within(await canvas.findByTestId('tenant-empty-state'));
+    await expect(empty.getByRole('heading', { name: 'Create your first tenant' })).toBeVisible();
+    await expect(
+      empty.getByText('Tenants represent organisations using your platform.'),
+    ).toBeVisible();
+    await expect(empty.getByRole('button', { name: /create tenant/i })).toBeEnabled();
   },
 };
 

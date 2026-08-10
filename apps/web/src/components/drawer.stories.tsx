@@ -1,31 +1,42 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, userEvent, within } from 'storybook/test';
+import { useState } from 'react';
 import { Drawer } from './drawer';
+
+function DrawerHarness({ initiallyOpen = true }: { initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen);
+  return (
+    <div className="relative min-h-screen bg-bg">
+      <p className="p-4 text-sm text-fg-muted" data-testid="drawer-harness-status">
+        {open ? 'Drawer open' : 'Drawer closed'}
+      </p>
+      <Drawer
+        open={open}
+        title="Create tenant"
+        titleId="story-drawer-title"
+        testId="story-drawer"
+        onClose={() => setOpen(false)}
+        footer={
+          <button type="button" className="rounded bg-accent px-4 py-2 text-sm text-accent-on">
+            Save
+          </button>
+        }
+      >
+        <p className="text-sm text-fg-muted">
+          Deterministic drawer body used to prove the shared shell layout.
+        </p>
+      </Drawer>
+    </div>
+  );
+}
 
 const meta = {
   title: 'Components/Drawer',
-  component: Drawer,
+  component: DrawerHarness,
   parameters: {
     layout: 'fullscreen',
   },
-  args: {
-    open: true,
-    title: 'Create tenant',
-    titleId: 'story-drawer-title',
-    testId: 'story-drawer',
-    onClose: fn(),
-    children: (
-      <p className="text-sm text-fg-muted">
-        Deterministic drawer body used to prove the shared shell layout.
-      </p>
-    ),
-    footer: (
-      <button type="button" className="rounded bg-accent px-4 py-2 text-sm text-accent-on">
-        Save
-      </button>
-    ),
-  },
-} satisfies Meta<typeof Drawer>;
+} satisfies Meta<typeof DrawerHarness>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -34,27 +45,30 @@ export const OpenDesktop: Story = {
   parameters: {
     chromatic: { viewports: [1280] },
   },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('dialog', { name: 'Create tenant' })).toBeVisible();
+  },
 };
 
-/** Narrow viewport exposes the mobile Back control instead of the desktop Close control. */
+/** Narrow Chromatic viewport (375) exposes the mobile Back control. */
 export const OpenNarrow: Story = {
   parameters: {
     chromatic: { viewports: [375] },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Chromatic captures 375px; local play still runs at the Storybook canvas width.
     await expect(canvas.getByRole('dialog', { name: 'Create tenant' })).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Back' })).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Back' })).toBeVisible();
   },
 };
 
 export const EscapeCloses: Story = {
-  play: async ({ args, canvasElement }) => {
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('dialog', { name: 'Create tenant' })).toBeVisible();
     await userEvent.keyboard('{Escape}');
-    await expect(args.onClose).toHaveBeenCalled();
+    await expect(canvas.getByTestId('drawer-harness-status')).toHaveTextContent('Drawer closed');
+    await expect(canvas.queryByRole('dialog')).not.toBeInTheDocument();
   },
 };
