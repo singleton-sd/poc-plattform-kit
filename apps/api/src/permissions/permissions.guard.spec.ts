@@ -21,7 +21,9 @@ describe('PermissionsGuard', () => {
         getRequest: () => ({
           method: options.method ?? 'PATCH',
           route: { path: options.path ?? '/tenants/:id' },
-          params: { id: options.id ?? 'tenant-1' },
+          params: {
+            id: Object.prototype.hasOwnProperty.call(options, 'id') ? options.id : 'tenant-1',
+          },
           user: options.user,
         }),
       }),
@@ -69,6 +71,13 @@ describe('PermissionsGuard', () => {
 
   it('fails closed when the protected route has no identity', async () => {
     await expect(guard.canActivate(contextFor({}))).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(permissions.check).not.toHaveBeenCalled();
+  });
+
+  it('returns forbidden when the cataloged param is missing', async () => {
+    await expect(guard.canActivate(contextFor({ user, id: undefined }))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
     expect(permissions.check).not.toHaveBeenCalled();
   });
 
