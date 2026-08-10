@@ -1,4 +1,5 @@
 export { AccessRequestController } from './access-request.controller';
+export { toAccessRequestResponseDto } from './access-request.mapper';
 export {
   AccessRequestService,
   type AccessRequestRecord,

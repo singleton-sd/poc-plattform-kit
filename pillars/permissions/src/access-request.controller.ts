@@ -9,32 +9,14 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
-import { AccessRequestService, type AccessRequestRecord } from './access-request.service';
+import { AccessRequestService } from './access-request.service';
+import { toAccessRequestResponseDto } from './access-request.mapper';
 import { CurrentUser } from './current-user.decorator';
 import { AccessRequestListResponseDto } from './dto/access-request-list-response.dto';
 import { AccessRequestResponseDto } from './dto/access-request-response.dto';
 import { ApproveAccessRequestDto } from './dto/approve-access-request.dto';
 import { CreateAccessRequestDto } from './dto/create-access-request.dto';
 import { DenyAccessRequestDto } from './dto/deny-access-request.dto';
-
-function toResponse(row: AccessRequestRecord): AccessRequestResponseDto {
-  return {
-    id: row.id,
-    tenantId: row.tenantId,
-    requesterId: row.requesterId,
-    requesterEntraOid: row.requesterEntraOid,
-    action: row.action,
-    resource: row.resource,
-    status: row.status,
-    decidedById: row.decidedById,
-    decidedAt: row.decidedAt?.toISOString() ?? null,
-    denyReason: row.denyReason,
-    grantType: row.grantType,
-    expiresAt: row.expiresAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
 
 @ApiTags('permissions')
 @ApiBearerAuth()
@@ -56,7 +38,7 @@ export class AccessRequestController {
     @Body() dto: CreateAccessRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<AccessRequestResponseDto> {
-    return toResponse(await this.accessRequests.create(dto, user));
+    return toAccessRequestResponseDto(await this.accessRequests.create(dto, user));
   }
 
   @Get('pending')
@@ -69,7 +51,7 @@ export class AccessRequestController {
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   async listPending(@CurrentUser() user: AuthenticatedUser): Promise<AccessRequestListResponseDto> {
     const items = await this.accessRequests.listPendingForApprover(user);
-    return { items: items.map(toResponse) };
+    return { items: items.map(toAccessRequestResponseDto) };
   }
 
   @Post(':id/approve')
@@ -86,7 +68,7 @@ export class AccessRequestController {
     @Body() dto: ApproveAccessRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<AccessRequestResponseDto> {
-    return toResponse(await this.accessRequests.approve(id, dto, user));
+    return toAccessRequestResponseDto(await this.accessRequests.approve(id, dto, user));
   }
 
   @Post(':id/deny')
@@ -102,6 +84,6 @@ export class AccessRequestController {
     @Body() dto: DenyAccessRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<AccessRequestResponseDto> {
-    return toResponse(await this.accessRequests.deny(id, dto, user));
+    return toAccessRequestResponseDto(await this.accessRequests.deny(id, dto, user));
   }
 }

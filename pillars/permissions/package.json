@@ -7,15 +7,16 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"lint:permissions stub\"",
-    "pretest": "pnpm --filter @poc-plattform-kit/db run build && pnpm --filter @poc-plattform-kit/events run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build",
+    "pretest": "pnpm --filter @poc-plattform-kit/db run build && pnpm --filter @poc-plattform-kit/events run build && pnpm --filter @poc-plattform-kit/dto-map run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build",
     "test": "jest",
-    "prebuild": "pnpm --filter @poc-plattform-kit/db run build && pnpm --filter @poc-plattform-kit/events run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build"
+    "prebuild": "pnpm --filter @poc-plattform-kit/db run build && pnpm --filter @poc-plattform-kit/events run build && pnpm --filter @poc-plattform-kit/dto-map run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
     "@nestjs/common": "^10.4.15",
     "@nestjs/swagger": "^7.4.2",
     "@poc-plattform-kit/db": "workspace:*",
+    "@poc-plattform-kit/dto-map": "workspace:*",
     "@poc-plattform-kit/events": "workspace:*",
     "@poc-plattform-kit/pillar-single-sign-on": "workspace:*",
     "@prisma/client": "^5.22.0",

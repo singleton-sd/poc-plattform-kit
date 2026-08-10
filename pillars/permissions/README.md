@@ -56,6 +56,9 @@ Route → action catalog: `infra/openfga/permissions.manifest.json` (see
    + `permission.granted`. Deny emits `permission.access_denied`.
 5. Expired pending rows are marked `expired` on list/approve/deny (HTTP 410 on decide).
 
+HTTP response shaping lives in `access-request.mapper.ts` using
+`@poc-plattform-kit/dto-map` (see [`docs/dto-mapping.md`](../../docs/dto-mapping.md)).
+
 Grant/revoke HTTP endpoints remain trusted internal callers; product AuthZ for
 who may grant lives on Access Request.
 
