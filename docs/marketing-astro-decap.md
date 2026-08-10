@@ -13,8 +13,9 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 | Content | Markdown collections under `apps/marketing/src/content/pages/` |
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
 | OAuth login | Azure Function on existing B1 `pocpk-plan` — `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`) |
+| Marketing edge HTTP | **Same Function App** — public brochure endpoints (e.g. Contact). See [marketing-edge.md](./marketing-edge.md). Do **not** attach these to Nest `apps/api`. |
 | Deploy site | `deploy-marketing.yml` → OIDC → Key Vault → SWA upload of `apps/marketing/dist` |
-| Deploy OAuth | `deploy-decap-oauth.yml` → OIDC → Bicep + zip Function App |
+| Deploy OAuth / edge | `deploy-decap-oauth.yml` → OIDC → Bicep + zip Function App |
 
 No WordPress, Gatsby, or always-on CMS server for the site itself.
 
