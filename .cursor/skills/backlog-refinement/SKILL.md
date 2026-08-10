@@ -1,121 +1,138 @@
 ---
 name: Backlog Refinement
-description: Refine raw backlog items into well-structured, actionable stories with clear acceptance criteria; file out-of-scope follow-ups as TO DO tickets with Token Estimate and waiting_on dependencies; for architecture/design plans, document decisions in ClickUp before or with ticket creation; refer to tickets by title.
+description: Refine raw ideas and backlog items into decision-complete work, then route discovery, implementation, and human gates through the poc-plattform-kit ClickUp workflow.
 tags: [product, planning, agile, writing, clickup]
 audience: [product-managers, engineers, tech-leads]
-status: draft
+status: stable
 ---
 
 # Backlog Refinement
 
-You are a senior product manager and agile practitioner. Given a raw backlog item (a ticket, idea, or rough description), refine it into a well-structured story ready for sprint planning.
+Use this skill to turn a rough idea, bug, feature request, transcript, or existing ticket into work that can be safely executed by humans and AI agents.
 
-## Output for each item
+For multi-ticket feature planning, also apply `idea-to-delivery`.
 
-```
+## ClickUp routing
+
+For `singleton-sd/poc-plattform-kit`:
+
+- **Ideas & Discovery** (`901616397764`) — unresolved ideas, spikes, design questions and discovery.
+- **Delivery** (`901616287298`) — approved implementation work.
+- **Human & Operations** (`901616397767`) — standalone manual gates and operational actions.
+- **Architecture Doc** (`2kz0kcnk-1416`) — source of truth for architecture/design decisions.
+
+Do not create Web/API/Marketing/pillar-specific lists. Those are task classifications.
+
+## Refinement decision
+
+Classify the input before creating implementation work:
+
+- **Tiny isolated change:** one Delivery task.
+- **Medium feature:** Epic/initiative + roughly 2–5 Delivery tasks.
+- **Large/cross-cutting or materially uncertain work:** keep/create Discovery work first; once decisions are made, create an Epic/initiative and delivery slices.
+- **Manual requirement:** create a Human & Operations task rather than pretending an AI implementer can complete it.
+
+Default slicing rule: one independently mergeable PR is usually one Delivery task.
+
+## Required ticket shape
+
+```text
 Title: <concise action-oriented title>
 
-Type: Feature | Bug | Chore | Spike
+Area: Web App | API | Marketing | Infrastructure | Developer Experience | Cross-cutting
+Pillar: Tenant | SingleSignOn | Subscriptions | Contact | Support | Audit | Reporting | Permissions | Notifications | Platform | None
+Work Type: Feature | Bug | Technical Debt | Discovery | Infrastructure | Documentation | Human Action
+Execution: AI | Human | AI + Human
+Parent Epic: <title/link or None>
 
-User story:
-As a [persona], I want [action] so that [outcome].
+Goal:
+<observable outcome>
 
 Context:
-<Why this matters, what triggered it, any relevant background>
+<why this matters>
+
+Scope:
+- <included work>
 
 Acceptance criteria:
-- [ ] <specific, testable condition>
-- [ ] <specific, testable condition>
-- [ ] ...
+- [ ] <specific testable condition>
+
+Technical direction:
+- <constraints, patterns, likely repo paths>
+
+Preview / seed scenarios:
+- <how the feature/bug is demonstrated in PR previews when applicable>
+
+Testing:
+- <automated expectations>
+- <human validation expectations>
 
 Out of scope:
-- <what this ticket explicitly does not cover>
-
-Pending / out-of-scope backlog:
-| Title | Depends on | Token Estimate | Notes |
-| --- | --- | --- | --- |
-| <action-first sentence case> | <parent or blocker ticket title> | <number> | <one-line why / AC pointer> |
+- <true non-goals>
 
 Dependencies:
-- <other tickets, systems, or teams this depends on>
+- <ticket titles / external gates>
 
 Open questions:
-- <anything that needs a decision before work can start>
+- <must be empty before READY FOR AI unless explicitly safe for implementer choice>
 
 Sizing hint: XS | S | M | L | XL
-<brief rationale for the sizing>
+[repo=singleton-sd/poc-plattform-kit]
 ```
 
-When producing a Cursor plan or refining a ticket, always include the **Pending / out-of-scope backlog** table for every real follow-up (not permanent non-goals). Columns: **Title**, **Depends on** (ticket **title**), **Token Estimate** (number), **Notes**.
+For bugs also include Steps to reproduce, Expected behavior and Actual behavior.
 
-## Rules
+## READY FOR AI gate
 
-- Acceptance criteria must be testable — "system sends an email" not "system handles notifications"
-- If the input is a bug, add: **Steps to reproduce**, **Expected behavior**, **Actual behavior**
-- If the item is too large to be a single story, split it and output multiple refined items
-- Sizing hint is a hint, not a commitment — flag high uncertainty explicitly
+A task may be marked **READY FOR AI** only when:
 
-## ClickUp documentation (mandatory for architecture / design plans)
+- acceptance criteria are testable;
+- material architecture/product decisions are resolved;
+- dependencies are complete or explicitly safe to run in parallel;
+- the task is independently deliverable;
+- repository constraints and relevant paths/patterns are identified when known;
+- preview/seed expectations are defined for user-facing changes or reproducible bugs;
+- any required manual setup is represented as a Human & Operations task;
+- no duplicate/equivalent ticket already owns the work.
 
-When the work is an **architecture**, **design**, or **cross-cutting platform** plan (not a single tiny bugfix), do **not** leave the decision only in chat or a local plan file.
+Otherwise keep it in BACKLOG/Discovery rather than handing ambiguity to an implementation agent.
 
-### For `poc-plattform-kit` (locked)
+## Architecture documentation
 
-| Concern | Target |
-| --- | --- |
-| Architecture decisions | [Architecture Doc](https://app.clickup.com/90161394355/docs/2kz0kcnk-1416) (`document_id=2kz0kcnk-1416`) — add or update a page/section |
-| Supporting docs | [Docs folder](https://app.clickup.com/90161394355/v/f/901610744236/90165834867) (`folder_id=901610744236`) when a standalone doc is better than an Architecture page |
-| Implementation work | Ops/tickets list only: `list_id=901616287298` (workspace `90161394355`) |
-| Ticket title tag | Include `[repo=singleton-sd/poc-plattform-kit]` in the task name or description |
+For architecture, design, new Azure resources, auth, messaging, pillar boundaries, secrets/config, CI/CD topology, or other cross-cutting plans:
 
-### Required steps (planning → ClickUp)
+1. Update/add the relevant Architecture Doc page with goal, chosen approach, trade-offs, boundaries, operational implications and links to work.
+2. Create the Epic/initiative and implementation slices after the decision is documented.
+3. Put the Architecture Doc link in relevant ticket descriptions.
+4. A short repo `docs/*.md` mirror is optional; ClickUp Architecture Doc remains the planning source of truth.
 
-1. **Write the Architecture Doc page** (or update an existing page) with: goal, chosen approach, where to log, alert rules, out of scope, and links to related tickets.
-2. **Create ClickUp tasks** in list `901616287298` from the refined stories — one task per delivery slice — status `TO DO` (or `READY FOR AI` if already approved for agents).
-3. **Link** each task to the Architecture Doc page (put the doc URL in the task description — avoid extra ClickUp comments when possible).
-4. **Repo mirror (optional):** a short `docs/*.md` in git may summarize the same decisions for engineers; **ClickUp Architecture Doc is the source of truth** for platform architecture.
+## Out-of-scope follow-ups
 
-### What counts as “architecture / design”
+Every real follow-up discovered during refinement must be represented explicitly rather than hidden in prose.
 
-- New Azure resources, observability, auth, messaging patterns, pillar boundaries, secrets/config layout, CI/CD topology
-- Multi-ticket epics that need a shared design before coding
+- Search existing tasks by title/intent first; never create obvious duplicates.
+- If it needs more design, route it to Ideas & Discovery.
+- If implementation-ready, route it to Delivery.
+- If manual, route it to Human & Operations.
+- Wire dependencies by ticket title/id.
+- Leave new work unclaimed; planning is not implementation.
 
-### What does not require a new Architecture page
+Token estimate convention when needed: XS ≈ 25000, S ≈ 50000, M ≈ 100000, L ≈ 200000, XL ≈ 400000.
 
-- Single-file bugfixes already covered by an existing doc section
-- Pure chore tickets with no design choice (e.g. bump a patch dependency)
+## Epic and parallel execution
 
-If unsure, add a short section to the Architecture Doc rather than skipping.
+For medium/large features, finish refinement with:
 
-## Out of scope → backlog tickets
+- Epic/initiative title and outcome;
+- child Delivery task titles;
+- Human & Operations gates;
+- dependency graph;
+- parallel lanes;
+- join/final integration work;
+- explicit list of tasks safe to mark READY FOR AI now.
 
-When planning or refining a ticket, every **Out of scope** item that is real follow-up work (not a permanent non-goal) must become a ClickUp task if one does not already exist:
+Do not put every ticket into READY FOR AI at once when dependencies make that unsafe.
 
-1. Search the ops list for an equivalent ticket (match by **title** / intent — do not invent duplicates): `powershell -File scripts/clickup.ps1 list` (or search by name in results).
-2. If missing, create it: `powershell -File scripts/clickup.ps1 create -Name "..." -Status "TO DO" -Description "..." -Estimate <n>` (ops list `901616287298`).
-3. Include clear acceptance criteria in `-Description`.
-4. **Token Estimate** is set via `-Estimate` on create (field `ab22f8d4-df04-435e-849a-9ca6c23489be`). Leave **Token Spent**, **Claim Token**, and **Preview URL** empty.
-5. After create: `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` so the new task waits on the parent (or named blocker).
-6. Leave new backlog tickets **unassigned** and do **not** set Claim Token (browse/create ≠ claim).
-7. Prefer linking via dependencies / description over a parent-ticket comment dump (reduces notification noise).
+## Naming
 
-### Token Estimate convention
-
-Map qualitative sizing to a rough token count when only a sizing hint is available:
-
-- XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000
-
-Store the number on **Token Estimate**; keep the sizing label in the description if useful.
-
-### Ops list custom fields
-
-| Field | ID | When filing backlog |
-| --- | --- | --- |
-| Token Estimate | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set on create |
-| Token Spent | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Leave empty |
-| Claim token | `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` | Do not set |
-| Preview URL | `978d43d5-e404-4262-98a2-0193ade4736d` | Leave empty |
-
-## Ticket and chat titles
-
-When talking about tickets (chat, plans, comments, summaries), use the **ticket title**, not the raw ClickUp id as the primary label. Ids may appear in links, branch names (`feature/<id>-<kebab-title>`), or after the title when needed. When picking up a ticket, set the Cursor **chat title** to that ticket’s title.
+Use ticket titles as the primary human label. IDs belong in URLs, branch names, dependency wiring and secondary references. Keep `[repo=singleton-sd/poc-plattform-kit]` in the task name or description.
