@@ -1,0 +1,77 @@
+# Enforces the preview-scenario delivery standard (AGENTS.md,
+# docs/preview-scenarios.md): a PR touching apps/api/**, pillars/**, or
+# packages/db/** must declare preview scenarios in its body or an explicit
+# `not-applicable` exemption, unknown scenario names are rejected, and every
+# declared scenario must actually seed + verify successfully against a real
+# throwaway SQLite database (scripts/validate-preview-scenarios.mjs).
+name: Validate preview scenarios
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'packages/db/**'
+      - 'pillars/**'
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: validate-preview-scenarios-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate preview scenario declaration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests for the parser and validator
+        run: |
+          node --test scripts/parse-preview-scenarios.test.mjs
+          node --test scripts/validate-preview-scenarios.test.mjs
+
+      - name: List changed files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            fs.writeFileSync('changed-files.txt', files.map((f) => f.filename).join('\n'));
+
+      - name: Write PR body to file
+        env:
+          # Never interpolate PR_BODY directly into a run: script via ${{ }}
+          # — it's untrusted external content. actions/github-script writes
+          # it to disk here instead of any shell command touching it.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            fs.writeFileSync('pr-body.txt', process.env.PR_BODY || '');
+
+      - name: Validate declared preview scenarios
+        run: |
+          node scripts/validate-preview-scenarios.mjs \
+            --changed-files=changed-files.txt \
+            --body-file=pr-body.txt

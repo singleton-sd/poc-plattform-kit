@@ -5,13 +5,28 @@
  * poc-plattform-kit API
  */
 
+export * from './accessRequestListResponseDto';
+export * from './accessRequestResponseDto';
+export * from './approveAccessRequestDto';
+export * from './approveAccessRequestDtoGrantType';
+export * from './changelogChangeDto';
+export * from './changelogReleaseDto';
+export * from './changelogResponseDto';
 export * from './checkPermissionDto';
 export * from './checkPermissionResponseDto';
+export * from './createAccessRequestDto';
 export * from './createTenantDto';
 export * from './createTenantDtoSettings';
+export * from './denyAccessRequestDto';
+export * from './grantPermissionDto';
+export * from './grantPermissionDtoGrantType';
+export * from './grantPermissionResponseDto';
+export * from './grantPermissionResponseDtoGrantType';
 export * from './healthResponseDto';
 export * from './meResponseDto';
 export * from './permissionsHealthResponseDto';
+export * from './revokePermissionDto';
+export * from './revokePermissionResponseDto';
 export * from './tenantControllerFindAllParams';
 export * from './tenantListResponseDto';
 export * from './tenantResponseDto';

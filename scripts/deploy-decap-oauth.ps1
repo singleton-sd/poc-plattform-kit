@@ -6,6 +6,10 @@
   Deploys infra/decap-oauth.bicep then zips apps/marketing-oauth for
   az functionapp deployment source config-zip.
 
+  Order is required for Contact: Bicep applies FORWARDEMAIL_* / CONTACT_*
+  app settings (KV refs) before zip; zip-only (-SkipInfra) leaves /contact
+  returning 503 until infra is reapplied.
+
   Prerequisites:
   - az login (or OIDC in CI)
   - GitHub OAuth App created; client secret in KV as github-decap-oauth-client-secret

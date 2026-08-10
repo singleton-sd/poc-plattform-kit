@@ -5,13 +5,13 @@
 .DESCRIPTION
   Idempotent bootstrap for ssd-pocpk-openfga-dev-ae:
     1. Deploy infra/openfga.bicep (ACA + Azure Files SQLite share on existing CAE)
-    2. Ensure Entra app registration api://ssd-pocpk-openfga (assignment-required)
+    2. Ensure Entra app registration api://{tenantId}/ssd-pocpk-openfga (assignment-required)
     3. Assign the Nest API App Service managed identity as the sole app-role assignee
     4. Create/reuse OpenFGA store, push infra/openfga/model.json
     5. Seed App Configuration app:openfga:* keys read by apps/api
 
   Safe to re-run. Never commits secrets. Prefer Azure CLI login / GitHub OIDC
-  (same Variables as preview-api.yml) — no AZURE_CREDENTIALS / SP-JSON.
+  (same Variables as preview-api.yml) - no AZURE_CREDENTIALS / SP-JSON.
 
 .EXAMPLE
   powershell -File ./infra/deploy-openfga.ps1 -WhatIf
@@ -30,7 +30,7 @@ param(
   [string]$AppConfigName = 'ssd-pocpk-appcs-dev-ae',
   [string]$ApiWebAppName = 'pocpk-api-si5fhs6dvxiha',
   [string]$OpenFgaImageTag = 'v1.18.3',
-  [string]$OpenFgaAudience = 'api://ssd-pocpk-openfga',
+  [string]$OpenFgaAudience = 'api://9a0e57d7-e58e-4e8b-814d-037cd7d9015c/ssd-pocpk-openfga',
   [string]$OpenFgaAppDisplayName = 'ssd-pocpk-openfga',
   [string]$StoreName = 'poc-plattform-kit',
   [string]$DeploymentName = 'pocpk-openfga',
@@ -138,7 +138,7 @@ Assert-LastExit 'OpenFGA Bicep deployment'
 
 if ($WhatIf) {
   Write-Host $deployOut
-  Write-Host 'WhatIf complete — no Entra / store bootstrap.'
+  Write-Host 'WhatIf complete - no Entra / store bootstrap.'
   exit 0
 }
 
@@ -336,12 +336,25 @@ function Set-OpenFgaAuthnMethod {
     -o none
   if ($LASTEXITCODE -ne 0) {
     if ($BestEffort) {
-      Write-Warning "containerapp update authn=$Method failed (exit $LASTEXITCODE) — OpenFGA may still be unauthenticated"
+      Write-Warning "containerapp update authn=$Method failed (exit $LASTEXITCODE) - OpenFGA may still be unauthenticated"
       return
     }
     throw "containerapp update authn=$Method failed (exit $LASTEXITCODE)."
   }
   Wait-OpenFgaHealthy
+  if ($Method -eq 'none') {
+    # healthz is public under oidc too; wait until unauthenticated /stores works.
+    Write-Host 'Waiting for unauthenticated /stores (authn=none revision)'
+    for ($i = 1; $i -le 36; $i++) {
+      try {
+        Invoke-RestMethod -Uri "$openfgaApiUrl/stores" -TimeoutSec 15 | Out-Null
+        return
+      } catch {
+        Start-Sleep -Seconds 5
+      }
+    }
+    throw 'OpenFGA authn=none revision did not expose /stores without a bearer token.'
+  }
 }
 
 if (-not $SkipBootstrap) {
@@ -426,7 +439,7 @@ Write-Step 'Deployment summary (no secrets)'
   Fqdn               = $openfgaFqdn
   ApiUrl             = $openfgaApiUrl
   Image              = "openfga/openfga:$OpenFgaImageTag"
-  DatastoreEngine    = 'sqlite (Azure Files — beta; minReplicas=1)'
+  DatastoreEngine    = 'sqlite (EmptyDir PoC; Azure Files SMB unsuitable; minReplicas=1)'
   StorageAccount     = $StorageAccountName
   Audience           = $OpenFgaAudience
   EntraAppId         = $appClientId
@@ -440,7 +453,7 @@ Write-Host @'
 
 Next:
   1. Restart Nest API so it reloads App Config (az webapp restart -n pocpk-api-si5fhs6dvxiha -g rg-poc-plattform-kit).
-  2. PermissionsService acquires MI tokens for api://ssd-pocpk-openfga/.default.
+  2. PermissionsService acquires MI tokens for api://{tenantId}/ssd-pocpk-openfga/.default.
   3. Grant/Revoke + tuple sync remain separate tickets.
 
 OIDC CI note: run this script from a principal logged in via the same GitHub OIDC

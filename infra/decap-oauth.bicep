@@ -28,6 +28,12 @@ param origins string = 'plattform-kit.poc.singletonsd.com,purple-field-05048bf00
 @description('KV secret name for GitHub OAuth client secret')
 param oauthClientSecretName string = 'github-decap-oauth-client-secret'
 
+@description('Inbox for marketing Contact form submissions')
+param contactInboxEmail string = 'hello@singletonsd.com'
+
+@description('Verified From address for Forward Email outbound')
+param contactFromEmail string = 'noreply@plattform-kit.poc.singletonsd.com'
+
 var roleKeyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
 var redirectUrl = 'https://${functionAppName}.azurewebsites.net/callback'
 
@@ -107,6 +113,26 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'ORIGINS'
           value: origins
+        }
+        {
+          name: 'FORWARDEMAIL_API_KEY'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/forwardemail-api-key/)'
+        }
+        {
+          name: 'FORWARDEMAIL_BASE_URL'
+          value: 'https://api.forwardemail.net'
+        }
+        {
+          name: 'CONTACT_INBOX_EMAIL'
+          value: contactInboxEmail
+        }
+        {
+          name: 'CONTACT_FROM_EMAIL'
+          value: contactFromEmail
+        }
+        {
+          name: 'CONTACT_RATE_LIMIT_PER_MIN'
+          value: '5'
         }
       ]
     }

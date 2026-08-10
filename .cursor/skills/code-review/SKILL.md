@@ -1,6 +1,10 @@
 ---
 name: Code Review
-description: Review code for quality, correctness, security, and adherence to best practices when a human explicitly requests an ad hoc review; routine PR review is performed by connected bots
+description: >-
+  Review code for quality, correctness, security, and adherence to best
+  practices when a human explicitly requests an ad hoc review; routine PR
+  review is performed by connected bots. For PRs: rename the chat and post
+  findings on GitHub (not in chat).
 tags: [engineering, review, quality, security]
 audience: [engineers, tech-leads]
 status: draft
@@ -21,46 +25,91 @@ workflow.
 4. **Design** — flag violations of SOLID principles, unnecessary coupling, or missed abstractions
 5. **Performance** — highlight obvious inefficiencies (N+1 queries, blocking calls, memory leaks)
 
-## Output format
+## When reviewing a PR
 
-For each issue found, output:
+1. **Rename the chat** immediately via the `rename_chat` MCP tool
+   (`cursor-app-control`) to:
+   `PR #<number> <summary title>`
+   - Use the PR number and a short summary of what the PR is about (from the
+     PR title, trimmed), e.g. `PR #135 Access Request workflow`.
+   - Do this before deep analysis when the PR number/title are known.
+
+2. **Post findings on the PR**, not as a long issue dump in chat.
+   - Prefer inline review comments on the relevant diff lines
+     (`path` + `line` on the RIGHT side of the PR head).
+   - Submit a single GitHub pull-request review that includes those inline
+     comments plus a short summary body / verdict.
+   - Event choice: `REQUEST_CHANGES` when blocking issues exist, `COMMENT` for
+     non-blocking notes, `APPROVE` only when appropriate **and** GitHub allows
+     it. If the authenticated user is the PR author, GitHub returns 422 for
+     `REQUEST_CHANGES` / `APPROVE` — fall back to `COMMENT` and state the
+     intended verdict in the review body (e.g. “would request changes”).
+   - Write the JSON payload to a UTF-8 file **without BOM**, then:
+
+```bash
+gh api repos/<owner>/<repo>/pulls/<number>/reviews \
+  --method POST \
+  --input /path/to/review.json
+```
+
+Example payload:
+
+```json
+{
+  "commit_id": "<head-sha>",
+  "event": "REQUEST_CHANGES",
+  "body": "<one-paragraph verdict>",
+  "comments": [
+    {
+      "path": "<file>",
+      "line": 123,
+      "side": "RIGHT",
+      "body": "**[severity]** <issue>\n\n**Suggestion:** <fix>"
+    }
+  ]
+}
+```
+
+   - Severity labels in comment bodies: `critical` | `major` | `minor` | `nit`.
+   - File-level / cross-cutting notes with no good anchor line go in the review
+     summary body (not as fake line comments).
+   - Chat reply after submit: brief only — PR link, review event chosen, count of
+     inline comments, and one-line verdict. Do **not** paste the full findings
+     into chat.
+
+3. Still run PR hygiene checks (`mergeable`, required checks, existing review
+   threads) so the review is grounded in current PR state.
+
+## Issue shape (for GitHub comments)
+
+For each finding:
 
 ```
-[SEVERITY: critical | major | minor | nit]
-File: <path>:<line>
-Issue: <what is wrong>
-Suggestion: <how to fix it>
+**[severity]** <what is wrong>
+
+**Suggestion:** <how to fix it>
 ```
 
-Finish with a one-paragraph summary verdict.
+Severity: `critical` | `major` | `minor` | `nit`.
+
+Finish the review body with a one-paragraph summary verdict.
 
 ## Rules
 
 - Only comment on what is in scope (the diff or the specified file)
 - Do not suggest style changes unless a linter config is provided
 - Distinguish between blocking issues and suggestions
+- Never dump the full review into the Cursor chat when a PR URL/number is in
+  scope — the PR is the system of record
 
 ## Forms
 
 If the diff touches a form (schema, renderer, or host component), also apply
 the **form-ux** skill (`.cursor/skills/form-ux`) audit mode and report
-findings using its status vocabulary and evidence requirements.
+findings using its status vocabulary and evidence requirements (on the PR when
+reviewing a PR; in chat for local-only reviews).
 
-## Reviewer pickup (Claim Token)
+## Non-PR reviews
 
-Before reviewing a ClickUp ticket in **READY FOR REVIEW**, run the exclusive
-claim protocol in `AGENTS.md` via `scripts/clickup.ps1` / `scripts/clickup.sh` (REST +
-`CLICKUP_API_TOKEN` — not ClickUp MCP). Claim Token
-`50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` + assignee, re-fetch verify. Do not
-start a review on a ticket whose Claim Token is already set to another
-session. Clear Claim Token on handoff to
-**READY FOR HUMAN** or bounce to **READY FOR AI**.
-
-## PR hygiene before READY FOR HUMAN
-
-For ClickUp/GitHub reviews in this repo, also run **PR hygiene** (see `AGENTS.md`):
-
-1. Confirm `mergeable` is clean (`gh pr view --json mergeable,mergeStateStatus`).
-2. Confirm required checks are green on the PR tip.
-3. Fetch Bugbot + human feedback via PR review comments and issue comments (not Cursor chat).
-4. If conflicts, red CI, or actionable feedback remain → clear **Claim Token**, set ClickUp **READY FOR AI** with blockers; do not set **READY FOR HUMAN**.
+When the user asks to review a local diff or file (no PR): use the issue shape
+above in chat, and finish with a one-paragraph verdict.

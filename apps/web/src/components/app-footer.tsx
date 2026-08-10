@@ -9,6 +9,12 @@ export function AppFooter() {
       <nav aria-label="Product" className="mb-3 flex flex-wrap justify-center gap-4">
         <a
           className="hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          href="/changelog"
+        >
+          What’s new
+        </a>
+        <a
+          className="hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           href="https://plattform-kit.poc.singletonsd.com"
         >
           Marketing

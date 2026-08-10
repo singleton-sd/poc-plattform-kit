@@ -140,7 +140,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events → Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`, `chromatic-project-token`
 
 **Entra / Auth.js (App Config → Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` → `AUTH_SECRET`, `secret:azure-ad-client-secret` → `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
 
@@ -167,6 +167,47 @@ App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **
 | WhatsApp | Meta WhatsApp Cloud API (default; swappable) | `WhatsAppProvider` |
 
 Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`. Non-secret App Config: provider base URLs, WhatsApp phone-number-id, Graph API version (secrets only as KV references).
+
+### Marketing edge (locked)
+
+Public brochure HTTP (Contact form, etc.) runs on Function App **`ssd-pocpk-decap-oauth-dev-ae`** (`apps/marketing-oauth`), **not** Nest `apps/api`. See [`docs/marketing-edge.md`](docs/marketing-edge.md).
+
+**Forward Email — create secret + App Config (ops; do not commit values):**
+
+```powershell
+az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
+
+# 1) Key Vault secret (prompt avoids shell history)
+az keyvault secret set `
+  --vault-name ssd-pocpk-kv-dev-ae `
+  --name forwardemail-api-key `
+  --file -   # paste token, Enter, then Ctrl+Z Enter on Windows — or use --value only in a private session
+
+# Prefer interactive file/stdin. Example with env var you set yourself (not committed):
+# $env:FORWARDEMAIL_API_KEY = '<paste once>'
+# az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name forwardemail-api-key --value $env:FORWARDEMAIL_API_KEY
+# Remove-Item Env:FORWARDEMAIL_API_KEY
+
+# 2) App Config Key Vault reference (same content-type as other secret:* keys)
+az appconfig kv set `
+  --name ssd-pocpk-appcs-dev-ae `
+  --key secret:forwardemail-api-key `
+  --content-type "application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8" `
+  --value '{\"uri\": \"https://ssd-pocpk-kv-dev-ae.vault.azure.net/secrets/forwardemail-api-key\"}' `
+  --yes
+
+# 3) Non-secret contact delivery settings
+az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:forwardEmailBaseUrl --value "https://api.forwardemail.net" --yes
+az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:contactInboxEmail --value "hello@singletonsd.com" --yes
+az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:contactFromEmail --value "noreply@plattform-kit.poc.singletonsd.com" --yes
+```
+
+Verify (no secret values printed):
+
+```powershell
+az keyvault secret show --vault-name ssd-pocpk-kv-dev-ae --name forwardemail-api-key --query "{name:name, enabled:attributes.enabled}" -o json
+az appconfig kv show --name ssd-pocpk-appcs-dev-ae --key secret:forwardemail-api-key --query "{key:key, contentType:contentType}" -o json
+```
 
 | Surface | Rule |
 | --- | --- |
@@ -208,7 +249,8 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 4. If login fails with consent errors: Entra admin grants the enterprise app access (tenant admin consent for the SP) — Portal → Enterprise applications → `ssd-pocpk-gha-oidc-dev` → Permissions / admin consent, or re-run role assignments as subscription Owner.
 5. SWA deploy token lives only in KV as `swa-deployment-token` (`az staticwebapp secrets list` → `az keyvault secret set`).
 6. ACR admin username/password live only in KV as `acr-admin-*` (written by `deploy-aca-preview.ps1`).
-7. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
+7. Chromatic's project token lives only in KV as `chromatic-project-token`; see [`docs/chromatic.md`](docs/chromatic.md).
+8. For App Service zip deploy (`deploy-api.yml`), grant the OIDC SP Website Contributor on the web app:
 
 ```bash
 az role assignment create \
@@ -231,6 +273,8 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `ci-web.yml` | `apps/web/**`, `packages/**` | prettier check, lint, build, test |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
+| `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook visual regression via OIDC → KV `chromatic-project-token` |
+| `playwright.yml` | `apps/web/**`, `packages/**` | Chromium public journeys + bounded failure artifacts |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** via OIDC → KV (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
