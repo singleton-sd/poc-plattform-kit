@@ -8,6 +8,7 @@ import {
 import { useEffect } from 'react';
 import { Drawer } from '@/components/drawer';
 import { AlertIcon } from '@/components/icons';
+import { PermissionGate } from '@/features/permissions/permission-gate';
 import { configureApiClient } from '@/lib/api-client';
 import { errorMessage, tenantPayload } from './api';
 import { CopyTenantIdButton } from './copy-tenant-id-button';
@@ -56,15 +57,32 @@ export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDeta
       footer={
         tenant ? (
           <>
-            <button
-              type="submit"
-              form={UPDATE_TENANT_FORM_ID}
-              disabled={updateMutation.isPending}
-              className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
-              data-testid="tenant-update-submit"
+            <PermissionGate
+              action="update"
+              resource={`tenant:${tenant.id}`}
+              tenantId={tenant.id}
+              deniedControl={
+                <button
+                  type="button"
+                  disabled
+                  className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on opacity-50"
+                  data-testid="tenant-update-submit"
+                  aria-disabled="true"
+                >
+                  Save Changes
+                </button>
+              }
             >
-              {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
-            </button>
+              <button
+                type="submit"
+                form={UPDATE_TENANT_FORM_ID}
+                disabled={updateMutation.isPending}
+                className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
+                data-testid="tenant-update-submit"
+              >
+                {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
+              </button>
+            </PermissionGate>
             <button
               type="button"
               onClick={onClose}

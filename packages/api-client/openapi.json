@@ -463,7 +463,7 @@
       "post": {
         "operationId": "AccessRequestController_create",
         "summary": "Create an access request for a denied action",
-        "description": "Captures subject/action/resource for the current user. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.",
+        "description": "Captures subject/action/resource for the current user. Idempotent for an existing non-expired pending request on the same action+resource. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -494,6 +494,59 @@
           },
           "403": {
             "description": "Body tenantId is not a tenant the caller belongs to."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/permissions/access-requests/mine": {
+      "get": {
+        "operationId": "AccessRequestController_listMine",
+        "summary": "List access requests filed by the current user",
+        "description": "Optional action/resource filters. Newest first (max 50).",
+        "parameters": [
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "update",
+              "type": "string"
+            }
+          },
+          {
+            "name": "resource",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "tenant:acme",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
           }
         },
         "tags": [
@@ -1104,6 +1157,21 @@
             "type": "string",
             "example": "2026-12-31T23:59:59.000Z",
             "description": "Optional absolute expiry for the pending request itself (ISO-8601)."
+          },
+          "preferredGrantType": {
+            "type": "string",
+            "enum": [
+              "permanent",
+              "temporary",
+              "one_time"
+            ],
+            "example": "permanent",
+            "description": "Preferred grant type for the approver (stored as a hint; applied on approve)."
+          },
+          "preferredGrantExpiresAt": {
+            "type": "string",
+            "example": "2026-12-31T23:59:59.000Z",
+            "description": "Required when preferredGrantType is temporary — preferred grant expiry."
           }
         },
         "required": [
@@ -1175,6 +1243,18 @@
             "nullable": true,
             "format": "date-time",
             "description": "Grant expiry when grantType is temporary (set on approve)."
+          },
+          "preferredGrantType": {
+            "type": "string",
+            "nullable": true,
+            "example": "temporary",
+            "description": "Requester preferred grant type (hint for approvers)."
+          },
+          "preferredGrantExpiresAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Preferred temporary grant expiry from the requester."
           },
           "createdAt": {
             "type": "string",

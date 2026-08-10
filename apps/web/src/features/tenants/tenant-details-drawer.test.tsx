@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { TenantDetailsDrawer } from './tenant-details-drawer';
 
 const refetch = jest.fn();
@@ -19,6 +20,10 @@ let updateState: {
 
 jest.mock('@/lib/api-client', () => ({
   configureApiClient: (...args: unknown[]) => configureApiClient(...args),
+}));
+
+jest.mock('@/features/permissions/permission-gate', () => ({
+  PermissionGate: ({ children }: { children: ReactNode }) => children,
 }));
 
 jest.mock('@poc-plattform-kit/api-client', () => ({
