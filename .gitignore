@@ -8,6 +8,8 @@ storybook-static/
 next-env.d.ts
 .turbo/
 coverage/
+playwright-report/
+test-results/
 *.log
 .env
 .env.*

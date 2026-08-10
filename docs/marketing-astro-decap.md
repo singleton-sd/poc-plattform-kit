@@ -13,8 +13,9 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 | Content | Markdown collections under `apps/marketing/src/content/pages/` |
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
 | OAuth login | Azure Function on existing B1 `pocpk-plan` — `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`) |
+| Marketing edge HTTP | **Same Function App** — public brochure endpoints (e.g. Contact). See [marketing-edge.md](./marketing-edge.md). Do **not** attach these to Nest `apps/api`. |
 | Deploy site | `deploy-marketing.yml` → OIDC → Key Vault → SWA upload of `apps/marketing/dist` |
-| Deploy OAuth | `deploy-decap-oauth.yml` → OIDC → Bicep + zip Function App |
+| Deploy OAuth / edge | `deploy-decap-oauth.yml` → OIDC → Bicep + zip Function App |
 
 No WordPress, Gatsby, or always-on CMS server for the site itself.
 
@@ -68,13 +69,16 @@ Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
 | Astro site | No — CI build + SWA |
 | GitHub OAuth login | **Yes** — Function App `ssd-pocpk-decap-oauth-dev-ae` |
 
-### OAuth proxy routes
+### OAuth / marketing-edge routes
 
 | Path | Role |
 | --- | --- |
 | `/auth` | Redirect to GitHub authorize |
 | `/callback` | Exchange code → HTML `postMessage` handshake for Decap |
+| `/contact` | Anonymous marketing Contact form (`POST` / `OPTIONS`) → Forward Email |
 | `/health` | Liveness |
+
+Astro Contact form posts to `{PUBLIC_MARKETING_API_BASE_URL}/contact` (not Nest).
 
 `ORIGINS` (Function App setting / Bicep `origins`) is a comma-separated list of
 **opener hostnames** (no scheme). Include the marketing SWA instance prefix so

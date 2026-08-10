@@ -8,11 +8,19 @@
 
 ## ClickUp (locked)
 
-- **Tickets / ops list only:** https://app.clickup.com/90161394355/v/li/901616287298 (`list_id=901616287298`, workspace `90161394355`, space PoC)
+Workspace `90161394355`, space PoC, Plattform Kit folder. Use **exactly** these workflow lists — do **not** create Web/API/Marketing/pillar-specific lists (those are task classifications: Area / Pillar / Work Type / Execution).
+
+| List | ID | Purpose |
+| --- | --- | --- |
+| **Delivery** | `901616287298` | Approved implementation work; **claim / AI loop / PR handoff queue** |
+| **Ideas & Discovery** | `901616397764` | Unresolved ideas, spikes, design questions |
+| **Human & Operations** | `901616397767` | Standalone manual gates (portal setup, billing, human-entered secrets, etc.) |
+
+- **Delivery (claim queue):** https://app.clickup.com/90161394355/v/li/901616287298
 - **Architecture Doc:** https://app.clickup.com/90161394355/docs/2kz0kcnk-1416
 - **Docs folder:** https://app.clickup.com/90161394355/v/f/901610744236/90165834867 (`folder_id=901610744236`)
-- Do **not** create a separate Platform Kit space/list.
-- **Custom fields** on ops list `901616287298`:
+- Do **not** create a separate Platform Kit space or extra workflow lists.
+- **Custom fields** on Delivery `901616287298` (claim/handoff):
 
 | Field | Type | UUID | Usage |
 | --- | --- | --- | --- |
@@ -21,16 +29,22 @@
 | **Token Estimate** | number | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set when the task is planned |
 | **Token Spent** | number | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Set when the task is finished |
 
-- **Access (locked):** use REST via [`scripts/clickup.ps1`](scripts/clickup.ps1) (Windows) or [`scripts/clickup.sh`](scripts/clickup.sh) (Linux / Cursor Cloud) + env `CLICKUP_API_TOKEN`. **Do not use ClickUp MCP** for routine list/get/claim/status/comment — MCP burns a shared rate budget and can lock the workspace for ~10h. On HTTP 429, stop ClickUp calls in that chat (no retries/spin). Custom field writes must use Set Custom Field Value (`…/task/{id}/field/{field_id}`), not Update Task. Bootstrap Claim Token field: [`scripts/ensure-claim-token-field.ps1`](scripts/ensure-claim-token-field.ps1).
+- **Access (locked):** use REST via [`scripts/clickup.ps1`](scripts/clickup.ps1) (Windows) or [`scripts/clickup.sh`](scripts/clickup.sh) (Linux / Cursor Cloud) + env `CLICKUP_API_TOKEN`. Default `-ListId` is Delivery; pass `-ListId 901616397764` or `901616397767` when creating/listing Ideas & Discovery or Human & Operations. **Do not use ClickUp MCP** for routine list/get/claim/status/comment — MCP burns a shared rate budget and can lock the workspace for ~10h. On HTTP 429, stop ClickUp calls in that chat (no retries/spin). Custom field writes must use Set Custom Field Value (`…/task/{id}/field/{field_id}`), not Update Task. Bootstrap Claim Token field: [`scripts/ensure-claim-token-field.ps1`](scripts/ensure-claim-token-field.ps1).
 
 ## ClickUp statuses
 
+**Delivery** (`901616287298`) — AI claim/handoff:
+
 | Group | Statuses |
 | --- | --- |
-| Not started | `TO DO` |
+| Not started | `BACKLOG`, `TO DO` (prefer `BACKLOG` for new unrefined work; `TO DO` retained for compatibility) |
 | Active | `IN PROGRESS`, `READY FOR AI` |
 | Done | `READY FOR REVIEW`, `READY FOR HUMAN` |
 | Closed | `COMPLETE` |
+
+`READY FOR HUMAN` means AI review + PR hygiene passed and a **human should merge** (or give final approval). It is **not** a bucket for standalone manual work — put those on **Human & Operations**.
+
+**Ideas & Discovery** / **Human & Operations** use a simpler set only: `TO DO`, `IN PROGRESS`, `COMPLETE`. Do not invent Delivery statuses on those lists.
 
 ## AI loop (mandatory)
 
@@ -170,6 +184,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) — see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); SWA Free `ssd-pocpk-mkt-dev-ae`
+- **Marketing edge (locked):** public anonymous HTTP for the brochure site (Contact form, future marketing-only endpoints) runs on Azure Function App `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`, B1 `pocpk-plan`) — **not** on Nest `apps/api`. Stable client env: `PUBLIC_MARKETING_API_BASE_URL`. See [docs/marketing-edge.md](docs/marketing-edge.md). Split to a dedicated marketing API only when this host outgrows Decap OAuth + thin edge routes.
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest → committed `packages/api-client/openapi.json` → Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` — public allowlist in `docs/sso.md`
@@ -204,10 +219,10 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 
 | Change set | CI | Preview (PR) | Production (`main`) |
 | --- | --- | --- | --- |
-| `apps/web/**` | `ci-web.yml` | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV | `deploy-web.yml` → SWA production |
+| `apps/web/**` | `ci-web.yml`; also `chromatic.yml` + `playwright.yml` when web/packages paths hit | SWA PR preview (`preview-web.yml`, Free) via OIDC → KV | `deploy-web.yml` → SWA production |
 | `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC → KV | `deploy-api.yml` → App Service B1 |
 | `apps/marketing/**` | `ci-web.yml` (marketing filter) | SWA PR preview (`preview-marketing.yml`, Free) via OIDC → KV | `deploy-marketing.yml` → marketing SWA (`apps/marketing/dist`) |
-| `packages/**` | **both** CI workflows | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
+| `packages/**` | **both** CI workflows; Chromatic + Playwright when web deps change | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 
 - **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
 - ACA auth: OIDC Variables only — `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
