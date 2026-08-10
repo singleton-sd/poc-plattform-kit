@@ -37,3 +37,5 @@ src/providers/
 ```
 
 Marketing brochure Contact uses a self-contained Forward Email client inside `apps/marketing-oauth` (Function zip deploy). The pillar provider is for Nest / `notifications.send` consumers.
+
+`EmailProvider` requires `isConfigured()` — any Nest/queue stub or mock must implement it (not only `send`).

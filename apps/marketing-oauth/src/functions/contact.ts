@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { contactCorsHeaders, submitContactInquiry, validateContactInquiry } from '../contact';
+import { clientIpFromHeaders, contactRateLimiter } from '../contact-rate-limit';
 
 export async function contactHandler(
   request: HttpRequest,
@@ -10,6 +11,20 @@ export async function contactHandler(
 
   if (request.method === 'OPTIONS') {
     return { status: 204, headers: cors };
+  }
+
+  const ip = clientIpFromHeaders(request.headers);
+  const limit = contactRateLimiter.tryConsume(ip);
+  if (!limit.allowed) {
+    return {
+      status: 429,
+      headers: {
+        ...cors,
+        'Content-Type': 'application/json',
+        'Retry-After': String(limit.retryAfterSec),
+      },
+      jsonBody: { error: 'Too many messages were sent. Please wait a minute and try again.' },
+    };
   }
 
   try {

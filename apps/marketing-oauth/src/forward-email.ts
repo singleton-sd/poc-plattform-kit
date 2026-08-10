@@ -1,4 +1,11 @@
-/** Outbound email via Forward Email API — https://forwardemail.net/en/email-api */
+/**
+ * Outbound email via Forward Email API — https://forwardemail.net/en/email-api
+ *
+ * Intentionally duplicated from pillars/notifications ForwardEmailProvider:
+ * Function zip deploy only packs apps/marketing-oauth (no workspace packages).
+ * Keep Basic-auth /v1/emails + field names in sync when either side changes
+ * (follow-up: shared package once packaging allows).
+ */
 
 export interface EmailSendRequest {
   to: string | string[];

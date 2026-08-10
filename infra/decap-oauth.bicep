@@ -130,6 +130,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'CONTACT_FROM_EMAIL'
           value: contactFromEmail
         }
+        {
+          name: 'CONTACT_RATE_LIMIT_PER_MIN'
+          value: '5'
+        }
       ]
     }
   }

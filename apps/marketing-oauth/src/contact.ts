@@ -29,6 +29,18 @@ const SUBJECT_LABELS: Record<ContactSubject, string> = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Reject C0 / DEL. Names: no newlines. Messages: allow LF and tab only. */
+export function hasForbiddenControls(value: string, allowMessageWhitespace: boolean): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code === 0x7f) return true;
+    if (code >= 0x20) continue;
+    if (allowMessageWhitespace && (code === 0x09 || code === 0x0a)) continue;
+    return true;
+  }
+  return false;
+}
+
 export function validateContactInquiry(body: unknown): ContactOk | ContactValidationError {
   if (!body || typeof body !== 'object') {
     return { ok: false, status: 400, error: 'Expected a JSON object body.' };
@@ -39,7 +51,7 @@ export function validateContactInquiry(body: unknown): ContactOk | ContactValida
   const subject = typeof record.subject === 'string' ? record.subject.trim() : '';
   const message = typeof record.message === 'string' ? record.message.trim() : '';
 
-  if (!name || name.length > 120) {
+  if (!name || name.length > 120 || hasForbiddenControls(name, false)) {
     return { ok: false, status: 400, error: 'Enter a name (max 120 characters).' };
   }
   if (!EMAIL_RE.test(email) || email.length > 254) {
@@ -48,7 +60,7 @@ export function validateContactInquiry(body: unknown): ContactOk | ContactValida
   if (!(CONTACT_SUBJECTS as readonly string[]).includes(subject)) {
     return { ok: false, status: 400, error: 'Select a valid subject.' };
   }
-  if (message.length < 10 || message.length > 5000) {
+  if (message.length < 10 || message.length > 5000 || hasForbiddenControls(message, true)) {
     return { ok: false, status: 400, error: 'Enter a message of 10–5000 characters.' };
   }
 
@@ -79,7 +91,8 @@ export function buildContactEmailRequest(
     to: inbox,
     from,
     replyTo: dto.email,
-    subject: `[Platform Kit] ${subjectLabel} — ${dto.name}`,
+    // Fixed label only — never interpolate free-text into the Subject header.
+    subject: `[Platform Kit] ${subjectLabel}`,
     text,
     correlationId,
   };
