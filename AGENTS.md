@@ -244,6 +244,37 @@ Read curated skills under `.cursor/skills/` before coding (backend, frontend, te
 - Forward-only Prisma migrations.
 - UI: token CSS vars + Tailwind only — no hardcoded palette hex.
 
+## Preview scenario delivery standard
+
+Ephemeral API PR previews run against an isolated, disposable **SQLite** database seeded from named **preview scenarios** — see [`docs/preview-scenarios.md`](docs/preview-scenarios.md) for the full framework (registry, catalog, naming convention, CLI). This is the delivery requirement layered on top of it.
+
+**A PR touching `apps/api/**`, `pillars/**`, or `packages/db/**` must declare its preview scenarios as a plain, visible line in the PR body** (not an HTML comment — easier for a human reviewer to spot, and doesn't depend on a hidden comment surviving whatever tool opened/edited the PR):
+
+```text
+Preview scenarios: pillar/tenant/settings, feature/my-feature/happy-path
+```
+
+or an explicit exemption with a reason, for changes that genuinely need no preview data (docs, CI/workflow-only, infra-only, a pure refactor with no behavior change):
+
+```text
+Preview scenarios: not-applicable — CI workflow tweak only, no data model or endpoint change
+```
+
+`.github/workflows/validate-preview-scenarios.yml` (`scripts/validate-preview-scenarios.mjs`) enforces this: it fails a PR that touches those paths with neither line present, rejects unknown scenario names with the full supported list, and proves every declared scenario actually seeds + verifies against a real throwaway SQLite database — not just that the declaration parses. `.github/pull_request_template.md` has the field already scaffolded.
+
+**What each kind of ticket adds:**
+
+- **Feature / pillar work:** add or extend a `pillar/<pillar>/<scenario>` (or `feature/<slug>/<scenario>`) scenario covering the meaningful states needed for acceptance — representative happy path plus applicable empty, permission/tenant-boundary, lifecycle, and error states. See `pillar/tenant/*` in `packages/db/scripts/scenarios/fixtures/tenant.mjs` for the pattern (multiple composable scenarios sharing a base via `dependsOn`, each with its own `verify()`).
+- **A reproducible, data-dependent bug fix:** add a minimal `bug/<clickup-task-id>/<scenario>` scenario that reproduces the pre-fix state, and keep it in the catalog after the fix lands as a regression fixture (its `verify()` should assert the corrected behavior). A preview scenario **complements** automated tests — it never replaces a regression/integration/contract/unit test.
+- **SQL Server-specific changes** (native types, raw SQL, provider-specific migrations): still require SQL Server integration validation. Document in the PR what the SQLite preview cannot prove (see "Known SQLite vs SQL Server limitations" in the PR template).
+- **Retiring a scenario:** remove it from `catalog.mjs` and its fixture module once nothing depends on it and it's no longer a meaningful regression/demo asset — don't leave dead scenarios registered "just in case."
+
+Existing PRs/branches don't need a historical migration — the requirement applies going forward from when `validate-preview-scenarios.yml` is enabled.
+
+## Ticket-writing guidance for data-affecting work
+
+When writing a ClickUp ticket for `apps/api/**`, `pillars/**`, or `packages/db/**` work, include a short **Preview scenario** section in the ticket description: which scenario(s) the implementation should add/update (or "not applicable" + why), and what a reviewer should be able to observe in the deployed preview once it's done. This lets ticket → PR → preview stay traceable without inventing scenarios after the fact.
+
 ## Cursor Cloud specific instructions
 
 pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scripts (`package.json`) fan out with `pnpm -r`, so `pnpm lint`/`test`/`build` results depend on which feature PRs have merged — several `pillars/*` and `apps/web` may still be placeholder `echo` stubs on a given checkout (real coverage today is `apps/api` Jest + `packages/db` `prisma validate`). The update script's `pnpm install` picks up new deps automatically as that work lands. Note: multiple foundation PRs are in flight (tracked in ClickUp) and touch `AGENTS.md`, tooling, `apps/web`, and pillars; expect this repo to evolve and don't treat the current stub state as final.
