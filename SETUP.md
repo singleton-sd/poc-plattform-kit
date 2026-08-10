@@ -233,6 +233,7 @@ See full matrix: [`docs/pr-pipelines.md`](./docs/pr-pipelines.md).
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** via OIDC → KV token |
 | `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook visual regression via OIDC → KV `chromatic-project-token` |
+| `playwright.yml` | `apps/web/**`, `packages/**` | Chromium public journeys + bounded failure artifacts |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** via OIDC → KV (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **ACA** ephemeral `ssd-pocpk-aca-pr-<n>-ae` |
 | `deploy-web.yml` | same as ci-web, **`push` `main`** | SWA **production** via OIDC → KV |
