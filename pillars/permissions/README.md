@@ -33,6 +33,8 @@ Grant types:
 
 OpenFGA runs on ACA Consumption (`ssd-pocpk-openfga-dev-ae`). Model DSL:
 `infra/openfga/model.fga` (re-push via `infra/deploy-openfga.ps1` after model changes).
+Route → action catalog: `infra/openfga/permissions.manifest.json` (see
+[`docs/permissions.md`](../../docs/permissions.md)).
 Approver AuthZ for who may call grant/revoke is owned by the Access Request
 workflow ticket — these endpoints assume a trusted internal caller for now.
 

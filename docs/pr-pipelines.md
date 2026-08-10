@@ -9,6 +9,7 @@
 | `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
+| `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook visual regression; TurboSnap + explicit review via OIDC → Key Vault |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** (Free) via OIDC → Key Vault (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `workflow_dispatch` from `release.yml` when `apps/web/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | SWA **production** via OIDC → Key Vault |
