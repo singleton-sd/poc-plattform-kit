@@ -5,13 +5,22 @@
  * poc-plattform-kit API
  */
 
+export * from './accessRequestListResponseDto';
+export * from './accessRequestResponseDto';
+export * from './accessRequestResponseDtoDecidedById';
+export * from './accessRequestResponseDtoDenyReason';
+export * from './accessRequestResponseDtoGrantType';
+export * from './approveAccessRequestDto';
+export * from './approveAccessRequestDtoGrantType';
 export * from './changelogChangeDto';
 export * from './changelogReleaseDto';
 export * from './changelogResponseDto';
 export * from './checkPermissionDto';
 export * from './checkPermissionResponseDto';
+export * from './createAccessRequestDto';
 export * from './createTenantDto';
 export * from './createTenantDtoSettings';
+export * from './denyAccessRequestDto';
 export * from './grantPermissionDto';
 export * from './grantPermissionDtoGrantType';
 export * from './grantPermissionResponseDto';

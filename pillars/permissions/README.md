@@ -17,6 +17,10 @@ The Nest module exposes:
 | `POST /permissions/check` | OpenFGA Check (fails closed until configured) |
 | `POST /permissions/grants` | Grant permanent / temporary / one-time access |
 | `POST /permissions/grants/revoke` | Delete the relationship tuple (+ one-time marker) |
+| `POST /permissions/access-requests` | Create an access request for a denied action |
+| `GET /permissions/access-requests/pending` | List pending requests visible to the caller (tenant admin or manager) |
+| `POST /permissions/access-requests/:id/approve` | Approve + Grant API (permanent / temporary / one-time) |
+| `POST /permissions/access-requests/:id/deny` | Deny with optional reason |
 | `GET /permissions/health` | Pillar health |
 
 When `OPENFGA_AUDIENCE` is set, `PermissionsService` acquires an Entra token via
@@ -35,8 +39,25 @@ OpenFGA runs on ACA Consumption (`ssd-pocpk-openfga-dev-ae`). Model DSL:
 `infra/openfga/model.fga` (re-push via `infra/deploy-openfga.ps1` after model changes).
 Route → action catalog: `infra/openfga/permissions.manifest.json` (see
 [`docs/permissions.md`](../../docs/permissions.md)).
-Approver AuthZ for who may call grant/revoke is owned by the Access Request
-workflow ticket — these endpoints assume a trusted internal caller for now.
+
+## Access Request workflow
+
+`AccessRequestService` owns approver AuthZ and the request lifecycle:
+
+1. Requester `POST`s the denied `action` + `resource` (and tenant when the session
+   has no tenant claim). Optional `expiresAt` expires the pending request.
+2. Mutation writes `AccessRequest` + `PermissionsAudit` + `PermissionsOutbox`
+   (`permission.access_requested`) in one transaction. Outbox payload includes
+   `managerEntraOids` so Notifications can target managers; tenant admins are
+   implied for the Notifications consumer (OpenFGA `tenant#admin`).
+3. Approvers list pending via OpenFGA `Check(user:<id>, admin, tenant:<id>)` **or**
+   membership in the requester’s Graph manager chain (`ManagerChainService`).
+4. Approve calls `PermissionsService.grant` then emits `permission.access_approved`
+   + `permission.granted`. Deny emits `permission.access_denied`.
+5. Expired pending rows are marked `expired` on list/approve/deny (HTTP 410 on decide).
+
+Grant/revoke HTTP endpoints remain trusted internal callers; product AuthZ for
+who may grant lives on Access Request.
 
 ## Manager/reporting-line resolution
 
