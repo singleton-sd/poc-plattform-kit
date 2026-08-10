@@ -67,23 +67,29 @@ try {
     ($stagePackage | ConvertTo-Json -Depth 10) | Set-Content (Join-Path $stage 'package.json') -Encoding utf8
     Copy-Item (Join-Path $appDir 'dist') (Join-Path $stage 'dist') -Recurse
 
-    $emailSrc = Join-Path $root 'packages/email'
-    $emailDest = Join-Path $stage 'node_modules/@poc-plattform-kit/email'
-    New-Item -ItemType Directory -Path $emailDest -Force | Out-Null
-    Copy-Item (Join-Path $emailSrc 'package.json') $emailDest
-    Copy-Item (Join-Path $emailSrc 'dist') (Join-Path $emailDest 'dist') -Recurse
-
+    # npm install first — vendoring before install gets pruned as extraneous.
     Push-Location $stage
     try {
       npm install --omit=dev --package-lock=false | Out-Host
-      $zipPath = Join-Path $env:TEMP 'decap-oauth-deploy.zip'
-      if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-      # The .NET ZIP API creates a Linux/Kudu-friendly archive on every platform.
-      [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipPath)
     }
     finally {
       Pop-Location
     }
+
+    $emailSrc = Join-Path $root 'packages/email'
+    $emailDest = Join-Path $stage 'node_modules/@poc-plattform-kit/email'
+    $emailEntry = Join-Path $emailDest 'dist/index.js'
+    New-Item -ItemType Directory -Path $emailDest -Force | Out-Null
+    Copy-Item (Join-Path $emailSrc 'package.json') $emailDest
+    Copy-Item (Join-Path $emailSrc 'dist') (Join-Path $emailDest 'dist') -Recurse
+    if (-not (Test-Path $emailEntry)) {
+      throw "Vendored email package missing $emailEntry"
+    }
+
+    $zipPath = Join-Path $env:TEMP 'decap-oauth-deploy.zip'
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    # The .NET ZIP API creates a Linux/Kudu-friendly archive on every platform.
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipPath)
 
     Write-Host "Zip deploying to $FunctionAppName ..."
     az functionapp deployment source config-zip `

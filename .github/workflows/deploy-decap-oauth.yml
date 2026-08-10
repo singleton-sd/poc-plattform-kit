@@ -109,10 +109,12 @@ jobs:
             fs.writeFileSync(process.argv[1] + '/package.json', JSON.stringify(pkg, null, 2));
           " "$STAGE"
           cp -r apps/marketing-oauth/dist "$STAGE/dist"
+          (cd "$STAGE" && npm install --omit=dev --package-lock=false)
+          # Vendor after npm install so the package is not pruned as extraneous.
           mkdir -p "$STAGE/node_modules/@poc-plattform-kit/email"
           cp packages/email/package.json "$STAGE/node_modules/@poc-plattform-kit/email/"
           cp -r packages/email/dist "$STAGE/node_modules/@poc-plattform-kit/email/dist"
-          (cd "$STAGE" && npm install --omit=dev --package-lock=false)
+          test -f "$STAGE/node_modules/@poc-plattform-kit/email/dist/index.js"
           (cd "$STAGE" && zip -r "$GITHUB_WORKSPACE/decap-oauth.zip" .)
 
       - name: Zip deploy Function App
