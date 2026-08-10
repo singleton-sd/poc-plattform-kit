@@ -170,6 +170,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) — see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); SWA Free `ssd-pocpk-mkt-dev-ae`
+- **Marketing edge (locked):** public anonymous HTTP for the brochure site (Contact form, future marketing-only endpoints) runs on Azure Function App `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`, B1 `pocpk-plan`) — **not** on Nest `apps/api`. Stable client env: `PUBLIC_MARKETING_API_BASE_URL`. See [docs/marketing-edge.md](docs/marketing-edge.md). Split to a dedicated marketing API only when this host outgrows Decap OAuth + thin edge routes.
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest → committed `packages/api-client/openapi.json` → Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` — public allowlist in `docs/sso.md`
