@@ -22,6 +22,27 @@
         ]
       }
     },
+    "/health/db": {
+      "get": {
+        "operationId": "HealthController_checkDatabase",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The database is queryable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
     "/changelog": {
       "get": {
         "operationId": "ChangelogController_getChangelog",
