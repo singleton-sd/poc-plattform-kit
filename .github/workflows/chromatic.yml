@@ -1,0 +1,112 @@
+# Chromatic visual review complements (and never replaces) the SWA preview.
+# Credential: GitHub OIDC -> Key Vault `chromatic-project-token`.
+name: Chromatic
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/chromatic.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/chromatic.yml'
+
+concurrency:
+  group: chromatic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual_tests:
+    name: Chromatic visual tests
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # TurboSnap needs the accepted main build in git history.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Require Azure OIDC Variables
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Variable $name. Chromatic requires OIDC to read chromatic-project-token from Key Vault."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Follow docs/chromatic.md to configure the repository OIDC variables."
+            exit 1
+          fi
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read Chromatic project token from Key Vault
+        run: |
+          set -euo pipefail
+          token=$(az keyvault secret show \
+            --vault-name ssd-pocpk-kv-dev-ae \
+            --name chromatic-project-token \
+            --query value -o tsv)
+          if [ -z "$token" ]; then
+            echo "::error::Key Vault secret chromatic-project-token is empty. Follow docs/chromatic.md."
+            exit 1
+          fi
+          echo "::add-mask::$token"
+          echo "CHROMATIC_PROJECT_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Publish Storybook and test visual changes
+        # chromaui/action v18.1.0, pinned to the release commit.
+        uses: chromaui/action@14cfaef73576e69f95f47f60058063f46ca38719
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ env.CHROMATIC_PROJECT_TOKEN }}
+        with:
+          workingDir: apps/web
+          onlyChanged: true
+          exitZeroOnChanges: false
+          autoAcceptChanges: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+  fork_notice:
+    name: Chromatic fork safety notice
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Explain safe skip
+        run: |
+          echo "::notice::Chromatic is not run for fork pull requests because its project token is stored in Azure Key Vault. A maintainer can validate the branch after bringing it into the trusted repository."
