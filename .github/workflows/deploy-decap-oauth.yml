@@ -80,6 +80,8 @@ jobs:
             --name github-decap-oauth-client-secret \
             --query name -o tsv >/dev/null
 
+      # Bicep before zip so Contact FORWARDEMAIL_* / CONTACT_* settings exist
+      # before the new /contact handler is live (otherwise 503 until reapply).
       - name: Deploy Function App infra
         if: steps.cfg.outputs.configured == 'true'
         run: |

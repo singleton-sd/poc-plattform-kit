@@ -1,4 +1,11 @@
-/** Outbound email via Forward Email API — https://forwardemail.net/en/email-api */
+/**
+ * Outbound email via Forward Email API — https://forwardemail.net/en/email-api
+ *
+ * Intentionally duplicated from pillars/notifications ForwardEmailProvider:
+ * Function zip deploy only packs apps/marketing-oauth (no workspace packages).
+ * Keep Basic-auth /v1/emails + field names in sync when either side changes
+ * (follow-up: shared package once packaging allows).
+ */
 
 export interface EmailSendRequest {
   to: string | string[];
@@ -15,28 +22,20 @@ export interface EmailSendResult {
   accepted: boolean;
 }
 
-export interface EmailProvider {
-  readonly name: 'forward-email';
-  isConfigured(): boolean;
-  send(request: EmailSendRequest): Promise<EmailSendResult>;
-}
-
 type FetchLike = typeof fetch;
 
-export interface ForwardEmailProviderOptions {
+export interface ForwardEmailClientOptions {
   apiKey?: string;
   baseUrl?: string;
   fetchImpl?: FetchLike;
 }
 
-/** Forward Email HTTP client. Disabled until `FORWARDEMAIL_API_KEY` is set. */
-export class ForwardEmailProvider implements EmailProvider {
-  readonly name = 'forward-email' as const;
+export class ForwardEmailClient {
   private readonly apiKey: string | undefined;
   private readonly baseUrl: string;
   private readonly fetchImpl: FetchLike;
 
-  constructor(options: ForwardEmailProviderOptions = {}) {
+  constructor(options: ForwardEmailClientOptions = {}) {
     this.apiKey = options.apiKey ?? process.env.FORWARDEMAIL_API_KEY;
     this.baseUrl = (
       options.baseUrl ??
