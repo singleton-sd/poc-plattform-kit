@@ -51,4 +51,5 @@ Fine-grained AuthZ lives in the **Permissions** pillar (`Check(subject, action, 
 
 - Deploy / OIDC: [`infra/README.md`](../infra/README.md) § Permissions / OpenFGA
 - Pillar API: [`pillars/permissions/README.md`](../pillars/permissions/README.md)
+- Access Request workflow: `POST/GET /permissions/access-requests*` (approver AuthZ + Grant)
 - Agent skill follow-up (out of this repo): ClickUp “Skill: teach agents to register new permissions…”
