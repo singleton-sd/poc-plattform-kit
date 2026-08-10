@@ -2,7 +2,7 @@ import { isStringControl, rankWith, type ControlProps, type RankedTester } from 
 import { withJsonFormsControlProps } from '@jsonforms/react';
 import { cn } from '../cn';
 
-function TextControlRenderer(props: ControlProps) {
+export function TextControlRenderer(props: ControlProps) {
   const { data, handleChange, path, label, required, errors, enabled, id, description } = props;
   const inputId = id || path;
   const invalid = Boolean(errors);
@@ -22,6 +22,7 @@ function TextControlRenderer(props: ControlProps) {
         )}
         value={data ?? ''}
         disabled={!enabled}
+        aria-required={required || undefined}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${inputId}-error` : undefined}
         onChange={(event) => handleChange(path, event.target.value)}

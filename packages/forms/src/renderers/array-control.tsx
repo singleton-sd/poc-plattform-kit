@@ -18,7 +18,7 @@ export function isStringArraySchema(schema: JsonSchema): boolean {
   );
 }
 
-function ArrayControlRenderer(props: ControlProps) {
+export function ArrayControlRenderer(props: ControlProps) {
   const { data, handleChange, path, label, required, errors, enabled, id } = props;
   const inputId = id || path;
   const values = Array.isArray(data) ? (data as unknown[]) : [];
@@ -34,6 +34,7 @@ function ArrayControlRenderer(props: ControlProps) {
   return (
     <fieldset
       className="flex flex-col gap-2"
+      aria-required={required || undefined}
       aria-describedby={invalid ? `${inputId}-error` : undefined}
     >
       <legend className="text-sm text-fg">
