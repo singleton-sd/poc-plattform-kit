@@ -28,11 +28,17 @@ param origins string = 'plattform-kit.poc.singletonsd.com,purple-field-05048bf00
 @description('KV secret name for GitHub OAuth client secret')
 param oauthClientSecretName string = 'github-decap-oauth-client-secret'
 
-@description('Inbox for marketing Contact form submissions')
-param contactInboxEmail string = 'hello@singletonsd.com'
+@description('Contact inbox destination')
+param contactInboxAddress string = 'hello@singletonsd.com'
 
-@description('Verified From address for Forward Email outbound')
-param contactFromEmail string = 'noreply@plattform-kit.poc.singletonsd.com'
+@description('Transactional From address (Forward Email alias)')
+param emailFromAddress string = 'noreply@plattform-kit.poc.singletonsd.com'
+
+@description('From display name')
+param emailFromName string = 'Plattform Kit'
+
+@description('KV secret name for Forward Email API token')
+param forwardEmailSecretName string = 'forwardemail-api-key'
 
 var roleKeyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
 var redirectUrl = 'https://${functionAppName}.azurewebsites.net/callback'
@@ -115,20 +121,32 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: origins
         }
         {
-          name: 'FORWARDEMAIL_API_KEY'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/forwardemail-api-key/)'
+          name: 'FORWARD_EMAIL_TOKEN'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/${forwardEmailSecretName}/)'
         }
         {
-          name: 'FORWARDEMAIL_BASE_URL'
+          name: 'FORWARD_EMAIL_BASE_URL'
           value: 'https://api.forwardemail.net'
         }
         {
-          name: 'CONTACT_INBOX_EMAIL'
-          value: contactInboxEmail
+          name: 'EMAIL_PROVIDER'
+          value: 'forward-email'
         }
         {
-          name: 'CONTACT_FROM_EMAIL'
-          value: contactFromEmail
+          name: 'EMAIL_ALLOW_PRODUCTION_SEND'
+          value: 'true'
+        }
+        {
+          name: 'EMAIL_FROM_ADDRESS'
+          value: emailFromAddress
+        }
+        {
+          name: 'EMAIL_FROM_NAME'
+          value: emailFromName
+        }
+        {
+          name: 'CONTACT_INBOX_ADDRESS'
+          value: contactInboxAddress
         }
         {
           name: 'CONTACT_RATE_LIMIT_PER_MIN'
