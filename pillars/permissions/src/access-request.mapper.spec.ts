@@ -14,7 +14,8 @@ describe('toAccessRequestResponseDto', () => {
     decidedAt: null,
     denyReason: null,
     grantType: null,
-    expiresAt: null,
+    requestExpiresAt: null,
+    grantExpiresAt: null,
     createdAt: new Date('2026-08-10T12:00:00.000Z'),
     updatedAt: new Date('2026-08-10T12:30:00.000Z'),
   };
@@ -32,7 +33,8 @@ describe('toAccessRequestResponseDto', () => {
       decidedAt: null,
       denyReason: null,
       grantType: null,
-      expiresAt: null,
+      requestExpiresAt: null,
+      grantExpiresAt: null,
       createdAt: '2026-08-10T12:00:00.000Z',
       updatedAt: '2026-08-10T12:30:00.000Z',
     });

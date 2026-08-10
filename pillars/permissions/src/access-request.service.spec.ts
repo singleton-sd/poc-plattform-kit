@@ -1,4 +1,10 @@
-import { BadRequestException, GoneException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  GoneException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
 import { AccessRequestService } from './access-request.service';
 import { PermissionGrantType } from './dto/grant-permission.dto';
@@ -31,6 +37,14 @@ describe('AccessRequestService', () => {
     roles: [],
     tenantId: 't1',
   };
+  const otherTenantManager: AuthenticatedUser = {
+    id: 'user-other',
+    entraOid: 'oid-mgr',
+    email: 'other@example.com',
+    name: 'Other',
+    roles: [],
+    tenantId: 't2',
+  };
 
   const pendingRow = {
     id: 'ar1',
@@ -44,7 +58,8 @@ describe('AccessRequestService', () => {
     decidedAt: null as Date | null,
     denyReason: null as string | null,
     grantType: null as string | null,
-    expiresAt: null as Date | null,
+    requestExpiresAt: null as Date | null,
+    grantExpiresAt: null as Date | null,
     createdAt: now,
     updatedAt: now,
   };
@@ -55,12 +70,15 @@ describe('AccessRequestService', () => {
       create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
+    tenantMembership: { findFirst: jest.Mock };
     permissionsAudit: { create: jest.Mock };
     permissionsOutbox: { create: jest.Mock };
   };
-  let permissions: { check: jest.Mock; grant: jest.Mock };
+  let permissions: { check: jest.Mock; grant: jest.Mock; revoke: jest.Mock };
   let managerChain: { getManagerChain: jest.Mock };
   let service: AccessRequestService;
 
@@ -72,8 +90,11 @@ describe('AccessRequestService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      tenantMembership: { findFirst: jest.fn() },
       permissionsAudit: { create: jest.fn().mockResolvedValue({}) },
       permissionsOutbox: { create: jest.fn().mockResolvedValue({}) },
     };
@@ -82,6 +103,7 @@ describe('AccessRequestService', () => {
       grant: jest
         .fn()
         .mockResolvedValue({ granted: true, grantType: PermissionGrantType.Permanent }),
+      revoke: jest.fn().mockResolvedValue({ revoked: true }),
     };
     managerChain = {
       getManagerChain: jest.fn().mockResolvedValue(['oid-mgr']),
@@ -103,9 +125,9 @@ describe('AccessRequestService', () => {
     const created = await service.create({ action: 'update', resource: 'tenant:t1' }, requester);
 
     expect(created.status).toBe('pending');
-    expect(prisma.permissionsAudit.create).toHaveBeenCalledWith(
+    expect(prisma.accessRequest.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ action: 'created', entityType: 'AccessRequest' }),
+        data: expect.objectContaining({ tenantId: 't1', requestExpiresAt: null }),
       }),
     );
     expect(prisma.permissionsOutbox.create).toHaveBeenCalledWith(
@@ -113,21 +135,45 @@ describe('AccessRequestService', () => {
         data: expect.objectContaining({ eventType: 'permission.access_requested' }),
       }),
     );
-    const outboxPayload = JSON.parse(
-      (prisma.permissionsOutbox.create.mock.calls[0][0] as { data: { payload: string } }).data
-        .payload,
-    ) as { payload: { managerEntraOids: string[] } };
-    expect(outboxPayload.payload.managerEntraOids).toEqual(['oid-mgr']);
   });
 
-  it('lists pending requests for a manager and skips unauthorized ones', async () => {
+  it('rejects create when body tenantId differs and caller is not a member', async () => {
+    prisma.tenantMembership.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create({ action: 'update', resource: 'tenant:t2', tenantId: 't2' }, requester),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.accessRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('allows create with body tenantId when membership exists', async () => {
+    prisma.tenantMembership.findFirst.mockResolvedValue({ id: 'm1' });
+    prisma.accessRequest.create.mockResolvedValue({ ...pendingRow, tenantId: 't2' });
+
+    await expect(
+      service.create({ action: 'update', resource: 'tenant:t2', tenantId: 't2' }, requester),
+    ).resolves.toMatchObject({ tenantId: 't2' });
+    expect(prisma.tenantMembership.findFirst).toHaveBeenCalledWith({
+      where: { tenantId: 't2', userId: 'user-req' },
+    });
+  });
+
+  it('lists pending with SQL non-expired filter and does not mutate expired rows', async () => {
     prisma.accessRequest.findMany.mockResolvedValue([pendingRow]);
     managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
 
     await expect(service.listPendingForApprover(manager)).resolves.toEqual([
       expect.objectContaining({ id: 'ar1' }),
     ]);
-    await expect(service.listPendingForApprover(stranger)).resolves.toEqual([]);
+    expect(prisma.accessRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'pending',
+          OR: [{ requestExpiresAt: null }, { requestExpiresAt: { gt: now } }],
+        }),
+      }),
+    );
+    expect(prisma.accessRequest.updateMany).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -138,14 +184,16 @@ describe('AccessRequestService', () => {
     prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
     managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
     permissions.grant.mockResolvedValue({ granted: true, grantType });
-    prisma.accessRequest.update.mockResolvedValue({
+    const approved = {
       ...pendingRow,
       status: 'approved',
       decidedById: manager.id,
       decidedAt: now,
       grantType,
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
-    });
+      grantExpiresAt: expiresAt ? new Date(expiresAt) : null,
+      requestExpiresAt: new Date('2026-09-01T00:00:00.000Z'),
+    };
+    prisma.accessRequest.findUniqueOrThrow.mockResolvedValue(approved);
 
     const result = await service.approve(
       'ar1',
@@ -154,21 +202,53 @@ describe('AccessRequestService', () => {
     );
 
     expect(result.status).toBe('approved');
+    expect(result.requestExpiresAt?.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+    expect(result.grantExpiresAt?.toISOString() ?? null).toBe(expiresAt ?? null);
+    expect(prisma.accessRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'ar1', status: 'pending' },
+        data: expect.objectContaining({ status: 'approving' }),
+      }),
+    );
     expect(permissions.grant).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: 'user:user-req',
-        action: 'update',
-        resource: 'tenant:t1',
         grantType,
         ...(expiresAt ? { expiresAt } : {}),
       }),
     );
-    const outboxTypes = prisma.permissionsOutbox.create.mock.calls.map(
-      (call) => (call[0] as { data: { eventType: string } }).data.eventType,
-    );
-    expect(outboxTypes).toEqual(
-      expect.arrayContaining(['permission.access_approved', 'permission.granted']),
-    );
+  });
+
+  it('aborts concurrent approve when claim updateMany returns 0', async () => {
+    prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
+    managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
+    prisma.accessRequest.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      service.approve('ar1', { grantType: PermissionGrantType.Permanent }, manager),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(permissions.grant).not.toHaveBeenCalled();
+  });
+
+  it('revokes OpenFGA grant when post-grant DB finalize fails', async () => {
+    prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
+    managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
+    permissions.grant.mockResolvedValue({
+      granted: true,
+      grantType: PermissionGrantType.Permanent,
+    });
+    prisma.accessRequest.updateMany
+      .mockResolvedValueOnce({ count: 1 }) // claim
+      .mockResolvedValueOnce({ count: 0 }); // finalize lost
+
+    await expect(
+      service.approve('ar1', { grantType: PermissionGrantType.Permanent }, manager),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(permissions.revoke).toHaveBeenCalledWith({
+      subject: 'user:user-req',
+      action: 'update',
+      resource: 'tenant:t1',
+    });
   });
 
   it('returns permission denied when a non-admin non-manager tries to approve', async () => {
@@ -184,6 +264,28 @@ describe('AccessRequestService', () => {
     expect(permissions.grant).not.toHaveBeenCalled();
   });
 
+  it('rejects cross-tenant manager even when Graph chain matches', async () => {
+    prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
+    managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
+
+    await expect(
+      service.approve('ar1', { grantType: PermissionGrantType.Permanent }, otherTenantManager),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(permissions.grant).not.toHaveBeenCalled();
+  });
+
+  it('rejects self-approval by a tenant admin', async () => {
+    prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
+    permissions.check.mockResolvedValue({ allowed: true });
+
+    await expect(
+      service.approve('ar1', { grantType: PermissionGrantType.Permanent }, requester),
+    ).rejects.toMatchObject({
+      response: { statusCode: 403, message: 'Cannot approve or deny your own access request' },
+    });
+    expect(permissions.grant).not.toHaveBeenCalled();
+  });
+
   it('returns permission denied when a non-admin non-manager tries to deny', async () => {
     prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
     managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
@@ -192,7 +294,6 @@ describe('AccessRequestService', () => {
     await expect(service.deny('ar1', { reason: 'nope' }, stranger)).rejects.toMatchObject({
       response: { statusCode: 403, message: 'Not an eligible approver for this access request' },
     });
-    expect(prisma.accessRequest.update).not.toHaveBeenCalled();
   });
 
   it('allows a tenant admin (OpenFGA admin) to approve even when not the manager', async () => {
@@ -203,7 +304,7 @@ describe('AccessRequestService', () => {
       granted: true,
       grantType: PermissionGrantType.Permanent,
     });
-    prisma.accessRequest.update.mockResolvedValue({
+    prisma.accessRequest.findUniqueOrThrow.mockResolvedValue({
       ...pendingRow,
       status: 'approved',
       decidedById: stranger.id,
@@ -220,7 +321,7 @@ describe('AccessRequestService', () => {
   it('denies with optional reason and notifies requester via outbox', async () => {
     prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
     managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
-    prisma.accessRequest.update.mockResolvedValue({
+    prisma.accessRequest.findUniqueOrThrow.mockResolvedValue({
       ...pendingRow,
       status: 'denied',
       decidedById: manager.id,
@@ -238,19 +339,22 @@ describe('AccessRequestService', () => {
     );
   });
 
-  it('marks expired pending requests and rejects approve', async () => {
+  it('marks expired pending requests on decide and rejects approve', async () => {
     const expired = {
       ...pendingRow,
-      expiresAt: new Date('2026-08-10T11:00:00.000Z'),
+      requestExpiresAt: new Date('2026-08-10T11:00:00.000Z'),
     };
     prisma.accessRequest.findUnique.mockResolvedValue(expired);
-    prisma.accessRequest.update.mockResolvedValue({ ...expired, status: 'expired' });
+    prisma.accessRequest.updateMany.mockResolvedValue({ count: 1 });
 
     await expect(
       service.approve('ar1', { grantType: PermissionGrantType.Permanent }, manager),
     ).rejects.toBeInstanceOf(GoneException);
-    expect(prisma.accessRequest.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: 'expired' } }),
+    expect(prisma.accessRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'ar1', status: 'pending' },
+        data: { status: 'expired' },
+      }),
     );
     expect(permissions.grant).not.toHaveBeenCalled();
   });

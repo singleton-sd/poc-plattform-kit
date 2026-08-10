@@ -212,7 +212,10 @@ model AccessRequest {
   decidedAt          DateTime?
   denyReason         String?
   grantType          String?
-  expiresAt          DateTime?
+  /// When the pending request itself expires if still undecided.
+  requestExpiresAt   DateTime?
+  /// Absolute grant expiry when grantType is temporary (set on approve).
+  grantExpiresAt     DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 

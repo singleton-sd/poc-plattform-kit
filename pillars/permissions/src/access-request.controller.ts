@@ -1,7 +1,12 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiGoneResponse,
+  ApiNotFoundResponse,
   ApiOAuth2,
   ApiOkResponse,
   ApiOperation,
@@ -33,6 +38,8 @@ export class AccessRequestController {
       'Captures subject/action/resource for the current user. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.',
   })
   @ApiCreatedResponse({ type: AccessRequestResponseDto })
+  @ApiBadRequestResponse({ description: 'Validation failed or tenant claim missing.' })
+  @ApiForbiddenResponse({ description: 'Body tenantId is not a tenant the caller belongs to.' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   async create(
     @Body() dto: CreateAccessRequestDto,
@@ -45,9 +52,10 @@ export class AccessRequestController {
   @ApiOperation({
     summary: 'List pending access requests visible to the caller',
     description:
-      'Returns pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s direct manager chain member.',
+      'Returns non-expired pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s manager chain member. Does not mutate expired rows.',
   })
   @ApiOkResponse({ type: AccessRequestListResponseDto })
+  @ApiBadRequestResponse({ description: 'Session has no tenant claim.' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   async listPending(@CurrentUser() user: AuthenticatedUser): Promise<AccessRequestListResponseDto> {
     const items = await this.accessRequests.listPendingForApprover(user);
@@ -59,9 +67,14 @@ export class AccessRequestController {
   @ApiOperation({
     summary: 'Approve an access request and grant the permission',
     description:
-      'Caller must be an eligible approver. On success calls Grant API with the chosen grant type and notifies the requester via outbox events.',
+      'Caller must be a same-tenant eligible approver (not the requester). Claims the row, then calls Grant API; rolls back / revokes on failure.',
   })
   @ApiOkResponse({ type: AccessRequestResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid grant payload or grant declined.' })
+  @ApiForbiddenResponse({ description: 'Not an eligible approver or self-approval.' })
+  @ApiNotFoundResponse({ description: 'Access request not found.' })
+  @ApiGoneResponse({ description: 'Pending request expired.' })
+  @ApiConflictResponse({ description: 'Concurrent decide already claimed the request.' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   async approve(
     @Param('id') id: string,
@@ -75,9 +88,14 @@ export class AccessRequestController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Deny an access request',
-    description: 'Caller must be an eligible approver. Optional reason is stored and published.',
+    description: 'Caller must be a same-tenant eligible approver (not the requester).',
   })
   @ApiOkResponse({ type: AccessRequestResponseDto })
+  @ApiBadRequestResponse({ description: 'Request is not pending.' })
+  @ApiForbiddenResponse({ description: 'Not an eligible approver or self-denial.' })
+  @ApiNotFoundResponse({ description: 'Access request not found.' })
+  @ApiGoneResponse({ description: 'Pending request expired.' })
+  @ApiConflictResponse({ description: 'Concurrent decide already claimed the request.' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   async deny(
     @Param('id') id: string,

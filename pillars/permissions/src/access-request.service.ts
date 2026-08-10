@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   GoneException,
   Injectable,
@@ -16,7 +17,7 @@ import { PermissionGrantType } from './dto/grant-permission.dto';
 import { ManagerChainService } from './manager-chain.service';
 import { PermissionsService } from './permissions.service';
 
-export type AccessRequestStatus = 'pending' | 'approved' | 'denied' | 'expired';
+export type AccessRequestStatus = 'pending' | 'approving' | 'approved' | 'denied' | 'expired';
 
 export type AccessRequestRecord = {
   id: string;
@@ -30,7 +31,8 @@ export type AccessRequestRecord = {
   decidedAt: Date | null;
   denyReason: string | null;
   grantType: string | null;
-  expiresAt: Date | null;
+  requestExpiresAt: Date | null;
+  grantExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -47,7 +49,8 @@ type AccessRequestRow = {
   decidedAt: Date | null;
   denyReason: string | null;
   grantType: string | null;
-  expiresAt: Date | null;
+  requestExpiresAt: Date | null;
+  grantExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -80,7 +83,9 @@ function toRecord(row: AccessRequestRow): AccessRequestRecord {
 
 function isPendingExpired(row: AccessRequestRow, now: Date): boolean {
   return (
-    row.status === 'pending' && row.expiresAt !== null && row.expiresAt.getTime() <= now.getTime()
+    row.status === 'pending' &&
+    row.requestExpiresAt !== null &&
+    row.requestExpiresAt.getTime() <= now.getTime()
   );
 }
 
@@ -96,16 +101,13 @@ export class AccessRequestService {
     dto: CreateAccessRequestDto,
     actor: AuthenticatedUser,
   ): Promise<AccessRequestRecord> {
-    const tenantId = dto.tenantId?.trim() || actor.tenantId?.trim();
-    if (!tenantId) {
-      throw new BadRequestException('tenantId is required when the session has no tenant claim');
-    }
+    const tenantId = await this.resolveCreateTenantId(dto, actor);
 
-    let expiresAt: Date | null = null;
-    if (dto.expiresAt) {
-      expiresAt = new Date(dto.expiresAt);
-      if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
-        throw new BadRequestException('expiresAt must be a future ISO-8601 timestamp');
+    let requestExpiresAt: Date | null = null;
+    if (dto.requestExpiresAt) {
+      requestExpiresAt = new Date(dto.requestExpiresAt);
+      if (Number.isNaN(requestExpiresAt.getTime()) || requestExpiresAt.getTime() <= Date.now()) {
+        throw new BadRequestException('requestExpiresAt must be a future ISO-8601 timestamp');
       }
     }
 
@@ -120,7 +122,7 @@ export class AccessRequestService {
           action: dto.action,
           resource: dto.resource,
           status: 'pending',
-          expiresAt,
+          requestExpiresAt,
         },
       });
 
@@ -134,7 +136,7 @@ export class AccessRequestService {
             tenantId,
             action: row.action,
             resource: row.resource,
-            expiresAt: row.expiresAt?.toISOString() ?? null,
+            requestExpiresAt: row.requestExpiresAt?.toISOString() ?? null,
           }),
         },
       });
@@ -177,17 +179,32 @@ export class AccessRequestService {
 
     const now = new Date();
     const pending = await this.prisma.accessRequest.findMany({
-      where: { tenantId, status: 'pending' },
+      where: {
+        tenantId,
+        status: 'pending',
+        OR: [{ requestExpiresAt: null }, { requestExpiresAt: { gt: now } }],
+      },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
 
+    const admin = await this.permissions.check({
+      subject: `user:${actor.id}`,
+      action: 'admin',
+      resource: `tenant:${tenantId}`,
+    });
+    if (admin.allowed) {
+      return pending.map(toRecord);
+    }
+
+    const chainByRequester = new Map<string, string[]>();
     const visible: AccessRequestRecord[] = [];
     for (const row of pending) {
-      if (isPendingExpired(row, now)) {
-        await this.markExpired(row, actor.id);
-        continue;
+      let chain = chainByRequester.get(row.requesterEntraOid);
+      if (!chain) {
+        chain = await this.managerChain.getManagerChain(row.requesterEntraOid);
+        chainByRequester.set(row.requesterEntraOid, chain);
       }
-      if (await this.isEligibleApprover(actor, row)) {
+      if (chain.includes(actor.entraOid)) {
         visible.push(toRecord(row));
       }
     }
@@ -218,98 +235,125 @@ export class AccessRequestService {
       throw new BadRequestException('expiresAt must be a future ISO-8601 timestamp');
     }
 
-    const grantResult = await this.permissions.grant({
-      subject: `user:${row.requesterId}`,
-      action: row.action,
-      resource: row.resource,
-      grantType: dto.grantType,
-      ...(grantExpiresAt ? { expiresAt: grantExpiresAt.toISOString() } : {}),
+    const claimed = await this.prisma.accessRequest.updateMany({
+      where: { id: row.id, status: 'pending' },
+      data: { status: 'approving', decidedById: actor.id },
     });
-    if (!grantResult.granted) {
-      throw new BadRequestException('Grant API declined the permission write');
+    if (claimed.count === 0) {
+      throw new ConflictException('Access request is no longer pending');
     }
 
-    const decidedAt = new Date();
-    const updated = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const next = await tx.accessRequest.update({
-        where: { id: row.id },
-        data: {
-          status: 'approved',
-          decidedById: actor.id,
-          decidedAt,
-          grantType: dto.grantType,
-          expiresAt: grantExpiresAt ?? row.expiresAt,
-        },
+    const grantSubject = `user:${row.requesterId}`;
+    let granted = false;
+    try {
+      const grantResult = await this.permissions.grant({
+        subject: grantSubject,
+        action: row.action,
+        resource: row.resource,
+        grantType: dto.grantType,
+        ...(grantExpiresAt ? { expiresAt: grantExpiresAt.toISOString() } : {}),
       });
+      if (!grantResult.granted) {
+        throw new BadRequestException('Grant API declined the permission write');
+      }
+      granted = true;
 
-      await tx.permissionsAudit.create({
-        data: {
-          entityType: 'AccessRequest',
-          entityId: next.id,
-          action: 'approved',
-          actorId: actor.id,
-          changes: JSON.stringify({
+      const decidedAt = new Date();
+      const updated = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const finalize = await tx.accessRequest.updateMany({
+          where: { id: row.id, status: 'approving', decidedById: actor.id },
+          data: {
+            status: 'approved',
+            decidedAt,
             grantType: dto.grantType,
-            expiresAt: grantExpiresAt?.toISOString() ?? null,
-          }),
-        },
+            grantExpiresAt,
+          },
+        });
+        if (finalize.count === 0) {
+          throw new ConflictException('Access request approval claim was lost');
+        }
+
+        const next = await tx.accessRequest.findUniqueOrThrow({ where: { id: row.id } });
+
+        await tx.permissionsAudit.create({
+          data: {
+            entityType: 'AccessRequest',
+            entityId: next.id,
+            action: 'approved',
+            actorId: actor.id,
+            changes: JSON.stringify({
+              grantType: dto.grantType,
+              grantExpiresAt: grantExpiresAt?.toISOString() ?? null,
+            }),
+          },
+        });
+
+        const approvedEvent: DomainEvent<AccessRequestDecidedPayload> = {
+          id: crypto.randomUUID(),
+          type: 'permission.access_approved',
+          pillar: 'permissions',
+          tenantId: next.tenantId,
+          occurredAt: decidedAt.toISOString(),
+          payload: {
+            requestId: next.id,
+            requesterId: next.requesterId,
+            decidedById: actor.id,
+            action: next.action,
+            resource: next.resource,
+            grantType: dto.grantType,
+          },
+        };
+
+        await tx.permissionsOutbox.create({
+          data: {
+            eventType: approvedEvent.type,
+            payload: JSON.stringify(approvedEvent),
+            occurredAt: decidedAt,
+          },
+        });
+
+        const grantedEvent: DomainEvent<{
+          subject: string;
+          action: string;
+          resource: string;
+          grantType: string;
+        }> = {
+          id: crypto.randomUUID(),
+          type: 'permission.granted',
+          pillar: 'permissions',
+          tenantId: next.tenantId,
+          occurredAt: decidedAt.toISOString(),
+          payload: {
+            subject: grantSubject,
+            action: next.action,
+            resource: next.resource,
+            grantType: dto.grantType,
+          },
+        };
+
+        await tx.permissionsOutbox.create({
+          data: {
+            eventType: grantedEvent.type,
+            payload: JSON.stringify(grantedEvent),
+            occurredAt: decidedAt,
+          },
+        });
+
+        return next;
       });
 
-      const approvedEvent: DomainEvent<AccessRequestDecidedPayload> = {
-        id: crypto.randomUUID(),
-        type: 'permission.access_approved',
-        pillar: 'permissions',
-        tenantId: next.tenantId,
-        occurredAt: decidedAt.toISOString(),
-        payload: {
-          requestId: next.id,
-          requesterId: next.requesterId,
-          decidedById: actor.id,
-          action: next.action,
-          resource: next.resource,
-          grantType: dto.grantType,
-        },
-      };
-
-      await tx.permissionsOutbox.create({
-        data: {
-          eventType: approvedEvent.type,
-          payload: JSON.stringify(approvedEvent),
-          occurredAt: decidedAt,
-        },
-      });
-
-      const grantedEvent: DomainEvent<{
-        subject: string;
-        action: string;
-        resource: string;
-        grantType: string;
-      }> = {
-        id: crypto.randomUUID(),
-        type: 'permission.granted',
-        pillar: 'permissions',
-        tenantId: next.tenantId,
-        occurredAt: decidedAt.toISOString(),
-        payload: {
-          subject: `user:${next.requesterId}`,
-          action: next.action,
-          resource: next.resource,
-          grantType: dto.grantType,
-        },
-      };
-
-      await tx.permissionsOutbox.create({
-        data: {
-          eventType: grantedEvent.type,
-          payload: JSON.stringify(grantedEvent),
-          occurredAt: decidedAt,
-        },
-      });
-
-      return next;
-    });
-
-    return toRecord(updated);
+      return toRecord(updated);
+    } catch (error) {
+      if (granted) {
+        await this.permissions.revoke({
+          subject: grantSubject,
+          action: row.action,
+          resource: row.resource,
+        });
+      }
+      await this.rollbackApproving(row.id);
+      throw error;
+    }
   }
 
   async deny(
@@ -322,8 +366,8 @@ export class AccessRequestService {
     const denyReason = dto.reason?.trim() || null;
 
     const updated = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const next = await tx.accessRequest.update({
-        where: { id: row.id },
+      const claimed = await tx.accessRequest.updateMany({
+        where: { id: row.id, status: 'pending' },
         data: {
           status: 'denied',
           decidedById: actor.id,
@@ -331,6 +375,11 @@ export class AccessRequestService {
           denyReason,
         },
       });
+      if (claimed.count === 0) {
+        throw new ConflictException('Access request is no longer pending');
+      }
+
+      const next = await tx.accessRequest.findUniqueOrThrow({ where: { id: row.id } });
 
       await tx.permissionsAudit.create({
         data: {
@@ -372,6 +421,34 @@ export class AccessRequestService {
     return toRecord(updated);
   }
 
+  private async resolveCreateTenantId(
+    dto: CreateAccessRequestDto,
+    actor: AuthenticatedUser,
+  ): Promise<string> {
+    const sessionTenant = actor.tenantId?.trim() || null;
+    const bodyTenant = dto.tenantId?.trim() || null;
+
+    if (!sessionTenant && !bodyTenant) {
+      throw new BadRequestException('tenantId is required when the session has no tenant claim');
+    }
+
+    if (!bodyTenant || bodyTenant === sessionTenant) {
+      if (!sessionTenant) {
+        throw new BadRequestException('tenant claim required to create an access request');
+      }
+      return sessionTenant;
+    }
+
+    // Body override to a different tenant — require membership.
+    const membership = await this.prisma.tenantMembership.findFirst({
+      where: { tenantId: bodyTenant, userId: actor.id },
+    });
+    if (!membership) {
+      throw new ForbiddenException('Not a member of the requested tenant');
+    }
+    return bodyTenant;
+  }
+
   private async requirePendingDecision(
     id: string,
     actor: AuthenticatedUser,
@@ -379,6 +456,10 @@ export class AccessRequestService {
     const row = await this.prisma.accessRequest.findUnique({ where: { id } });
     if (!row) {
       throw new NotFoundException(`Access request ${id} not found`);
+    }
+
+    if (actor.id === row.requesterId) {
+      throw new ForbiddenException('Cannot approve or deny your own access request');
     }
 
     if (isPendingExpired(row, new Date())) {
@@ -398,6 +479,11 @@ export class AccessRequestService {
   }
 
   async isEligibleApprover(actor: AuthenticatedUser, row: AccessRequestRow): Promise<boolean> {
+    const actorTenant = actor.tenantId?.trim();
+    if (!actorTenant || actorTenant !== row.tenantId) {
+      return false;
+    }
+
     const admin = await this.permissions.check({
       subject: `user:${actor.id}`,
       action: 'admin',
@@ -411,12 +497,22 @@ export class AccessRequestService {
     return chain.includes(actor.entraOid);
   }
 
+  private async rollbackApproving(id: string): Promise<void> {
+    await this.prisma.accessRequest.updateMany({
+      where: { id, status: 'approving' },
+      data: { status: 'pending', decidedById: null },
+    });
+  }
+
   private async markExpired(row: AccessRequestRow, actorId: string | null): Promise<void> {
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.accessRequest.update({
-        where: { id: row.id },
+      const updated = await tx.accessRequest.updateMany({
+        where: { id: row.id, status: 'pending' },
         data: { status: 'expired' },
       });
+      if (updated.count === 0) {
+        return;
+      }
       await tx.permissionsAudit.create({
         data: {
           entityType: 'AccessRequest',
@@ -424,7 +520,7 @@ export class AccessRequestService {
           action: 'expired',
           actorId,
           changes: JSON.stringify({
-            expiresAt: row.expiresAt?.toISOString() ?? null,
+            requestExpiresAt: row.requestExpiresAt?.toISOString() ?? null,
           }),
         },
       });

@@ -15,7 +15,8 @@ CREATE TABLE [dbo].[access_requests] (
     [decidedAt] DATETIME2,
     [denyReason] NVARCHAR(1000),
     [grantType] NVARCHAR(1000),
-    [expiresAt] DATETIME2,
+    [requestExpiresAt] DATETIME2,
+    [grantExpiresAt] DATETIME2,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [access_requests_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
     CONSTRAINT [access_requests_pkey] PRIMARY KEY CLUSTERED ([id])

@@ -504,19 +504,32 @@ export type accessRequestControllerCreateResponse201 = {
   status: 201;
 };
 
+export type accessRequestControllerCreateResponse400 = {
+  data: void;
+  status: 400;
+};
+
 export type accessRequestControllerCreateResponse401 = {
   data: void;
   status: 401;
+};
+
+export type accessRequestControllerCreateResponse403 = {
+  data: void;
+  status: 403;
 };
 
 export type accessRequestControllerCreateResponseSuccess =
   accessRequestControllerCreateResponse201 & {
     headers: Headers;
   };
-export type accessRequestControllerCreateResponseError =
-  accessRequestControllerCreateResponse401 & {
-    headers: Headers;
-  };
+export type accessRequestControllerCreateResponseError = (
+  | accessRequestControllerCreateResponse400
+  | accessRequestControllerCreateResponse401
+  | accessRequestControllerCreateResponse403
+) & {
+  headers: Headers;
+};
 
 export type accessRequestControllerCreateResponse =
   accessRequestControllerCreateResponseSuccess | accessRequestControllerCreateResponseError;
@@ -604,12 +617,17 @@ export const useAccessRequestControllerCreate = <TError = void, TContext = unkno
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * Returns pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s direct manager chain member.
+ * Returns non-expired pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s manager chain member. Does not mutate expired rows.
  * @summary List pending access requests visible to the caller
  */
 export type accessRequestControllerListPendingResponse200 = {
   data: AccessRequestListResponseDto;
   status: 200;
+};
+
+export type accessRequestControllerListPendingResponse400 = {
+  data: void;
+  status: 400;
 };
 
 export type accessRequestControllerListPendingResponse401 = {
@@ -621,10 +639,11 @@ export type accessRequestControllerListPendingResponseSuccess =
   accessRequestControllerListPendingResponse200 & {
     headers: Headers;
   };
-export type accessRequestControllerListPendingResponseError =
-  accessRequestControllerListPendingResponse401 & {
-    headers: Headers;
-  };
+export type accessRequestControllerListPendingResponseError = (
+  accessRequestControllerListPendingResponse400 | accessRequestControllerListPendingResponse401
+) & {
+  headers: Headers;
+};
 
 export type accessRequestControllerListPendingResponse =
   | accessRequestControllerListPendingResponseSuccess
@@ -759,7 +778,7 @@ export function useAccessRequestControllerListPending<
 }
 
 /**
- * Caller must be an eligible approver. On success calls Grant API with the chosen grant type and notifies the requester via outbox events.
+ * Caller must be a same-tenant eligible approver (not the requester). Claims the row, then calls Grant API; rolls back / revokes on failure.
  * @summary Approve an access request and grant the permission
  */
 export type accessRequestControllerApproveResponse200 = {
@@ -767,19 +786,50 @@ export type accessRequestControllerApproveResponse200 = {
   status: 200;
 };
 
+export type accessRequestControllerApproveResponse400 = {
+  data: void;
+  status: 400;
+};
+
 export type accessRequestControllerApproveResponse401 = {
   data: void;
   status: 401;
+};
+
+export type accessRequestControllerApproveResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessRequestControllerApproveResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessRequestControllerApproveResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessRequestControllerApproveResponse410 = {
+  data: void;
+  status: 410;
 };
 
 export type accessRequestControllerApproveResponseSuccess =
   accessRequestControllerApproveResponse200 & {
     headers: Headers;
   };
-export type accessRequestControllerApproveResponseError =
-  accessRequestControllerApproveResponse401 & {
-    headers: Headers;
-  };
+export type accessRequestControllerApproveResponseError = (
+  | accessRequestControllerApproveResponse400
+  | accessRequestControllerApproveResponse401
+  | accessRequestControllerApproveResponse403
+  | accessRequestControllerApproveResponse404
+  | accessRequestControllerApproveResponse409
+  | accessRequestControllerApproveResponse410
+) & {
+  headers: Headers;
+};
 
 export type accessRequestControllerApproveResponse =
   accessRequestControllerApproveResponseSuccess | accessRequestControllerApproveResponseError;
@@ -871,7 +921,7 @@ export const useAccessRequestControllerApprove = <TError = void, TContext = unkn
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * Caller must be an eligible approver. Optional reason is stored and published.
+ * Caller must be a same-tenant eligible approver (not the requester).
  * @summary Deny an access request
  */
 export type accessRequestControllerDenyResponse200 = {
@@ -879,15 +929,47 @@ export type accessRequestControllerDenyResponse200 = {
   status: 200;
 };
 
+export type accessRequestControllerDenyResponse400 = {
+  data: void;
+  status: 400;
+};
+
 export type accessRequestControllerDenyResponse401 = {
   data: void;
   status: 401;
 };
 
+export type accessRequestControllerDenyResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessRequestControllerDenyResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessRequestControllerDenyResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessRequestControllerDenyResponse410 = {
+  data: void;
+  status: 410;
+};
+
 export type accessRequestControllerDenyResponseSuccess = accessRequestControllerDenyResponse200 & {
   headers: Headers;
 };
-export type accessRequestControllerDenyResponseError = accessRequestControllerDenyResponse401 & {
+export type accessRequestControllerDenyResponseError = (
+  | accessRequestControllerDenyResponse400
+  | accessRequestControllerDenyResponse401
+  | accessRequestControllerDenyResponse403
+  | accessRequestControllerDenyResponse404
+  | accessRequestControllerDenyResponse409
+  | accessRequestControllerDenyResponse410
+) & {
   headers: Headers;
 };
 

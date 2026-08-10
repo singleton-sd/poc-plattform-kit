@@ -16,7 +16,8 @@ export function toAccessRequestResponseDto(row: AccessRequestRecord): AccessRequ
     decidedAt: toIsoString(row.decidedAt),
     denyReason: row.denyReason,
     grantType: row.grantType,
-    expiresAt: toIsoString(row.expiresAt),
+    requestExpiresAt: toIsoString(row.requestExpiresAt),
+    grantExpiresAt: toIsoString(row.grantExpiresAt),
     createdAt: toIsoStringRequired(row.createdAt),
     updatedAt: toIsoStringRequired(row.updatedAt),
   };

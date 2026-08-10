@@ -12,7 +12,7 @@ export interface AccessRequestResponseDto {
   requesterEntraOid: string;
   action: string;
   resource: string;
-  /** pending | approved | denied | expired */
+  /** pending | approving | approved | denied | expired */
   status: string;
   /** @nullable */
   decidedById?: string | null;
@@ -25,8 +25,16 @@ export interface AccessRequestResponseDto {
    * @nullable
    */
   grantType?: string | null;
-  /** @nullable */
-  expiresAt?: string | null;
+  /**
+   * When the pending request expires if still undecided.
+   * @nullable
+   */
+  requestExpiresAt?: string | null;
+  /**
+   * Grant expiry when grantType is temporary (set on approve).
+   * @nullable
+   */
+  grantExpiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

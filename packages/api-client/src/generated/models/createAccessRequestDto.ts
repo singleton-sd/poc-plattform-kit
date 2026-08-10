@@ -10,8 +10,8 @@ export interface CreateAccessRequestDto {
   action: string;
   /** Denied OpenFGA resource object. */
   resource: string;
-  /** Platform tenant id. Required when the session has no tenant claim. */
+  /** Optional tenant id. Defaults to the session tenant. If set to a different tenant, the caller must be a member of that tenant. */
   tenantId?: string;
-  /** Optional absolute expiry for the pending request (ISO-8601). */
-  expiresAt?: string;
+  /** Optional absolute expiry for the pending request itself (ISO-8601). */
+  requestExpiresAt?: string;
 }

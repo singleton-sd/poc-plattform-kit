@@ -486,8 +486,14 @@
               }
             }
           },
+          "400": {
+            "description": "Validation failed or tenant claim missing."
+          },
           "401": {
             "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Body tenantId is not a tenant the caller belongs to."
           }
         },
         "tags": [
@@ -507,7 +513,7 @@
       "get": {
         "operationId": "AccessRequestController_listPending",
         "summary": "List pending access requests visible to the caller",
-        "description": "Returns pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s direct manager chain member.",
+        "description": "Returns non-expired pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s manager chain member. Does not mutate expired rows.",
         "parameters": [],
         "responses": {
           "200": {
@@ -519,6 +525,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Session has no tenant claim."
           },
           "401": {
             "description": "Missing or invalid session/JWT."
@@ -541,7 +550,7 @@
       "post": {
         "operationId": "AccessRequestController_approve",
         "summary": "Approve an access request and grant the permission",
-        "description": "Caller must be an eligible approver. On success calls Grant API with the chosen grant type and notifies the requester via outbox events.",
+        "description": "Caller must be a same-tenant eligible approver (not the requester). Claims the row, then calls Grant API; rolls back / revokes on failure.",
         "parameters": [
           {
             "name": "id",
@@ -573,8 +582,23 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid grant payload or grant declined."
+          },
           "401": {
             "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Not an eligible approver or self-approval."
+          },
+          "404": {
+            "description": "Access request not found."
+          },
+          "409": {
+            "description": "Concurrent decide already claimed the request."
+          },
+          "410": {
+            "description": "Pending request expired."
           }
         },
         "tags": [
@@ -594,7 +618,7 @@
       "post": {
         "operationId": "AccessRequestController_deny",
         "summary": "Deny an access request",
-        "description": "Caller must be an eligible approver. Optional reason is stored and published.",
+        "description": "Caller must be a same-tenant eligible approver (not the requester).",
         "parameters": [
           {
             "name": "id",
@@ -626,8 +650,23 @@
               }
             }
           },
+          "400": {
+            "description": "Request is not pending."
+          },
           "401": {
             "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Not an eligible approver or self-denial."
+          },
+          "404": {
+            "description": "Access request not found."
+          },
+          "409": {
+            "description": "Concurrent decide already claimed the request."
+          },
+          "410": {
+            "description": "Pending request expired."
           }
         },
         "tags": [
@@ -1059,12 +1098,12 @@
           "tenantId": {
             "type": "string",
             "example": "t_acme",
-            "description": "Platform tenant id. Required when the session has no tenant claim."
+            "description": "Optional tenant id. Defaults to the session tenant. If set to a different tenant, the caller must be a member of that tenant."
           },
-          "expiresAt": {
+          "requestExpiresAt": {
             "type": "string",
             "example": "2026-12-31T23:59:59.000Z",
-            "description": "Optional absolute expiry for the pending request (ISO-8601)."
+            "description": "Optional absolute expiry for the pending request itself (ISO-8601)."
           }
         },
         "required": [
@@ -1102,7 +1141,7 @@
           "status": {
             "type": "string",
             "example": "pending",
-            "description": "pending | approved | denied | expired"
+            "description": "pending | approving | approved | denied | expired"
           },
           "decidedById": {
             "type": "string",
@@ -1125,10 +1164,17 @@
             "example": "permanent",
             "description": "permanent | temporary | one_time when approved"
           },
-          "expiresAt": {
+          "requestExpiresAt": {
             "type": "string",
             "nullable": true,
-            "format": "date-time"
+            "format": "date-time",
+            "description": "When the pending request expires if still undecided."
+          },
+          "grantExpiresAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Grant expiry when grantType is temporary (set on approve)."
           },
           "createdAt": {
             "type": "string",

@@ -21,7 +21,8 @@ export class CreateAccessRequestDto {
   @ApiProperty({
     required: false,
     example: 't_acme',
-    description: 'Platform tenant id. Required when the session has no tenant claim.',
+    description:
+      'Optional tenant id. Defaults to the session tenant. If set to a different tenant, the caller must be a member of that tenant.',
   })
   @IsOptional()
   @IsString()
@@ -31,9 +32,9 @@ export class CreateAccessRequestDto {
   @ApiProperty({
     required: false,
     example: '2026-12-31T23:59:59.000Z',
-    description: 'Optional absolute expiry for the pending request (ISO-8601).',
+    description: 'Optional absolute expiry for the pending request itself (ISO-8601).',
   })
   @IsOptional()
   @IsISO8601()
-  expiresAt?: string;
+  requestExpiresAt?: string;
 }

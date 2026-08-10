@@ -21,7 +21,7 @@ export class AccessRequestResponseDto {
 
   @ApiProperty({
     example: 'pending',
-    description: 'pending | approved | denied | expired',
+    description: 'pending | approving | approved | denied | expired',
   })
   status!: string;
 
@@ -48,8 +48,23 @@ export class AccessRequestResponseDto {
   })
   grantType!: string | null;
 
-  @ApiProperty({ required: false, nullable: true, type: String, format: 'date-time' })
-  expiresAt!: string | null;
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    type: String,
+    format: 'date-time',
+    description: 'When the pending request expires if still undecided.',
+  })
+  requestExpiresAt!: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    type: String,
+    format: 'date-time',
+    description: 'Grant expiry when grantType is temporary (set on approve).',
+  })
+  grantExpiresAt!: string | null;
 
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;

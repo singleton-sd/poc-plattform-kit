@@ -44,17 +44,21 @@ Route → action catalog: `infra/openfga/permissions.manifest.json` (see
 
 `AccessRequestService` owns approver AuthZ and the request lifecycle:
 
-1. Requester `POST`s the denied `action` + `resource` (and tenant when the session
-   has no tenant claim). Optional `expiresAt` expires the pending request.
+1. Requester `POST`s the denied `action` + `resource`. Tenant comes from the
+   session (body `tenantId` only if the caller is a member of that tenant).
+   Optional `requestExpiresAt` expires the pending request.
 2. Mutation writes `AccessRequest` + `PermissionsAudit` + `PermissionsOutbox`
    (`permission.access_requested`) in one transaction. Outbox payload includes
    `managerEntraOids` so Notifications can target managers; tenant admins are
    implied for the Notifications consumer (OpenFGA `tenant#admin`).
 3. Approvers list pending via OpenFGA `Check(user:<id>, admin, tenant:<id>)` **or**
-   membership in the requester’s Graph manager chain (`ManagerChainService`).
-4. Approve calls `PermissionsService.grant` then emits `permission.access_approved`
-   + `permission.granted`. Deny emits `permission.access_denied`.
-5. Expired pending rows are marked `expired` on list/approve/deny (HTTP 410 on decide).
+   membership in the requester’s Graph manager chain (`ManagerChainService`),
+   always same-tenant. List filters expired rows in SQL and does not mutate.
+4. Approve claims the row (`pending` → `approving` via `updateMany`), then calls
+   `PermissionsService.grant`, then finalizes to `approved` with
+   `grantExpiresAt`. Grant failure or post-grant DB failure rolls back /
+   revokes. Deny uses conditional `updateMany`. Self-approve is forbidden.
+5. Expired pending rows are marked `expired` on decide (HTTP 410), not on list.
 
 HTTP response shaping lives in `access-request.mapper.ts` using
 `@poc-plattform-kit/dto-map` (see [`docs/dto-mapping.md`](../../docs/dto-mapping.md)).
