@@ -28,10 +28,13 @@ Read [`docs/email-forward-email.md`](../../../docs/email-forward-email.md) for t
 | Safe default provider | `EMAIL_PROVIDER=development` |
 | Production send | `EMAIL_PROVIDER=forward-email` **and** `EMAIL_ALLOW_PRODUCTION_SEND=true` |
 | Provision script | `scripts/provision-forward-email.ps1` |
-| TS management helpers | `pillars/notifications/src/provisioning/forward-email-management.ts` |
-| Runtime sender | `ForwardEmailProvider` in Notifications pillar |
+| TS management helpers | `packages/email/src/provisioning/forward-email-management.ts` |
+| Runtime sender | `ForwardEmailProvider` in `@poc-plattform-kit/email` |
 
-Marketing contact HTTP uses the marketing-edge Function App — see `docs/marketing-edge.md`. Do not wire brochure Contact onto Nest as the long-term surface.
+Marketing contact HTTP uses the marketing-edge Function App and depends on
+`@poc-plattform-kit/email` only — see `docs/marketing-edge.md`. Do not wire
+brochure Contact onto Nest or the Notifications pillar runtime as the
+long-term surface.
 
 ## Safety rules
 

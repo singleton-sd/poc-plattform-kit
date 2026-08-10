@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { DevelopmentEmailProvider } from '@poc-plattform-kit/pillar-notifications';
+import { DevelopmentEmailProvider } from '@poc-plattform-kit/email';
 import {
   buildContactEmailRequest,
   contactCorsHeaders,

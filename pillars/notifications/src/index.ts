@@ -7,7 +7,14 @@ export type {
   EmailRuntimeConfig,
   ForwardEmailProviderOptions,
   DevelopmentEmailProviderOptions,
-} from './providers/email-provider';
+  ContactInquiryInput,
+  ContactSubject,
+  ContactValidationResult,
+  ForwardEmailAliasSummary,
+  ForwardEmailDnsRecord,
+  ForwardEmailDomainSummary,
+  ForwardEmailManagementClientOptions,
+} from '@poc-plattform-kit/email';
 export {
   assertSafeEmailHeader,
   createEmailProvider,
@@ -17,32 +24,15 @@ export {
   ForwardEmailProvider,
   loadEmailRuntimeConfig,
   sanitizeHeaderValue,
-} from './providers/email-provider';
-
-export type {
-  ContactInquiryInput,
-  ContactSubject,
-  ContactValidationResult,
-} from './contact/contact-email';
-export {
   CONTACT_SUBJECTS,
   buildContactEmailRequest,
   hasForbiddenControls,
   sendContactInquiryEmail,
   validateContactInquiry,
-} from './contact/contact-email';
-
-export type {
-  ForwardEmailAliasSummary,
-  ForwardEmailDnsRecord,
-  ForwardEmailDomainSummary,
-  ForwardEmailManagementClientOptions,
-} from './provisioning/forward-email-management';
-export {
   ForwardEmailManagementClient,
   getRequiredDnsRecords,
   mergeSpfInclude,
-} from './provisioning/forward-email-management';
+} from '@poc-plattform-kit/email';
 
 export type { SmsProvider, SmsSendRequest, SmsSendResult } from './providers/sms-provider';
 export { AndroidSmsGatewayProvider } from './providers/sms-provider';
