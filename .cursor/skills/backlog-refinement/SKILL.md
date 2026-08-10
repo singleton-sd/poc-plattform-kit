@@ -82,6 +82,8 @@ Sizing hint: XS | S | M | L | XL
 
 For bugs also include Steps to reproduce, Expected behavior and Actual behavior.
 
+When filing or updating a task through ClickUp tooling, set Area, Pillar, Work Type, and Execution using the dedicated custom fields listed below. Do not rely on tags or description text as the source of truth for these classifications.
+
 ## READY FOR AI gate
 
 A task may be marked **READY FOR AI** only when:
@@ -132,10 +134,14 @@ Map qualitative sizing to a rough token count when only a sizing hint is availab
 
 Store the number on **Token Estimate**; keep the sizing label in the description if useful.
 
-### Delivery custom fields (when filing)
+### ClickUp custom fields (when filing)
 
 | Field | ID | When filing backlog |
 | --- | --- | --- |
+| Area | `d046262e-bc5e-4e51-a13b-2ec91590f08e` | Set to the task's primary technical area |
+| Pillar | `63c6b89a-5c01-4ddf-90c3-c1ad7b6df60f` | Set to the owning product/domain pillar |
+| Work Type | `e7d43240-fe4a-4a62-8806-75a5b7f66ac7` | Set to the task's work classification |
+| Execution | `37574c9a-004c-419e-b1c1-5ac6f47fc501` | Set to AI, Human, or AI + Human |
 | Token Estimate | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set on create |
 | Token Spent | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Leave empty |
 | Claim Token | `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` | Do not set |
