@@ -38,4 +38,7 @@ pnpm dev:web
 pnpm dev:marketing
 ```
 
-See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md), [docs/pr-pipelines.md](./docs/pr-pipelines.md), and [docs/marketing-astro-decap.md](./docs/marketing-astro-decap.md).
+See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md),
+[the client-facing changelog workflow](./docs/client-changelog.md),
+[docs/pr-pipelines.md](./docs/pr-pipelines.md), and
+[docs/marketing-astro-decap.md](./docs/marketing-astro-decap.md).
