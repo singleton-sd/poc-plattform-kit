@@ -42,6 +42,11 @@ export class ServiceBusClientService implements OnModuleDestroy {
     return this.requireClient().createSender(topicForPillar(pillar));
   }
 
+  /** Sender for an explicit command queue (e.g. `notifications.send`). */
+  getQueueSender(queueName: string): ServiceBusSender {
+    return this.requireClient().createSender(queueName);
+  }
+
   /** Receiver for a consumer's subscription on a publishing pillar's topic. */
   getReceiver(pillar: PublishingPillarName, consumer: DomainEventConsumerName): ServiceBusReceiver {
     return this.requireClient().createReceiver(

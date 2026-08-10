@@ -44,6 +44,56 @@
         ]
       }
     },
+    "/contact": {
+      "post": {
+        "operationId": "ContactInquiryController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactInquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Inquiry accepted for delivery (sent synchronously when Forward Email is configured).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactInquiryResponseDto"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Inquiry queued on notifications.send for async delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactInquiryResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed."
+          },
+          "429": {
+            "description": "Too many contact submissions from this client."
+          },
+          "503": {
+            "description": "Neither Forward Email nor Service Bus delivery is available."
+          }
+        },
+        "tags": [
+          "contact"
+        ]
+      }
+    },
     "/tenants": {
       "get": {
         "operationId": "TenantController_findAll",
@@ -573,6 +623,61 @@
         "required": [
           "product",
           "releases"
+        ]
+      },
+      "CreateContactInquiryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Jane Doe",
+            "maxLength": 120
+          },
+          "email": {
+            "type": "string",
+            "example": "jane@acme.com"
+          },
+          "subject": {
+            "type": "string",
+            "enum": [
+              "general",
+              "sales",
+              "support",
+              "partnership"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "example": "I would like a demo of Platform Kit.",
+            "minLength": 10,
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "subject",
+          "message"
+        ]
+      },
+      "ContactInquiryResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "c7f2c1c0-5f1a-4b9a-9c2e-1d2f3a4b5c6d"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "sent"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status"
         ]
       },
       "TenantResponseDto": {

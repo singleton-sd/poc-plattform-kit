@@ -58,7 +58,9 @@ const reachItems: ReachItem[] = [
           <form id="contact-form" class="flex flex-col gap-8" novalidate>
             <div id="contact-form-error" class="hidden" role="alert">
               <Alert variant="error">
-                Please fix the highlighted fields and try again.
+                <span id="contact-form-error-text"
+                  >Please fix the highlighted fields and try again.</span
+                >
               </Alert>
             </div>
 
@@ -111,8 +113,7 @@ const reachItems: ReachItem[] = [
 
         <div id="contact-success" class="hidden space-y-4" role="status">
           <Alert variant="success">
-            Thanks — your message was prepared successfully. Backend delivery is
-            stubbed for this template and will land in a follow-up ticket.
+            Thanks — your message was sent. We typically respond within 24 hours.
           </Alert>
           <div id="contact-reset">
             <Button type="button" variant="outline" size="lg">
@@ -167,7 +168,9 @@ const reachItems: ReachItem[] = [
   const formPanel = document.getElementById('contact-form-panel');
   const successPanel = document.getElementById('contact-success');
   const formError = document.getElementById('contact-form-error');
+  const formErrorText = document.getElementById('contact-form-error-text');
   const resetButton = document.getElementById('contact-reset')?.querySelector('button');
+  const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
   const fieldIds = [
     'contact-name',
     'contact-email',
@@ -175,6 +178,9 @@ const reachItems: ReachItem[] = [
     'contact-message',
   ] as const;
   let attemptedSubmit = false;
+  const apiBase = (
+    (import.meta.env.PUBLIC_API_BASE_URL as string | undefined) || 'http://localhost:3001'
+  ).replace(/\/$/, '');
 
   function setFieldError(id: string, message: string | null) {
     const field = document.getElementById(id) as
@@ -237,19 +243,66 @@ const reachItems: ReachItem[] = [
     if (!attemptedSubmit) return;
     const ok = validate();
     formError?.classList.toggle('hidden', ok);
+    if (ok && formErrorText) {
+      formErrorText.textContent = 'Please fix the highlighted fields and try again.';
+    }
   }
 
-  form?.addEventListener('submit', (event) => {
+  function showFormError(message: string) {
+    if (formErrorText) formErrorText.textContent = message;
+    formError?.classList.remove('hidden');
+  }
+
+  form?.addEventListener('submit', async (event) => {
     event.preventDefault();
     attemptedSubmit = true;
     const ok = validate();
     formError?.classList.toggle('hidden', ok);
-    if (!ok) return;
+    if (!ok) {
+      if (formErrorText) {
+        formErrorText.textContent = 'Please fix the highlighted fields and try again.';
+      }
+      return;
+    }
 
-    // Stub: no backend yet — show success empty state for the template.
-    formPanel?.classList.add('hidden');
-    successPanel?.classList.remove('hidden');
-    formError?.classList.add('hidden');
+    const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim();
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value.trim();
+    const subject = (form.elements.namedItem('subject') as HTMLSelectElement).value;
+    const message = (form.elements.namedItem('message') as HTMLTextAreaElement).value.trim();
+
+    if (submitButton) submitButton.disabled = true;
+    try {
+      const response = await fetch(`${apiBase}/contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        credentials: 'omit',
+        body: JSON.stringify({ name, email, subject, message }),
+      });
+
+      if (!response.ok) {
+        let detail = 'We could not send your message. Please try again shortly.';
+        if (response.status === 400) {
+          detail = 'Please fix the highlighted fields and try again.';
+        } else if (response.status === 429) {
+          detail = 'Too many messages were sent. Please wait a minute and try again.';
+        } else if (response.status >= 500) {
+          detail = 'Delivery is temporarily unavailable. Please try again later.';
+        }
+        showFormError(detail);
+        return;
+      }
+
+      formPanel?.classList.add('hidden');
+      successPanel?.classList.remove('hidden');
+      formError?.classList.add('hidden');
+    } catch {
+      showFormError('We could not reach the server. Check your connection and try again.');
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
   });
 
   for (const id of fieldIds) {
@@ -264,6 +317,9 @@ const reachItems: ReachItem[] = [
     form?.reset();
     fieldIds.forEach((id) => setFieldError(id, null));
     formError?.classList.add('hidden');
+    if (formErrorText) {
+      formErrorText.textContent = 'Please fix the highlighted fields and try again.';
+    }
     successPanel?.classList.add('hidden');
     formPanel?.classList.remove('hidden');
   });

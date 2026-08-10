@@ -1,10 +1,17 @@
 {
   "name": "@poc-plattform-kit/pillar-notifications",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "echo stub",
-    "lint": "echo stub",
-    "test": "echo stub"
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"lint:notifications stub\"",
+    "test": "node --import tsx --test src/providers/email-provider.spec.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

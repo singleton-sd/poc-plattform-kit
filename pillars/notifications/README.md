@@ -27,11 +27,17 @@ Owns: outbound messaging across channels (email, SMS, WhatsApp).
 
 Never put provider API keys in GitHub Secrets or git.
 
-## Stub layout
+## Providers
 
 ```
 src/providers/
-  email-provider.ts      # EmailProvider + Forward Email stub
+  email-provider.ts      # EmailProvider + Forward Email HTTP client
   sms-provider.ts        # SmsProvider + android-sms-gateway stub
   whatsapp-provider.ts   # WhatsAppProvider + Meta Cloud API stub
 ```
+
+`ForwardEmailProvider` sends via `POST https://api.forwardemail.net/v1/emails` when
+`FORWARDEMAIL_API_KEY` is set (KV `forwardemail-api-key`). Marketing Contact inquiries
+use Nest `POST /contact`, which either sends immediately or enqueues `notifications.send`.
+
+A dedicated queue consumer for `notifications.send` is tracked separately.

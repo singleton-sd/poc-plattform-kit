@@ -19,6 +19,8 @@
 | --- | --- |
 | `GET /` (302 → `/docs`) | `GET /api/me` |
 | `GET /health` (`@Public()`) | `/tenants/**` (and other domain routes as they land) |
+| `GET /changelog` (`@Public()`) | |
+| `POST /contact` (`@Public()`, marketing Contact form) | |
 | `/api/auth/*` (Auth.js) | |
 | `/docs`, `/docs-json`, `/docs/oauth2-redirect.html` (Swagger) | |
 

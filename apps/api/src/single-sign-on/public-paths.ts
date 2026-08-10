@@ -18,6 +18,9 @@ export function isPublicPath(path: string): boolean {
   if (normalized === '/changelog' || normalized.startsWith('/changelog/')) {
     return true;
   }
+  if (normalized === '/contact' || normalized.startsWith('/contact/')) {
+    return true;
+  }
   if (normalized === '/api/auth' || normalized.startsWith('/api/auth/')) {
     return true;
   }

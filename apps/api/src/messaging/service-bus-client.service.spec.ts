@@ -41,6 +41,7 @@ describe('ServiceBusClientService', () => {
       const service = new ServiceBusClientService();
 
       expect(() => service.getSender('tenant')).toThrow(/not configured/);
+      expect(() => service.getQueueSender('notifications.send')).toThrow(/not configured/);
       expect(() => service.getReceiver('tenant', 'audit')).toThrow(/not configured/);
     });
   });
@@ -63,6 +64,15 @@ describe('ServiceBusClientService', () => {
       const sender = service.getSender('tenant');
 
       expect(createSender).toHaveBeenCalledWith('tenant.events');
+      expect(sender).toEqual({ sender: true });
+    });
+
+    it('resolves queue senders by queue name', () => {
+      const service = new ServiceBusClientService();
+
+      const sender = service.getQueueSender('notifications.send');
+
+      expect(createSender).toHaveBeenCalledWith('notifications.send');
       expect(sender).toEqual({ sender: true });
     });
 
