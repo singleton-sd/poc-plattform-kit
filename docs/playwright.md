@@ -13,11 +13,12 @@ The Chromium-only suite verifies:
 - navigation from the app to the public changelog and back; and
 - the legacy `/login` redirect.
 
-The suite intercepts only `GET /api/me` with an unauthenticated response. This
+The suite intercepts `/api/me` with an unauthenticated `401` response. This
 exercises the application's normal signed-out behavior; it does not disable,
-replace, or weaken Entra or OpenFGA. External requests are blocked during local
-tests so a run cannot contact production, preview, telemetry, or third-party
-hosts.
+replace, or weaken Entra or OpenFGA. Every run aborts HTTP(S) requests whose
+origin is not the configured application base (`PLAYWRIGHT_BASE_URL` or the
+local static export on `http://127.0.0.1:4173`) and not loopback, so a run
+cannot contact production, telemetry, token, or other third-party hosts.
 
 Authenticated and tenant-domain journeys are intentionally deferred until a
 sanctioned non-production Entra identity, secure storage-state lifecycle, and
@@ -36,6 +37,12 @@ pnpm --filter @poc-plattform-kit/web exec playwright install chromium
 pnpm --filter @poc-plattform-kit/web run test:e2e
 ```
 
+On Linux (including CI images), install OS dependencies with Chromium:
+
+```bash
+pnpm --filter @poc-plattform-kit/web exec playwright install --with-deps chromium
+```
+
 The Playwright config builds the Next.js static export and serves `apps/web/out`
 on `http://127.0.0.1:4173`. To inspect tests interactively:
 
@@ -51,8 +58,9 @@ PLAYWRIGHT_BASE_URL=https://<trusted-swa-preview> \
   pnpm --filter @poc-plattform-kit/web run test:e2e
 ```
 
-The current public suite remains signed out even against a preview and does not
-consume preview or production credentials.
+The network allowlist permits that preview origin (plus loopback). The current
+public suite remains signed out even against a preview and does not consume
+preview or production credentials.
 
 ## Failure artifacts
 
