@@ -36,15 +36,17 @@ Decap GitHub OAuth routes already live on this Function App; Contact and OAuth s
 
 ## Forward Email + contact delivery config
 
-| Kind | Store | Name / key |
+| Kind | Store | Name / key → runtime env |
 | --- | --- | --- |
-| API key | Key Vault `ssd-pocpk-kv-dev-ae` | `forwardemail-api-key` |
-| KV reference | App Config `ssd-pocpk-appcs-dev-ae` | `secret:forwardemail-api-key` |
-| Base URL (optional) | App Config plain | `app:notifications:forwardEmailBaseUrl` (default `https://api.forwardemail.net`) |
-| Inbox | App Config plain | `app:notifications:contactInboxEmail` |
-| From | App Config plain | `app:notifications:contactFromEmail` |
+| API key | Key Vault `ssd-pocpk-kv-dev-ae` | secret name `forwardemail-api-key` |
+| KV reference | App Config `ssd-pocpk-appcs-dev-ae` | `secret:forwardemail-api-key` → **`FORWARD_EMAIL_TOKEN`** |
+| Base URL (optional) | App Config plain | `app:notifications:forwardEmailBaseUrl` → `FORWARD_EMAIL_BASE_URL` (default `https://api.forwardemail.net`) |
+| Provider | App Config plain | `app:notifications:emailProvider` → `EMAIL_PROVIDER` (`development` locally / previews; `forward-email` in production) |
+| From address / name | App Config plain | `app:notifications:emailFromAddress` → `EMAIL_FROM_ADDRESS`; `app:notifications:emailFromName` → `EMAIL_FROM_NAME` |
+| Inbox | App Config plain | `app:notifications:contactInboxAddress` → `CONTACT_INBOX_ADDRESS` |
+| Production send gate | App Config plain | `app:notifications:emailAllowProductionSend` → `EMAIL_ALLOW_PRODUCTION_SEND` (must be `true` on prod hosts only) |
 
-Human/ops set the KV value (never commit or paste into ClickUp/git). See commands in the ClickUp ticket **Provision Forward Email Key Vault + App Config keys** and SETUP.md.
+Human/ops set the KV value (never commit or paste into ClickUp/git). Prefer runtime names `FORWARD_EMAIL_TOKEN` / `EMAIL_*` / `CONTACT_INBOX_ADDRESS`; the KV secret **name** remains `forwardemail-api-key`. See [email-forward-email.md](./email-forward-email.md), the ClickUp ticket **Provision Forward Email Key Vault + App Config keys**, and SETUP.md.
 
 ## Related tickets
 

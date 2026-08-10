@@ -6,9 +6,38 @@ Owns: outbound messaging across channels (email, SMS, WhatsApp).
 
 | Channel | Provider | Adapter |
 | --- | --- | --- |
-| Email | [Forward Email API](https://forwardemail.net/en/email-api) | `EmailProvider` |
+| Email | [Forward Email API](https://forwardemail.net/en/email-api) (production) + **development** capture provider (local / PR previews) | `EmailProvider` → `createEmailProvider()` |
 | SMS | [android-sms-gateway](https://github.com/capcom6/android-sms-gateway) (self-hosted HTTP) | `SmsProvider` |
 | WhatsApp | **Meta WhatsApp Cloud API** (default) | `WhatsAppProvider` — adapter may swap later |
+
+Full email/DNS/ops guide: **[docs/email-forward-email.md](../../docs/email-forward-email.md)**.
+
+## Email runtime
+
+| Piece | Location |
+| --- | --- |
+| Types + errors | `src/providers/email-types.ts` |
+| Forward Email HTTP sender | `src/providers/forward-email.provider.ts` |
+| Development / capture sender | `src/providers/development-email.provider.ts` |
+| Factory + config | `src/providers/create-email-provider.ts` |
+| Contact inquiry helper | `src/contact/contact-email.ts` |
+| Domain / alias management (deploy-time) | `src/provisioning/forward-email-management.ts` |
+| Route53 provision script | `scripts/provision-forward-email.ps1` |
+
+### Config (env)
+
+| Env | Purpose | Safe default |
+| --- | --- | --- |
+| `FORWARD_EMAIL_TOKEN` | API token (KV secret name remains `forwardemail-api-key`) | unset locally |
+| `FORWARD_EMAIL_BASE_URL` | API base | `https://api.forwardemail.net` |
+| `EMAIL_PROVIDER` | `development` \| `forward-email` | `development` |
+| `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` | Envelope From | `noreply@plattform-kit.poc.singletonsd.com` / `Plattform Kit` |
+| `CONTACT_INBOX_ADDRESS` | Contact delivery inbox | `hello@singletonsd.com` |
+| `EMAIL_ALLOW_PRODUCTION_SEND` | Must be `true` for live send on production hosts | unset / false |
+
+PR previews and local runs should stay on the **development** provider. Production App Service / Functions set `EMAIL_PROVIDER=forward-email` and `EMAIL_ALLOW_PRODUCTION_SEND=true`.
+
+Legacy aliases still accepted by the client: `FORWARDEMAIL_API_KEY`, `FORWARDEMAIL_BASE_URL`, `CONTACT_FROM_EMAIL`, `CONTACT_INBOX_EMAIL`.
 
 ## Messaging
 
@@ -22,16 +51,24 @@ Owns: outbound messaging across channels (email, SMS, WhatsApp).
 | Kind | Store | Example names (not values) |
 | --- | --- | --- |
 | API keys / tokens | Azure Key Vault `ssd-pocpk-kv-dev-ae` | `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token` |
-| Non-secret URLs / IDs | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | Forward Email base URL, SMS gateway base URL, WhatsApp phone-number-id, Graph API version |
-| Secret refs in App Config | Key Vault references | never inline secret strings |
+| Non-secret URLs / IDs | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | `app:notifications:forwardEmailBaseUrl`, `app:notifications:emailFromAddress`, `app:notifications:emailFromName`, `app:notifications:contactInboxAddress`, `app:notifications:emailProvider`, `app:notifications:emailAllowProductionSend` |
+| Secret refs in App Config | Key Vault references | `secret:forwardemail-api-key` → runtime `FORWARD_EMAIL_TOKEN` |
 
-Never put provider API keys in GitHub Secrets or git.
+Never put provider API keys in GitHub Secrets or git. See also [docs/marketing-edge.md](../../docs/marketing-edge.md) for marketing-edge contact delivery wiring.
 
-## Stub layout
+## Layout
 
 ```
-src/providers/
-  email-provider.ts      # EmailProvider + Forward Email stub
-  sms-provider.ts        # SmsProvider + android-sms-gateway stub
-  whatsapp-provider.ts   # WhatsAppProvider + Meta Cloud API stub
+src/
+  contact/                 # contact inquiry validation + send helper
+  providers/
+    email-types.ts
+    forward-email.provider.ts
+    development-email.provider.ts
+    create-email-provider.ts
+    email-provider.ts      # re-exports
+    sms-provider.ts        # android-sms-gateway (stub → real)
+    whatsapp-provider.ts   # Meta Cloud API (stub → real)
+  provisioning/
+    forward-email-management.ts   # domains/aliases/DNS helpers (not runtime Route53)
 ```
