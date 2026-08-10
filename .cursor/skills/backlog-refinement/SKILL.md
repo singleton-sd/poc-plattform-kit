@@ -110,14 +110,36 @@ For architecture, design, new Azure resources, auth, messaging, pillar boundarie
 
 Every real follow-up discovered during refinement must be represented explicitly rather than hidden in prose.
 
-- Search existing tasks by title/intent first; never create obvious duplicates.
-- If it needs more design, route it to Ideas & Discovery.
-- If implementation-ready, route it to Delivery.
-- If manual, route it to Human & Operations.
-- Wire dependencies by ticket title/id.
-- Leave new work unclaimed; planning is not implementation.
+1. Search existing tasks by title/intent first (no duplicates):
+   - Delivery: `powershell -File scripts/clickup.ps1 list` (default `-ListId 901616287298`)
+   - Ideas & Discovery: `powershell -File scripts/clickup.ps1 list -ListId 901616397764`
+   - Human & Operations: `powershell -File scripts/clickup.ps1 list -ListId 901616397767`
+2. If missing, create on the correct list:
+   - Discovery: `powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..." -Estimate <n>`
+   - Delivery: `powershell -File scripts/clickup.ps1 create -Name "..." -Status "BACKLOG" -Description "..." -Estimate <n>` (omit `-ListId`; default is Delivery)
+   - Manual: `powershell -File scripts/clickup.ps1 create -ListId 901616397767 -Name "..." -Status "TO DO" -Description "..." -Estimate <n>`
+3. Include clear acceptance criteria in `-Description`.
+4. **Token Estimate** is set via `-Estimate` on create (field `ab22f8d4-df04-435e-849a-9ca6c23489be`). Leave **Token Spent**, **Claim Token**, and **Preview URL** empty.
+5. After create: `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` so the new task waits on the parent (or named blocker).
+6. Leave new backlog tickets **unassigned** and do **not** set Claim Token (browse/create ≠ claim).
+7. Prefer linking via dependencies / description over a parent-ticket comment dump.
 
-Token estimate convention when needed: XS ≈ 25000, S ≈ 50000, M ≈ 100000, L ≈ 200000, XL ≈ 400000.
+### Token Estimate convention
+
+Map qualitative sizing to a rough token count when only a sizing hint is available:
+
+- XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000
+
+Store the number on **Token Estimate**; keep the sizing label in the description if useful.
+
+### Delivery custom fields (when filing)
+
+| Field | ID | When filing backlog |
+| --- | --- | --- |
+| Token Estimate | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set on create |
+| Token Spent | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Leave empty |
+| Claim Token | `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` | Do not set |
+| Preview URL | `978d43d5-e404-4262-98a2-0193ade4736d` | Leave empty |
 
 ## Epic and parallel execution
 

@@ -118,17 +118,19 @@ Do not use tags as a substitute for Area/Pillar/Work Type/Execution. Reserve tag
 
 ## Status semantics
 
-For Delivery:
+For **Delivery**:
 
 - **BACKLOG** — captured but not yet approved/refined.
 - **TO DO** — retained for compatibility; prefer BACKLOG or READY FOR AI for new work.
 - **READY FOR AI** — fully refined, dependency-safe implementation work available to agents.
 - **IN PROGRESS** — actively claimed by an implementation agent.
 - **READY FOR REVIEW** — implementation and PR hygiene complete; automated/human review can happen.
-- **READY FOR HUMAN** — code work is done but a human validation/gate remains.
+- **READY FOR HUMAN** — AI review + PR hygiene passed; waiting for human merge / final approval.
 - **COMPLETE** — merged/delivered and required gates are satisfied.
 
-Never use READY FOR HUMAN as a general storage place for manual tasks. Standalone manual work belongs in **Human & Operations**; READY FOR HUMAN is a Delivery handoff state.
+Never use READY FOR HUMAN as a general storage place for manual tasks. Standalone manual work belongs in **Human & Operations**; READY FOR HUMAN is a Delivery handoff state after review, not a manual-work queue.
+
+**Ideas & Discovery** and **Human & Operations** only have `TO DO`, `IN PROGRESS`, and `COMPLETE`. Do not invent Delivery statuses (`READY FOR AI`, `READY FOR REVIEW`, `READY FOR HUMAN`, `BACKLOG`) on those lists.
 
 ## Discovery-to-delivery flow
 
