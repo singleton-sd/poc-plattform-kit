@@ -33,15 +33,33 @@ export function expectedChecks(paths) {
   return [...checks];
 }
 
+/** Keep the newest rollup entry per check name (GitHub may list superseded runs). */
+export function latestChecksByName(checks) {
+  const byName = new Map();
+  for (const check of checks) {
+    const prev = byName.get(check.name);
+    if (!prev) {
+      byName.set(check.name, check);
+      continue;
+    }
+    const prevAt = Date.parse(prev.completedAt || 0) || 0;
+    const nextAt = Date.parse(check.completedAt || 0) || 0;
+    // Prefer later completion; if timestamps tie/missing, prefer the later list item.
+    if (nextAt >= prevAt) byName.set(check.name, check);
+  }
+  return [...byName.values()];
+}
+
 export function evaluateSnapshot(snapshot, nowMs, quietMs) {
-  const byName = new Map(snapshot.checks.map((check) => [check.name, check]));
+  const checks = latestChecksByName(snapshot.checks);
+  const byName = new Map(checks.map((check) => [check.name, check]));
   const missing = snapshot.expected.filter((name) => !byName.has(name));
   const pending = snapshot.expected.filter((name) => {
     const check = byName.get(name);
     return check && check.status !== 'COMPLETED';
   });
-  const failed = snapshot.checks.filter((check) => blockingConclusions.has(check.conclusion));
-  const incomplete = snapshot.checks.filter(
+  const failed = checks.filter((check) => blockingConclusions.has(check.conclusion));
+  const incomplete = checks.filter(
     (check) => check.status !== 'COMPLETED' || !terminalConclusions.has(check.conclusion),
   );
   const blockers = [];

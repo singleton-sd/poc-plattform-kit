@@ -479,6 +479,229 @@
           }
         ]
       }
+    },
+    "/permissions/access-requests": {
+      "post": {
+        "operationId": "AccessRequestController_create",
+        "summary": "Create an access request for a denied action",
+        "description": "Captures subject/action/resource for the current user. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed or tenant claim missing."
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Body tenantId is not a tenant the caller belongs to."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/permissions/access-requests/pending": {
+      "get": {
+        "operationId": "AccessRequestController_listPending",
+        "summary": "List pending access requests visible to the caller",
+        "description": "Returns non-expired pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s manager chain member. Does not mutate expired rows.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestListResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Session has no tenant claim."
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/permissions/access-requests/{id}/approve": {
+      "post": {
+        "operationId": "AccessRequestController_approve",
+        "summary": "Approve an access request and grant the permission",
+        "description": "Caller must be a same-tenant eligible approver (not the requester). Claims the row, then calls Grant API; rolls back / revokes on failure.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveAccessRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid grant payload or grant declined."
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Not an eligible approver or self-approval."
+          },
+          "404": {
+            "description": "Access request not found."
+          },
+          "409": {
+            "description": "Concurrent decide already claimed the request."
+          },
+          "410": {
+            "description": "Pending request expired."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/permissions/access-requests/{id}/deny": {
+      "post": {
+        "operationId": "AccessRequestController_deny",
+        "summary": "Deny an access request",
+        "description": "Caller must be a same-tenant eligible approver (not the requester).",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DenyAccessRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request is not pending."
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Not an eligible approver or self-denial."
+          },
+          "404": {
+            "description": "Access request not found."
+          },
+          "409": {
+            "description": "Concurrent decide already claimed the request."
+          },
+          "410": {
+            "description": "Pending request expired."
+          }
+        },
+        "tags": [
+          "permissions"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -879,6 +1102,168 @@
           "status",
           "pillar"
         ]
+      },
+      "CreateAccessRequestDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "example": "update",
+            "description": "Denied OpenFGA action / relation."
+          },
+          "resource": {
+            "type": "string",
+            "example": "tenant:acme",
+            "description": "Denied OpenFGA resource object."
+          },
+          "tenantId": {
+            "type": "string",
+            "example": "t_acme",
+            "description": "Optional tenant id. Defaults to the session tenant. If set to a different tenant, the caller must be a member of that tenant."
+          },
+          "requestExpiresAt": {
+            "type": "string",
+            "example": "2026-12-31T23:59:59.000Z",
+            "description": "Optional absolute expiry for the pending request itself (ISO-8601)."
+          }
+        },
+        "required": [
+          "action",
+          "resource"
+        ]
+      },
+      "AccessRequestResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "ar_01"
+          },
+          "tenantId": {
+            "type": "string",
+            "example": "t_acme"
+          },
+          "requesterId": {
+            "type": "string",
+            "example": "user-1"
+          },
+          "requesterEntraOid": {
+            "type": "string",
+            "example": "entra-oid-1"
+          },
+          "action": {
+            "type": "string",
+            "example": "update"
+          },
+          "resource": {
+            "type": "string",
+            "example": "tenant:acme"
+          },
+          "status": {
+            "type": "string",
+            "example": "pending",
+            "description": "pending | approving | approved | denied | expired"
+          },
+          "decidedById": {
+            "type": "string",
+            "nullable": true,
+            "example": "admin-1"
+          },
+          "decidedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "denyReason": {
+            "type": "string",
+            "nullable": true,
+            "example": "Not justified"
+          },
+          "grantType": {
+            "type": "string",
+            "nullable": true,
+            "example": "permanent",
+            "description": "permanent | temporary | one_time when approved"
+          },
+          "requestExpiresAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the pending request expires if still undecided."
+          },
+          "grantExpiresAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Grant expiry when grantType is temporary (set on approve)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "requesterId",
+          "requesterEntraOid",
+          "action",
+          "resource",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AccessRequestListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessRequestResponseDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ApproveAccessRequestDto": {
+        "type": "object",
+        "properties": {
+          "grantType": {
+            "type": "string",
+            "enum": [
+              "permanent",
+              "temporary",
+              "one_time"
+            ],
+            "example": "permanent",
+            "description": "Grant type applied on approval (calls Grant API)."
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-12-31T23:59:59.000Z",
+            "description": "Required when grantType is temporary — absolute expiry (ISO-8601)."
+          }
+        },
+        "required": [
+          "grantType"
+        ]
+      },
+      "DenyAccessRequestDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Not required for this role",
+            "description": "Optional denial reason shared with the requester."
+          }
+        }
       }
     }
   }

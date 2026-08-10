@@ -45,6 +45,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build marketing
+        env:
+          PUBLIC_MARKETING_API_BASE_URL: ${{ vars.PUBLIC_MARKETING_API_BASE_URL || 'https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net' }}
         run: pnpm --filter @poc-plattform-kit/marketing... run build
 
       # SWA rejects trailing-slash duplicate routes (e.g. /admin + /admin/).
