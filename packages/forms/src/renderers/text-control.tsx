@@ -22,7 +22,6 @@ export function TextControlRenderer(props: ControlProps) {
         )}
         value={data ?? ''}
         disabled={!enabled}
-        required={required}
         aria-required={required || undefined}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${inputId}-error` : undefined}

@@ -29,7 +29,6 @@ export function SelectControlRenderer(props: ControlProps) {
           data === undefined ? '' : String(options.findIndex((option) => Object.is(option, data)))
         }
         disabled={!enabled}
-        required={required}
         aria-required={required || undefined}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${inputId}-error` : undefined}

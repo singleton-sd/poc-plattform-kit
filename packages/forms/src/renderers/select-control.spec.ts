@@ -31,15 +31,18 @@ function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
 }
 
 describe('SelectControlRenderer', () => {
-  it('sets required and aria-required on the select when the field is required', () => {
+  it('sets aria-required on the select when the field is required', () => {
     const select = findByType(SelectControlRenderer(baseProps({ required: true })), 'select');
-    expect(select?.props.required).toBe(true);
     expect(select?.props['aria-required']).toBe(true);
   });
 
-  it('does not set required or aria-required when the field is optional', () => {
+  it('does not set aria-required when the field is optional', () => {
     const select = findByType(SelectControlRenderer(baseProps({ required: false })), 'select');
-    expect(select?.props.required).toBe(false);
     expect(select?.props['aria-required']).toBeUndefined();
+  });
+
+  it('never sets the native required attribute, to avoid the browser intercepting submission before the app runs its own validation', () => {
+    const select = findByType(SelectControlRenderer(baseProps({ required: true })), 'select');
+    expect(select?.props.required).toBeUndefined();
   });
 });
