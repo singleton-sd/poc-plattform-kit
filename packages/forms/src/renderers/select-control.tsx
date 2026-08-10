@@ -7,7 +7,7 @@ export function enumValueAt(options: unknown[], selectedIndex: string): unknown 
 }
 import { cn } from '../cn';
 
-function SelectControlRenderer(props: ControlProps) {
+export function SelectControlRenderer(props: ControlProps) {
   const { data, handleChange, path, label, required, errors, enabled, id, schema } = props;
   const inputId = id || path;
   const invalid = Boolean(errors);
@@ -29,6 +29,8 @@ function SelectControlRenderer(props: ControlProps) {
           data === undefined ? '' : String(options.findIndex((option) => Object.is(option, data)))
         }
         disabled={!enabled}
+        required={required}
+        aria-required={required || undefined}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${inputId}-error` : undefined}
         onChange={(event) => handleChange(path, enumValueAt(options, event.target.value))}

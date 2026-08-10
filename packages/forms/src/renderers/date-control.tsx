@@ -2,7 +2,7 @@ import { isDateControl, rankWith, type ControlProps, type RankedTester } from '@
 import { withJsonFormsControlProps } from '@jsonforms/react';
 import { cn } from '../cn';
 
-function DateControlRenderer(props: ControlProps) {
+export function DateControlRenderer(props: ControlProps) {
   const { data, handleChange, path, label, required, errors, enabled, id } = props;
   const inputId = id || path;
   const invalid = Boolean(errors);
@@ -22,6 +22,8 @@ function DateControlRenderer(props: ControlProps) {
         )}
         value={data ?? ''}
         disabled={!enabled}
+        required={required}
+        aria-required={required || undefined}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${inputId}-error` : undefined}
         onChange={(event) => handleChange(path, event.target.value)}
