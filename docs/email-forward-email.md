@@ -2,7 +2,14 @@
 
 `[repo=singleton-sd/poc-plattform-kit]`
 
-Platform Kit sends transactional and contact email through the **Notifications** pillar. The default production email adapter is **[Forward Email](https://forwardemail.net/en/email-api)** (`https://api.forwardemail.net`). Local / PR preview runtimes default to a **development** provider that captures sends without calling the network.
+Platform Kit sends transactional and contact email through a provider-independent
+**`EmailProvider`** in `@poc-plattform-kit/email` (`packages/email`). The
+**Notifications** pillar re-exports that package for Nest / queue orchestration
+and owns SMS / WhatsApp. The default production email adapter is
+**[Forward Email](https://forwardemail.net/en/email-api)**
+(`https://api.forwardemail.net`). Local / PR preview runtimes default to a
+**development** provider that captures sends without calling the network.
+
 
 This document covers architecture, configuration, DNS (Route53), the provisioning script, troubleshooting, rotation, and how to add domains / aliases / providers. **No secrets belong in git, ClickUp, or PR bodies.**
 
@@ -12,25 +19,29 @@ This document covers architecture, configuration, DNS (Route53), the provisionin
 Domain events / contact form / notifications.send
         │
         ▼
- Notifications pillar
+ @poc-plattform-kit/email          ← shared library (marketing-edge + pillar)
         │
         ├─ EmailProvider (abstraction)
         │     ├─ DevelopmentEmailProvider   ← default locally + PR previews
         │     └─ ForwardEmailProvider       ← production when opted in
         │
-        ├─ ForwardEmailManagementClient     ← deploy-time provisioning only
+        └─ ForwardEmailManagementClient     ← deploy-time provisioning only
+
+ Notifications pillar (product API)
         │
-        └─ publishes notification.sent / notification.failed
+        ├─ re-exports @poc-plattform-kit/email
+        ├─ SMS / WhatsApp providers
+        └─ publishes notification.sent / notification.failed (future consumer)
 ```
 
 | Concern | Owner |
 | --- | --- |
-| Runtime send (`POST /v1/emails`) | `pillars/notifications` → `ForwardEmailProvider` |
+| Runtime send (`POST /v1/emails`) | `@poc-plattform-kit/email` → `ForwardEmailProvider` |
 | Domain / alias / verify (management API) | `ForwardEmailManagementClient` + `scripts/provision-forward-email.ps1` |
 | DNS (MX / SPF / DKIM / DMARC / Return-Path) | AWS Route53 hosted zone `singletonsd.com` |
 | Secret storage | Azure Key Vault `ssd-pocpk-kv-dev-ae` secret name **`forwardemail-api-key`** |
-| Non-secret config | Azure App Configuration `ssd-pocpk-appcs-dev-ae` (`app:notifications:*`) |
-| Marketing contact HTTP | Marketing edge Function App (see [marketing-edge.md](./marketing-edge.md)) — not Nest |
+| Non-secret config | Azure App Configuration `ssd-pocpk-appcs-dev-ae` (`app:notifications:*` — shared email settings; name kept for ops continuity) |
+| Marketing contact HTTP | Marketing edge Function App depends on `@poc-plattform-kit/email` only (see [marketing-edge.md](./marketing-edge.md)) — not Nest / not the Notifications pillar runtime |
 
 Pillars never embed provider secrets in source. Nest `apps/api` maps App Config / KV refs into process env via `apps/api/src/config/app-configuration.ts` before boot.
 
@@ -42,7 +53,8 @@ Pillars never embed provider secrets in source. Nest `apps/api` maps App Config 
 - `isConfigured()` — token present (Forward Email) or always true (development)
 - `send(request, signal?)` — accepts `to`, `from`, optional `fromName`, `subject`, `text` / `html`, `replyTo`, `correlationId`
 
-Factory: `createEmailProvider()` / `loadEmailRuntimeConfig()` in `@poc-plattform-kit/notifications`.
+Factory: `createEmailProvider()` / `loadEmailRuntimeConfig()` in `@poc-plattform-kit/email`
+(also re-exported from `@poc-plattform-kit/pillar-notifications`).
 
 | Provider | When selected | Behaviour |
 | --- | --- | --- |

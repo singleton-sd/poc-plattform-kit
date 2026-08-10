@@ -4,7 +4,7 @@ import {
   sendContactInquiryEmail,
   validateContactInquiry,
   type EmailProvider,
-} from '@poc-plattform-kit/pillar-notifications';
+} from '@poc-plattform-kit/email';
 import { isAllowedOauthHostname, parseOrigins } from './login-script';
 
 export {
@@ -14,7 +14,7 @@ export {
   validateContactInquiry,
   type ContactInquiryInput,
   type ContactSubject,
-} from '@poc-plattform-kit/pillar-notifications';
+} from '@poc-plattform-kit/email';
 
 /**
  * Preview SWA hosts must not trigger real outbound email against the shared

@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { EmailProviderError } from '@poc-plattform-kit/pillar-notifications';
+import { EmailProviderError } from '@poc-plattform-kit/email';
 import { contactCorsHeaders, submitContactInquiry } from '../contact';
 import { clientIpFromHeaders, contactRateLimiter } from '../contact-rate-limit';
 

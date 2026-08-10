@@ -22,11 +22,13 @@ When marketing HTTP outgrows this host (many routes, heavier auth, noisy deploy 
 | Do | Don't |
 | --- | --- |
 | Anonymous marketing HTTP only (contact, waitlist, demo request) | Product / tenant / SSO APIs |
-| Validate → Forward Email and/or enqueue `notifications.send` | Write product Azure SQL / CRM Contact pillar tables from the edge |
+| Validate → Forward Email via `@poc-plattform-kit/email` (and/or enqueue `notifications.send` later) | Depend on Nest or the Notifications pillar runtime; write product Azure SQL / CRM Contact pillar tables from the edge |
 | Load secrets from Key Vault via App Config + managed identity | Bake provider keys into SWA or GitHub Secrets |
 | Expose a stable `PUBLIC_MARKETING_API_BASE_URL` to Astro | Point marketing forms at Nest `PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` |
 
 Decap GitHub OAuth routes already live on this Function App; Contact and OAuth share a **host**, not a domain model. Prefer clear route prefixes (e.g. `/contact` vs `/auth`, `/callback`).
+
+Marketing-oauth depends on **`@poc-plattform-kit/email`** (workspace library). It does **not** depend on `@poc-plattform-kit/pillar-notifications`. Function zip deploy vendors the built email package (see `scripts/deploy-decap-oauth.ps1`). App Config keys may still use the `app:notifications:*` prefix — those are shared email runtime settings, not a Nest coupling.
 
 ## Env (marketing SWA build)
 
