@@ -9,8 +9,8 @@ import {
 
 type Envelope<T> = { data: T; status: number };
 
-function unwrapData<T>(response: Envelope<T> | T): T {
-  if (response && typeof response === 'object' && 'data' in response && 'status' in response) {
+function unwrapData<T>(response: unknown): T {
+  if (response && typeof response === 'object' && 'data' in response) {
     return (response as Envelope<T>).data;
   }
   return response as T;
@@ -22,7 +22,7 @@ export async function checkPermission(input: {
   resource: string;
 }): Promise<CheckPermissionResponseDto> {
   const response = await permissionsControllerCheck(input);
-  return unwrapData(response);
+  return unwrapData<CheckPermissionResponseDto>(response);
 }
 
 export async function listMyAccessRequests(params: {
@@ -30,7 +30,7 @@ export async function listMyAccessRequests(params: {
   resource?: string;
 }): Promise<AccessRequestResponseDto[]> {
   const response = await accessRequestControllerListMine(params);
-  const body = unwrapData(response) as { items?: AccessRequestResponseDto[] };
+  const body = unwrapData<{ items?: AccessRequestResponseDto[] }>(response);
   return body.items ?? [];
 }
 
@@ -38,5 +38,5 @@ export async function createAccessRequest(
   body: CreateAccessRequestDto,
 ): Promise<AccessRequestResponseDto> {
   const response = await accessRequestControllerCreate(body);
-  return unwrapData(response);
+  return unwrapData<AccessRequestResponseDto>(response);
 }
