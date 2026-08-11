@@ -135,6 +135,7 @@ export class AccessRequestService {
 
     const existingPending = await this.prisma.accessRequest.findFirst({
       where: {
+        tenantId,
         requesterId: actor.id,
         action: dto.action,
         resource: dto.resource,

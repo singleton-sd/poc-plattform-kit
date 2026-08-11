@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CreateAccessRequestDto } from '@poc-plattform-kit/api-client';
 import { requestAccessErrorMessage, useRequestAccess } from './use-permission';
 
@@ -31,7 +31,16 @@ export function RequestAccessDialog({
   const [grantType, setGrantType] = useState<(typeof GRANT_TYPES)[number]['value']>('permanent');
   const [expiresAt, setExpiresAt] = useState('');
 
+  useEffect(() => {
+    if (!open) request.reset();
+  }, [open, request.reset]);
+
   if (!open) return null;
+
+  const close = () => {
+    request.reset();
+    onClose();
+  };
 
   const submit = () => {
     const body: CreateAccessRequestDto = {
@@ -45,6 +54,7 @@ export function RequestAccessDialog({
     };
     request.mutate(body, {
       onSuccess: () => {
+        request.reset();
         onSubmitted?.();
         onClose();
       },
@@ -106,7 +116,7 @@ export function RequestAccessDialog({
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="rounded border border-fg-subtle px-3 py-2 text-sm text-fg"
           >
             Cancel

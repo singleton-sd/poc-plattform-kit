@@ -153,6 +153,32 @@ describe('AccessRequestService', () => {
 
     expect(result.id).toBe('ar1');
     expect(prisma.accessRequest.create).not.toHaveBeenCalled();
+    expect(prisma.accessRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 't1',
+          requesterId: 'user-req',
+          action: 'update',
+          resource: 'tenant:t1',
+          status: 'pending',
+        }),
+      }),
+    );
+  });
+
+  it('does not reuse a pending request from a different tenant', async () => {
+    prisma.tenantMembership.findFirst.mockResolvedValue({ id: 'm1' });
+    prisma.accessRequest.findFirst.mockResolvedValue(null);
+    prisma.accessRequest.create.mockResolvedValue({ ...pendingRow, tenantId: 't2', id: 'ar2' });
+
+    await service.create({ action: 'update', resource: 'tenant:t1', tenantId: 't2' }, requester);
+
+    expect(prisma.accessRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 't2' }),
+      }),
+    );
+    expect(prisma.accessRequest.create).toHaveBeenCalled();
   });
 
   it('lists the caller access requests filtered by action and resource', async () => {

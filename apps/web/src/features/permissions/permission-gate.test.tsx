@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { formatApiError, unwrapData } from './api';
 import { PermissionGate } from './permission-gate';
@@ -92,8 +92,33 @@ describe('PermissionGate', () => {
     );
 
     await waitFor(() => expect(screen.getByTestId('permission-gate-denied')).toBeInTheDocument());
-    expect(screen.getByTestId('permission-gate-disabled')).toBeDisabled();
+    expect(screen.getByTestId('permission-gate-disabled')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByTestId('permission-gate-disabled')).not.toBeDisabled();
     expect(screen.getByTestId('permission-gate-request-cta')).toBeInTheDocument();
+  });
+
+  it('keeps the checking state until mine requests finish after a deny', async () => {
+    checkPermission.mockResolvedValue({ allowed: false });
+    let resolveMine: (value: unknown[]) => void = () => undefined;
+    listMyAccessRequests.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveMine = resolve;
+        }),
+    );
+    wrap(
+      <PermissionGate action="update" resource="tenant:t1">
+        <button type="button">Save Changes</button>
+      </PermissionGate>,
+    );
+
+    await waitFor(() => expect(listMyAccessRequests).toHaveBeenCalled());
+    expect(screen.getByTestId('permission-gate-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('permission-gate-request-cta')).not.toBeInTheDocument();
+    await act(async () => {
+      resolveMine([]);
+    });
+    await waitFor(() => expect(screen.getByTestId('permission-gate-denied')).toBeInTheDocument());
   });
 
   it('shows pending status and hides CTA when a pending request exists', async () => {
@@ -198,5 +223,9 @@ describe('PermissionGate', () => {
         'preferredGrantExpiresAt is required',
       ),
     );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByTestId('permission-gate-request-cta'));
+    expect(screen.queryByTestId('request-access-error')).not.toBeInTheDocument();
   });
 });

@@ -64,10 +64,10 @@ export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDeta
               deniedControl={
                 <button
                   type="button"
-                  disabled
                   className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on opacity-50"
                   data-testid="tenant-update-submit"
                   aria-disabled="true"
+                  onClick={(event) => event.preventDefault()}
                 >
                   Save Changes
                 </button>

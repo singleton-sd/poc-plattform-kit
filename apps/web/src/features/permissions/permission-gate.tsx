@@ -75,11 +75,11 @@ export function PermissionGate({
           {deniedControl ?? (
             <button
               type="button"
-              disabled
               className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on opacity-50"
               data-testid="permission-gate-disabled"
               aria-disabled="true"
               title={TOOLTIP}
+              onClick={(event) => event.preventDefault()}
             >
               Save Changes
             </button>

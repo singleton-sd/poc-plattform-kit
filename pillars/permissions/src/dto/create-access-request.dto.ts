@@ -8,9 +8,8 @@ import {
   Matches,
   ValidateIf,
 } from 'class-validator';
+import { OPEN_FGA_OBJECT } from '../open-fga-object';
 import { PermissionGrantType } from './grant-permission.dto';
-
-const OPEN_FGA_OBJECT = /^[^:\s]+:[^\s:][^\s]*$/;
 
 export class CreateAccessRequestDto {
   @ApiProperty({ example: 'update', description: 'Denied OpenFGA action / relation.' })

@@ -48,7 +48,10 @@ export function usePermission({ action, resource, enabled = true }: UsePermissio
 
   return {
     subject,
-    isLoading: me.isLoading || (ready && checkQuery.isLoading),
+    isLoading:
+      me.isLoading ||
+      (ready && checkQuery.isLoading) ||
+      (checkQuery.data?.allowed === false && mineQuery.isLoading),
     isError: checkQuery.isError,
     errorMessage: checkQuery.isError
       ? formatApiError(checkQuery.error, 'Could not verify permission. Try again.')
