@@ -8,10 +8,24 @@ import { pathToFileURL } from 'node:url';
 export const BRIEF_MARKER = '<!-- pr-review-brief -->';
 
 const requiredCi = new Set(['Lint / test / build (api)', 'Lint / format / build (web)']);
-const previewMarkers = ['<!-- swa-preview-web -->', '<!-- api-preview-aca -->', '<!-- swa-preview-marketing -->'];
+const previewMarkers = [
+  '<!-- swa-preview-web -->',
+  '<!-- api-preview-aca -->',
+  '<!-- swa-preview-marketing -->',
+];
 
-export function nextAction({ mergeable, mergeStateStatus, labels = [], requiredCiState, unresolvedThreads }) {
-  if (mergeable !== 'MERGEABLE' || mergeStateStatus === 'DIRTY' || labels.includes('needs-rebase')) {
+export function nextAction({
+  mergeable,
+  mergeStateStatus,
+  labels = [],
+  requiredCiState,
+  unresolvedThreads,
+}) {
+  if (
+    mergeable !== 'MERGEABLE' ||
+    mergeStateStatus === 'DIRTY' ||
+    labels.includes('needs-rebase')
+  ) {
     return 'waiting on merge conflicts';
   }
   if (labels.includes('ci-failed') || requiredCiState === 'red') return 'waiting on CI';
@@ -129,7 +143,14 @@ function loadSnapshot(pr) {
     const match = comment.body.match(/https?:\/\/\S+/);
     if (match) previewUrls.push(match[0].replace(/[).,]+$/, ''));
   }
-  const repository = gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']).trim();
+  const repository = gh([
+    'repo',
+    'view',
+    '--json',
+    'nameWithOwner',
+    '--jq',
+    '.nameWithOwner',
+  ]).trim();
   const [owner, name] = repository.split('/');
   const gql = JSON.parse(
     gh([
@@ -186,7 +207,14 @@ export function upsertBriefComment(pr, body) {
   if (existing) {
     const payload = join(dir, 'body.json');
     writeFileSync(payload, JSON.stringify({ body }));
-    gh(['api', `repos/{owner}/{repo}/issues/comments/${existing.id}`, '-X', 'PATCH', '--input', payload]);
+    gh([
+      'api',
+      `repos/{owner}/{repo}/issues/comments/${existing.id}`,
+      '-X',
+      'PATCH',
+      '--input',
+      payload,
+    ]);
     return 'updated';
   }
   const markdown = join(dir, 'brief.md');

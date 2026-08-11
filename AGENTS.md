@@ -83,7 +83,7 @@ After push / PR open:
 3. If dirty: follow **Shared hub files / conflict playbook** below (`git merge origin/main` then `pnpm resolve:conflicts`), push, re-check CI.
 4. Upsert the Human Review Brief (`node scripts/upsert-pr-review-brief.mjs --pr <n>`). Do not post hygiene/status comments.
 5. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`. Raw `status` transitions are forbidden for PR-backed work. The CLI gate requires required CI, mergeability, and no unresolved review threads, then upserts the brief and sets Preview URL.
-5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop - do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
+6. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop - do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
 
 #### Automated review and human validation
 

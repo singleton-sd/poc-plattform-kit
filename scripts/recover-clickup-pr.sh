@@ -5,6 +5,7 @@ CLICKUP_LIST_ID="${CLICKUP_LIST_ID:-901616287298}"
 CLICKUP_TEAM_ID="${CLICKUP_TEAM_ID:-90161394355}"
 CLICKUP_API_URL="${CLICKUP_API_URL:-https://api.clickup.com/api/v2}"
 CLAIM_FIELD_ID='50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7'
+CURL_BIN="${CURL_BIN:-curl}"
 PR_NUMBER="${PR_NUMBER:-}"
 
 [[ -n "${CLICKUP_API_TOKEN:-}" ]] || { echo 'CLICKUP_API_TOKEN is required' >&2; exit 1; }
@@ -47,7 +48,7 @@ request() {
   local method="$1" path="$2" data="${3:-}"
   local args=(-fsS -X "$method" -H "Authorization: $CLICKUP_API_TOKEN" -H 'Content-Type: application/json')
   [[ -z "$data" ]] || args+=(-d "$data")
-  curl "${args[@]}" "$CLICKUP_API_URL$path"
+  "$CURL_BIN" "${args[@]}" "$CLICKUP_API_URL$path"
 }
 
 task="$(request GET "$task_path")"

@@ -19,8 +19,9 @@ export function expectedChecks(paths) {
   );
   const apiCi = paths.some((path) => /^(apps\/api|pillars|packages)\//.test(path));
   const webCi =
-    paths.some((path) => /^(apps\/web|apps\/marketing|apps\/marketing-oauth|packages)\//.test(path)) ||
-    rootCi;
+    paths.some((path) =>
+      /^(apps\/web|apps\/marketing|apps\/marketing-oauth|packages)\//.test(path),
+    ) || rootCi;
   if (apiCi || rootCi) checks.add('Lint / test / build (api)');
   if (webCi) checks.add('Lint / format / build (web)');
   return [...checks];
@@ -52,8 +53,7 @@ export function evaluateSnapshot(snapshot, nowMs, quietMs) {
     return check && check.status !== 'COMPLETED';
   });
   const failed = checks.filter(
-    (check) =>
-      snapshot.expected.includes(check.name) && blockingConclusions.has(check.conclusion),
+    (check) => snapshot.expected.includes(check.name) && blockingConclusions.has(check.conclusion),
   );
   const incomplete = checks.filter(
     (check) =>

@@ -53,10 +53,7 @@ assert.match(
   evaluateSnapshot({ ...base, labels: ['has-feedback'] }, now, 90_000).blockers.join(' '),
   /blocking labels/,
 );
-assert.equal(
-  evaluateSnapshot({ ...base, labels: ['preview-blocked'] }, now, 0).ready,
-  true,
-);
+assert.equal(evaluateSnapshot({ ...base, labels: ['preview-blocked'] }, now, 0).ready, true);
 assert.equal(
   evaluateSnapshot(
     {

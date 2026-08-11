@@ -48,7 +48,9 @@ const body = formatBrief({
   prUrl: 'https://github.com/singleton-sd/poc-plattform-kit/pull/999',
   summary: '- Stop hygiene comments\n- Keep labels',
   localCommands: ['node scripts/pr-handoff-gate.test.mjs'],
-  checks: [{ name: 'Lint / format / build (web)', conclusion: 'SUCCESS', link: 'https://example/ci' }],
+  checks: [
+    { name: 'Lint / format / build (web)', conclusion: 'SUCCESS', link: 'https://example/ci' },
+  ],
   previewUrls: ['https://example.preview'],
   threads: [{ author: 'Copilot', path: 'scripts/foo.mjs', excerpt: 'Use a factory' }],
   labels: ['preview-blocked'],
