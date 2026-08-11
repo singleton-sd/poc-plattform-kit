@@ -8,7 +8,8 @@ import {
   worktreePath,
 } from './worktree-paths.mjs';
 
-const repoRoot = path.join('C:', '00Personal', 'singleton-sd', 'plattform-kit', 'repo');
+const repoRoot = path.resolve('fixture-ws', 'repo');
+const workspaceRoot = path.resolve('fixture-ws');
 
 assert.equal(folderName('86d3zc5af', 'permission-gating'), '86d3zc5af-permission-gating');
 assert.equal(
@@ -20,23 +21,13 @@ assert.equal(
   'hotfix/86d3zc5af-permission-gating',
 );
 
-assert.equal(mainRepoFromGitCommonDir(path.join(repoRoot, '.git')), path.resolve(repoRoot));
+assert.equal(mainRepoFromGitCommonDir(path.join(repoRoot, '.git')), repoRoot);
 assert.throws(() => mainRepoFromGitCommonDir(repoRoot), /\.git/);
 
-assert.equal(
-  workspaceRootFromRepo(repoRoot),
-  path.join('C:', '00Personal', 'singleton-sd', 'plattform-kit'),
-);
+assert.equal(workspaceRootFromRepo(repoRoot), workspaceRoot);
 assert.equal(
   worktreePath({ repoRoot, taskId: '86d3zc5af', slug: 'permission-gating' }),
-  path.join(
-    'C:',
-    '00Personal',
-    'singleton-sd',
-    'plattform-kit',
-    'worktrees',
-    '86d3zc5af-permission-gating',
-  ),
+  path.join(workspaceRoot, 'worktrees', '86d3zc5af-permission-gating'),
 );
 
 assert.throws(() => branchName({ taskId: 'SSDOP-42', slug: 'dark-mode' }), /ClickUp/i);
