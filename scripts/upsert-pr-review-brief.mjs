@@ -110,7 +110,25 @@ function summaryFromBody(body) {
   return excerpt.split('\n').slice(0, 8).join('\n');
 }
 
-function loadSnapshot(pr) {
+export function previewUrlsFromComments(comments = []) {
+  const previewUrls = [];
+  for (const comment of comments) {
+    if (!previewMarkers.some((marker) => comment.body?.includes(marker))) continue;
+    const match = comment.body.match(/https?:\/\/\S+/);
+    if (match) previewUrls.push(match[0].replace(/[).,]+$/, ''));
+  }
+  return [...new Set(previewUrls)];
+}
+
+export function findBriefComment(comments = []) {
+  return comments.find((comment) => comment.body?.includes(BRIEF_MARKER));
+}
+
+function loadIssueComments(pr) {
+  return JSON.parse(gh(['api', `repos/{owner}/{repo}/issues/${pr}/comments`, '--paginate']));
+}
+
+function loadSnapshot(pr, comments) {
   const view = JSON.parse(
     gh([
       'pr',
@@ -134,15 +152,7 @@ function loadSnapshot(pr) {
   const requiredPending = checks.some(
     (check) => requiredCi.has(check.name) && check.status && check.status !== 'COMPLETED',
   );
-  const comments = JSON.parse(
-    gh(['api', `repos/{owner}/{repo}/issues/${pr}/comments`, '--paginate']),
-  );
-  const previewUrls = [];
-  for (const comment of comments) {
-    if (!previewMarkers.some((marker) => comment.body?.includes(marker))) continue;
-    const match = comment.body.match(/https?:\/\/\S+/);
-    if (match) previewUrls.push(match[0].replace(/[).,]+$/, ''));
-  }
+  const previewUrls = previewUrlsFromComments(comments);
   const repository = gh([
     'repo',
     'view',
@@ -198,11 +208,8 @@ function loadSnapshot(pr) {
   };
 }
 
-export function upsertBriefComment(pr, body) {
-  const comments = JSON.parse(
-    gh(['api', `repos/{owner}/{repo}/issues/${pr}/comments`, '--paginate']),
-  );
-  const existing = comments.find((comment) => comment.body?.includes(BRIEF_MARKER));
+export function upsertBriefComment(pr, body, comments) {
+  const existing = findBriefComment(comments);
   const dir = mkdtempSync(join(tmpdir(), 'pr-brief-'));
   if (existing) {
     const payload = join(dir, 'body.json');
@@ -224,9 +231,10 @@ export function upsertBriefComment(pr, body) {
 }
 
 export function runBrief(pr) {
-  const snapshot = loadSnapshot(pr);
+  const comments = loadIssueComments(pr);
+  const snapshot = loadSnapshot(pr, comments);
   const body = formatBrief(snapshot);
-  const action = upsertBriefComment(pr, body);
+  const action = upsertBriefComment(pr, body, comments);
   process.stdout.write(`Human Review Brief ${action} on PR #${pr}\n`);
 }
 

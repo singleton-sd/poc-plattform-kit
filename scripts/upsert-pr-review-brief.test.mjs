@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { BRIEF_MARKER, formatBrief, nextAction } from './upsert-pr-review-brief.mjs';
+import {
+  BRIEF_MARKER,
+  findBriefComment,
+  formatBrief,
+  nextAction,
+  previewUrlsFromComments,
+} from './upsert-pr-review-brief.mjs';
 
 assert.equal(
   nextAction({
@@ -78,5 +84,12 @@ const again = formatBrief({
   nextAction: 'waiting on CI',
 });
 assert.equal((again.match(new RegExp(BRIEF_MARKER, 'g')) ?? []).length, 1);
+
+const comments = [
+  { id: 1, body: '<!-- swa-preview-web --> https://preview.example/' },
+  { id: 2, body: `${BRIEF_MARKER}\n## Human Review Brief` },
+];
+assert.deepEqual(previewUrlsFromComments(comments), ['https://preview.example/']);
+assert.equal(findBriefComment(comments)?.id, 2);
 
 console.log('upsert-pr-review-brief tests passed');

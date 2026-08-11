@@ -65,11 +65,12 @@ export function evaluateSnapshot(snapshot, nowMs, quietMs) {
   if (snapshot.mergeable !== 'MERGEABLE' || snapshot.mergeStateStatus === 'DIRTY') {
     blockers.push(`mergeability is ${snapshot.mergeable}/${snapshot.mergeStateStatus}`);
   }
-  if (
-    snapshot.labels.some((label) => ['ci-failed', 'has-feedback', 'needs-rebase'].includes(label))
-    // preview-blocked is infra-only and must not fail ClickUp handoff.
-  ) {
-    blockers.push(`blocking labels: ${snapshot.labels.join(', ')}`);
+  const blockingLabels = snapshot.labels.filter((label) =>
+    ['ci-failed', 'has-feedback', 'needs-rebase'].includes(label),
+  );
+  // preview-blocked is infra-only and must not fail ClickUp handoff.
+  if (blockingLabels.length) {
+    blockers.push(`blocking labels: ${blockingLabels.join(', ')}`);
   }
   if (snapshot.unresolvedThreads > 0)
     blockers.push(`${snapshot.unresolvedThreads} unresolved review thread(s)`);
