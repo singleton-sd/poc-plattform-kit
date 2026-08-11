@@ -35,7 +35,7 @@ Prefer:
 - existing abstractions over new ones
 - strongly typed contracts
 - automated configuration
-- deterministic behaviour
+- deterministic behavior
 - reusable platform capabilities
 
 Avoid speculative refactoring.
