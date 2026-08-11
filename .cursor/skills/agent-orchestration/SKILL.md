@@ -17,7 +17,7 @@ This skill coordinates work. It does not replace `task-driven-development`; each
 - Maximise safe parallelism.
 - Keep every agent isolated in its own git worktree and branch.
 - Keep feature branches current with `origin/main`.
-- Prevent agents from building on unmerged feature branches unless a ticket explicitly requires that dependency.
+- Prevent agents from building on unmerged feature branches; wait for prerequisites to merge to `main` before starting dependent tickets.
 - Start dependent work from the merged result on `main`, not from another agent's branch.
 - Keep CI and mergeability authoritative before handoff.
 - Remove stale worktrees after work is merged or abandoned.
@@ -31,11 +31,11 @@ Every implementing agent must follow this baseline:
 3. Create the agent branch and worktree from current `origin/main`.
 4. Do not incorporate another agent's branch unless the ticket explicitly declares that dependency and the orchestrator has approved the exception.
 5. Before pushing a completed implementation or updating a PR:
-   - `git fetch origin`
-   - `git rebase origin/main`
-   - resolve conflicts
+   - `git fetch origin main`
+   - Refresh your branch from `origin/main` following `AGENTS.md` (prefer `git merge origin/main` when the repo conflict playbook applies; rebase only when appropriate)
+   - resolve conflicts using the repository conflict playbook
    - run the full relevant test suite
-6. After a successful rebase of a previously-pushed branch, push with `git push --force-with-lease`.
+6. If you refreshed via rebase on a previously-pushed branch, push with `git push --force-with-lease`.
 7. Open or update the PR and wait for required CI.
 8. If `origin/main` changes while CI is running and branch protection or mergeability requires freshness, rebase again, rerun relevant tests, push with `--force-with-lease`, and rerun CI.
 
