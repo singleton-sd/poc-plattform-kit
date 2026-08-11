@@ -1,4 +1,4 @@
-﻿param(
+param(
   [switch]$QuickCheck
 )
 
@@ -45,6 +45,11 @@ try {
   $pnpmVersion = (& pnpm --version).Trim()
   Write-Host "Node: $nodeVersion"
   Write-Host "pnpm: $pnpmVersion"
+
+  $nodeMajor = [int](($nodeVersion -replace '^v', '') -split '\.')[0]
+  if ($nodeMajor -lt 20) {
+    throw "Node.js 20+ is required. Found $nodeVersion."
+  }
 
   Write-Step "Installing workspace dependencies"
   & pnpm install --frozen-lockfile
