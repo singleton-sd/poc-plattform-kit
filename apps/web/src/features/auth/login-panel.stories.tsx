@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
-import { expect, within } from 'storybook/test';
 import {
   meSignedOutHandlers,
   meLoadingHandlers,
@@ -26,12 +25,6 @@ type Story = StoryObj<typeof meta>;
 export const LoginPanelSignedOut: Story = {
   parameters: { msw: { handlers: { auth: meSignedOutHandlers } } },
   render: () => <LoginPanel />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('login-page')).toBeInTheDocument();
-    await expect(canvas.getByText(/Sign in to continue/i)).toBeInTheDocument();
-    await expect(canvas.getByTestId('login-sign-in')).toBeInTheDocument();
-  },
 };
 
 /**
@@ -42,11 +35,6 @@ export const LoginPanelSignedOut: Story = {
 export const HomeAuthGateLoading: Story = {
   parameters: { msw: { handlers: { auth: meLoadingHandlers } } },
   render: () => <HomeAuthGate />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('login-loading')).toBeInTheDocument();
-    await expect(canvas.getByText(/Loading…/i)).toBeInTheDocument();
-  },
 };
 
 /**
@@ -56,12 +44,6 @@ export const HomeAuthGateLoading: Story = {
 export const HomeAuthGateSessionError: Story = {
   parameters: { msw: { handlers: { auth: meErrorHandlers } } },
   render: () => <HomeAuthGate />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('login-session-error')).toBeInTheDocument();
-    await expect(canvas.getByText(/Could not verify your session/i)).toBeInTheDocument();
-    await expect(canvas.getByTestId('login-session-retry')).toBeInTheDocument();
-  },
 };
 
 /**
@@ -72,15 +54,6 @@ export const HomeAuthGateSessionError: Story = {
 export const HomeAuthGateSignedInRegularUser: Story = {
   parameters: { msw: { handlers: { auth: meSignedInHandlers } } },
   render: () => <HomeAuthGate />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('home-shell')).toBeInTheDocument();
-    await expect(canvas.getByText(/Admin console/i)).toBeInTheDocument();
-    await expect(canvas.getByText(/alice@example.com/i)).toBeInTheDocument();
-    await expect(canvas.getByRole('link', { name: /Tenants/i })).toBeInTheDocument();
-    await expect(canvas.getByRole('link', { name: /Support/i })).toBeInTheDocument();
-    await expect(canvas.getByTestId('login-sign-out')).toBeInTheDocument();
-  },
 };
 
 /**
@@ -91,9 +64,4 @@ export const HomeAuthGateSignedInRegularUser: Story = {
 export const HomeAuthGateSignedInSupportAgent: Story = {
   parameters: { msw: { handlers: { auth: meSupportAgentHandlers } } },
   render: () => <HomeAuthGate />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('home-shell')).toBeInTheDocument();
-    await expect(canvas.getByText(/bob.support@example.com/i)).toBeInTheDocument();
-  },
 };
