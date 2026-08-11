@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthenticationGuard } from './authentication-guard';
 import { useMe } from './me';
 
@@ -8,10 +9,23 @@ jest.mock('./me', () => ({
 
 const mockUseMe = useMe as jest.Mock;
 
+const renderWithQueryClient = (component: React.ReactNode) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
+};
+
 describe('AuthenticationGuard', () => {
   it('shows loading when session is loading', () => {
-    mockUseMe.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-    render(
+    mockUseMe.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    });
+    renderWithQueryClient(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,
@@ -21,8 +35,13 @@ describe('AuthenticationGuard', () => {
 
   it('shows error and retry when session check errors', () => {
     const refetch = jest.fn();
-    mockUseMe.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch });
-    render(
+    mockUseMe.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+    renderWithQueryClient(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,
@@ -33,8 +52,12 @@ describe('AuthenticationGuard', () => {
   });
 
   it('shows LoginPanel when signed out (me null)', () => {
-    mockUseMe.mockReturnValue({ data: null, isLoading: false, isError: false });
-    render(
+    mockUseMe.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+    });
+    renderWithQueryClient(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,
@@ -49,7 +72,7 @@ describe('AuthenticationGuard', () => {
       isLoading: false,
       isError: false,
     });
-    render(
+    renderWithQueryClient(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,
