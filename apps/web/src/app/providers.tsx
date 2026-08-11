@@ -22,13 +22,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
         // Finish Entra redirect before /api/me so the Bearer token is available.
         if (resolveAuthMode() === 'bearer') {
           await completeBearerRedirect();
-          // If the app captured a return target before the redirect, restore it now.
-          const returnTo = getAndClearReturnUrl();
-          if (returnTo) {
-            // router.replace is safe here because Providers is a client component.
-            router.replace(returnTo);
-          }
-        }
+                }
+
+                // Regardless of auth mode, if a return target was captured before redirect,
+                // consume it exactly once and navigate there. This covers both MSAL
+                // redirect flows and Auth.js cookie-form callbacks that return to the SPA.
+                const returnTo = getAndClearReturnUrl();
+                if (returnTo) {
+                  // router.replace is safe here because Providers is a client component.
+                  router.replace(returnTo);
+                }
       } catch {
         // Leave signed-out; sign-in CTA remains available.
       } finally {
