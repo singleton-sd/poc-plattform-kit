@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -19,19 +19,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     void (async () => {
       try {
-        // Finish Entra redirect before /api/me so the Bearer token is available.
+        // Finish Entra redirect before /api/me so the MSAL token is available.
         if (resolveAuthMode() === 'bearer') {
           await completeBearerRedirect();
-                }
+        }
 
-                // Regardless of auth mode, if a return target was captured before redirect,
-                // consume it exactly once and navigate there. This covers both MSAL
-                // redirect flows and Auth.js cookie-form callbacks that return to the SPA.
-                const returnTo = getAndClearReturnUrl();
-                if (returnTo) {
-                  // router.replace is safe here because Providers is a client component.
-                  router.replace(returnTo);
-                }
+        // If a return target was captured before redirect, consume it exactly once
+        // and navigate there. This covers both MSAL redirect flows and Auth.js
+        // cookie-form callbacks that return to the SPA.
+        const returnTo = getAndClearReturnUrl();
+        if (returnTo) {
+          // router.replace is safe here because Providers is a client component.
+          router.replace(returnTo);
+        }
       } catch {
         // Leave signed-out; sign-in CTA remains available.
       } finally {
