@@ -1,25 +1,13 @@
 import { captureReturnUrl, getAndClearReturnUrl, sanitizeReturnUrl } from './auth-return-url';
 
 describe('auth-return-url utilities', () => {
-  const realLocation = global.location;
-
   beforeEach(() => {
-    // mock location origin/path
-    // @ts-ignore
-    delete (global as any).location;
-    // @ts-ignore
-    global.location = {
-      origin: 'https://app.test',
-      pathname: '/current',
-      search: '?a=1',
-      hash: '#x',
-    } as any;
+    // Use the history API to set pathname/search/hash in jsdom without redefining window.location.
+    window.history.replaceState({}, '', '/current?a=1#x');
     sessionStorage.clear();
   });
 
   afterEach(() => {
-    // @ts-ignore
-    global.location = realLocation;
     sessionStorage.clear();
   });
 
