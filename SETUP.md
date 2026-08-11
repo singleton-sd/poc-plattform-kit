@@ -39,11 +39,15 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 
 ## 2. ClickUp (workspace `90161394355`) - locked locations
 
-- **Tickets list (only):** https://app.clickup.com/90161394355/v/li/901616287298 (`901616287298`) in space PoC
+- Existing workflow lists only (space PoC, folder Plattform Kit — do **not** create a new space/list):
+  - **Delivery** (implementation / AI loop): https://app.clickup.com/90161394355/v/li/901616287298 (`901616287298`)
+  - **Ideas & Discovery** (unresolved ideas, briefs, spikes): https://app.clickup.com/90161394355/v/li/901616397764 (`901616397764`)
+  - **Human & Operations** (real manual actions): https://app.clickup.com/90161394355/v/li/901616397767 (`901616397767`)
+- `scripts/clickup.ps1` / `scripts/clickup.sh` default to Delivery. Use `-ListId` / `--list-id` (or `CLICKUP_LIST_ID`) for the other two.
 - **Architecture Doc:** https://app.clickup.com/90161394355/docs/2kz0kcnk-1416
 - **Decisions / Docs folder:** https://app.clickup.com/90161394355/v/f/901610744236/90165834867 (`folder_id=901610744236`)
-- Do not create a new Platform Kit space/list
-- Statuses already on the list: **TO DO**, **IN PROGRESS**, **READY FOR AI**, **READY FOR REVIEW**, **READY FOR HUMAN**, **COMPLETE**
+- Delivery statuses: **BACKLOG**, **TO DO**, **IN PROGRESS**, **READY FOR AI**, **READY FOR REVIEW**, **READY FOR HUMAN**, **COMPLETE**
+- Ideas & Discovery / Human & Operations statuses: **TO DO**, **IN PROGRESS**, **COMPLETE** only (no Claim Token / AI loop)
 - Ticket template includes `[repo=singleton-sd/poc-plattform-kit]`, acceptance criteria, tests
 - [ ] Connect ClickUp -> Cursor (App Center + Cursor API key); default repo = this GitHub repo
 

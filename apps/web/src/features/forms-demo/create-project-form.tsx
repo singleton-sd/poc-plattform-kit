@@ -7,7 +7,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { createProjectJsonSchema, createProjectSchema, type CreateProjectInput } from './schemas';
 import { createProjectUiSchema } from './uischema';
 
-const initialData: CreateProjectInput = {
+export const emptyCreateProjectData: CreateProjectInput = {
   name: '',
   category: 'Internal',
   active: true,
@@ -15,12 +15,30 @@ const initialData: CreateProjectInput = {
   tags: [''],
 };
 
+/** Fixed calendar value keeps Storybook / Chromatic output deterministic. */
+export const populatedCreateProjectData: CreateProjectInput = {
+  name: 'Platform Kit Demo',
+  category: 'Customer',
+  active: true,
+  launchDate: '2026-03-01',
+  tags: ['storybook', 'baseline'],
+};
+
 async function createDemoProject(project: CreateProjectInput) {
   await Promise.resolve();
   return project;
 }
 
-export function CreateProjectForm() {
+export type CreateProjectFormProps = {
+  initialData?: CreateProjectInput;
+  /** Disables JSON Forms controls for read-only review states. */
+  readOnly?: boolean;
+};
+
+export function CreateProjectForm({
+  initialData = emptyCreateProjectData,
+  readOnly = false,
+}: CreateProjectFormProps) {
   const [data, setData] = useState<Record<string, unknown>>(initialData);
   const [validationError, setValidationError] = useState<string | null>(null);
   const schema = useMemo(() => createProjectJsonSchema, []);
@@ -28,6 +46,7 @@ export function CreateProjectForm() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly) return;
     mutation.reset();
     const parsed = createProjectSchema.safeParse(data);
     if (!parsed.success) {
@@ -40,32 +59,39 @@ export function CreateProjectForm() {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit} data-testid="create-project-form">
       <JsonForms
         schema={schema}
         uischema={createProjectUiSchema}
         data={data}
         renderers={tokenRenderers}
         cells={tokenCells}
+        readonly={readOnly}
         onChange={({ data: next }) => {
-          mutation.reset();
+          if (readOnly) return;
+          // JsonForms also emits onChange after our own setState. Ignore
+          // no-op echoes so submit-time validation (and mutation success)
+          // are not cleared on the same click that produced them.
+          if (JSON.stringify(next) === JSON.stringify(data)) return;
+          if (validationError) setValidationError(null);
           setData(next as Record<string, unknown>);
         }}
       />
       <button
         type="submit"
         className="rounded bg-accent px-4 py-2 font-medium text-accent-on disabled:opacity-50"
-        disabled={mutation.isPending}
+        disabled={mutation.isPending || readOnly}
+        data-testid="create-project-submit"
       >
         {mutation.isPending ? 'Creating…' : 'Create demo project'}
       </button>
       {validationError ? (
-        <p className="text-sm text-fg" role="alert">
+        <p className="text-sm text-fg" role="alert" data-testid="create-project-validation-error">
           {validationError}
         </p>
       ) : null}
       {mutation.isSuccess ? (
-        <p className="text-sm text-fg" role="status">
+        <p className="text-sm text-fg" role="status" data-testid="create-project-success">
           Demo project created. No data was sent to the API.
         </p>
       ) : null}
