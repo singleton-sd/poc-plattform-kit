@@ -13,6 +13,11 @@ on:
       - 'scripts/client-changelog.test.mjs'
       - 'scripts/backfill-client-changelogs.mjs'
       - 'scripts/backfill-client-changelogs.test.mjs'
+      - 'scripts/check-permissions-catalog.mjs'
+      - 'scripts/check-permissions-catalog.test.mjs'
+      - 'scripts/register-permission.mjs'
+      - 'infra/openfga/**'
+      - 'docs/permissions.md'
       - '.github/workflows/ci-api.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -32,6 +37,11 @@ on:
       - 'scripts/client-changelog.test.mjs'
       - 'scripts/backfill-client-changelogs.mjs'
       - 'scripts/backfill-client-changelogs.test.mjs'
+      - 'scripts/check-permissions-catalog.mjs'
+      - 'scripts/check-permissions-catalog.test.mjs'
+      - 'scripts/register-permission.mjs'
+      - 'infra/openfga/**'
+      - 'docs/permissions.md'
       - '.github/workflows/ci-api.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -71,6 +81,9 @@ jobs:
 
       - name: Changelog projection drift check
         run: pnpm changelog:test && pnpm changelog:check
+
+      - name: Permissions catalog drift check
+        run: pnpm permissions:check
 
       - name: Prettier check
         run: pnpm format:check

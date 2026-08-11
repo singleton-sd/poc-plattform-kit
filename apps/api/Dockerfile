@@ -1,11 +1,25 @@
-# Nest API image for Azure Container Apps (Consumption).
+# Nest API image for Azure Container Apps (Consumption) — PREVIEW ONLY.
 # Exposes PORT (default 3001). Build from repo root:
-#   docker build -f apps/api/Dockerfile -t api-preview .
+#   docker build -f apps/api/Dockerfile -t api-preview \
+#     --build-arg PREVIEW_SEED_SCENARIOS=demo .
 #
-# Runtime packaging mirrors scripts/stage-api-deploy.sh:
+# Production/App Service deploys use scripts/stage-api-deploy.sh (zip
+# deploy), never this Dockerfile, and always generate the canonical SQL
+# Server Prisma client from prisma/schema.prisma unchanged.
+#
+# This image instead derives a SQLite-compatible preview schema at build
+# time (scripts/generate-preview-schema.mjs), generates a SQLite Prisma
+# client from it, seeds the named PREVIEW_SEED_SCENARIOS (build-time
+# seeding for deterministic cold starts — see scripts/seed.mjs), and
+# materialises the result as an immutable SQLite database template baked
+# into the image. docker-entrypoint.sh copies that template to a writable
+# runtime path on every container start, so a preview always resets to the
+# same deterministic seeded state and never resolves or mutates the shared
+# Azure SQL database — see AGENTS.md and docs/preview-scenarios.md.
+#
+# Runtime packaging otherwise mirrors scripts/stage-api-deploy.sh:
 #   - hoisted pnpm deploy --prod
 #   - copy flat dist/main.js (tsconfig.build.json rootDir + cleared paths)
-#   - prisma generate into /out with pinned generator output
 
 FROM node:20-alpine AS base
 RUN apk add --no-cache openssl \
@@ -22,7 +36,23 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY apps/api ./apps/api
 RUN pnpm --filter @poc-plattform-kit/api build
-# Match App Service staging: hoisted deploy tree + generate into /out.
+
+# Named preview scenarios to bake into the immutable template (comma
+# separated — see docs/preview-scenarios.md). preview-api.yml passes the
+# scenarios declared by the PR; "demo" is the default baseline.
+ARG PREVIEW_SEED_SCENARIOS=demo
+
+# Derive the SQLite preview schema from the canonical SQL Server schema.
+# Fails the build with an actionable diagnostic (not a silently broken
+# preview) when the canonical schema uses a construct the SQLite connector
+# can't represent.
+RUN node /app/packages/db/scripts/generate-preview-schema.mjs \
+      /app/packages/db/prisma/schema.prisma \
+      /app/packages/db/prisma/schema.preview.prisma
+
+# Match App Service staging shape (hoisted deploy tree), but generate a
+# SQLite client + an immutable SQLite database template instead of the SQL
+# Server client production deploys use.
 # Resolve prisma via node (pnpm .bin shims can vanish after re-linking for deploy).
 RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index.js' | head -n 1)" \
   && test -n "$PRISMA_JS" \
@@ -36,13 +66,24 @@ RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index
   && cp -r /app/apps/api/dist /out/dist \
   && test -f /out/dist/main.js \
   && mkdir -p /out/prisma \
-  && cp /app/packages/db/prisma/schema.prisma /out/prisma/schema.prisma \
-  && node -e "const fs=require('fs'); const p='/out/prisma/schema.prisma'; let s=fs.readFileSync(p,'utf8'); if(!/output\\s*=/.test(s)){s=s.replace(/generator\\s+client\\s*\\{[^}]*provider\\s*=\\s*\\\"prisma-client-js\\\"/,(b)=>b+'\\n  output   = \"../node_modules/.prisma/client\"'); if(!/output\\s*=/.test(s)){console.error('pin failed'); process.exit(1);} fs.writeFileSync(p,s);}" \
+  && cp /app/packages/db/prisma/schema.preview.prisma /out/prisma/schema.preview.prisma \
+  && node /app/packages/db/scripts/pin-generator-output.mjs \
+      /out/prisma/schema.preview.prisma \
+      ../node_modules/.prisma/client \
   && cd /out \
-  && DATABASE_URL="sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true" \
-     node "$PRISMA_JS" generate --schema=/out/prisma/schema.prisma \
+  && DATABASE_URL="file:/out/prisma/preview-template.db" \
+     node "$PRISMA_JS" db push --schema=/out/prisma/schema.preview.prisma --skip-generate --accept-data-loss \
+  && DATABASE_URL="file:/out/prisma/preview-template.db" \
+     node "$PRISMA_JS" generate --schema=/out/prisma/schema.preview.prisma \
   && test -f /out/node_modules/.prisma/client/index.js \
-  && node -e "const {PrismaClient}=require('@prisma/client'); new PrismaClient(); console.log('prisma generate ok')"
+  && node /app/packages/db/scripts/seed.mjs \
+       --scenarios="$PREVIEW_SEED_SCENARIOS" \
+       --database-url="file:/out/prisma/preview-template.db" \
+       --client=/out/node_modules/.prisma/client \
+  && test -f /out/prisma/preview-template.db \
+  && printf '%s' "$PREVIEW_SEED_SCENARIOS" > /out/prisma/preview-scenarios.txt \
+  && mkdir -p /out/preview-scripts \
+  && cp -r /app/packages/db/scripts /out/preview-scripts/db-scripts
 
 FROM node:20-alpine AS runner
 RUN apk add --no-cache openssl \
@@ -52,7 +93,12 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 COPY --from=build /out ./
+COPY apps/api/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh \
+  && mkdir -p /app/data \
+  && chown app:app /app/data \
+  && chmod 0444 /app/prisma/preview-template.db
 
 USER app
 EXPOSE 3001
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
