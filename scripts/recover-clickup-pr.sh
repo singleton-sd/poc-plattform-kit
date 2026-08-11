@@ -16,10 +16,11 @@ import json,sys
 p=json.load(sys.stdin)
 labels={x["name"] for x in p.get("labels",[])}
 checks=p.get("statusCheckRollup") or []
+required={"Lint / test / build (api)","Lint / format / build (web)"}
 failed=[(x.get("name") or x.get("context") or "unknown") for x in checks if (x.get("conclusion") or x.get("state") or "").upper() in {"ACTION_REQUIRED","CANCELLED","FAILURE","STALE","STARTUP_FAILURE","TIMED_OUT"}]
 block=sorted(labels & {"needs-rebase","ci-failed","has-feedback"})
 if p.get("mergeable")=="CONFLICTING" or p.get("mergeStateStatus")=="DIRTY": block.append("merge-conflict")
-block.extend("failed:"+x for x in failed if x != "pr-handoff-gate")
+block.extend("failed:"+x for x in failed if x in required)
 print(p.get("headRefName", ""))
 print(p.get("url", ""))
 print(", ".join(block))

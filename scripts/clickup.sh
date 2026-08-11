@@ -189,6 +189,7 @@ print(json.dumps({
       die "Handoff refused: claim token mismatch for task $task_id"
     repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     node "$repo_root/scripts/pr-handoff-gate.mjs" --pr "$pr_number"
+    node "$repo_root/scripts/upsert-pr-review-brief.mjs" --pr "$pr_number"
     pr_url="$(gh pr view "$pr_number" --json url --jq .url)"
     api POST "/task/$task_id/field/$PREVIEW_FIELD_ID" \
       "$(python3 -c 'import json,sys; print(json.dumps({"value":sys.argv[1]}))' "$pr_url")" >/dev/null

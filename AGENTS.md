@@ -72,16 +72,17 @@ Agents often share one ClickUp identity (`assignees: ["me"]`), so assignee alone
 
 ### PR hygiene (mandatory)
 
-Agents do not get push notifications for conflicts, Bugbot/human PR comments, or CI. Poll GitHub before every handoff. Labels from `pr-hygiene.yml`: `needs-rebase`, `ci-failed`, `has-feedback` (filter with `gh pr list --label ...`). Bounce agent-fixable issues to **READY FOR AI**; leave **READY FOR HUMAN** only when mergeable + required checks green + no open actionable feedback. See `docs/pr-pipelines.md`.
+Agents do not get push notifications for conflicts, Bugbot/human PR comments, or CI. After a PR is open, watch required CI in-session (`gh pr checks --watch`) and upsert the **Human Review Brief**. Labels from `pr-hygiene.yml`: `needs-rebase`, `ci-failed`, `has-feedback`, `preview-blocked` (filter with `gh pr list --label ...`). `ci-failed` is required lint/test/build only. `preview-blocked` is SWA/ACA/Chromatic infra and does not bounce ClickUp. Hygiene workflows set labels only — they do not post status comments. Bounce agent-fixable issues to **READY FOR AI**; leave **READY FOR HUMAN** only when mergeable + required checks green + no open actionable feedback. See `docs/pr-pipelines.md`.
 
 #### Implementer (before READY FOR REVIEW)
 
 After push / PR open:
 
-1. `gh pr checks --watch` (or loop-on-ci) until required checks green (or document skip-only failures).
+1. `gh pr checks --watch` (or loop-on-ci) until required lint/test/build checks green (or document skip-only failures). Preview/Chromatic red is infra — put it on the brief, do not treat it as a code defect.
 2. `gh pr view --json mergeable,mergeStateStatus` -> must be `MERGEABLE` / not `DIRTY`.
 3. If dirty: follow **Shared hub files / conflict playbook** below (`git merge origin/main` then `pnpm resolve:conflicts`), push, re-check CI.
-4. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`. Raw `status` transitions are forbidden for PR-backed work. This atomically gates CI registration/completion, mergeability, unresolved review threads, blocking labels, and the external-feedback quiet period before setting Preview URL and clearing the claim.
+4. Upsert the Human Review Brief (`node scripts/upsert-pr-review-brief.mjs --pr <n>`). Do not post hygiene/status comments.
+5. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`. Raw `status` transitions are forbidden for PR-backed work. The CLI gate requires required CI, mergeability, and no unresolved review threads, then upserts the brief and sets Preview URL.
 5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop - do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
 
 #### Automated review and human validation
