@@ -60,6 +60,8 @@ describe('AccessRequestService', () => {
     grantType: null as string | null,
     requestExpiresAt: null as Date | null,
     grantExpiresAt: null as Date | null,
+    preferredGrantType: null as string | null,
+    preferredGrantExpiresAt: null as Date | null,
     createdAt: now,
     updatedAt: now,
   };
@@ -69,6 +71,7 @@ describe('AccessRequestService', () => {
     accessRequest: {
       create: jest.Mock;
       findMany: jest.Mock;
+      findFirst: jest.Mock;
       findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
       update: jest.Mock;
@@ -89,6 +92,7 @@ describe('AccessRequestService', () => {
       accessRequest: {
         create: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
         update: jest.fn(),
@@ -127,12 +131,69 @@ describe('AccessRequestService', () => {
     expect(created.status).toBe('pending');
     expect(prisma.accessRequest.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ tenantId: 't1', requestExpiresAt: null }),
+        data: expect.objectContaining({
+          tenantId: 't1',
+          requestExpiresAt: null,
+          preferredGrantType: null,
+          preferredGrantExpiresAt: null,
+        }),
       }),
     );
     expect(prisma.permissionsOutbox.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventType: 'permission.access_requested' }),
+      }),
+    );
+  });
+
+  it('returns existing non-expired pending request instead of creating a duplicate', async () => {
+    prisma.accessRequest.findFirst.mockResolvedValue(pendingRow);
+
+    const result = await service.create({ action: 'update', resource: 'tenant:t1' }, requester);
+
+    expect(result.id).toBe('ar1');
+    expect(prisma.accessRequest.create).not.toHaveBeenCalled();
+    expect(prisma.accessRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 't1',
+          requesterId: 'user-req',
+          action: 'update',
+          resource: 'tenant:t1',
+          status: 'pending',
+        }),
+      }),
+    );
+  });
+
+  it('does not reuse a pending request from a different tenant', async () => {
+    prisma.tenantMembership.findFirst.mockResolvedValue({ id: 'm1' });
+    prisma.accessRequest.findFirst.mockResolvedValue(null);
+    prisma.accessRequest.create.mockResolvedValue({ ...pendingRow, tenantId: 't2', id: 'ar2' });
+
+    await service.create({ action: 'update', resource: 'tenant:t1', tenantId: 't2' }, requester);
+
+    expect(prisma.accessRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 't2' }),
+      }),
+    );
+    expect(prisma.accessRequest.create).toHaveBeenCalled();
+  });
+
+  it('lists the caller access requests filtered by action and resource', async () => {
+    prisma.accessRequest.findMany.mockResolvedValue([pendingRow]);
+
+    await expect(
+      service.listMine(requester, { action: 'update', resource: 'tenant:t1' }),
+    ).resolves.toEqual([pendingRow]);
+    expect(prisma.accessRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          requesterId: 'user-req',
+          action: 'update',
+          resource: 'tenant:t1',
+        }),
       }),
     );
   });
