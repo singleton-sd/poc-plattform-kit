@@ -4,7 +4,7 @@
 
 - GitHub: `singleton-sd/poc-plattform-kit` (`git@github.com:singleton-sd/poc-plattform-kit.git`)
 - Local: `C:\00Personal\singleton-sd\poc-plattform-kit`
-- ClickUp tickets must include `[repo=singleton-sd/poc-plattform-kit]`
+- **ClickUp ticket titles:** keep names concise, sentence case, action-first, and human-readable. Never append repository identifiers, routing metadata, or markers such as `[repo=singleton-sd/poc-plattform-kit]` to the task name. Repository context belongs in the task description or project context.
 
 ## ClickUp (locked)
 
