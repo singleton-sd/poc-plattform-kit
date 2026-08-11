@@ -12,7 +12,7 @@
   Change batches are written UTF-8 without BOM.
 
 .PARAMETER Domain
-  Mail domain to provision. Default: plattform-kit.poc.singletonsd.com
+  Mail domain to provision. Default: mail.plattform-kit.poc.singletonsd.com
 
 .PARAMETER ZoneDomain
   Parent Route53 hosted zone name. Default: singletonsd.com
@@ -55,7 +55,7 @@
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
-  [string]$Domain = 'plattform-kit.poc.singletonsd.com',
+  [string]$Domain = 'mail.plattform-kit.poc.singletonsd.com',
   [string]$ZoneDomain = 'singletonsd.com',
   [string]$Alias = 'noreply',
   [string]$AliasRecipient = 'hello@singletonsd.com',
@@ -411,13 +411,12 @@ if (-not $SkipDns) {
   if ($existingCnameSets.Count -gt 0) {
     $apexCnameConflict = $true
     Write-Warning @"
-DNS conflict: $apexFqdn already has a CNAME (marketing SWA).
+DNS conflict: $apexFqdn already has a CNAME.
 RFC 1034 forbids MX/TXT alongside a CNAME on the same name.
 Skipping apex verification TXT, SPF, and MX upserts.
 Will still apply child records (DKIM, Return-Path, DMARC) which do not conflict.
-Follow-up: move the website hostname (e.g. www.) or use a dedicated mail host
-so noreply@$Domain can fully verify. Partial outbound DNS can still help once
-apex conflict is resolved.
+PoC mail domain is mail.plattform-kit.poc.singletonsd.com (no website CNAME).
+Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
 "@
   }
 

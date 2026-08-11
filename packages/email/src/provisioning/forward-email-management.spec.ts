@@ -30,7 +30,7 @@ describe('mergeSpfInclude', () => {
 describe('getRequiredDnsRecords', () => {
   it('uses API-provided DKIM/DMARC/Return-Path values', () => {
     const records = getRequiredDnsRecords({
-      domain: 'plattform-kit.poc.singletonsd.com',
+      domain: 'mail.plattform-kit.poc.singletonsd.com',
       zoneDomain: 'singletonsd.com',
       verificationToken: 'abc123',
       smtpDnsRecords: {

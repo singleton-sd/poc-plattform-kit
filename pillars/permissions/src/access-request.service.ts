@@ -33,6 +33,8 @@ export type AccessRequestRecord = {
   grantType: string | null;
   requestExpiresAt: Date | null;
   grantExpiresAt: Date | null;
+  preferredGrantType: string | null;
+  preferredGrantExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -51,6 +53,8 @@ type AccessRequestRow = {
   grantType: string | null;
   requestExpiresAt: Date | null;
   grantExpiresAt: Date | null;
+  preferredGrantType: string | null;
+  preferredGrantExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -111,6 +115,39 @@ export class AccessRequestService {
       }
     }
 
+    let preferredGrantExpiresAt: Date | null = null;
+    if (dto.preferredGrantType === PermissionGrantType.Temporary) {
+      if (!dto.preferredGrantExpiresAt) {
+        throw new BadRequestException(
+          'preferredGrantExpiresAt is required when preferredGrantType is temporary',
+        );
+      }
+      preferredGrantExpiresAt = new Date(dto.preferredGrantExpiresAt);
+      if (
+        Number.isNaN(preferredGrantExpiresAt.getTime()) ||
+        preferredGrantExpiresAt.getTime() <= Date.now()
+      ) {
+        throw new BadRequestException(
+          'preferredGrantExpiresAt must be a future ISO-8601 timestamp',
+        );
+      }
+    }
+
+    const existingPending = await this.prisma.accessRequest.findFirst({
+      where: {
+        tenantId,
+        requesterId: actor.id,
+        action: dto.action,
+        resource: dto.resource,
+        status: 'pending',
+        OR: [{ requestExpiresAt: null }, { requestExpiresAt: { gt: new Date() } }],
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+    if (existingPending) {
+      return toRecord(existingPending);
+    }
+
     const managerEntraOids = await this.managerChain.getManagerChain(actor.entraOid);
 
     const created = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -123,6 +160,8 @@ export class AccessRequestService {
           resource: dto.resource,
           status: 'pending',
           requestExpiresAt,
+          preferredGrantType: dto.preferredGrantType ?? null,
+          preferredGrantExpiresAt,
         },
       });
 
@@ -137,6 +176,8 @@ export class AccessRequestService {
             action: row.action,
             resource: row.resource,
             requestExpiresAt: row.requestExpiresAt?.toISOString() ?? null,
+            preferredGrantType: row.preferredGrantType,
+            preferredGrantExpiresAt: row.preferredGrantExpiresAt?.toISOString() ?? null,
           }),
         },
       });
@@ -169,6 +210,22 @@ export class AccessRequestService {
     });
 
     return toRecord(created);
+  }
+
+  async listMine(
+    actor: AuthenticatedUser,
+    query: { action?: string; resource?: string },
+  ): Promise<AccessRequestRecord[]> {
+    const rows = await this.prisma.accessRequest.findMany({
+      where: {
+        requesterId: actor.id,
+        ...(query.action ? { action: query.action } : {}),
+        ...(query.resource ? { resource: query.resource } : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 50,
+    });
+    return rows.map(toRecord);
   }
 
   async listPendingForApprover(actor: AuthenticatedUser): Promise<AccessRequestRecord[]> {

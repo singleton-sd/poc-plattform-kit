@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { BrandMark } from '@/components/brand-mark';
 import { meKeys, useMe, type Me } from '@/features/auth/me';
+import { captureReturnUrl } from '@/features/auth/auth-return-url';
 import { signIn, signOut } from '@/features/auth/auth-urls';
 import { CopyTenantIdButton } from '@/features/tenants/copy-tenant-id-button';
 import { OnboardingCard } from '@/features/onboarding/onboarding-card';
@@ -21,6 +22,9 @@ export function LoginPanel() {
     setSigningIn(true);
     setSignInError(null);
     try {
+      // Capture the current return target so it can be restored after the auth callback.
+      // This writes a single-use key to sessionStorage consumed after redirect.
+      captureReturnUrl();
       await signIn();
       // Cookie mode navigates away (form POST). Bearer MSAL redirect navigates away too.
       // invalidateQueries only runs if sign-in returns without navigation (errors / tests).
