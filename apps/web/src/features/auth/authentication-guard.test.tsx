@@ -44,7 +44,11 @@ describe('AuthenticationGuard', () => {
   });
 
   it('renders children when authenticated', () => {
-    mockUseMe.mockReturnValue({ data: { id: '1', email: 'a@b.co', name: 'A', roles: [] }, isLoading: false, isError: false });
+    mockUseMe.mockReturnValue({
+      data: { id: '1', email: 'a@b.co', name: 'A', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
     render(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>

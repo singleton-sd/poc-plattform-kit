@@ -17,7 +17,10 @@ export function AuthenticationGuard({ children }: AuthenticationGuardProps) {
 
   if (isLoading) {
     return (
-      <main className="flex min-h-[60vh] items-center justify-center p-6 text-fg-muted" data-testid="auth-guard-loading">
+      <main
+        className="flex min-h-[60vh] items-center justify-center p-6 text-fg-muted"
+        data-testid="auth-guard-loading"
+      >
         Loading…
       </main>
     );
@@ -25,9 +28,17 @@ export function AuthenticationGuard({ children }: AuthenticationGuardProps) {
 
   if (isError) {
     return (
-      <main className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-fg" data-testid="auth-guard-error">
+      <main
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-fg"
+        data-testid="auth-guard-error"
+      >
         <p className="text-fg-muted">Could not verify your session. Try again.</p>
-        <button type="button" className="rounded bg-accent px-6 py-3 font-semibold text-accent-on" data-testid="auth-guard-retry" onClick={() => void refetch()}>
+        <button
+          type="button"
+          className="rounded bg-accent px-6 py-3 font-semibold text-accent-on"
+          data-testid="auth-guard-retry"
+          onClick={() => void refetch()}
+        >
           Retry
         </button>
       </main>
