@@ -166,9 +166,12 @@ Use when behavior, rules, actors, important edge cases, relevant NFRs, and depen
 
 Next step depends on the work:
 
-- use a design skill when UX/UI or architecture needs solution design;
-- use `backlog-refinement` for a single/existing ticket;
-- use `idea-to-delivery` for multi-ticket feature planning and ClickUp execution slicing.
+- if UX/UI or architecture **solution** design is still needed, stop and
+  ask the user — do not invent screens, schemas, or infra, and do not call
+  a design skill that is not in `.cursor/skills/`;
+- use `backlog-refinement` for a single existing Delivery ticket;
+- use `idea-to-delivery` for multi-ticket feature planning and ClickUp
+  execution slicing.
 
 ### NEEDS PRODUCT DECISION
 
@@ -248,20 +251,41 @@ Readiness
 READY FOR DESIGN / DELIVERY PLANNING | NEEDS PRODUCT DECISION | NEEDS VALIDATION / SPIKE
 
 Recommended next step
-<design skill | backlog-refinement | idea-to-delivery | refine-idea | spike>
+<ask user for design | backlog-refinement | idea-to-delivery | refine-idea | spike>
 ```
 
 Keep the document proportional. A small UI behavior may need only a short brief; cross-cutting support/auth/billing features deserve more detail.
 
 ## ClickUp routing
 
+`AGENTS.md` is authoritative for list IDs, statuses, and create commands.
+
 For `singleton-sd/poc-plattform-kit`:
 
-- unresolved requirements/discovery belong in **Ideas & Discovery** (`901616397764`);
-- validation/spike work stays in Ideas & Discovery until its question is answered;
-- do not move implementation work to Delivery while blocking requirements remain;
-- standalone manual validation/setup belongs in **Human & Operations** (`901616397767`) only when it is a real operational action, not merely a question;
-- browsing/refinement is not claiming; do not set Claim Token or assignment.
+- persist unresolved requirements/discovery on **Ideas & Discovery**
+  (`901616397764`) when the user asks to store the brief;
+- validation/spike work stays on Ideas & Discovery until its question is
+  answered (statuses `TO DO` / `IN PROGRESS` / `COMPLETE` only — no Claim
+  Token, no `READY FOR AI`);
+- do not create **Delivery** (`901616287298`) tasks while blocking
+  requirements remain;
+- standalone manual validation/setup belongs on **Human & Operations**
+  (`901616397767`) only when it is a real operational action, not a question;
+- browsing/refinement is not claiming.
+
+Create discovery (Windows):
+
+```powershell
+powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..."
+```
+
+Create discovery (Linux / Cloud):
+
+```bash
+./scripts/clickup.sh create "..." "TO DO" --list-id 901616397764
+```
+
+Create a human ops action with `-ListId 901616397767` / `--list-id 901616397767`.
 
 ## Handoff contract
 

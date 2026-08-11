@@ -75,7 +75,10 @@ For each candidate capability identify:
 - whether it depends on another capability;
 - whether it belongs in the current idea or should become a separate follow-up.
 
-Do not create implementation slices yet. That is the responsibility of `idea-to-delivery` after requirements/design decisions are sufficiently resolved.
+Do not create implementation slices yet. That is the responsibility of
+`idea-to-delivery` after `discover-requirements` marks the work
+`READY FOR DESIGN / DELIVERY PLANNING`. A single existing Delivery
+ticket goes to `backlog-refinement` instead.
 
 ## Readiness states
 
@@ -142,12 +145,30 @@ Keep the brief proportional to the idea. Small ideas do not need ceremony.
 
 ## ClickUp routing
 
+`AGENTS.md` is authoritative for list IDs, statuses, and create commands.
+
 For `singleton-sd/poc-plattform-kit`:
 
-- unresolved/raw ideas and validation work belong in **Ideas & Discovery** (`901616397764`);
-- do not create Delivery tasks from unresolved ideas;
-- if the user asks to persist the refined idea, store the brief in an Ideas & Discovery task unless implementation is already explicitly approved and decision-complete;
-- do not set Claim Token or assignment merely for discovery/planning.
+- persist unresolved/raw ideas and validation work on **Ideas & Discovery**
+  (`901616397764`) only when the user asks to store the brief;
+- do not create **Delivery** (`901616287298`) tasks from unresolved ideas;
+- do not use **Human & Operations** (`901616397767`) for a question — only
+  for a real manual action;
+- Ideas & Discovery statuses are `TO DO` / `IN PROGRESS` / `COMPLETE` only —
+  no Claim Token, no `READY FOR AI`;
+- browsing/refinement is not claiming.
+
+Create (Windows):
+
+```powershell
+powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..."
+```
+
+Create (Linux / Cloud):
+
+```bash
+./scripts/clickup.sh create "..." "TO DO" --list-id 901616397764
+```
 
 ## Handoff contract
 
