@@ -1,12 +1,11 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { AuthenticationGuard } from './authentication-guard';
 import { useMe } from './me';
 
 jest.mock('@tanstack/react-query', () => {
-  const actual = jest.requireActual<typeof import('@tanstack/react-query')>(
+  const actual = jest.requireActual(
     '@tanstack/react-query',
-  );
+  ) as typeof import('@tanstack/react-query');
   return {
     ...actual,
     useQueryClient: () => ({ invalidateQueries: jest.fn() }),
@@ -19,15 +18,6 @@ jest.mock('./me', () => ({
 
 const mockUseMe = useMe as jest.Mock;
 
-const renderWithQueryClient = (component: React.ReactNode) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-    },
-  });
-  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
-};
-
 describe('AuthenticationGuard', () => {
   it('shows loading when session is loading', () => {
     mockUseMe.mockReturnValue({
@@ -35,7 +25,7 @@ describe('AuthenticationGuard', () => {
       isLoading: true,
       isError: false,
     });
-    renderWithQueryClient(
+    render(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,
@@ -51,7 +41,7 @@ describe('AuthenticationGuard', () => {
       isError: true,
       refetch,
     });
-    renderWithQueryClient(
+    render(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,
@@ -67,12 +57,11 @@ describe('AuthenticationGuard', () => {
       isLoading: false,
       isError: false,
     });
-    renderWithQueryClient(
+    render(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,
     );
-    // LoginPanel exposes login-sign-in button
     expect(screen.getByTestId('login-sign-in')).toBeInTheDocument();
   });
 
@@ -82,7 +71,7 @@ describe('AuthenticationGuard', () => {
       isLoading: false,
       isError: false,
     });
-    renderWithQueryClient(
+    render(
       <AuthenticationGuard>
         <div data-testid="protected">ok</div>
       </AuthenticationGuard>,

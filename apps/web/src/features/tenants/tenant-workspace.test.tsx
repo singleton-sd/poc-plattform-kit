@@ -22,6 +22,10 @@ jest.mock('@/lib/api-client', () => ({
   configureApiClient: jest.fn(),
 }));
 
+jest.mock('@/features/permissions/permission-gate', () => ({
+  PermissionGate: ({ children }: { children: import('react').ReactNode }) => children,
+}));
+
 jest.mock('@poc-plattform-kit/api-client', () => ({
   useTenantControllerFindAll: (...args: unknown[]) => {
     findAll(...args);
