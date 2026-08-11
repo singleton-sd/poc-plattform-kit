@@ -48,6 +48,16 @@ export type TenantMembershipRecord = {
   createdAt: Date;
 };
 
+export type CreateTenantOptions = {
+  /** When set, reject if the actor already owns this many tenants. */
+  maxOwnedTenants?: number;
+};
+
+export type TenantActor = {
+  id: string;
+  roles: string[];
+};
+
 function isUniqueConflict(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -107,7 +117,11 @@ export class TenantService {
     return { items: page.map(toTenantRecord), nextCursor };
   }
 
-  async create(dto: CreateTenantDto, actorUserId: string): Promise<TenantRecord> {
+  async create(
+    dto: CreateTenantDto,
+    actorUserId: string,
+    options?: CreateTenantOptions,
+  ): Promise<TenantRecord> {
     const settings = dto.settings ? JSON.stringify(dto.settings) : null;
     const explicitSlug = dto.slug?.trim();
 
@@ -117,12 +131,29 @@ export class TenantService {
 
     const base = explicitSlug || slugify(dto.name);
     const maxAttempts = explicitSlug ? 1 : MAX_GENERATED_SLUG_ATTEMPTS;
+    const isolation =
+      options?.maxOwnedTenants !== undefined
+        ? { isolationLevel: 'Serializable' as const }
+        : undefined;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const candidateSlug = attempt === 1 ? base : `${base}-${attempt}`;
 
       try {
         const tenant = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          if (options?.maxOwnedTenants !== undefined) {
+            const owned = await tx.tenantMembership.count({
+              where: { userId: actorUserId, role: 'owner' },
+            });
+            if (owned >= options.maxOwnedTenants) {
+              throw new ConflictException(
+                `You already own the maximum of ${options.maxOwnedTenants} self-service tenant${
+                  options.maxOwnedTenants === 1 ? '' : 's'
+                }.`,
+              );
+            }
+          }
+
           const created = await tx.tenant.create({
             data: {
               name: dto.name,
@@ -191,7 +222,7 @@ export class TenantService {
           });
 
           return created;
-        });
+        }, isolation);
 
         return toTenantRecord(tenant);
       } catch (error: unknown) {
@@ -219,8 +250,9 @@ export class TenantService {
     return toTenantRecord(tenant);
   }
 
-  async update(id: string, dto: UpdateTenantDto): Promise<TenantRecord> {
+  async update(id: string, dto: UpdateTenantDto, actor: TenantActor): Promise<TenantRecord> {
     this.assertTenantAccess(id);
+    await this.assertCanUpdate(id, actor);
 
     const existing = await this.prisma.tenant.findUnique({ where: { id } });
     if (!existing) {
@@ -285,8 +317,7 @@ export class TenantService {
 
   /**
    * Count of tenants `userId` owns (an `owner`-role `TenantMembership` row).
-   * Used by the self-service creation route to enforce a per-user cap --
-   * see `TenantController.createSelfService`.
+   * Used by tests and as the query shape for the self-service quota check.
    */
   async countOwnedTenants(userId: string): Promise<number> {
     return this.prisma.tenantMembership.count({ where: { userId, role: 'owner' } });
@@ -297,5 +328,20 @@ export class TenantService {
     if (contextTenantId !== id) {
       throw new ForbiddenException('Tenant context does not match requested tenant');
     }
+  }
+
+  private async assertCanUpdate(tenantId: string, actor: TenantActor): Promise<void> {
+    if (actor.roles.includes('tenant-admin')) {
+      return;
+    }
+
+    const membership = await this.prisma.tenantMembership.findUnique({
+      where: { tenantId_userId: { tenantId, userId: actor.id } },
+    });
+    if (membership?.role === 'owner') {
+      return;
+    }
+
+    throw new ForbiddenException('Requires tenant-admin role or owner membership for this tenant');
   }
 }

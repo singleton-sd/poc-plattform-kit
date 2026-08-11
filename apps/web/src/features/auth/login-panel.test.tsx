@@ -207,7 +207,7 @@ describe('HomeAuthGate', () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it('remembers onboarding was dismissed for the same user across remounts', () => {
+  it('shows onboarding again after remount when the user only clicked Not now', () => {
     mockUseMe.mockReturnValue({
       data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
       isLoading: false,
@@ -216,21 +216,53 @@ describe('HomeAuthGate', () => {
 
     const { unmount } = render(<HomeAuthGate />);
     fireEvent.click(screen.getByTestId('onboarding-dismiss'));
+    expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
+    unmount();
+
+    render(<HomeAuthGate />);
+
+    expect(screen.getByTestId('onboarding-card')).toBeInTheDocument();
+  });
+
+  it('keeps the manage-tenant link after remount once a tenant was created', async () => {
+    mockUseMe.mockReturnValue({
+      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    const { unmount } = render(<HomeAuthGate />);
+    fireEvent.click(screen.getByTestId('onboarding-create-open'));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByTestId('onboarding-create-submit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('onboarding-success')).toBeInTheDocument();
+    });
     unmount();
 
     render(<HomeAuthGate />);
 
     expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onboarding-success')).toHaveTextContent('Acme');
+    expect(screen.getByRole('link', { name: 'Manage your tenant' })).toHaveAttribute(
+      'href',
+      '/tenant?tenantId=t1',
+    );
   });
 
-  it('still offers onboarding to a different user on the same browser', () => {
+  it('still offers onboarding to a different user on the same browser', async () => {
     mockUseMe.mockReturnValue({
       data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
       isLoading: false,
       isError: false,
     });
     const { unmount } = render(<HomeAuthGate />);
-    fireEvent.click(screen.getByTestId('onboarding-dismiss'));
+    fireEvent.click(screen.getByTestId('onboarding-create-open'));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByTestId('onboarding-create-submit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('onboarding-success')).toBeInTheDocument();
+    });
     unmount();
 
     mockUseMe.mockReturnValue({

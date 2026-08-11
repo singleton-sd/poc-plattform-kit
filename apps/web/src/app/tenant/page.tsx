@@ -9,16 +9,12 @@ import { TenantSettings } from '@/features/tenant-settings/tenant-settings';
 
 /**
  * Access gate for this page. `GET /tenants/:id` and `PATCH /tenants/:id`
- * remain the real authority (tenancy-context match, and `tenant-admin` role
- * for updates -- see `TenantController`); this page only needs to know
- * "is this a signed-in user at all" before rendering the lookup form,
- * because a self-service owner (a `TenantMembership` row, not the Entra
- * `tenant-admin` role -- see ClickUp 86d3zetkw) has no client-side signal
- * for "I own a tenant" today. `GET /api/me` doesn't expose memberships, so
- * this intentionally doesn't try to re-derive per-tenant authorization
- * client-side; any authenticated user reaching this page who isn't
- * actually entitled to the tenant they look up simply gets the backend's
- * existing 403/404 surfaced through the lookup form's error state.
+ * remain the real authority (tenancy-context match, and owner membership
+ * or `tenant-admin` for updates -- see `TenantController`); this page only
+ * needs to know "is this a signed-in user at all" before rendering the
+ * lookup form. `GET /api/me` doesn't expose memberships, so this
+ * intentionally doesn't re-derive per-tenant authorization client-side;
+ * callers who aren't entitled get the backend's 403/404 on lookup or save.
  */
 function TenantSettingsPageContent() {
   const { data: me, isLoading, isError } = useMe();

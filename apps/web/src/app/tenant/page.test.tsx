@@ -45,11 +45,9 @@ describe('TenantSettingsPage', () => {
 
   it('renders the settings shell for any authenticated user, regardless of role', () => {
     // GET/PATCH /tenants/:id remain the real authority server-side (tenancy
-    // context + tenant-admin for updates). This page can't tell a
-    // self-service tenant owner (a TenantMembership row, not the Entra
-    // tenant-admin role) apart from any other signed-in user client-side --
-    // see the doc comment on TenantSettingsPageContent -- so it no longer
-    // gates on roles.
+    // context + owner membership or tenant-admin for updates). This page
+    // can't tell a self-service owner apart from any other signed-in user
+    // client-side, so it no longer gates on roles.
     mockUseMe.mockReturnValue({
       data: { roles: ['support-agent'] },
       isLoading: false,

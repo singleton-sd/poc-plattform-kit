@@ -1,33 +1,39 @@
-import { dismissOnboarding, isOnboardingDismissed } from './onboarding-store';
+import { getCreatedTenant, rememberCreatedTenant } from './onboarding-store';
 
 describe('onboarding-store', () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it('defaults to not dismissed for a user never seen before', () => {
-    expect(isOnboardingDismissed('user-1')).toBe(false);
+  it('defaults to no created tenant for a user never seen before', () => {
+    expect(getCreatedTenant('user-1')).toBeNull();
   });
 
-  it('marks a user as dismissed after dismissOnboarding', () => {
-    dismissOnboarding('user-1');
+  it('returns the tenant after rememberCreatedTenant', () => {
+    rememberCreatedTenant('user-1', { id: 't1', name: 'Acme' });
 
-    expect(isOnboardingDismissed('user-1')).toBe(true);
+    expect(getCreatedTenant('user-1')).toEqual({ id: 't1', name: 'Acme' });
   });
 
-  it('keeps state scoped per user id', () => {
-    dismissOnboarding('user-1');
+  it('keeps created tenants scoped per user id', () => {
+    rememberCreatedTenant('user-1', { id: 't1', name: 'Acme' });
 
-    expect(isOnboardingDismissed('user-1')).toBe(true);
-    expect(isOnboardingDismissed('user-2')).toBe(false);
+    expect(getCreatedTenant('user-1')).toEqual({ id: 't1', name: 'Acme' });
+    expect(getCreatedTenant('user-2')).toBeNull();
   });
 
-  it('defaults to not dismissed when localStorage throws', () => {
+  it('ignores a legacy dismissed bit that is not a tenant record', () => {
+    window.localStorage.setItem('ptk:onboarding-created:user-1', '1');
+
+    expect(getCreatedTenant('user-1')).toBeNull();
+  });
+
+  it('defaults to no tenant when localStorage throws', () => {
     const getItem = jest.spyOn(window.localStorage.__proto__, 'getItem').mockImplementation(() => {
       throw new Error('storage disabled');
     });
 
-    expect(isOnboardingDismissed('user-1')).toBe(false);
+    expect(getCreatedTenant('user-1')).toBeNull();
 
     getItem.mockRestore();
   });
@@ -37,7 +43,7 @@ describe('onboarding-store', () => {
       throw new Error('storage disabled');
     });
 
-    expect(() => dismissOnboarding('user-1')).not.toThrow();
+    expect(() => rememberCreatedTenant('user-1', { id: 't1', name: 'Acme' })).not.toThrow();
 
     setItem.mockRestore();
   });

@@ -10,7 +10,7 @@ import { captureReturnUrl } from '@/features/auth/auth-return-url';
 import { signIn, signOut } from '@/features/auth/auth-urls';
 import { CopyTenantIdButton } from '@/features/tenants/copy-tenant-id-button';
 import { OnboardingCard } from '@/features/onboarding/onboarding-card';
-import { dismissOnboarding, isOnboardingDismissed } from '@/features/onboarding/onboarding-store';
+import { getCreatedTenant, rememberCreatedTenant } from '@/features/onboarding/onboarding-store';
 
 /** Signed-out login surface (also used at `/` via HomeAuthGate). */
 export function LoginPanel() {
@@ -147,24 +147,23 @@ type SignedInHomeProps = {
 /**
  * Signed-in home shell. Offers self-service tenant onboarding — see
  * `apps/web/src/features/onboarding` — ahead of the existing admin console
- * links, since `GET /api/me` does not yet expose tenant memberships to gate
- * this more precisely (see `onboarding-store.ts`).
+ * links. Created-tenant id is persisted per browser so the manage link
+ * survives refresh; "Not now" is session-only until `/api/me` exposes
+ * memberships (see `onboarding-store.ts`).
  */
 function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeProps) {
-  const [onboardingDismissed, setOnboardingDismissed] = useState(() =>
-    isOnboardingDismissed(me.id),
+  const [sessionDismissed, setSessionDismissed] = useState(false);
+  const [createdTenant, setCreatedTenant] = useState<Pick<TenantResponseDto, 'id' | 'name'> | null>(
+    () => getCreatedTenant(me.id),
   );
-  const [createdTenant, setCreatedTenant] = useState<TenantResponseDto | null>(null);
 
   function handleOnboardingCreated(tenant: TenantResponseDto) {
-    dismissOnboarding(me.id);
-    setOnboardingDismissed(true);
+    rememberCreatedTenant(me.id, { id: tenant.id, name: tenant.name });
     setCreatedTenant(tenant);
   }
 
   function handleOnboardingDismiss() {
-    dismissOnboarding(me.id);
-    setOnboardingDismissed(true);
+    setSessionDismissed(true);
   }
 
   return (
@@ -180,9 +179,7 @@ function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeP
         Signed in as {me.email}. Manage tenants and support from here.
       </p>
 
-      {!onboardingDismissed ? (
-        <OnboardingCard onCreated={handleOnboardingCreated} onDismiss={handleOnboardingDismiss} />
-      ) : createdTenant ? (
+      {createdTenant ? (
         <div
           className="flex w-full max-w-md flex-col items-center gap-2 rounded border border-fg-subtle bg-bg-muted p-4 text-sm text-fg-muted"
           data-testid="onboarding-success"
@@ -203,7 +200,9 @@ function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeP
             Manage your tenant
           </Link>
         </div>
-      ) : null}
+      ) : sessionDismissed ? null : (
+        <OnboardingCard onCreated={handleOnboardingCreated} onDismiss={handleOnboardingDismiss} />
+      )}
 
       <nav aria-label="Primary" className="mt-2 flex flex-wrap justify-center gap-4">
         <Link

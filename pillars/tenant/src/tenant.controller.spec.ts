@@ -1,4 +1,3 @@
-import { ConflictException } from '@nestjs/common';
 import type { AuthenticatedUser } from '@poc-plattform-kit/pillar-single-sign-on';
 import { ROLES_KEY } from './roles.decorator';
 import { TenantController } from './tenant.controller';
@@ -63,65 +62,45 @@ describe('TenantController', () => {
       expect(roles).toBeUndefined();
     });
 
-    it('delegates to the same TenantService.create used by the admin route when under quota', async () => {
+    it('delegates to TenantService.create with the default self-service cap', async () => {
       const tenant = { id: 't1', name: 'Acme', slug: 'acme', settings: null };
-      const tenants = {
-        create: jest.fn().mockResolvedValue(tenant),
-        countOwnedTenants: jest.fn().mockResolvedValue(0),
-      };
+      const tenants = { create: jest.fn().mockResolvedValue(tenant) };
       const controller = new TenantController(tenants as never);
 
       await expect(controller.createSelfService({ name: 'Acme' }, user)).resolves.toEqual(tenant);
-      expect(tenants.countOwnedTenants).toHaveBeenCalledWith('user-1');
-      expect(tenants.create).toHaveBeenCalledWith({ name: 'Acme' }, 'user-1');
+      expect(tenants.create).toHaveBeenCalledWith({ name: 'Acme' }, 'user-1', {
+        maxOwnedTenants: 1,
+      });
     });
 
-    it('allows a caller who owns zero tenants to create their first one', async () => {
-      const tenant = { id: 't1', name: 'Acme', slug: 'acme', settings: null };
-      const tenants = {
-        create: jest.fn().mockResolvedValue(tenant),
-        countOwnedTenants: jest.fn().mockResolvedValue(0),
-      };
-      const controller = new TenantController(tenants as never);
-
-      await expect(controller.createSelfService({ name: 'Acme' }, user)).resolves.toEqual(tenant);
-    });
-
-    it('rejects with 409 once the caller is at the default cap of 1', async () => {
-      const tenants = {
-        create: jest.fn(),
-        countOwnedTenants: jest.fn().mockResolvedValue(1),
-      };
-      const controller = new TenantController(tenants as never);
-
-      await expect(controller.createSelfService({ name: 'Second Co' }, user)).rejects.toThrow(
-        ConflictException,
-      );
-      expect(tenants.create).not.toHaveBeenCalled();
-    });
-
-    it('respects a configured SELF_SERVICE_TENANT_LIMIT', async () => {
+    it('passes a configured SELF_SERVICE_TENANT_LIMIT into create', async () => {
       process.env.SELF_SERVICE_TENANT_LIMIT = '3';
       const tenant = { id: 't3', name: 'Third Co', slug: 'third-co', settings: null };
-      const tenants = {
-        create: jest.fn().mockResolvedValue(tenant),
-        countOwnedTenants: jest.fn().mockResolvedValue(2),
-      };
+      const tenants = { create: jest.fn().mockResolvedValue(tenant) };
       const controller = new TenantController(tenants as never);
 
       await expect(controller.createSelfService({ name: 'Third Co' }, user)).resolves.toEqual(
         tenant,
       );
-
-      const tenantsAtCap = {
-        create: jest.fn(),
-        countOwnedTenants: jest.fn().mockResolvedValue(3),
-      };
-      const controllerAtCap = new TenantController(tenantsAtCap as never);
-
-      await expect(controllerAtCap.createSelfService({ name: 'Fourth Co' }, user)).rejects.toThrow(
-        ConflictException,
-      );
+      expect(tenants.create).toHaveBeenCalledWith({ name: 'Third Co' }, 'user-1', {
+        maxOwnedTenants: 3,
+      });
     });
+  });
+
+  it('does not role-gate PATCH -- ownership is enforced in the service', () => {
+    const roles = Reflect.getMetadata(ROLES_KEY, TenantController.prototype.update) as
+      string[] | undefined;
+
+    expect(roles).toBeUndefined();
+  });
+
+  it('passes the authenticated caller through to TenantService.update', async () => {
+    const tenant = { id: 't1', name: 'Acme', slug: 'acme', settings: null };
+    const tenants = { update: jest.fn().mockResolvedValue(tenant) };
+    const controller = new TenantController(tenants as never);
+
+    await expect(controller.update('t1', { name: 'Acme' }, user)).resolves.toEqual(tenant);
+    expect(tenants.update).toHaveBeenCalledWith('t1', { name: 'Acme' }, user);
   });
 });

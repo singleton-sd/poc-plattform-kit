@@ -301,7 +301,7 @@
         },
         "responses": {
           "200": {
-            "description": "Tenant updated after AuthN, tenancy, role, and Permissions AuthZ checks.",
+            "description": "Tenant updated after AuthN, tenancy, and owner or tenant-admin checks (plus Permissions when configured).",
             "content": {
               "application/json": {
                 "schema": {
@@ -314,7 +314,7 @@
             "description": "Missing or invalid session/JWT."
           },
           "403": {
-            "description": "Requires tenant-admin role and Permissions tuple user:<id>, update, tenant:<id>."
+            "description": "Requires matching tenancy context and either tenant-admin or owner membership for this tenant."
           }
         },
         "tags": [

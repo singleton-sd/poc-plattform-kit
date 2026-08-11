@@ -1,36 +1,64 @@
 /**
- * Client-only "have I already got a tenant" signal for the self-service
- * onboarding card on the home shell.
+ * Client-only record of a tenant this browser created via self-service
+ * onboarding. Used so the home-shell success / "Manage your tenant" link
+ * survives refresh.
  *
  * `GET /api/me` does not (yet) expose tenant memberships (`MeResponseDto` is
  * `{ id, email, name, roles }` only — see `apps/api/src/single-sign-on`), so
- * the web app has no server-side way to know whether the signed-in user
- * already belongs to a tenant. Until that lands, we track "this browser saw
- * this user create or dismiss onboarding" locally, keyed by user id so
- * multiple accounts signing in on one device/browser do not clash. This
- * mirrors the existing localStorage precedent in `theme-init-script.tsx`.
+ * this cannot know whether the user already belongs to a tenant created
+ * elsewhere. "Not now" is therefore session-only (React state), not stored
+ * here — a dismissed card must reappear until memberships land on `/api/me`.
+ * This mirrors the existing localStorage precedent in `theme-init-script.tsx`.
  */
 
-const STORAGE_PREFIX = 'ptk:onboarding-dismissed:';
+const STORAGE_PREFIX = 'ptk:onboarding-created:';
+
+export type CreatedTenantRef = {
+  id: string;
+  name: string;
+};
 
 function storageKey(userId: string): string {
   return `${STORAGE_PREFIX}${userId}`;
 }
 
-/** True once this user has created a tenant or dismissed the onboarding card on this browser. */
-export function isOnboardingDismissed(userId: string): boolean {
+function readRecord(userId: string): CreatedTenantRef | null {
   try {
-    return window.localStorage.getItem(storageKey(userId)) === '1';
+    const raw = window.localStorage.getItem(storageKey(userId));
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'id' in parsed &&
+      typeof parsed.id === 'string' &&
+      parsed.id.length > 0
+    ) {
+      const name =
+        'name' in parsed && typeof parsed.name === 'string' && parsed.name.length > 0
+          ? parsed.name
+          : parsed.id;
+      return { id: parsed.id, name };
+    }
+    return null;
   } catch {
-    // Storage disabled (private browsing, SSR, etc.) — default to showing onboarding.
-    return false;
+    // Storage disabled, SSR, or a legacy non-JSON value — treat as unknown.
+    return null;
   }
 }
 
-/** Marks onboarding as dismissed for this user on this browser (tenant created, or explicitly skipped). */
-export function dismissOnboarding(userId: string): void {
+/** Tenant this browser last created for `userId`, if any. */
+export function getCreatedTenant(userId: string): CreatedTenantRef | null {
+  return readRecord(userId);
+}
+
+/** Persists the newly created tenant so the manage link survives refresh. */
+export function rememberCreatedTenant(userId: string, tenant: CreatedTenantRef): void {
   try {
-    window.localStorage.setItem(storageKey(userId), '1');
+    window.localStorage.setItem(
+      storageKey(userId),
+      JSON.stringify({ id: tenant.id, name: tenant.name }),
+    );
   } catch {
     // Best-effort only; ignore storage failures.
   }
