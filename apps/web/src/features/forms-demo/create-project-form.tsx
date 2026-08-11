@@ -69,10 +69,10 @@ export function CreateProjectForm({
         readonly={readOnly}
         onChange={({ data: next }) => {
           if (readOnly) return;
-          // Do NOT call mutation.reset() here — JsonForms fires onChange on
-          // every render cycle (not just user interactions), which would clear
-          // mutation.isSuccess immediately after the mutation completes and
-          // prevent the success message from ever being visible.
+          // JsonForms also emits onChange after our own setState. Ignore
+          // no-op echoes so submit-time validation (and mutation success)
+          // are not cleared on the same click that produced them.
+          if (JSON.stringify(next) === JSON.stringify(data)) return;
           if (validationError) setValidationError(null);
           setData(next as Record<string, unknown>);
         }}
