@@ -26,25 +26,21 @@ export const meSignedOutHandlers = [http.get(mePath, () => meResponse(createMeFi
 /**
  * Loading state: delayed response simulates a pending session verification.
  * Triggers the "Loading…" UI in HomeAuthGate.
- * Note: Uses 30 second delay instead of 'infinite' to allow Chromatic snapshots to capture.
+ * Uses infinite delay to keep the UI in a stable loading state for deterministic snapshots.
  */
 export const meLoadingHandlers = [
   http.get(mePath, async () => {
-    await delay(30000);
+    await delay('infinite');
     return meResponse(createMeFixture(meRegularUser));
   }),
 ];
 
 /**
- * Session verification error: returns 500 Internal Server Error.
- * Simulates a temporary backend failure when checking session validity.
+ * Session verification error: simulates a network failure during session check.
+ * Causes `fetch()` to reject, setting `isError` in React Query for error recovery UI.
  * Triggers the error recovery UI in HomeAuthGate.
  */
-export const meErrorHandlers = [
-  http.get(mePath, () =>
-    HttpResponse.json({ message: 'Session verification failed' }, { status: 500 }),
-  ),
-];
+export const meErrorHandlers = [http.get(mePath, () => HttpResponse.error())];
 
 /**
  * Signed-in state: returns a regular user with no elevated roles.

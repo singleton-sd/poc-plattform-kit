@@ -10,10 +10,11 @@ import { LoginPanel, HomeAuthGate } from './login-panel';
 
 const meta = {
   title: 'Features/Auth/Login & Session',
+  component: LoginPanel,
   parameters: {
     layout: 'fullscreen',
   },
-} satisfies Meta;
+} satisfies Meta<typeof LoginPanel>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
