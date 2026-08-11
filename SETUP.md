@@ -199,7 +199,7 @@ az appconfig kv set `
 # 3) Non-secret contact delivery settings
 az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:forwardEmailBaseUrl --value "https://api.forwardemail.net" --yes
 az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:contactInboxEmail --value "hello@singletonsd.com" --yes
-az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:contactFromEmail --value "noreply@plattform-kit.poc.singletonsd.com" --yes
+az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:contactFromEmail --value "noreply@mail.plattform-kit.poc.singletonsd.com" --yes
 ```
 
 Verify (no secret values printed):

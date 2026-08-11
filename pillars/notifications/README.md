@@ -37,7 +37,7 @@ Full email/DNS/ops guide: **[docs/email-forward-email.md](../../docs/email-forwa
 | `FORWARD_EMAIL_TOKEN` | API token (KV secret name remains `forwardemail-api-key`) | unset locally |
 | `FORWARD_EMAIL_BASE_URL` | API base | `https://api.forwardemail.net` |
 | `EMAIL_PROVIDER` | `development` \| `forward-email` | `development` |
-| `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` | Envelope From | `noreply@plattform-kit.poc.singletonsd.com` / `Plattform Kit` |
+| `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` | Envelope From | `noreply@mail.plattform-kit.poc.singletonsd.com` / `Plattform Kit` |
 | `CONTACT_INBOX_ADDRESS` | Contact delivery inbox | `hello@singletonsd.com` |
 | `EMAIL_ALLOW_PRODUCTION_SEND` | Must be `true` for live send on production hosts | unset / false |
 
