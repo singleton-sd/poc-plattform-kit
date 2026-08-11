@@ -66,6 +66,24 @@ export class AccessRequestResponseDto {
   })
   grantExpiresAt!: string | null;
 
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    type: String,
+    example: 'temporary',
+    description: 'Requester preferred grant type (hint for approvers).',
+  })
+  preferredGrantType!: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    type: String,
+    format: 'date-time',
+    description: 'Preferred temporary grant expiry from the requester.',
+  })
+  preferredGrantExpiresAt!: string | null;
+
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;
 

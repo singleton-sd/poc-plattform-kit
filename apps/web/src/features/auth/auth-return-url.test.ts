@@ -21,7 +21,7 @@ describe('auth-return-url utilities', () => {
   });
 
   it('sanitizes same-origin absolute urls to path', () => {
-    const inUrl = 'https://app.test/some/page?b=2#z';
+    const inUrl = `${window.location.origin}/some/page?b=2#z`;
     expect(sanitizeReturnUrl(inUrl)).toBe('/some/page?b=2#z');
   });
 
