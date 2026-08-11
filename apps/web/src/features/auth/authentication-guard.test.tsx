@@ -3,6 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthenticationGuard } from './authentication-guard';
 import { useMe } from './me';
 
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+}));
+
 jest.mock('./me', () => ({
   useMe: jest.fn(),
 }));
