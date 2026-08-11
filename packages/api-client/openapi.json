@@ -174,6 +174,51 @@
         ]
       }
     },
+    "/tenants/self-service": {
+      "post": {
+        "operationId": "TenantController_createSelfService",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tenant created via self-service; the caller is auto-assigned as its owner. Requires only an authenticated session -- no support-agent/tenant-admin role.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          },
+          "409": {
+            "description": "Caller already owns the maximum number of self-service tenants (SELF_SERVICE_TENANT_LIMIT, default 1)."
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/tenants/{id}": {
       "get": {
         "operationId": "TenantController_findOne",
@@ -256,7 +301,7 @@
         },
         "responses": {
           "200": {
-            "description": "Tenant updated after AuthN, tenancy, role, and Permissions AuthZ checks.",
+            "description": "Tenant updated after AuthN, tenancy, and owner or tenant-admin checks (plus Permissions when configured).",
             "content": {
               "application/json": {
                 "schema": {
@@ -269,7 +314,7 @@
             "description": "Missing or invalid session/JWT."
           },
           "403": {
-            "description": "Requires tenant-admin role and Permissions tuple user:<id>, update, tenant:<id>."
+            "description": "Requires matching tenancy context and either tenant-admin or owner membership for this tenant."
           }
         },
         "tags": [
