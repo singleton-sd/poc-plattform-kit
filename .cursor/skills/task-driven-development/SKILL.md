@@ -36,6 +36,7 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
    - List the relevant tasks and their statuses.
    - Read the selected task details before editing files.
    - Inspect repo conventions and existing implementation patterns.
+   - Create the ticket worktree with `pnpm worktree:add` (see `AGENTS.md`).
 
 2. Work one task at a time:
    - Keep each implementation scoped to one ticket.

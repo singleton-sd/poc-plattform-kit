@@ -74,7 +74,7 @@ jobs:
         run: pnpm format:check
 
       - name: Changelog projection drift check
-        run: pnpm changelog:test && pnpm changelog:check
+        run: pnpm changelog:test && pnpm changelog:check && pnpm test:worktree-paths
 
       - name: Lint (web + marketing + packages)
         run: |
