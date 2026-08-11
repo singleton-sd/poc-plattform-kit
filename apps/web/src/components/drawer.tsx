@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { ChevronLeftIcon, CloseIcon } from './icons';
 
 const FOCUSABLE_SELECTOR =
@@ -14,6 +14,8 @@ export type DrawerProps = {
   footer?: ReactNode;
   /** Element id containing supplementary description text, if any. */
   describedById?: string;
+  /** Stable labelled-by id for deterministic Storybook / Chromatic output. */
+  titleId?: string;
   testId?: string;
 };
 
@@ -29,11 +31,13 @@ export function Drawer({
   children,
   footer,
   describedById,
+  titleId: titleIdProp,
   testId,
 }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const titleId = useRef(`drawer-title-${Math.random().toString(36).slice(2)}`).current;
+  const generatedTitleId = useId();
+  const titleId = titleIdProp ?? generatedTitleId;
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
