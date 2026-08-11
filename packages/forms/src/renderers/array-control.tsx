@@ -34,7 +34,6 @@ export function ArrayControlRenderer(props: ControlProps) {
   return (
     <fieldset
       className="flex flex-col gap-2"
-      aria-required={required || undefined}
       aria-describedby={invalid ? `${inputId}-error` : undefined}
     >
       <legend className="text-sm text-fg">

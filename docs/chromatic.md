@@ -2,7 +2,8 @@
 
 Chromatic publishes the web Storybook for visual review. It complements the
 assembled-app Azure Static Web Apps preview; it does not replace that preview or
-its human test plan.
+its human test plan. Story conventions and the baseline catalogue Definition of
+Done live in [`docs/storybook.md`](./storybook.md).
 
 ## Workflow policy
 
