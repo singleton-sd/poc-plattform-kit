@@ -64,9 +64,10 @@ Before finishing:
 
 1. Run the relevant tests.
 2. Verify the acceptance criteria.
-3. Check for unrelated changes.
-4. Update documentation or skills if the implementation changes a reusable project workflow.
-5. Summarize:
+3. Ensure the PR body includes a filled `Preview scenarios:` line (or `not-applicable` exemption) when changing `apps/api/**`, `pillars/**`, or `packages/db/**` (see `AGENTS.md`).
+4. Check for unrelated changes.
+5. Update documentation or skills if the implementation changes a reusable project workflow.
+6. Summarize:
    - what changed
    - tests performed
    - architectural decisions
