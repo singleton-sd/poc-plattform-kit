@@ -6,6 +6,11 @@
   Deploys infra/decap-oauth.bicep then zips apps/marketing-oauth for
   az functionapp deployment source config-zip.
 
+  Order is required for Contact: Bicep applies FORWARD_EMAIL_TOKEN / EMAIL_* /
+  CONTACT_* app settings (KV refs) before zip; zip-only (-SkipInfra) leaves
+  /contact returning 503 until infra is reapplied. Zip deploy vendors the built
+  @poc-plattform-kit/email package (workspace:* is not available on Azure).
+
   Prerequisites:
   - az login (or OIDC in CI)
   - GitHub OAuth App created; client secret in KV as github-decap-oauth-client-secret
@@ -45,28 +50,46 @@ try {
     return
   }
 
-  Write-Host "Building @poc-plattform-kit/marketing-oauth ..."
-  pnpm --filter @poc-plattform-kit/marketing-oauth... install
+  Write-Host "Building @poc-plattform-kit/email + marketing-oauth ..."
+  pnpm --filter @poc-plattform-kit/email... install
+  pnpm --filter @poc-plattform-kit/email run build
   pnpm --filter @poc-plattform-kit/marketing-oauth run build
 
   $stage = Join-Path $env:TEMP "decap-oauth-stage-$(Get-Random)"
   New-Item -ItemType Directory -Path $stage | Out-Null
   try {
     Copy-Item (Join-Path $appDir 'host.json') $stage
-    Copy-Item (Join-Path $appDir 'package.json') $stage
+    $stagePackage = Get-Content (Join-Path $appDir 'package.json') -Raw | ConvertFrom-Json
+    # Zip stage cannot resolve pnpm workspace:* — vendor the built email package.
+    if ($stagePackage.dependencies.'@poc-plattform-kit/email') {
+      $stagePackage.dependencies.PSObject.Properties.Remove('@poc-plattform-kit/email')
+    }
+    ($stagePackage | ConvertTo-Json -Depth 10) | Set-Content (Join-Path $stage 'package.json') -Encoding utf8
     Copy-Item (Join-Path $appDir 'dist') (Join-Path $stage 'dist') -Recurse
 
+    # npm install first — vendoring before install gets pruned as extraneous.
     Push-Location $stage
     try {
       npm install --omit=dev --package-lock=false | Out-Host
-      $zipPath = Join-Path $env:TEMP 'decap-oauth-deploy.zip'
-      if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-      # The .NET ZIP API creates a Linux/Kudu-friendly archive on every platform.
-      [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipPath)
     }
     finally {
       Pop-Location
     }
+
+    $emailSrc = Join-Path $root 'packages/email'
+    $emailDest = Join-Path $stage 'node_modules/@poc-plattform-kit/email'
+    $emailEntry = Join-Path $emailDest 'dist/index.js'
+    New-Item -ItemType Directory -Path $emailDest -Force | Out-Null
+    Copy-Item (Join-Path $emailSrc 'package.json') $emailDest
+    Copy-Item (Join-Path $emailSrc 'dist') (Join-Path $emailDest 'dist') -Recurse
+    if (-not (Test-Path $emailEntry)) {
+      throw "Vendored email package missing $emailEntry"
+    }
+
+    $zipPath = Join-Path $env:TEMP 'decap-oauth-deploy.zip'
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    # The .NET ZIP API creates a Linux/Kudu-friendly archive on every platform.
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipPath)
 
     Write-Host "Zip deploying to $FunctionAppName ..."
     az functionapp deployment source config-zip `

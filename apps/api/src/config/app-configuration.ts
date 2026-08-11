@@ -24,6 +24,13 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'secret:azure-ad-client-secret': 'AZURE_AD_CLIENT_SECRET',
   'secret:database-url': 'DATABASE_URL',
   'secret:servicebus-connection-string': 'AZURE_SERVICEBUS_CONNECTION_STRING',
+  'secret:forwardemail-api-key': 'FORWARD_EMAIL_TOKEN',
+  'app:notifications:forwardEmailBaseUrl': 'FORWARD_EMAIL_BASE_URL',
+  'app:notifications:emailFromAddress': 'EMAIL_FROM_ADDRESS',
+  'app:notifications:emailFromName': 'EMAIL_FROM_NAME',
+  'app:notifications:contactInboxAddress': 'CONTACT_INBOX_ADDRESS',
+  'app:notifications:emailProvider': 'EMAIL_PROVIDER',
+  'app:notifications:emailAllowProductionSend': 'EMAIL_ALLOW_PRODUCTION_SEND',
 };
 
 type AppConfigurationDependencies = {

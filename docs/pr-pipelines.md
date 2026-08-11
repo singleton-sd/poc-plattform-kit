@@ -134,9 +134,15 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 
 #### Workflow behaviour (`preview-api.yml`)
 
-1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`): build `apps/api/Dockerfile`, push `…/pocpk-api:pr-<n>`, create/update Container App, comment preview URL (`/health`).
+1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`):
+   - Resolve `PREVIEW_SEED_SCENARIOS` from the PR body (a `Preview scenarios: name1, name2` line, defaulting to `demo` — see [`docs/preview-scenarios.md`](../docs/preview-scenarios.md)).
+   - Build `apps/api/Dockerfile` with `--build-arg PREVIEW_SEED_SCENARIOS=...` — every PR preview gets its **own isolated, disposable SQLite database**, seeded and verified at build time, baked into the image as an immutable template. It never resolves or mutates the shared Azure SQL database.
+   - Push `…/pocpk-api:pr-<n>`, create/update the Container App with explicit `DATABASE_URL=file:/app/data/preview.db` and `AZURE_SERVICEBUS_CONNECTION_STRING=` (empty) — App Configuration cannot override either (explicit env vars win), so a preview can never resolve the shared `secret:database-url`, and `OutboxDrainerService` stays disabled so no seeded outbox row can ever reach the real Service Bus.
+   - Wait for `GET /health/db` (proves Prisma can query the container's writable copy of the seeded database — `docker-entrypoint.sh` already re-verifies every declared scenario's fixtures before Nest starts listening at all).
+   - Comment the preview URL, database mode, active scenarios, reset behaviour, and a link to `docs/preview-scenarios.md` for test instructions.
 2. **PR close:** delete `ssd-pocpk-aca-pr-<n>-ae`.
-3. **Daily orphan sweep:** `sweep-preview-orphans.yml` deletes leftovers if
+3. **Reset:** redeploying (any new commit) copies the immutable template back over the writable database — mutations made while testing never persist. Max replicas stays `1`.
+4. **Daily orphan sweep:** `sweep-preview-orphans.yml` deletes leftovers if
    close cleanup was skipped (path filters, cancelled run, Graph soft-fail).
 
 #### GitHub Azure auth (human)
@@ -149,7 +155,7 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 4. Workflow fails fast if any OIDC Variable is missing.
 5. Image push + ACA registry attach use OIDC → KV `acr-admin-*` (never GitHub Secrets / `AZURE_CREDENTIALS`).
 
-Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health`.
+Nest listens on `PORT` (default `3001` in the image / ACA env). Liveness: `/health`. Database-aware readiness (preview only): `/health/db`.
 
 ### OpenFGA authZ engine (shared CAE — not per-PR)
 
