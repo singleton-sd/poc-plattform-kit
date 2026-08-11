@@ -24,12 +24,13 @@ function meResponse(me: Me | null) {
 export const meSignedOutHandlers = [http.get(mePath, () => meResponse(createMeFixture(null)))];
 
 /**
- * Loading state: infinite delay simulates a pending session verification.
+ * Loading state: delayed response simulates a pending session verification.
  * Triggers the "Loading…" UI in HomeAuthGate.
+ * Note: Uses 30 second delay instead of 'infinite' to allow Chromatic snapshots to capture.
  */
 export const meLoadingHandlers = [
   http.get(mePath, async () => {
-    await delay('infinite');
+    await delay(30000);
     return meResponse(createMeFixture(meRegularUser));
   }),
 ];

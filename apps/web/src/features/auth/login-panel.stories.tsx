@@ -37,7 +37,7 @@ export const LoginPanelSignedOut: Story = {
 /**
  * HomeAuthGate in loading state.
  * Shows the session verification pending UI.
- * Stays on this story indefinitely because meLoadingHandlers delays forever.
+ * Uses delayed response to allow Chromatic to capture the loading state snapshot.
  */
 export const HomeAuthGateLoading: Story = {
   parameters: { msw: { handlers: { auth: meLoadingHandlers } } },
