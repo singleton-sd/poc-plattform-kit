@@ -3,7 +3,7 @@
 ## Repo
 
 - GitHub: `singleton-sd/poc-plattform-kit` (`git@github.com:singleton-sd/poc-plattform-kit.git`)
-- Local: `C:\00Personal\singleton-sd\poc-plattform-kit`
+- Local: `C:\00Personal\singleton-sd\plattform-kit\repo` (parent workspace `plattform-kit\` also holds `worktrees\` - see § Worktrees)
 - ClickUp tickets must include `[repo=singleton-sd/poc-plattform-kit]`
 
 ## ClickUp (locked)
