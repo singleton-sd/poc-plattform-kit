@@ -35,6 +35,16 @@ export interface AccessRequestResponseDto {
    * @nullable
    */
   grantExpiresAt?: string | null;
+  /**
+   * Requester preferred grant type (hint for approvers).
+   * @nullable
+   */
+  preferredGrantType?: string | null;
+  /**
+   * Preferred temporary grant expiry from the requester.
+   * @nullable
+   */
+  preferredGrantExpiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

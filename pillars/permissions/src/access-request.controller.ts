@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -22,6 +22,7 @@ import { AccessRequestResponseDto } from './dto/access-request-response.dto';
 import { ApproveAccessRequestDto } from './dto/approve-access-request.dto';
 import { CreateAccessRequestDto } from './dto/create-access-request.dto';
 import { DenyAccessRequestDto } from './dto/deny-access-request.dto';
+import { ListMyAccessRequestsQueryDto } from './dto/list-my-access-requests-query.dto';
 
 @ApiTags('permissions')
 @ApiBearerAuth()
@@ -35,7 +36,7 @@ export class AccessRequestController {
   @ApiOperation({
     summary: 'Create an access request for a denied action',
     description:
-      'Captures subject/action/resource for the current user. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.',
+      'Captures subject/action/resource for the current user. Idempotent for an existing non-expired pending request on the same action+resource. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.',
   })
   @ApiCreatedResponse({ type: AccessRequestResponseDto })
   @ApiBadRequestResponse({ description: 'Validation failed or tenant claim missing.' })
@@ -46,6 +47,21 @@ export class AccessRequestController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<AccessRequestResponseDto> {
     return toAccessRequestResponseDto(await this.accessRequests.create(dto, user));
+  }
+
+  @Get('mine')
+  @ApiOperation({
+    summary: 'List access requests filed by the current user',
+    description: 'Optional action/resource filters. Newest first (max 50).',
+  })
+  @ApiOkResponse({ type: AccessRequestListResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
+  async listMine(
+    @Query() query: ListMyAccessRequestsQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AccessRequestListResponseDto> {
+    const items = await this.accessRequests.listMine(user, query);
+    return { items: items.map(toAccessRequestResponseDto) };
   }
 
   @Get('pending')
