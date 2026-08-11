@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { contactCorsHeaders, submitContactInquiry, validateContactInquiry } from '../contact';
+import { EmailProviderError } from '@poc-plattform-kit/email';
+import { contactCorsHeaders, submitContactInquiry } from '../contact';
 import { clientIpFromHeaders, contactRateLimiter } from '../contact-rate-limit';
 
 export async function contactHandler(
@@ -29,27 +30,36 @@ export async function contactHandler(
 
   try {
     const body = await request.json().catch(() => null);
-    const validated = validateContactInquiry(body);
-    if (!validated.ok) {
-      return {
-        status: validated.status,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-        jsonBody: { error: validated.error },
-      };
-    }
-
-    const result = await submitContactInquiry(validated.value);
+    const result = await submitContactInquiry(body, { requestOrigin: origin });
     return {
       status: 202,
       headers: { ...cors, 'Content-Type': 'application/json' },
       jsonBody: result,
     };
   } catch (error) {
-    context.error('contact failed', error);
-    const message = error instanceof Error ? error.message : 'contact failed';
+    context.error('contact failed', {
+      name: error instanceof Error ? error.name : 'Error',
+      kind: error instanceof EmailProviderError ? error.kind : undefined,
+      statusCode: error instanceof EmailProviderError ? error.statusCode : undefined,
+      correlationId: error instanceof EmailProviderError ? error.correlationId : undefined,
+    });
+
+    const statusFromValidation =
+      error instanceof Error && 'status' in error
+        ? Number((error as Error & { status?: number }).status)
+        : undefined;
+    if (statusFromValidation === 400) {
+      return {
+        status: 400,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+        jsonBody: { error: error instanceof Error ? error.message : 'Invalid request' },
+      };
+    }
+
     const unavailable =
-      /not configured|FORWARDEMAIL|CONTACT_INBOX|CONTACT_FROM/i.test(message) ||
-      /Forward Email send failed/i.test(message);
+      error instanceof EmailProviderError &&
+      (error.kind === 'configuration' || error.kind === 'rate_limit' || error.kind === 'transient');
+
     return {
       status: unavailable ? 503 : 500,
       headers: { ...cors, 'Content-Type': 'application/json' },

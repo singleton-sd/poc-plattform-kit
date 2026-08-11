@@ -69,7 +69,14 @@ A task may enter **READY FOR AI** only when there are no unresolved product/arch
 
 ## Classification taxonomy
 
-When ClickUp fields exist, classify each task with these concepts. Until dedicated fields are available, record them near the top of the description using the exact labels below so they remain machine-readable.
+Classify every task using the dedicated ClickUp custom fields below. Use the field IDs when creating/updating tasks programmatically; keep the human-readable labels in ticket prose only when they improve readability.
+
+| Field | ID |
+| --- | --- |
+| Area | `d046262e-bc5e-4e51-a13b-2ec91590f08e` |
+| Pillar | `63c6b89a-5c01-4ddf-90c3-c1ad7b6df60f` |
+| Work Type | `e7d43240-fe4a-4a62-8806-75a5b7f66ac7` |
+| Execution | `37574c9a-004c-419e-b1c1-5ac6f47fc501` |
 
 ### Area
 
