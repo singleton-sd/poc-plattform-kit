@@ -4,7 +4,7 @@ import {
   findBriefComment,
   formatBrief,
   nextAction,
-  previewUrlsFromComments,
+  previewUrlsFromSources,
 } from './upsert-pr-review-brief.mjs';
 
 assert.equal(
@@ -89,7 +89,21 @@ const comments = [
   { id: 1, body: '<!-- swa-preview-web --> https://preview.example/' },
   { id: 2, body: `${BRIEF_MARKER}\n## Human Review Brief` },
 ];
-assert.deepEqual(previewUrlsFromComments(comments), ['https://preview.example/']);
+assert.deepEqual(
+  previewUrlsFromSources(
+    [
+      'Test plan: https://not-a-preview.example/',
+      '<!-- swa-preview-marketing --> https://marketing-preview.example/',
+      '<!-- api-preview-aca --> https://api-preview.example/',
+    ].join('\n'),
+    comments,
+  ),
+  [
+    'https://api-preview.example/',
+    'https://marketing-preview.example/',
+    'https://preview.example/',
+  ],
+);
 assert.equal(findBriefComment(comments)?.id, 2);
 
 console.log('upsert-pr-review-brief tests passed');

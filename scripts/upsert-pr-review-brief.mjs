@@ -110,12 +110,15 @@ function summaryFromBody(body) {
   return excerpt.split('\n').slice(0, 8).join('\n');
 }
 
-export function previewUrlsFromComments(comments = []) {
+export function previewUrlsFromSources(body = '', comments = []) {
   const previewUrls = [];
-  for (const comment of comments) {
-    if (!previewMarkers.some((marker) => comment.body?.includes(marker))) continue;
-    const match = comment.body.match(/https?:\/\/\S+/);
-    if (match) previewUrls.push(match[0].replace(/[).,]+$/, ''));
+  for (const source of [body, ...comments.map((comment) => comment.body ?? '')]) {
+    for (const marker of previewMarkers) {
+      const markerIndex = source.indexOf(marker);
+      if (markerIndex === -1) continue;
+      const match = source.slice(markerIndex + marker.length).match(/https?:\/\/\S+/);
+      if (match) previewUrls.push(match[0].replace(/[).,]+$/, ''));
+    }
   }
   return [...new Set(previewUrls)];
 }
@@ -152,7 +155,7 @@ function loadSnapshot(pr, comments) {
   const requiredPending = checks.some(
     (check) => requiredCi.has(check.name) && check.status && check.status !== 'COMPLETED',
   );
-  const previewUrls = previewUrlsFromComments(comments);
+  const previewUrls = previewUrlsFromSources(view.body, comments);
   const repository = gh([
     'repo',
     'view',
