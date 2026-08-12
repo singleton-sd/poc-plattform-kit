@@ -4,7 +4,7 @@
 
 - GitHub: `singleton-sd/poc-plattform-kit` (`git@github.com:singleton-sd/poc-plattform-kit.git`)
 - Local: `C:\00Personal\singleton-sd\plattform-kit\repo` (parent workspace `plattform-kit\` also holds `worktrees\` - see Worktrees)
-- **ClickUp ticket titles:** keep names concise, sentence case, action-first, and human-readable. Never append repository identifiers, routing metadata, or markers such as `[repo=singleton-sd/poc-plattform-kit]` to the task name. Repository context belongs in the task description or project context.
+- **ClickUp ticket titles:** keep names concise, sentence case, action-first, and human-readable. Never append repository identifiers or routing metadata to the task name. This is a single-repo workspace (Delivery/Ideas & Discovery/Human & Operations all scope to `singleton-sd/poc-plattform-kit`), so tickets and their descriptions do not need a repository marker at all.
 
 ## ClickUp (locked)
 

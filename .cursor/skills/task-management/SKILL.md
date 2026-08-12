@@ -40,7 +40,7 @@ backlog → scoping → ready for development → in design → in development �
 
 When creating a task:
 
-1. **Name** — use sentence case, action-first: `Add dark mode toggle`, `Fix null pointer in token parser`. Keep it concise and human-readable. Never append repository identifiers, agent-routing metadata, custom-field encodings, or markers such as `[repo=owner/repository]` to the task name. Put repository context in the description, project context, tags, or a dedicated custom field instead.
+1. **Name** — use sentence case, action-first: `Add dark mode toggle`, `Fix null pointer in token parser`. Keep it concise and human-readable. Never append repository identifiers, agent-routing metadata, or custom-field encodings to the task name. This is a single-repo workspace, so tickets don't need a repository marker anywhere — not in the name, and not in the description either.
 2. **Description** — include: what needs to be done, why it matters, and any acceptance criteria
 3. **List placement** — ask which list/milestone/sprint to place it in if not specified
 4. **Status** — default to backlog / not started: on poc-plattform-kit ops list that is **TO DO** (use a list’s literal `BACKLOG` status when it exists)

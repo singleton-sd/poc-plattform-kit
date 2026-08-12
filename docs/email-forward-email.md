@@ -1,7 +1,5 @@
 # Forward Email — outbound email + DNS provisioning
 
-`[repo=singleton-sd/poc-plattform-kit]`
-
 Platform Kit sends transactional and contact email through a provider-independent
 **`EmailProvider`** in `@poc-plattform-kit/email` (`packages/email`). The
 **Notifications** pillar re-exports that package for Nest / queue orchestration

@@ -1,6 +1,4 @@
 <!--
-[repo=singleton-sd/poc-plattform-kit]
-
 Preview scenario declaration (required for apps/api/**, pillars/**, packages/db/**
 changes — see docs/preview-scenarios.md and AGENTS.md "Preview scenario delivery
 standard"). Fill in the "Preview scenarios:" line below with either:

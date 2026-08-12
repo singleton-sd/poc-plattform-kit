@@ -1,7 +1,5 @@
 # Marketing site — Astro + Decap
 
-`[repo=singleton-sd/poc-plattform-kit]`
-
 Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-mkt-dev-ae`).
 
 ## Stack

@@ -1,7 +1,5 @@
 # SingleSignOn (Entra JWT + Auth.js cookies)
 
-`[repo=singleton-sd/poc-plattform-kit]`
-
 ## Runtime contract
 
 | Surface | Behaviour |

@@ -191,7 +191,7 @@ API surface (exact routes may follow repo controller conventions): customer crea
 
 ## 11. Implementation-ready tickets
 
-Each ticket must include `[repo=singleton-sd/poc-plattform-kit]`, this ADR/ClickUp Architecture link, TDD, and the shared terminology. Consolidation should search ClickUp by title/intent before creating tasks.
+Each ticket must include this ADR/ClickUp Architecture link, TDD, and the shared terminology. Consolidation should search ClickUp by title/intent before creating tasks.
 
 | Order | Ticket title | Depends on | Estimate | Acceptance criteria |
 | --- | --- | --- | ---: | --- |
