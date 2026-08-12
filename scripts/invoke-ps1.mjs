@@ -35,8 +35,7 @@ function canRun(command) {
 }
 
 function resolveShell() {
-  const candidates =
-    process.platform === 'win32' ? ['pwsh', 'powershell'] : ['pwsh', 'powershell'];
+  const candidates = process.platform === 'win32' ? ['pwsh', 'powershell'] : ['pwsh', 'powershell'];
   for (const candidate of candidates) {
     if (canRun(candidate)) {
       return candidate;

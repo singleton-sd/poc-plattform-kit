@@ -21,7 +21,10 @@ function run(command, args) {
 }
 
 if (process.platform === 'win32') {
-  const args = [path.join(scriptsDir, 'invoke-ps1.mjs'), path.join(scriptsDir, 'bootstrap-worktree.ps1')];
+  const args = [
+    path.join(scriptsDir, 'invoke-ps1.mjs'),
+    path.join(scriptsDir, 'bootstrap-worktree.ps1'),
+  ];
   if (quick) args.push('-QuickCheck');
   run(process.execPath, args);
 }
