@@ -219,7 +219,7 @@ Cookie proposal: `__Host-pocpk-impersonation`, `Secure`, `HttpOnly`, `Path=/`, n
 2. Agent supplies the written reason and confirms tenant/customer/expiry.
 3. `POST /support/impersonation-sessions` accepts `ticketId`, an opaque server-issued eligible-customer selection token or selected ticket participant ID, and `reason`; it does **not** accept `tenantId`.
 4. Server authenticates actor, checks coarse role, resolves local user, ticket/tenant/customer, assignment policy, rate limit, and fail-closed OpenFGA tenant grant.
-5. Server re-verifies no other active session exists for that authenticated actor and rejects the request with a conflict Problem Details response if one does. In one Support transaction, create the session, local Audit and Outbox event. Generate/set the cookie only after commit.
+5. Server re-verifies no other active session exists for that authenticated actor and rejects the request with a `409` Problem Details response (`impersonation.session_conflict`, a business code extending the registered conflict family) if one does. In one Support transaction, create the session, local Audit and Outbox event. Generate/set the cookie only after commit.
 6. Response returns a safe view (`expiresAt`, masked actor display, tenant display, ticket reference, read-only flag), not credential or unrestricted PII.
 7. UI clears tenant-header client state, refetches `/api/me` or `/api/actor-context`, discards caches, navigates to an allowlisted landing page, and displays banner before customer data renders.
 

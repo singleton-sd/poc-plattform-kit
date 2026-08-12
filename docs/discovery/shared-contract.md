@@ -37,8 +37,9 @@ This vocabulary is normative across the three discovery ADRs and the roadmap.
    adapter.
 2. Correlation middleware currently accepts arbitrary inbound
    `x-correlation-id` or even the full `traceparent` value. The target contract
-   generates a bounded public UUID while preserving valid W3C propagation as a
-   separate `traceId`.
+   generates a bounded public `correlationId` as defined above (CSPRNG/ULID
+   equivalent, at least 128 bits of unpredictability) while preserving valid
+   W3C propagation as a separate `traceId`.
 3. The exception filter currently returns Nest's heterogeneous payload shape.
    The target contract is one versioned RFC 9457 representation and never
    exposes exception text or stack traces.
