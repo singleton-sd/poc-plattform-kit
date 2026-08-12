@@ -5,7 +5,9 @@
 # - needs-rebase: set when mergeable_state=dirty; cleared only when state is known and not dirty
 # - ci-failed: set when a required CI job fails (CI Web / CI API lint-test-build)
 # - preview-blocked: set when SWA/ACA/Chromatic infra fails; does not bounce ClickUp
-# - has-feedback: set on Bugbot/Copilot/human comments; cleared on PR synchronize
+# - has-feedback: set on Bugbot/Copilot/human comments; cleared on PR synchronize.
+#   Skipped for reviewers that report they did not review (usage limit, quota,
+#   Bugbot not enabled) — those carry no finding and must not wake the fixer.
 
 name: PR hygiene
 
@@ -256,8 +258,14 @@ jobs:
           fi
 
           LOWER_BODY=$(printf '%s' "$BODY" | tr '[:upper:]' '[:lower:]')
-          if printf '%s' "$LOWER_BODY" | grep -Eq "couldn't run - usage limit reached|usage limits for code reviews|you have reached your .*usage limit"; then
-            echo "Skip: reviewer usage limit"
+          # A reviewer that says it did not review carries no finding to fix.
+          # Labelling those wakes the PR fixer agent for nothing.
+          if printf '%s' "$BODY" | grep -Fq '<!-- BUGBOT_FREE_TIER_DISABLED_UPSELL -->'; then
+            echo "Skip: Bugbot not enabled notice"
+            exit 0
+          fi
+          if printf '%s' "$LOWER_BODY" | grep -Eq "couldn't run - usage limit reached|usage limits for code reviews|you have reached your .*usage limit|reached (their|your) quota limit|was unable to review this pull request|bugbot is not enabled|this pull request was not reviewed"; then
+            echo "Skip: reviewer did not review (usage limit, quota, or not enabled)"
             exit 0
           fi
           if printf '%s' "$BODY" | grep -Fq '<!-- pr-hygiene:'; then
