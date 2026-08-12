@@ -76,7 +76,6 @@ Every agent-ready Delivery task must include:
 9. Automated test expectations
 10. Human test plan expectations
 11. Parent Epic/initiative reference
-12. `[repo=singleton-sd/poc-plattform-kit]`
 
 A task may enter **READY FOR AI** only when there are no unresolved product/architecture questions that would force the implementer to redesign the feature.
 

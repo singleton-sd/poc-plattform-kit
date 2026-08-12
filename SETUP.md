@@ -58,7 +58,7 @@ Create worktrees with `pnpm worktree:add -- -TaskId <id> -Slug <kebab>` (Windows
 - **Decisions / Docs folder:** https://app.clickup.com/90161394355/v/f/901610744236/90165834867 (`folder_id=901610744236`)
 - Delivery statuses: **BACKLOG**, **TO DO**, **IN PROGRESS**, **READY FOR AI**, **READY FOR REVIEW**, **READY FOR HUMAN**, **COMPLETE**
 - Ideas & Discovery / Human & Operations statuses: **TO DO**, **IN PROGRESS**, **COMPLETE** only (no Claim Token / AI loop)
-- Ticket template includes `[repo=singleton-sd/poc-plattform-kit]`, acceptance criteria, tests
+- Ticket template includes acceptance criteria, tests (no repository marker needed - single-repo workspace)
 - [ ] Connect ClickUp -> Cursor (App Center + Cursor API key); default repo = this GitHub repo
 
 ## 3. Agent automations

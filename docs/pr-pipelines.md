@@ -1,7 +1,5 @@
 # PR pipelines & preview environments
 
-`[repo=singleton-sd/poc-plattform-kit]`
-
 ## Path filters (FE / BE split)
 
 | Workflow | Triggers when paths change | Checks |

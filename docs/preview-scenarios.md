@@ -1,7 +1,5 @@
 # Preview scenarios
 
-`[repo=singleton-sd/poc-plattform-kit]`
-
 Ephemeral PR previews are the primary low-effort environment for product
 acceptance testing and demonstrations. Every API PR preview runs against an
 isolated, disposable **SQLite** database — never the shared Azure SQL

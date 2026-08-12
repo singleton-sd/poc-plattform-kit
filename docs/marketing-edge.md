@@ -1,7 +1,5 @@
 # Marketing edge (public HTTP)
 
-`[repo=singleton-sd/poc-plattform-kit]`
-
 ## Decision (locked for PoC)
 
 **Marketing public HTTP** (brochure Contact form, future anonymous marketing APIs) runs on the existing Azure Function App:

@@ -177,7 +177,7 @@ Changing `apps/api/package.json` version does not itself version the error schem
 
 ## Implementation tickets
 
-Each title must include `[repo=singleton-sd/poc-plattform-kit]` when created in ClickUp. These are proposed slices for consolidation; this discovery agent does not create or claim them.
+These are proposed slices for consolidation; this discovery agent does not create or claim them.
 
 1. **Establish actor, tenant and correlation request context** (M): server-owned `tenantId`, authenticated/effective actors, W3C trace continuation, opaque public correlation issuance/mapping; remove authoritative reliance on inbound correlation/tenant headers. Foundation for all later work.
 2. **Implement the Problem Details V1 registry and exception filter** (M; depends on 1): typed domain error, strict safe renderer, validation mapping, unknown exception behavior, rate-limit metadata, media type, sanitizer.

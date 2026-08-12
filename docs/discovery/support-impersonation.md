@@ -388,7 +388,7 @@ Release gates: threat-model review approved; product/security open questions res
 
 ## 15. Implementation-ready ticket slices
 
-Every ticket description must include `[repo=singleton-sd/poc-plattform-kit]`, link this ADR and the authoritative ClickUp Architecture page, and use test-first delivery.
+Every ticket description must link this ADR and the authoritative ClickUp Architecture page, and use test-first delivery.
 
 ### Phase 1 — shared foundations (hard dependencies)
 

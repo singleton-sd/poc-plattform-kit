@@ -77,7 +77,6 @@ Open questions:
 - <must be empty before READY FOR AI unless explicitly safe for implementer choice>
 
 Sizing hint: XS | S | M | L | XL
-[repo=singleton-sd/poc-plattform-kit]
 ```
 
 For bugs also include Steps to reproduce, Expected behavior and Actual behavior.
@@ -163,4 +162,4 @@ Do not put every ticket into READY FOR AI at once when dependencies make that un
 
 ## Naming
 
-Use ticket titles as the primary human label. IDs belong in URLs, branch names, dependency wiring and secondary references. Keep `[repo=singleton-sd/poc-plattform-kit]` in the task name or description.
+Use ticket titles as the primary human label. IDs belong in URLs, branch names, dependency wiring and secondary references. Do not add a repository marker to the task name or description — this is a single-repo workspace.
