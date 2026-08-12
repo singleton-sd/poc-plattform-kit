@@ -198,7 +198,9 @@ print(json.dumps({
       "$(python3 -c 'import json,sys; print(json.dumps({"status":sys.argv[1]}))' "$status")" >/dev/null
     verify="$(api GET "/task/$task_id")"
     got_status="$(printf '%s' "$verify" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("status") or {}).get("status", "").lower())')"
-    [[ "$got_status" == "${status,,}" ]] || \
+    # macOS ships Bash 3.2 — avoid ${var,,} (Bash 4+ only).
+    status_lc="$(printf '%s' "$status" | tr '[:upper:]' '[:lower:]')"
+    [[ "$got_status" == "$status_lc" ]] || \
       die "Handoff verification failed: expected status '$status', got '$got_status'; claim retained"
     api POST "/task/$task_id/field/$CLAIM_FIELD_ID" '{"value":""}' >/dev/null
     echo "OK: PR gate passed; $task_id -> $status"
