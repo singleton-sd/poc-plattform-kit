@@ -1187,13 +1187,11 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid",
-            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            "example": "clx1tenantinvitation000000001"
           },
           "tenantId": {
             "type": "string",
-            "format": "uuid",
-            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            "example": "clx1tenant00000000000000001"
           },
           "email": {
             "type": "string",

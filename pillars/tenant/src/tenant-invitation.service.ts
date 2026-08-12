@@ -78,7 +78,9 @@ export class TenantInvitationService {
     // fresh invite for the same tenant+email.
     await this.prisma.tenantInvitation.updateMany({
       where: { tenantId, email, status: 'pending', expiresAt: { lte: now } },
-      data: { status: 'expired' },
+      // respondedAt marks when the invite left "pending" (accepted/declined/
+      // revoked/expired) — keep it filled for the expiry sweep too.
+      data: { status: 'expired', respondedAt: now },
     });
 
     const existingPending = await this.prisma.tenantInvitation.findFirst({

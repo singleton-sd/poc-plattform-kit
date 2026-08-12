@@ -1,10 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class TenantInvitationResponseDto {
-  @ApiProperty({ format: 'uuid', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  // Prisma defaults these to cuid() — do not advertise format: 'uuid'.
+  @ApiProperty({ example: 'clx1tenantinvitation000000001' })
   id!: string;
 
-  @ApiProperty({ format: 'uuid', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  @ApiProperty({ example: 'clx1tenant00000000000000001' })
   tenantId!: string;
 
   @ApiProperty({ example: 'newmember@example.test' })

@@ -257,7 +257,7 @@ describe('TenantInvitationService', () => {
           status: 'pending',
           expiresAt: { lte: expect.any(Date) },
         },
-        data: { status: 'expired' },
+        data: { status: 'expired', respondedAt: expect.any(Date) },
       });
       expect(prisma.tenantInvitation.create).toHaveBeenCalled();
     });
