@@ -106,8 +106,9 @@ from F3 while persistence work continues.
 | S7 | Build support-agent queue, workspace and diagnostic portal | 200k | S5, F7 | Role shell plus server authorization, filters/assignment/replies/notes/transitions, diagnostic view and grant-revoke cache clearing. |
 | S8 | Integrate Support events with Notifications | 100k | S1, Notifications contract | Safe minimized templates for receipt/reply/state; preference and verified destination; retry/idempotency; no note/diagnostic content. |
 
-After S1 and F5 merge, S2, S3, S4, and S8 can run concurrently in distinct
-workspaces. S6 and S7 can run concurrently after the consolidated S5 contract.
+After S1 and F5 merge, S2, S3, and S8 can run concurrently in distinct
+workspaces; S4 additionally requires F6 before it can start. S6 and S7 can run
+concurrently after the consolidated S5 contract.
 
 ### Phase 2B — controlled diagnostics and error UX
 
@@ -190,7 +191,7 @@ clocks. The suite demonstrates:
 2. Assign F2 and F4 in parallel; assign F5 to an authorization specialist and
    F6 to a privacy/diagnostics specialist once approvals are recorded.
 3. Assign F3 after F2, then F7 to a frontend platform agent.
-4. Assign S1; after it merges, run S2, S3, S4, and S8 concurrently.
+4. Assign S1; after it merges, run S2, S3, and S8 concurrently. Assign S4 once F6 also merges.
 5. Stabilize S5 once, then run S6, S7, D1/D2/D3, and I1 where dependencies
    permit. Avoid separate generated-client PRs modifying the same outputs.
 6. Stabilize I2, then assign I3 to a security/backend agent, I4 to a frontend
