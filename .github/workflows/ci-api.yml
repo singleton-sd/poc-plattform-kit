@@ -7,6 +7,19 @@ on:
       - 'apps/api/**'
       - 'pillars/**'
       - 'packages/**'
+      - 'scripts/check-client-changelogs.mjs'
+      - 'scripts/check-client-changelogs.test.mjs'
+      - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
+      - 'scripts/check-permissions-catalog.mjs'
+      - 'scripts/check-permissions-catalog.test.mjs'
+      - 'scripts/register-permission.mjs'
+      - 'scripts/worktree-paths.mjs'
+      - 'scripts/worktree-paths.test.mjs'
+      - 'infra/openfga/**'
+      - 'docs/permissions.md'
       - '.github/workflows/ci-api.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -20,6 +33,19 @@ on:
       - 'apps/api/**'
       - 'pillars/**'
       - 'packages/**'
+      - 'scripts/check-client-changelogs.mjs'
+      - 'scripts/check-client-changelogs.test.mjs'
+      - 'scripts/client-changelog.mjs'
+      - 'scripts/client-changelog.test.mjs'
+      - 'scripts/backfill-client-changelogs.mjs'
+      - 'scripts/backfill-client-changelogs.test.mjs'
+      - 'scripts/check-permissions-catalog.mjs'
+      - 'scripts/check-permissions-catalog.test.mjs'
+      - 'scripts/register-permission.mjs'
+      - 'scripts/worktree-paths.mjs'
+      - 'scripts/worktree-paths.test.mjs'
+      - 'infra/openfga/**'
+      - 'docs/permissions.md'
       - '.github/workflows/ci-api.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -56,6 +82,12 @@ jobs:
 
       - name: OpenAPI client drift check
         run: pnpm openapi:check
+
+      - name: Changelog projection drift check
+        run: pnpm changelog:test && pnpm changelog:check && pnpm test:worktree-paths
+
+      - name: Permissions catalog drift check
+        run: pnpm permissions:check
 
       - name: Prettier check
         run: pnpm format:check

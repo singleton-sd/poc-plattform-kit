@@ -22,6 +22,10 @@ jest.mock('@/lib/api-client', () => ({
   configureApiClient: jest.fn(),
 }));
 
+jest.mock('@/features/permissions/permission-gate', () => ({
+  PermissionGate: ({ children }: { children: import('react').ReactNode }) => children,
+}));
+
 jest.mock('@poc-plattform-kit/api-client', () => ({
   useTenantControllerFindAll: (...args: unknown[]) => {
     findAll(...args);
@@ -172,6 +176,27 @@ describe('TenantWorkspace', () => {
     fireEvent.click(screen.getByTestId('tenant-create-open'));
 
     expect(screen.getByRole('dialog', { name: 'Create tenant' })).toBeInTheDocument();
+  });
+
+  it('hides tenant creation when the page permission is restricted', () => {
+    render(<TenantWorkspace canCreate={false} />);
+
+    expect(screen.queryByTestId('tenant-create-open')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Create tenant' })).not.toBeInTheDocument();
+  });
+
+  it('hides empty-state creation when the page permission is restricted', () => {
+    findAllState = {
+      data: { data: { items: [], nextCursor: null } },
+      isLoading: false,
+      isError: false,
+      refetch: findAllRefetch,
+    };
+
+    render(<TenantWorkspace canCreate={false} />);
+
+    expect(screen.getByText('No tenants available')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create Tenant' })).not.toBeInTheDocument();
   });
 
   it('opens the details drawer when a tenant row is selected', () => {

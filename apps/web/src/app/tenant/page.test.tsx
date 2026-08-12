@@ -6,8 +6,17 @@ jest.mock('@/features/auth/me', () => ({
   useMe: jest.fn(),
 }));
 
+let searchParams = new URLSearchParams();
+jest.mock('next/navigation', () => ({
+  useSearchParams: () => searchParams,
+}));
+
+const tenantSettingsSpy = jest.fn();
 jest.mock('@/features/tenant-settings/tenant-settings', () => ({
-  TenantSettings: () => <div data-testid="tenant-settings-stub" />,
+  TenantSettings: (props: { initialTenantId?: string }) => {
+    tenantSettingsSpy(props);
+    return <div data-testid="tenant-settings-stub" />;
+  },
 }));
 
 const mockUseMe = useMe as jest.Mock;
@@ -15,6 +24,7 @@ const mockUseMe = useMe as jest.Mock;
 describe('TenantSettingsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    searchParams = new URLSearchParams();
   });
 
   it('shows a loading state while resolving the session', () => {
@@ -33,7 +43,11 @@ describe('TenantSettingsPage', () => {
     expect(screen.getByTestId('tenant-settings-page-error')).toBeInTheDocument();
   });
 
-  it('restricts access when the user lacks the tenant-admin role', () => {
+  it('renders the settings shell for any authenticated user, regardless of role', () => {
+    // GET/PATCH /tenants/:id remain the real authority server-side (tenancy
+    // context + owner membership or tenant-admin for updates). This page
+    // can't tell a self-service owner apart from any other signed-in user
+    // client-side, so it no longer gates on roles.
     mockUseMe.mockReturnValue({
       data: { roles: ['support-agent'] },
       isLoading: false,
@@ -42,10 +56,45 @@ describe('TenantSettingsPage', () => {
 
     render(<TenantSettingsPage />);
 
-    expect(screen.getByTestId('tenant-settings-page-restricted')).toBeInTheDocument();
-    expect(screen.getByTestId('tenant-settings-page-login-link')).toHaveTextContent(
-      'Switch account',
-    );
+    expect(screen.getByTestId('tenant-settings-page-shell')).toBeInTheDocument();
+    expect(screen.getByTestId('tenant-settings-stub')).toBeInTheDocument();
+  });
+
+  it('renders the settings shell for a signed-in user with no roles at all', () => {
+    mockUseMe.mockReturnValue({
+      data: { roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TenantSettingsPage />);
+
+    expect(screen.getByTestId('tenant-settings-page-shell')).toBeInTheDocument();
+  });
+
+  it('passes the tenantId query param through to TenantSettings as initialTenantId', () => {
+    searchParams = new URLSearchParams('tenantId=t-123');
+    mockUseMe.mockReturnValue({
+      data: { roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TenantSettingsPage />);
+
+    expect(tenantSettingsSpy).toHaveBeenCalledWith({ initialTenantId: 't-123' });
+  });
+
+  it('passes undefined initialTenantId when no tenantId query param is present', () => {
+    mockUseMe.mockReturnValue({
+      data: { roles: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TenantSettingsPage />);
+
+    expect(tenantSettingsSpy).toHaveBeenCalledWith({ initialTenantId: undefined });
   });
 
   it('links signed-out users to sign in', () => {

@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - 'apps/marketing-oauth/**'
+      - 'packages/email/**'
       - 'infra/decap-oauth.bicep'
       - 'scripts/deploy-decap-oauth.ps1'
       - '.github/workflows/deploy-decap-oauth.yml'
@@ -80,6 +81,8 @@ jobs:
             --name github-decap-oauth-client-secret \
             --query name -o tsv >/dev/null
 
+      # Bicep before zip so Contact FORWARD_EMAIL_TOKEN / EMAIL_* / CONTACT_* settings
+      # exist before the new /contact handler is live (otherwise 503 until reapply).
       - name: Deploy Function App infra
         if: steps.cfg.outputs.configured == 'true'
         run: |
@@ -92,14 +95,26 @@ jobs:
 
       - name: Stage zip
         if: steps.cfg.outputs.configured == 'true'
-        working-directory: apps/marketing-oauth
         run: |
           set -euo pipefail
-          pnpm run build
+          pnpm --filter @poc-plattform-kit/email run build
+          pnpm --filter @poc-plattform-kit/marketing-oauth run build
           STAGE=$(mktemp -d)
-          cp host.json package.json "$STAGE/"
-          cp -r dist "$STAGE/dist"
+          cp apps/marketing-oauth/host.json "$STAGE/"
+          # Zip cannot resolve pnpm workspace:* — vendor built @poc-plattform-kit/email.
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('apps/marketing-oauth/package.json','utf8'));
+            delete pkg.dependencies['@poc-plattform-kit/email'];
+            fs.writeFileSync(process.argv[1] + '/package.json', JSON.stringify(pkg, null, 2));
+          " "$STAGE"
+          cp -r apps/marketing-oauth/dist "$STAGE/dist"
           (cd "$STAGE" && npm install --omit=dev --package-lock=false)
+          # Vendor after npm install so the package is not pruned as extraneous.
+          mkdir -p "$STAGE/node_modules/@poc-plattform-kit/email"
+          cp packages/email/package.json "$STAGE/node_modules/@poc-plattform-kit/email/"
+          cp -r packages/email/dist "$STAGE/node_modules/@poc-plattform-kit/email/dist"
+          test -f "$STAGE/node_modules/@poc-plattform-kit/email/dist/index.js"
           (cd "$STAGE" && zip -r "$GITHUB_WORKSPACE/decap-oauth.zip" .)
 
       - name: Zip deploy Function App

@@ -9,6 +9,8 @@
 | `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
+| `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook visual regression; TurboSnap + explicit review via OIDC → Key Vault |
+| `playwright.yml` | `apps/web/**`, `packages/**` | Chromium public journeys against a local production-like static export; failure artifacts retained 7 days |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** (Free) via OIDC → Key Vault (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `workflow_dispatch` from `release.yml` when `apps/web/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | SWA **production** via OIDC → Key Vault |
@@ -19,7 +21,7 @@
 
 **Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). It then **dispatches** matching **deploy-*** workflows via `workflow_dispatch` on **`main`** (the release tip; `gh workflow run --ref` requires a branch/tag, not a raw SHA) so shipped builds embed the new `package.json` version in the web footer / Swagger. A plain `GITHUB_TOKEN` push of the release commit does **not** start other workflows — do not rely on the push event alone.
 
-Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
+Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Create the matching worktree with `pnpm worktree:add` under the parent workspace `worktrees/` folder (see `AGENTS.md`). Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 
 ## Secrets / config for pipelines (locked)
 
@@ -132,9 +134,15 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 
 #### Workflow behaviour (`preview-api.yml`)
 
-1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`): build `apps/api/Dockerfile`, push `…/pocpk-api:pr-<n>`, create/update Container App, comment preview URL (`/health`).
+1. **PR open/sync** (paths `apps/api/**`, `pillars/**`, `packages/**`):
+   - Resolve `PREVIEW_SEED_SCENARIOS` from the PR body (a `Preview scenarios: name1, name2` line, defaulting to `demo` — see [`docs/preview-scenarios.md`](../docs/preview-scenarios.md)).
+   - Build `apps/api/Dockerfile` with `--build-arg PREVIEW_SEED_SCENARIOS=...` — every PR preview gets its **own isolated, disposable SQLite database**, seeded and verified at build time, baked into the image as an immutable template. It never resolves or mutates the shared Azure SQL database.
+   - Push `…/pocpk-api:pr-<n>`, create/update the Container App with explicit `DATABASE_URL=file:/app/data/preview.db` and `AZURE_SERVICEBUS_CONNECTION_STRING=` (empty) — App Configuration cannot override either (explicit env vars win), so a preview can never resolve the shared `secret:database-url`, and `OutboxDrainerService` stays disabled so no seeded outbox row can ever reach the real Service Bus.
+   - Wait for `GET /health/db` (proves Prisma can query the container's writable copy of the seeded database — `docker-entrypoint.sh` already re-verifies every declared scenario's fixtures before Nest starts listening at all).
+   - Comment the preview URL, database mode, active scenarios, reset behaviour, and a link to `docs/preview-scenarios.md` for test instructions.
 2. **PR close:** delete `ssd-pocpk-aca-pr-<n>-ae`.
-3. **Daily orphan sweep:** `sweep-preview-orphans.yml` deletes leftovers if
+3. **Reset:** redeploying (any new commit) copies the immutable template back over the writable database — mutations made while testing never persist. Max replicas stays `1`.
+4. **Daily orphan sweep:** `sweep-preview-orphans.yml` deletes leftovers if
    close cleanup was skipped (path filters, cancelled run, Graph soft-fail).
 
 #### GitHub Azure auth (human)
@@ -147,7 +155,7 @@ KV secrets (names only): `acr-admin-username`, `acr-admin-password`, `acr-login-
 4. Workflow fails fast if any OIDC Variable is missing.
 5. Image push + ACA registry attach use OIDC → KV `acr-admin-*` (never GitHub Secrets / `AZURE_CREDENTIALS`).
 
-Nest listens on `PORT` (default `3001` in the image / ACA env). Health: `/health`.
+Nest listens on `PORT` (default `3001` in the image / ACA env). Liveness: `/health`. Database-aware readiness (preview only): `/health/db`.
 
 ### OpenFGA authZ engine (shared CAE — not per-PR)
 
@@ -196,26 +204,27 @@ pnpm stage:api-deploy:docker -- --kudu  # Windows-friendly (copy into Linux cont
 
 ## PR hygiene (conflicts, CI, feedback)
 
-Agents do **not** get push notifications. Poll GitHub before ClickUp handoffs (`AGENTS.md` § PR hygiene). Workflow: `.github/workflows/pr-hygiene.yml`.
+Hygiene workflows set **labels only**. They do not post “bounce to READY FOR AI” comments. The human presentation surface is one upserted **Human Review Brief** (`<!-- pr-review-brief -->`) from `scripts/upsert-pr-review-brief.mjs`.
 
 | Label | Meaning | Cleared when | Agent action |
 | --- | --- | --- | --- |
 | `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Mergeability is known and not `dirty` (never cleared while `unknown`) | `git merge origin/main` → `pnpm resolve:conflicts` → hand-fix leftovers → push → re-check CI → ClickUp **READY FOR AI** |
-| `ci-failed` | A watched PR workflow failed | No `FAILURE` checks remain on the PR after a success | Diagnose via linked run; fix or document human blocker → **READY FOR AI** |
-| `has-feedback` | Bugbot or human (non-author) comment | PR `synchronize` (new push); re-applied if new feedback arrives | Fetch issue + review comments; address or bounce → **READY FOR AI** |
+| `ci-failed` | Required CI job failed (`Lint / test / build (api)` or `Lint / format / build (web)`) | Those jobs are no longer `FAILURE` | Fix the required CI cause and push |
+| `has-feedback` | Bugbot, Copilot, or human (non-author) comment | PR `synchronize` when no unresolved threads remain | Fetch issue + review comments; address with a threaded reply |
+| `preview-blocked` | SWA / ACA / Chromatic infra failed | Those infra jobs are no longer `FAILURE` | Document on the brief. Do **not** bounce ClickUp. Chromatic visual-accept is human-only. |
 
 ```bash
 gh pr list --label needs-rebase
 gh pr list --label ci-failed
 gh pr list --label has-feedback
+gh pr list --label preview-blocked
 gh pr view <n> --json mergeable,mergeStateStatus,statusCheckRollup
-gh api repos/singleton-sd/poc-plattform-kit/issues/<n>/comments --jq '.[].body'
-gh api repos/singleton-sd/poc-plattform-kit/pulls/<n>/comments --jq '.[].body'
+node scripts/upsert-pr-review-brief.mjs --pr <n>
 ```
 
-Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI/preview workflows (set/clear `ci-failed`), issue/review comments from Bugbot or collaborators. The hygiene workflow needs `checks: read` so the success path can query `statusCheckRollup` (with a check-runs API fallback) when clearing `ci-failed`.
+Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI Web/API (set/clear `ci-failed`) and preview/Chromatic (set/clear `preview-blocked`), issue/review comments from Bugbot/Copilot/collaborators. Usage-limit and `github-actions` comments are ignored.
 
-**READY FOR HUMAN** only when mergeable, required checks green, and no open actionable feedback. ClickUp API bridge from Actions is phase 2; v1 uses labels + PR comments.
+**READY FOR HUMAN** only when mergeable, required lint/test/build checks green, and no open actionable feedback. Preview red is an infra note on the brief.
 
 ## Shared hub conflicts (agent playbook)
 
@@ -275,35 +284,32 @@ status transition:
 ./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>
 ```
 
-The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp. The gate
-pins the PR head SHA, requires all path-applicable CI and preview checks to
-appear and finish successfully, requires a mergeable/non-dirty PR, rejects the
-hygiene labels, rejects unresolved review threads, and waits for a 90-second
-external-feedback quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
-Override polling only for diagnostics with `PR_GATE_QUIET_SECONDS`,
-`PR_GATE_TIMEOUT_SECONDS`, and `PR_GATE_POLL_SECONDS`.
+The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp, then
+upserts the Human Review Brief. The gate pins the PR head SHA, requires
+path-applicable **required** CI (`Lint / test / build (api)`,
+`Lint / format / build (web)`, `conflict-on-pr`) to appear and finish
+successfully, requires a mergeable/non-dirty PR, rejects `ci-failed` /
+`has-feedback` / `needs-rebase`, and rejects unresolved review threads.
+`preview-blocked` does not fail the gate. Empty check lists and `UNKNOWN`
+mergeability fail closed. A reviewer quiet period is optional
+(`PR_GATE_QUIET_SECONDS`, default `0`). Override polling with
+`PR_GATE_TIMEOUT_SECONDS` and `PR_GATE_POLL_SECONDS`.
 
-`.github/workflows/pr-handoff-gate.yml` applies the same policy in GitHub and
-publishes the commit status context `pr-handoff-gate`. Configure the `main`
-ruleset to require this context together with the API/web CI checks. The workflow
-restarts on pushes, CI/preview completion, reviews, and review/issue comments so
-late bot feedback moves the status back to pending/failure before stabilising.
+There is **no** GitHub `pr-handoff-gate` commit status. Do not add it to the
+`main` ruleset. The CLI is the handoff authority.
 
-Open the `pr-handoff-gate` status link to see the workflow run summary. It lists
-every current blocker beside a specific next action. `Waiting` means checks or
-the reviewer quiet period are still in progress; `Blocked` means an action is
-required. A cancelled check is called out separately and should be re-run before
-changing code. Superseded gate runs queue instead of cancelling the active run;
-this guarantees that every run reaches its summary and final-status steps. A
-stale run detects that the PR head changed, exits with that explicit blocker,
-and then allows the replacement run to evaluate the new commit.
+`.github/workflows/pr-review-brief.yml` upserts the same brief comment on PR
+open/sync and after CI/preview completion so humans always see one presentation
+surface.
 
 ## Asynchronous ClickUp recovery
 
 `.github/workflows/clickup-pr-recovery.yml` is the server-side safety net. It
 uses GitHub OIDC to read `clickup-api-token` from Key Vault, never GitHub
-Secrets. After CI, hygiene, review, comment, or `main` events it checks open PRs.
-When a ticket is already in `READY FOR REVIEW` or `READY FOR HUMAN` and the PR
-has a conflict, failed check, or blocking hygiene label, it clears Claim Token,
-returns the ticket to `READY FOR AI`, and posts one blocker-oriented ClickUp
-comment. Active implementation and closed tickets are not changed.
+Secrets. It runs on `ci-failed` / `has-feedback` / `needs-rebase` label
+changes, required CI completion, and `main` pushes. When a ticket is already
+in `READY FOR REVIEW` or `READY FOR HUMAN` and the PR has a conflict, required
+CI failure, or blocking hygiene label, it clears Claim Token, returns the
+ticket to `READY FOR AI`, and posts one blocker-oriented ClickUp comment.
+`preview-blocked` and preview/Chromatic check failures do not bounce.
+Active implementation and closed tickets are not changed.

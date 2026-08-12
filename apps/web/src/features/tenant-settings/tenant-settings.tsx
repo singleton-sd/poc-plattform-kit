@@ -13,6 +13,16 @@ import type { UpdateTenantInput } from '@/features/tenants/schemas';
 import { configureApiClient } from '@/lib/api-client';
 import { parseSettingsText } from './schemas';
 
+export type TenantSettingsProps = {
+  /**
+   * Pre-fills the lookup form and triggers the initial lookup, e.g. when
+   * arriving via the onboarding card's "Manage your tenant" link
+   * (`?tenantId=...`) right after self-service creation, so the new owner
+   * doesn't have to copy/paste the id they were just shown.
+   */
+  initialTenantId?: string;
+};
+
 /**
  * Tenant-admin settings: look up a tenant by id (dev/legacy `x-tenant-id`
  * escape — see docs/sso.md), then edit its name and settings. Name is
@@ -20,12 +30,20 @@ import { parseSettingsText } from './schemas';
  * pipeline); settings is an arbitrary JSON object, handled as a hand-built
  * escape hatch — see the comment on `parseSettingsText`.
  */
-export function TenantSettings() {
-  const [tenantIdInput, setTenantIdInput] = useState('');
+export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
+  const [tenantIdInput, setTenantIdInput] = useState(initialTenantId ?? '');
   const [lookupId, setLookupId] = useState('');
   const [settingsText, setSettingsText] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!initialTenantId) return;
+    configureApiClient({ tenantId: initialTenantId });
+    setLookupId(initialTenantId);
+    // Only ever meant to prefill the lookup once, from the id the page was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const findQuery = useTenantControllerFindOne(lookupId, {
     query: { enabled: lookupId.length > 0, retry: false },

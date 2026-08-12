@@ -7,14 +7,20 @@
 # Check supplies current_time). One-time grants write a companion marker on
 # type one_time_grant; PermissionsService deletes the action tuple after the
 # first successful Check.
+#
+# Manager chain: write direct tuples on `manager`; Check transitive via
+# `in_manager_chain`. OpenFGA requires tupleset relations to be direct-only,
+# so recursive `manager: [user] or manager from manager` is invalid.
 
 model
   schema 1.1
 
 type user
   relations
-    # Recursive reporting-line escalation (Entra manager chain mirrored as tuples).
-    define manager: [user] or manager from manager
+    # Direct Entra manager edge (user:A manager user:B).
+    define manager: [user]
+    # Transitive reporting line (A manages B manages C => A in_manager_chain of C).
+    define in_manager_chain: manager or in_manager_chain from manager
 
 type tenant
   relations

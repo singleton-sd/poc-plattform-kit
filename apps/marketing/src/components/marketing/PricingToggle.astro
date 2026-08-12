@@ -6,22 +6,22 @@ interface Props {
 }
 
 const {
-  monthlyLabel = 'Monthly billing',
-  yearlyLabel = 'Yearly (Save 20%)',
+  monthlyLabel = 'Monthly Billing',
+  yearlyLabel = 'Yearly (Save 15%)',
   class: className = '',
 } = Astro.props;
 ---
 
 <div
   class:list={[
-    'inline-flex items-center gap-3 rounded-md border border-border bg-bg p-1',
+    'inline-flex items-center gap-1 rounded-full border border-border bg-bg-muted p-1',
     className,
   ]}
   data-pricing-toggle
 >
   <button
     type="button"
-    class="rounded-sm px-4 py-2 text-body-sm font-semibold text-fg-inverse bg-bg-inverse"
+    class="rounded-full bg-accent px-4 py-2 text-body-sm font-semibold text-accent-on"
     data-pricing-period="monthly"
     aria-pressed="true"
   >
@@ -29,7 +29,7 @@ const {
   </button>
   <button
     type="button"
-    class="rounded-sm px-4 py-2 text-body-sm font-medium text-fg-muted"
+    class="rounded-full px-4 py-2 text-body-sm font-medium text-fg-muted"
     data-pricing-period="yearly"
     aria-pressed="false"
   >
@@ -42,22 +42,22 @@ const {
     document.querySelectorAll('[data-pricing-toggle]').forEach((root) => {
       if (!(root instanceof HTMLElement) || root.dataset.bound === 'true') return;
       root.dataset.bound = 'true';
-      const buttons = root.querySelectorAll<HTMLButtonElement>('[data-pricing-period]');
+      const buttons = root.querySelectorAll('[data-pricing-period]');
       buttons.forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
         button.addEventListener('click', () => {
           const period = button.dataset.pricingPeriod ?? 'monthly';
           buttons.forEach((candidate) => {
+            if (!(candidate instanceof HTMLButtonElement)) return;
             const active = candidate === button;
             candidate.setAttribute('aria-pressed', String(active));
-            candidate.classList.toggle('bg-bg-inverse', active);
-            candidate.classList.toggle('text-fg-inverse', active);
+            candidate.classList.toggle('bg-accent', active);
+            candidate.classList.toggle('text-accent-on', active);
             candidate.classList.toggle('font-semibold', active);
             candidate.classList.toggle('text-fg-muted', !active);
             candidate.classList.toggle('font-medium', !active);
           });
-          document.dispatchEvent(
-            new CustomEvent('pricing:period', { detail: { period } }),
-          );
+          document.dispatchEvent(new CustomEvent('pricing:period', { detail: { period } }));
           document.querySelectorAll('[data-price-monthly]').forEach((node) => {
             if (!(node instanceof HTMLElement)) return;
             const monthly = node.dataset.priceMonthly ?? '';

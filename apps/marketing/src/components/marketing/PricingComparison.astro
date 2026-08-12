@@ -1,0 +1,93 @@
+---
+import Icon from '../ui/Icon.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+type Cell = string | 'check' | 'cross';
+
+interface ComparisonRow {
+  capability: string;
+  starter: Cell;
+  pro: Cell;
+  enterprise: Cell;
+}
+
+interface Props {
+  title?: string;
+  description?: string;
+  rows: ComparisonRow[];
+  class?: string;
+}
+
+const {
+  title = 'Feature Comparison',
+  description = 'Drill down into specific capabilities of each tier.',
+  rows,
+  class: className = '',
+} = Astro.props;
+---
+
+<section class:list={['pb-20 md:pb-24', className]}>
+  <PageContainer>
+    <div class="mb-8 space-y-2">
+      <h2 class="m-0 font-heading text-h3 text-fg md:text-2xl">{title}</h2>
+      <p class="m-0 text-body-sm text-fg-muted">{description}</p>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-border">
+      <table class="w-full min-w-[40rem] border-collapse text-left">
+        <thead>
+          <tr class="border-b border-border bg-bg-muted text-body-sm font-bold text-fg">
+            <th class="px-5 py-5 font-bold">Capability</th>
+            <th class="w-[11.25rem] px-3 py-5 text-center font-bold">Starter</th>
+            <th class="w-[11.25rem] px-3 py-5 text-center font-bold text-accent">
+              Developer Pro
+            </th>
+            <th class="w-[11.25rem] px-3 py-5 text-center font-bold">Enterprise</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((row, index) => (
+              <tr
+                class:list={[
+                  'border-b border-border last:border-b-0',
+                  index % 2 === 1 ? 'bg-bg-muted' : 'bg-bg',
+                ]}
+              >
+                <th class="px-4 py-4 text-left text-body-sm font-normal text-fg">
+                  {row.capability}
+                </th>
+                {[row.starter, row.pro, row.enterprise].map((cell, cellIndex) => {
+                  const emphasize = cellIndex === 1 && typeof cell === 'string';
+                  return (
+                    <td class="px-3 py-4 text-center">
+                      {cell === 'check' ? (
+                        <Icon name="check" size={16} class="mx-auto text-accent" label="Included" />
+                      ) : cell === 'cross' ? (
+                        <Icon
+                          name="close"
+                          size={16}
+                          class="mx-auto text-fg-subtle"
+                          label="Not included"
+                        />
+                      ) : (
+                        <span
+                          class:list={[
+                            'text-[13px]',
+                            emphasize ? 'font-semibold text-accent' : 'text-fg-muted',
+                          ]}
+                        >
+                          {cell}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </PageContainer>
+</section>

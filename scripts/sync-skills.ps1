@@ -18,7 +18,10 @@ $Skills = @(
   @{ Src = "engineering\fix-bugbot"; Name = "fix-bugbot" },
   @{ Src = "engineering\git-conventions"; Name = "git-conventions" },
   @{ Src = "engineering\repo-init"; Name = "repo-init" },
-  @{ Src = "product\backlog-refinement"; Name = "backlog-refinement" }
+  @{ Src = "product\backlog-refinement"; Name = "backlog-refinement" },
+  @{ Src = "product\refine-idea"; Name = "refine-idea" },
+  @{ Src = "product\discover-requirements"; Name = "discover-requirements" },
+  @{ Src = "product\idea-to-delivery"; Name = "idea-to-delivery" }
 )
 
 if (-not (Test-Path $Source)) {

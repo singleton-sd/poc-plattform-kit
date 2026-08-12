@@ -1,11 +1,16 @@
 'use client';
 
+import type { TenantResponseDto } from '@poc-plattform-kit/api-client';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { BrandMark } from '@/components/brand-mark';
-import { meKeys, useMe } from '@/features/auth/me';
+import { meKeys, useMe, type Me } from '@/features/auth/me';
+import { captureReturnUrl } from '@/features/auth/auth-return-url';
 import { signIn, signOut } from '@/features/auth/auth-urls';
+import { CopyTenantIdButton } from '@/features/tenants/copy-tenant-id-button';
+import { OnboardingCard } from '@/features/onboarding/onboarding-card';
+import { getCreatedTenant, rememberCreatedTenant } from '@/features/onboarding/onboarding-store';
 
 /** Signed-out login surface (also used at `/` via HomeAuthGate). */
 export function LoginPanel() {
@@ -17,6 +22,9 @@ export function LoginPanel() {
     setSigningIn(true);
     setSignInError(null);
     try {
+      // Capture the current return target so it can be restored after the auth callback.
+      // This writes a single-use key to sessionStorage consumed after redirect.
+      captureReturnUrl();
       await signIn();
       // Cookie mode navigates away (form POST). Bearer MSAL redirect navigates away too.
       // invalidateQueries only runs if sign-in returns without navigation (errors / tests).
@@ -120,6 +128,45 @@ export function HomeAuthGate() {
   }
 
   return (
+    <SignedInHome
+      me={me}
+      signingOut={signingOut}
+      signOutError={signOutError}
+      onSignOut={() => void onSignOut()}
+    />
+  );
+}
+
+type SignedInHomeProps = {
+  me: Me;
+  signingOut: boolean;
+  signOutError: string | null;
+  onSignOut: () => void;
+};
+
+/**
+ * Signed-in home shell. Offers self-service tenant onboarding — see
+ * `apps/web/src/features/onboarding` — ahead of the existing admin console
+ * links. Created-tenant id is persisted per browser so the manage link
+ * survives refresh; "Not now" is session-only until `/api/me` exposes
+ * memberships (see `onboarding-store.ts`).
+ */
+function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeProps) {
+  const [sessionDismissed, setSessionDismissed] = useState(false);
+  const [createdTenant, setCreatedTenant] = useState<Pick<TenantResponseDto, 'id' | 'name'> | null>(
+    () => getCreatedTenant(me.id),
+  );
+
+  function handleOnboardingCreated(tenant: TenantResponseDto) {
+    rememberCreatedTenant(me.id, { id: tenant.id, name: tenant.name });
+    setCreatedTenant(tenant);
+  }
+
+  function handleOnboardingDismiss() {
+    setSessionDismissed(true);
+  }
+
+  return (
     <main
       className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-6 pb-12 pt-[clamp(3rem,12vh,6rem)] text-center text-fg"
       data-testid="home-shell"
@@ -131,6 +178,32 @@ export function HomeAuthGate() {
       <p className="max-w-md text-base leading-relaxed text-fg-muted">
         Signed in as {me.email}. Manage tenants and support from here.
       </p>
+
+      {createdTenant ? (
+        <div
+          className="flex w-full max-w-md flex-col items-center gap-2 rounded border border-fg-subtle bg-bg-muted p-4 text-sm text-fg-muted"
+          data-testid="onboarding-success"
+        >
+          <p>
+            You&apos;re the owner of <strong className="text-fg">{createdTenant.name}</strong>.
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs" data-testid="onboarding-success-tenant-id">
+              {createdTenant.id}
+            </span>
+            <CopyTenantIdButton tenantId={createdTenant.id} />
+          </div>
+          <Link
+            href={`/tenant?tenantId=${encodeURIComponent(createdTenant.id)}`}
+            className="text-accent underline-offset-2 hover:underline"
+          >
+            Manage your tenant
+          </Link>
+        </div>
+      ) : sessionDismissed ? null : (
+        <OnboardingCard onCreated={handleOnboardingCreated} onDismiss={handleOnboardingDismiss} />
+      )}
+
       <nav aria-label="Primary" className="mt-2 flex flex-wrap justify-center gap-4">
         <Link
           className="inline-block rounded bg-accent px-6 py-3 font-semibold text-accent-on transition hover:-translate-y-0.5"
@@ -150,7 +223,7 @@ export function HomeAuthGate() {
         className="mt-4 text-sm text-fg-muted underline-offset-2 hover:text-accent hover:underline disabled:opacity-60"
         data-testid="login-sign-out"
         disabled={signingOut}
-        onClick={() => void onSignOut()}
+        onClick={onSignOut}
       >
         {signingOut ? 'Signing out…' : 'Sign out'}
       </button>
