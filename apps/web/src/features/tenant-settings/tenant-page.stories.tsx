@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/nextjs';
 import { AppShellHeader } from '@/components/app-shell-header';
 import { AuthenticationGuard } from '@/features/auth/authentication-guard';
@@ -12,7 +13,7 @@ import {
  * without useSearchParams / TenantSettings fetches, so Chromatic stays
  * deterministic for the auth matrix.
  */
-function TenantPageAuthShell({ body }: { body: React.ReactNode }) {
+function TenantPageAuthShell({ body }: { body: ReactNode }) {
   return (
     <div className="min-h-screen text-fg">
       <AppShellHeader />

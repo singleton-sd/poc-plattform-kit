@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/nextjs';
 import { AppShellHeader } from '@/components/app-shell-header';
 import {
@@ -8,7 +9,7 @@ import {
 } from '@/testing/handlers/auth';
 import { AuthenticationGuard } from './authentication-guard';
 
-function GuardWithChrome({ children }: { children: React.ReactNode }) {
+function GuardWithChrome({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen text-fg">
       <AppShellHeader />
