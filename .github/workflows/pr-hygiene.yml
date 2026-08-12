@@ -7,7 +7,8 @@
 # - preview-blocked: set when SWA/ACA/Chromatic infra fails; does not bounce ClickUp
 # - has-feedback: set on Bugbot/Copilot/human comments; cleared on PR synchronize.
 #   Skipped for reviewers that report they did not review (usage limit, quota,
-#   Bugbot not enabled) — those carry no finding and must not wake the fixer.
+#   Bugbot not enabled) and for the PR fixer's own comments — those carry no
+#   finding and must not wake the fixer.
 
 name: PR hygiene
 
@@ -274,6 +275,13 @@ jobs:
           fi
           if printf '%s' "$BODY" | grep -Fq '<!-- pr-review-brief -->'; then
             echo "Skip: review brief"
+            exit 0
+          fi
+          # The PR fixer posts as cursor[bot], which the author filter below
+          # treats as Bugbot. Without this the fixer's own assessment re-adds
+          # has-feedback and wakes the next run.
+          if printf '%s' "$BODY" | grep -Fq '<!-- CURSOR_AUTOMATION_ID:'; then
+            echo "Skip: this automation's own comment"
             exit 0
           fi
 
