@@ -1,7 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsISO8601, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
-
-const OPEN_FGA_OBJECT = /^[^:\s]+:[^\s:][^\s]*$/;
+import {
+  IsEnum,
+  IsISO8601,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
+import { OPEN_FGA_OBJECT } from '../open-fga-object';
+import { PermissionGrantType } from './grant-permission.dto';
 
 export class CreateAccessRequestDto {
   @ApiProperty({ example: 'update', description: 'Denied OpenFGA action / relation.' })
@@ -37,4 +45,26 @@ export class CreateAccessRequestDto {
   @IsOptional()
   @IsISO8601()
   requestExpiresAt?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: PermissionGrantType,
+    example: PermissionGrantType.Permanent,
+    description: 'Preferred grant type for the approver (stored as a hint; applied on approve).',
+  })
+  @IsOptional()
+  @IsEnum(PermissionGrantType)
+  preferredGrantType?: PermissionGrantType;
+
+  @ApiProperty({
+    required: false,
+    example: '2026-12-31T23:59:59.000Z',
+    description: 'Required when preferredGrantType is temporary — preferred grant expiry.',
+  })
+  @ValidateIf(
+    (dto: CreateAccessRequestDto) => dto.preferredGrantType === PermissionGrantType.Temporary,
+  )
+  @IsISO8601()
+  @IsNotEmpty()
+  preferredGrantExpiresAt?: string;
 }

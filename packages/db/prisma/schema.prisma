@@ -244,11 +244,16 @@ model AccessRequest {
   requestExpiresAt   DateTime?
   /// Absolute grant expiry when grantType is temporary (set on approve).
   grantExpiresAt     DateTime?
+  /// Requester's preferred grant type (hint for approvers); set on create.
+  preferredGrantType String?
+  /// Preferred temporary grant expiry when preferredGrantType is temporary.
+  preferredGrantExpiresAt DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   @@index([tenantId, status])
   @@index([requesterId, status])
+  @@index([requesterId, action, resource, status])
   @@map("access_requests")
 }
 

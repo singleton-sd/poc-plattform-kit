@@ -18,6 +18,8 @@ export function toAccessRequestResponseDto(row: AccessRequestRecord): AccessRequ
     grantType: row.grantType,
     requestExpiresAt: toIsoString(row.requestExpiresAt),
     grantExpiresAt: toIsoString(row.grantExpiresAt),
+    preferredGrantType: row.preferredGrantType,
+    preferredGrantExpiresAt: toIsoString(row.preferredGrantExpiresAt),
     createdAt: toIsoStringRequired(row.createdAt),
     updatedAt: toIsoStringRequired(row.updatedAt),
   };

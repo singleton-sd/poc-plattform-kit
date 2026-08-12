@@ -7,6 +7,7 @@ export {
 } from './access-request.service';
 export { CheckPermissionDto } from './dto/check-permission.dto';
 export { CheckPermissionResponseDto } from './dto/check-permission-response.dto';
+export { ListMyAccessRequestsQueryDto } from './dto/list-my-access-requests-query.dto';
 export { CreateAccessRequestDto } from './dto/create-access-request.dto';
 export { ApproveAccessRequestDto } from './dto/approve-access-request.dto';
 export { DenyAccessRequestDto } from './dto/deny-access-request.dto';

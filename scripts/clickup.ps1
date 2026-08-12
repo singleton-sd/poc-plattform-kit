@@ -19,6 +19,7 @@
 #   powershell -File scripts/clickup.ps1 field -TaskId 86d3xxxx -FieldId <uuid> -Value "..."
 #   powershell -File scripts/clickup.ps1 preview -TaskId 86d3xxxx -Url "https://..."
 #   powershell -File scripts/clickup.ps1 create -Name "..." [-Status "BACKLOG"] [-Description "..."] [-Estimate 50000]
+#   powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..."
 #   powershell -File scripts/clickup.ps1 create -ListId 901616397767 -Name "..." -Status "TO DO" -Description "..."
 #   powershell -File scripts/clickup.ps1 depend -TaskId 86d3xxxx -DependsOn 86d3yyyy
 

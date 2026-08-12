@@ -11,4 +11,5 @@ export type { ApiFetchError } from './custom-fetch';
 export * from './generated/health/health';
 export * from './generated/tenants/tenants';
 export * from './generated/single-sign-on/single-sign-on';
+export * from './generated/permissions/permissions';
 export * from './generated/models';

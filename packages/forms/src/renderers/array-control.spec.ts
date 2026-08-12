@@ -28,12 +28,18 @@ function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
 }
 
 describe('ArrayControlRenderer', () => {
-  it('sets aria-required on the fieldset when the field is required', () => {
+  it('does not set aria-required on the fieldset (aria-required is prohibited on group role)', () => {
     const fieldset = findByType(ArrayControlRenderer(baseProps({ required: true })), 'fieldset');
-    expect(fieldset?.props['aria-required']).toBe(true);
+    expect(fieldset?.props['aria-required']).toBeUndefined();
   });
 
-  it('does not set aria-required when the field is optional', () => {
+  it('shows a visual required indicator in the legend when the field is required', () => {
+    const span = findByType(ArrayControlRenderer(baseProps({ required: true })), 'span');
+    expect(span?.props['aria-hidden']).toBe('true');
+    expect(span?.props.children).toBe(' *');
+  });
+
+  it('omits the visual required indicator when the field is optional', () => {
     const fieldset = findByType(ArrayControlRenderer(baseProps({ required: false })), 'fieldset');
     expect(fieldset?.props['aria-required']).toBeUndefined();
   });
