@@ -6,7 +6,13 @@ import {
   expectedChecks,
   formatGateReport,
   isRateLimitError,
+  parsePaginatedGhApiOutput,
 } from './pr-handoff-gate.mjs';
+
+assert.deepEqual(parsePaginatedGhApiOutput('[{"id":1},{"id":2}]'), [{ id: 1 }, { id: 2 }]);
+assert.deepEqual(parsePaginatedGhApiOutput('[[{"id":1}],[{"id":2}]]'), [{ id: 1 }, { id: 2 }]);
+assert.deepEqual(parsePaginatedGhApiOutput('[{"id":1}]\n[{"id":2}]'), [{ id: 1 }, { id: 2 }]);
+assert.deepEqual(parsePaginatedGhApiOutput(''), []);
 
 assert.deepEqual(expectedChecks(['apps/api/src/main.ts']), [
   'conflict-on-pr',

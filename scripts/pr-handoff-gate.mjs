@@ -161,9 +161,60 @@ async function retryOnRateLimit(fn, { pollMs, deadline }) {
   }
 }
 
+/**
+ * Parse `gh api --paginate` output.
+ *
+ * Newer gh supports `--slurp` (one JSON array of page arrays). Older gh
+ * (common on macOS Homebrew installs) concatenates page JSON documents —
+ * usually one array per page — without `--slurp`.
+ */
+export function parsePaginatedGhApiOutput(raw) {
+  const text = (raw ?? '').trim();
+  if (!text) return [];
+
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      // --slurp: [page1Array, page2Array, ...] or a single page array of items
+      if (parsed.length > 0 && Array.isArray(parsed[0])) {
+        return parsed.flat();
+      }
+      return parsed;
+    }
+  } catch {
+    // Fall through to multi-document parsing for older gh --paginate output.
+  }
+
+  const items = [];
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '[') {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (ch === ']') {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        const chunk = JSON.parse(text.slice(start, i + 1));
+        if (Array.isArray(chunk)) items.push(...chunk);
+        start = -1;
+      }
+    }
+  }
+  return items;
+}
+
 function paginated(endpoint) {
-  const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `${endpoint}?per_page=100`]));
-  return pages.flat();
+  // Prefer --slurp when available; fall back for older gh (no --slurp flag).
+  try {
+    return parsePaginatedGhApiOutput(
+      gh(['api', '--paginate', '--slurp', `${endpoint}?per_page=100`]),
+    );
+  } catch (error) {
+    if (!/unknown flag: --slurp/i.test(error.message ?? '')) throw error;
+    return parsePaginatedGhApiOutput(gh(['api', '--paginate', `${endpoint}?per_page=100`]));
+  }
 }
 
 function externalActivityMs(pr, author) {
