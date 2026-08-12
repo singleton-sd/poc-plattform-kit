@@ -3,8 +3,8 @@
 ## Repo
 
 - GitHub: `singleton-sd/poc-plattform-kit` (`git@github.com:singleton-sd/poc-plattform-kit.git`)
-- Local: `C:\00Personal\singleton-sd\plattform-kit\repo` (parent workspace `plattform-kit\` also holds `worktrees\` - see § Worktrees)
-- ClickUp tickets must include `[repo=singleton-sd/poc-plattform-kit]`
+- Local: `C:\00Personal\singleton-sd\plattform-kit\repo` (parent workspace `plattform-kit\` also holds `worktrees\` - see Worktrees)
+- **ClickUp ticket titles:** keep names concise, sentence case, action-first, and human-readable. Never append repository identifiers, routing metadata, or markers such as `[repo=singleton-sd/poc-plattform-kit]` to the task name. Repository context belongs in the task description or project context.
 
 ## ClickUp (locked)
 
@@ -335,5 +335,5 @@ pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scri
 - **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (OAuth proxy follow-up). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
 - **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
-- **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux - skills are already committed under `.cursor/skills/`.
-- **ClickUp access:** prefer [`scripts/clickup.ps1`](scripts/clickup.ps1) / [`scripts/clickup.sh`](scripts/clickup.sh) + `CLICKUP_API_TOKEN`. Raw REST also fine. Do not use ClickUp MCP for routine ops. On 429, stop. Per the AI-loop rules above, don't assign/move/merge tickets unless claiming or handing off.
+- **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.
+- **ClickUp access:** prefer [`scripts/clickup.ps1`](scripts/clickup.ps1) / [`scripts/clickup.sh`](scripts/clickup.sh) + `CLICKUP_API_TOKEN`. Raw REST also fine. Do **not** use ClickUp MCP for routine ops. On 429, stop. Per the AI-loop rules above, don't assign/move/merge tickets unless claiming or handing off.
