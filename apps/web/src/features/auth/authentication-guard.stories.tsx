@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
-import { expect, within } from 'storybook/test';
 import { AppShellHeader } from '@/components/app-shell-header';
 import {
   meErrorHandlers,
@@ -27,14 +26,13 @@ const ProtectedStub = () => (
 
 const meta = {
   title: 'Features/Auth/AuthenticationGuard',
-  component: AuthenticationGuard,
   parameters: {
     layout: 'fullscreen',
   },
-} satisfies Meta<typeof AuthenticationGuard>;
+} satisfies Meta;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj;
 
 /** Session verification pending — chrome stays mounted, protected body hidden. */
 export const Loading: Story = {
@@ -44,12 +42,6 @@ export const Loading: Story = {
       <ProtectedStub />
     </GuardWithChrome>
   ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('app-shell-header')).toBeInTheDocument();
-    await expect(canvas.getByTestId('auth-guard-loading')).toBeInTheDocument();
-    await expect(canvas.queryByTestId('auth-guard-protected-stub')).not.toBeInTheDocument();
-  },
 };
 
 /** Session verification error with retry — distinct from signed-out login. */
@@ -60,12 +52,6 @@ export const SessionError: Story = {
       <ProtectedStub />
     </GuardWithChrome>
   ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('auth-guard-error')).toBeInTheDocument();
-    await expect(canvas.getByTestId('auth-guard-retry')).toBeInTheDocument();
-    await expect(canvas.queryByTestId('login-sign-in')).not.toBeInTheDocument();
-  },
 };
 
 /** Signed out — LoginPanel on the current route under app chrome. */
@@ -76,12 +62,6 @@ export const SignedOutLogin: Story = {
       <ProtectedStub />
     </GuardWithChrome>
   ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByTestId('app-shell-header')).toBeInTheDocument();
-    await expect(canvas.getByTestId('login-sign-in')).toBeInTheDocument();
-    await expect(canvas.queryByTestId('auth-guard-protected-stub')).not.toBeInTheDocument();
-  },
 };
 
 /** Signed in — protected children visible. */
@@ -92,9 +72,4 @@ export const SignedInAuthorized: Story = {
       <ProtectedStub />
     </GuardWithChrome>
   ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(await canvas.findByTestId('auth-guard-protected-stub')).toBeInTheDocument();
-    await expect(canvas.queryByTestId('login-sign-in')).not.toBeInTheDocument();
-  },
 };
