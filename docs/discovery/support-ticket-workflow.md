@@ -35,7 +35,7 @@ These definitions are normative across all three discoveries:
 | --- | --- |
 | `tenantId` | Immutable platform `Tenant.id`, resolved and authorized by the server; never established by a header or other client-selected value. |
 | `authenticatedActor` | Principal established by server authentication. Always retained for audit. |
-| `effectiveActor` | Customer principal used only in a server-issued impersonation session; absent otherwise. Support authorization and audit always preserve `authenticatedActor`. |
+| `effectiveActor` | Customer principal used only in a server-issued impersonation session; equals `authenticatedActor` otherwise. Support authorization and audit always preserve `authenticatedActor`. |
 | `traceId` | W3C trace ID used inside telemetry. Not a public authorization credential. |
 | `correlationId` | Public, opaque, high-entropy diagnostic lookup ID mapped server-side to `traceId`; safe to show/copy, but lookup remains authorized and time-bounded. |
 | `errorCode` | Stable namespaced machine code from the versioned error contract (for example `support.ticket.rate_limited`). |
@@ -51,11 +51,11 @@ Additional terms:
 
 ### 3.1 Eligibility matrix
 
-The error contract supplies `supportEligible`; the server is authoritative when creating a diagnostic-linked ticket.
+The error contract supplies `supportTicketEligible`; the server is authoritative when creating a diagnostic-linked ticket.
 
 | Failure category | Examples | Reportable | Default presentation |
 | --- | --- | --- | --- |
-| Safe API problem | 5xx; dependency unavailable; unexpected server failure; persistent conflict specifically flagged eligible | Yes when `supportEligible=true` and correlation is present; manual ticket still allowed without diagnostics | Persistent error toast for local action; modal on “Get help”; page boundary for route failure |
+| Safe API problem | 5xx; dependency unavailable; unexpected server failure; persistent conflict specifically flagged eligible | Yes when `supportTicketEligible=true` and correlation is present; manual ticket still allowed without diagnostics | Persistent error toast for local action; modal on “Get help”; page boundary for route failure |
 | Authorization/authentication | 401 expired session, 403 denied | Normally no diagnostic-linked report (prevents probing); provide sign-in/retry/request-access guidance. Manual support ticket may be allowed after authentication | Inline or modal requiring re-auth; no raw authorization reason |
 | Validation/business rule | RFC validation errors, 400/409/422 | Normally no; show field guidance. Eligible only for an explicitly classified unexpected/repeated condition | Inline field errors; summary at form; no global toast alone |
 | Rate limiting | 429 | No new linked ticket while limited; honor `Retry-After`; manual channel guidance if sustained | Persistent toast/countdown or inline message |
@@ -121,7 +121,7 @@ Allowed transitions:
 
 ### 5.2 Duplicate policy
 
-Compute an HMAC/server-only fingerprint from `tenantId + reporterId + errorCode + correlationId-or-safe-operation + time bucket`; never fingerprint customer free text. Within 15 minutes, present existing open ticket before submission. If the same correlation/reporter is submitted idempotently, return the existing ticket. Allow “Create separate ticket” only with a distinct impact/reason, record the possible duplicate link, and rate-limit it. Support may link duplicates to a canonical ticket; never merge messages or expose tickets across tenants.
+Compute an HMAC/server-only fingerprint from `tenantId + reporterId + errorCode + correlationId-or-safe-operation + time bucket`; never fingerprint customer free text. Use the approved duplicate-detection window from the roadmap's approval gate; until approval is obtained, use the documented 24-hour safe default. Within that window, present existing open ticket before submission. If the same correlation/reporter is submitted idempotently, return the existing ticket. Allow “Create separate ticket” only with a distinct impact/reason, record the possible duplicate link, and rate-limit it. Support may link duplicates to a canonical ticket; never merge messages or expose tickets across tenants.
 
 ### 5.3 Rate limits
 
@@ -217,8 +217,8 @@ Parallelism: after A1/A2/A3 and shared error foundations merge, A4, A5, A6, and 
 
 Use synthetic tenants `Acme Preview` and `Globex Preview`; customer Alice belongs only to Acme, customer Bob only to Globex; support Sam has an active Acme support grant, support Pat has no tenant grant. Never use production telemetry or real contact data.
 
-1. **Successful eligible 503:** Alice triggers `dependency_unavailable` with valid correlation; modal lists safe metadata; ticket created, deduped on repeat; Sam sees safe summary and replies; Alice notified and responds; resolve/close succeeds.
-2. **Validation 422:** field errors render inline, no support action by default, no ticket created.
+1. **Successful eligible 503:** Alice triggers `dependency.unavailable` with valid correlation; modal lists safe metadata; ticket created, deduped on repeat; Sam sees safe summary and replies; Alice notified and responds; resolve/close succeeds.
+2. **Validation 400:** field errors render inline, no support action by default, no ticket created.
 3. **Offline/network:** simulated network failure shows offline/retry; manual ticket has `not_found` diagnostic state and safe client metadata only.
 4. **Client boundary:** deterministic render error produces safe client event ID; reload action works; ticket contains no stack/error object.
 5. **Expired correlation:** >30-day/expired mapping produces ticket with `expired`; support UI explains telemetry unavailable.
