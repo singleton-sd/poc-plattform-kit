@@ -74,8 +74,9 @@ use the safer fallback stated here.
 ## Ordered technical ticket hierarchy
 
 Every ticket is a child of the parent discovery feature, includes
-`[repo=singleton-sd/poc-plattform-kit]`, links the four discovery documents,
-uses TDD, and has explicit negative tenant-isolation/redaction criteria.
+`[repo=singleton-sd/poc-plattform-kit]` in its description, links the four
+discovery documents, uses TDD, and has explicit negative
+tenant-isolation/redaction criteria.
 
 ### Phase 1 — shared foundations
 

@@ -163,4 +163,4 @@ Do not put every ticket into READY FOR AI at once when dependencies make that un
 
 ## Naming
 
-Use ticket titles as the primary human label. IDs belong in URLs, branch names, dependency wiring and secondary references. Keep `[repo=singleton-sd/poc-plattform-kit]` in the task name or description.
+Use ticket titles as the primary human label. IDs belong in URLs, branch names, dependency wiring and secondary references. Keep task names concise, sentence case and free of repository identifiers or routing markers — put `[repo=singleton-sd/poc-plattform-kit]` in the task description, never in the name.

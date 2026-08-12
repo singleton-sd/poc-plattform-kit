@@ -8,7 +8,7 @@ Repo mirror: `AGENTS.md` § ClickUp (locked).
 
 - Ops list (only): https://app.clickup.com/90161394355/v/li/901616287298
   (`list_id=901616287298`)
-- Tickets must include `[repo=singleton-sd/poc-plattform-kit]`
+- Ticket descriptions must include `[repo=singleton-sd/poc-plattform-kit]`; task names stay free of repository identifiers and routing markers
 - Branch / PR naming: `feature/<clickup-task-id>-<kebab-title>`
 - Status flow: TO DO → IN PROGRESS / READY FOR AI → READY FOR REVIEW → READY FOR HUMAN → COMPLETE
 - Humans merge; agents never merge

@@ -63,7 +63,9 @@ Prefer ClickUp parent/subtask relationships when practical; otherwise every chil
 
 ## Delivery task contract
 
-Every agent-ready Delivery task must include:
+Task names stay concise, sentence case and action-first. Never append
+repository identifiers or routing markers to the name — that context lives in
+the description. Every agent-ready Delivery task **description** must include:
 
 1. Goal
 2. Context
