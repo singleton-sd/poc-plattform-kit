@@ -21,10 +21,10 @@ Read [`docs/email-forward-email.md`](../../../docs/email-forward-email.md) for t
 | Runtime env token | `FORWARD_EMAIL_TOKEN` (legacy accepted: `FORWARDEMAIL_API_KEY`) |
 | KV secret name | `forwardemail-api-key` (unchanged) |
 | App Config secret key | `secret:forwardemail-api-key` → maps to `FORWARD_EMAIL_TOKEN` |
-| Default mail domain | `plattform-kit.poc.singletonsd.com` |
+| Default mail domain | `mail.plattform-kit.poc.singletonsd.com` |
 | Route53 zone | `singletonsd.com` |
 | Default alias | `noreply` → `hello@singletonsd.com` |
-| From (PoC) | `noreply@plattform-kit.poc.singletonsd.com` / name `Plattform Kit` |
+| From (PoC) | `noreply@mail.plattform-kit.poc.singletonsd.com` / name `Plattform Kit` |
 | Safe default provider | `EMAIL_PROVIDER=development` |
 | Production send | `EMAIL_PROVIDER=forward-email` **and** `EMAIL_ALLOW_PRODUCTION_SEND=true` |
 | Provision script | `scripts/provision-forward-email.ps1` |
@@ -84,12 +84,12 @@ Useful commands:
 powershell -File ./scripts/provision-forward-email.ps1 -SkipDns -WhatIf
 powershell -File ./scripts/provision-forward-email.ps1 -SkipVerify
 # Inspect zone (no secrets):
-aws route53 list-resource-record-sets --hosted-zone-id <id> --query "ResourceRecordSets[?contains(Name, 'plattform-kit.poc')]"
+aws route53 list-resource-record-sets --hosted-zone-id <id> --query "ResourceRecordSets[?contains(Name, 'mail.plattform-kit.poc')]"
 ```
 
 ## Example prompts
 
-- “Provision Forward Email for `plattform-kit.poc.singletonsd.com` with noreply → hello@singletonsd.com.”
+- “Provision Forward Email for `mail.plattform-kit.poc.singletonsd.com` with noreply → hello@singletonsd.com.”
 - “Why is verify-smtp still failing after DNS upsert? Diagnose without printing the token.”
 - “Merge SPF for Forward Email without clobbering existing TXT on the apex relative name.”
 - “Rotate `forwardemail-api-key` in Key Vault and confirm App Config still maps to `FORWARD_EMAIL_TOKEN`.”

@@ -5,6 +5,7 @@ CLICKUP_LIST_ID="${CLICKUP_LIST_ID:-901616287298}"
 CLICKUP_TEAM_ID="${CLICKUP_TEAM_ID:-90161394355}"
 CLICKUP_API_URL="${CLICKUP_API_URL:-https://api.clickup.com/api/v2}"
 CLAIM_FIELD_ID='50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7'
+CURL_BIN="${CURL_BIN:-curl}"
 PR_NUMBER="${PR_NUMBER:-}"
 
 [[ -n "${CLICKUP_API_TOKEN:-}" ]] || { echo 'CLICKUP_API_TOKEN is required' >&2; exit 1; }
@@ -16,10 +17,11 @@ import json,sys
 p=json.load(sys.stdin)
 labels={x["name"] for x in p.get("labels",[])}
 checks=p.get("statusCheckRollup") or []
+required={"Lint / test / build (api)","Lint / format / build (web)"}
 failed=[(x.get("name") or x.get("context") or "unknown") for x in checks if (x.get("conclusion") or x.get("state") or "").upper() in {"ACTION_REQUIRED","CANCELLED","FAILURE","STALE","STARTUP_FAILURE","TIMED_OUT"}]
 block=sorted(labels & {"needs-rebase","ci-failed","has-feedback"})
 if p.get("mergeable")=="CONFLICTING" or p.get("mergeStateStatus")=="DIRTY": block.append("merge-conflict")
-block.extend("failed:"+x for x in failed if x != "pr-handoff-gate")
+block.extend("failed:"+x for x in failed if x in required)
 print(p.get("headRefName", ""))
 print(p.get("url", ""))
 print(", ".join(block))
@@ -46,7 +48,7 @@ request() {
   local method="$1" path="$2" data="${3:-}"
   local args=(-fsS -X "$method" -H "Authorization: $CLICKUP_API_TOKEN" -H 'Content-Type: application/json')
   [[ -z "$data" ]] || args+=(-d "$data")
-  curl "${args[@]}" "$CLICKUP_API_URL$path"
+  "$CURL_BIN" "${args[@]}" "$CLICKUP_API_URL$path"
 }
 
 task="$(request GET "$task_path")"

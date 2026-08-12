@@ -29,6 +29,8 @@ describe('AccessRequestController', () => {
     grantType: null,
     requestExpiresAt: null,
     grantExpiresAt: null,
+    preferredGrantType: null,
+    preferredGrantExpiresAt: null,
     createdAt: new Date('2026-08-10T12:00:00.000Z'),
     updatedAt: new Date('2026-08-10T12:00:00.000Z'),
   };
@@ -49,6 +51,7 @@ describe('AccessRequestController', () => {
     const accessRequests = {
       create: jest.fn().mockResolvedValue(record),
       listPendingForApprover: jest.fn().mockResolvedValue([record]),
+      listMine: jest.fn().mockResolvedValue([record]),
       approve: jest.fn().mockResolvedValue({ ...record, status: 'approved' }),
       deny: jest.fn().mockResolvedValue({ ...record, status: 'denied' }),
     } as unknown as AccessRequestService;
@@ -67,6 +70,11 @@ describe('AccessRequestController', () => {
       items: [expect.objectContaining({ id: 'ar1' })],
     });
     await expect(
+      controller.listMine({ action: 'update', resource: 'tenant:t1' }, user),
+    ).resolves.toEqual({
+      items: [expect.objectContaining({ id: 'ar1' })],
+    });
+    await expect(
       controller.approve('ar1', { grantType: PermissionGrantType.Permanent }, user),
     ).resolves.toEqual(expect.objectContaining({ status: 'approved' }));
     await expect(controller.deny('ar1', { reason: 'no' }, user)).resolves.toEqual(
@@ -75,6 +83,10 @@ describe('AccessRequestController', () => {
 
     expect(accessRequests.create).toHaveBeenCalled();
     expect(accessRequests.listPendingForApprover).toHaveBeenCalledWith(user);
+    expect(accessRequests.listMine).toHaveBeenCalledWith(user, {
+      action: 'update',
+      resource: 'tenant:t1',
+    });
     expect(accessRequests.approve).toHaveBeenCalled();
     expect(accessRequests.deny).toHaveBeenCalled();
   });

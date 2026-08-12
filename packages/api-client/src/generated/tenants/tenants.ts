@@ -298,6 +298,116 @@ export const useTenantControllerCreate = <TError = void, TContext = unknown>(
 
   return useMutation(mutationOptions, queryClient);
 };
+export type tenantControllerCreateSelfServiceResponse201 = {
+  data: TenantResponseDto;
+  status: 201;
+};
+
+export type tenantControllerCreateSelfServiceResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type tenantControllerCreateSelfServiceResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type tenantControllerCreateSelfServiceResponseSuccess =
+  tenantControllerCreateSelfServiceResponse201 & {
+    headers: Headers;
+  };
+export type tenantControllerCreateSelfServiceResponseError = (
+  tenantControllerCreateSelfServiceResponse401 | tenantControllerCreateSelfServiceResponse409
+) & {
+  headers: Headers;
+};
+
+export type tenantControllerCreateSelfServiceResponse =
+  tenantControllerCreateSelfServiceResponseSuccess | tenantControllerCreateSelfServiceResponseError;
+
+export const getTenantControllerCreateSelfServiceUrl = () => {
+  return `/tenants/self-service`;
+};
+
+export const tenantControllerCreateSelfService = async (
+  createTenantDto: CreateTenantDto,
+  options?: RequestInit,
+): Promise<tenantControllerCreateSelfServiceResponse> => {
+  return customFetch<tenantControllerCreateSelfServiceResponse>(
+    getTenantControllerCreateSelfServiceUrl(),
+    {
+      ...options,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      body: JSON.stringify(createTenantDto),
+    },
+  );
+};
+
+export const getTenantControllerCreateSelfServiceMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof tenantControllerCreateSelfService>>,
+    TError,
+    { data: CreateTenantDto },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof tenantControllerCreateSelfService>>,
+  TError,
+  { data: CreateTenantDto },
+  TContext
+> => {
+  const mutationKey = ['tenantControllerCreateSelfService'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof tenantControllerCreateSelfService>>,
+    { data: CreateTenantDto }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return tenantControllerCreateSelfService(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TenantControllerCreateSelfServiceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof tenantControllerCreateSelfService>>
+>;
+export type TenantControllerCreateSelfServiceMutationBody = CreateTenantDto;
+export type TenantControllerCreateSelfServiceMutationError = void;
+
+export const useTenantControllerCreateSelfService = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof tenantControllerCreateSelfService>>,
+      TError,
+      { data: CreateTenantDto },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof tenantControllerCreateSelfService>>,
+  TError,
+  { data: CreateTenantDto },
+  TContext
+> => {
+  const mutationOptions = getTenantControllerCreateSelfServiceMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 export type tenantControllerFindOneResponse200 = {
   data: TenantResponseDto;
   status: 200;

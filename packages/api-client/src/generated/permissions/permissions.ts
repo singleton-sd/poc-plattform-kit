@@ -21,6 +21,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccessRequestControllerListMineParams,
   AccessRequestListResponseDto,
   AccessRequestResponseDto,
   ApproveAccessRequestDto,
@@ -496,7 +497,7 @@ export function usePermissionsControllerHealth<
 }
 
 /**
- * Captures subject/action/resource for the current user. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.
+ * Captures subject/action/resource for the current user. Idempotent for an existing non-expired pending request on the same action+resource. Publishes permission.access_requested (outbox) so Notifications can alert eligible approvers.
  * @summary Create an access request for a denied action
  */
 export type accessRequestControllerCreateResponse201 = {
@@ -616,6 +617,184 @@ export const useAccessRequestControllerCreate = <TError = void, TContext = unkno
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Optional action/resource filters. Newest first (max 50).
+ * @summary List access requests filed by the current user
+ */
+export type accessRequestControllerListMineResponse200 = {
+  data: AccessRequestListResponseDto;
+  status: 200;
+};
+
+export type accessRequestControllerListMineResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessRequestControllerListMineResponseSuccess =
+  accessRequestControllerListMineResponse200 & {
+    headers: Headers;
+  };
+export type accessRequestControllerListMineResponseError =
+  accessRequestControllerListMineResponse401 & {
+    headers: Headers;
+  };
+
+export type accessRequestControllerListMineResponse =
+  accessRequestControllerListMineResponseSuccess | accessRequestControllerListMineResponseError;
+
+export const getAccessRequestControllerListMineUrl = (
+  params?: AccessRequestControllerListMineParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/permissions/access-requests/mine?${stringifiedParams}`
+    : `/permissions/access-requests/mine`;
+};
+
+export const accessRequestControllerListMine = async (
+  params?: AccessRequestControllerListMineParams,
+  options?: RequestInit,
+): Promise<accessRequestControllerListMineResponse> => {
+  return customFetch<accessRequestControllerListMineResponse>(
+    getAccessRequestControllerListMineUrl(params),
+    {
+      ...options,
+      method: 'GET',
+    },
+  );
+};
+
+export const getAccessRequestControllerListMineQueryKey = (
+  params?: AccessRequestControllerListMineParams,
+) => {
+  return [`/permissions/access-requests/mine`, ...(params ? [params] : [])] as const;
+};
+
+export const getAccessRequestControllerListMineQueryOptions = <
+  TData = Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+  TError = void,
+>(
+  params?: AccessRequestControllerListMineParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListMine>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getAccessRequestControllerListMineQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof accessRequestControllerListMine>>> = ({
+    signal,
+  }) => accessRequestControllerListMine(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type AccessRequestControllerListMineQueryResult = NonNullable<
+  Awaited<ReturnType<typeof accessRequestControllerListMine>>
+>;
+export type AccessRequestControllerListMineQueryError = void;
+
+export function useAccessRequestControllerListMine<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+  TError = void,
+>(
+  params: undefined | AccessRequestControllerListMineParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListMine>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+          TError,
+          Awaited<ReturnType<typeof accessRequestControllerListMine>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useAccessRequestControllerListMine<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+  TError = void,
+>(
+  params?: AccessRequestControllerListMineParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListMine>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+          TError,
+          Awaited<ReturnType<typeof accessRequestControllerListMine>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useAccessRequestControllerListMine<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+  TError = void,
+>(
+  params?: AccessRequestControllerListMineParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListMine>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List access requests filed by the current user
+ */
+
+export function useAccessRequestControllerListMine<
+  TData = Awaited<ReturnType<typeof accessRequestControllerListMine>>,
+  TError = void,
+>(
+  params?: AccessRequestControllerListMineParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof accessRequestControllerListMine>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getAccessRequestControllerListMineQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * Returns non-expired pending requests in the caller tenant where the caller is a tenant admin (OpenFGA) or the requester’s manager chain member. Does not mutate expired rows.
  * @summary List pending access requests visible to the caller

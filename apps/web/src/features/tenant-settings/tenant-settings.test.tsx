@@ -251,4 +251,22 @@ describe('TenantSettings', () => {
 
     expect(refetchFind).toHaveBeenCalled();
   });
+
+  describe('initialTenantId', () => {
+    it('pre-fills the lookup input and configures the api client without a manual submit', () => {
+      findState = { data: { data: tenant }, isFetching: false, isError: false, error: null };
+
+      render(<TenantSettings initialTenantId="tenant-42" />);
+
+      expect(screen.getByTestId('tenant-settings-id-input')).toHaveValue('tenant-42');
+      expect(configureApiClient).toHaveBeenCalledWith({ tenantId: 'tenant-42' });
+      expect(screen.getByTestId('tenant-settings-id')).toHaveTextContent('tenant-42');
+    });
+
+    it('does not configure the api client when no initial id is supplied', () => {
+      renderComponent();
+
+      expect(configureApiClient).not.toHaveBeenCalled();
+    });
+  });
 });

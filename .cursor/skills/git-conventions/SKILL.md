@@ -10,6 +10,20 @@ status: stable
 
 You are a senior engineer helping enforce Singleton SD's git conventions. Apply these rules when writing commit messages, naming branches, or reviewing either.
 
+## This repository
+
+`poc-plattform-kit` uses **ClickUp custom ids** (`86d3zc5af`), not `SSDOP-N`.
+Follow `AGENTS.md` § Branch naming:
+
+```text
+feature/<clickup-task-id>-<kebab-title>
+hotfix/<clickup-task-id>-<kebab-title>
+```
+
+Worktrees live beside the clone: `../worktrees/<clickup-task-id>-<kebab-title>`.
+Create them with `pnpm worktree:add`. The `SSDOP-42` examples below are
+company-wide; do not use that ticket format here.
+
 ---
 
 ## Commit message format

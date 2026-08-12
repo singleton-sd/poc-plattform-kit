@@ -87,7 +87,7 @@ describe('marketing-oauth contact send', () => {
       {
         email,
         env: {
-          EMAIL_FROM_ADDRESS: 'noreply@plattform-kit.poc.singletonsd.com',
+          EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
           EMAIL_FROM_NAME: 'Plattform Kit',
           CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
         },
@@ -96,7 +96,7 @@ describe('marketing-oauth contact send', () => {
     assert.equal(result.status, 'sent');
     assert.equal(email.sent[0]?.to, 'hello@singletonsd.com');
     assert.equal(email.sent[0]?.replyTo, 'jane@acme.com');
-    assert.match(String(email.sent[0]?.from), /noreply@plattform-kit\.poc\.singletonsd\.com/);
+    assert.match(String(email.sent[0]?.from), /noreply@mail\.plattform-kit\.poc\.singletonsd\.com/);
     assert.equal(email.sent[0]?.subject, '[Plattform Kit] Sales / demo request');
   });
 

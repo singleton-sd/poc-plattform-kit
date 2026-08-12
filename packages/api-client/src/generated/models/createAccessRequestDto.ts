@@ -4,6 +4,7 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
+import type { CreateAccessRequestDtoPreferredGrantType } from './createAccessRequestDtoPreferredGrantType';
 
 export interface CreateAccessRequestDto {
   /** Denied OpenFGA action / relation. */
@@ -14,4 +15,8 @@ export interface CreateAccessRequestDto {
   tenantId?: string;
   /** Optional absolute expiry for the pending request itself (ISO-8601). */
   requestExpiresAt?: string;
+  /** Preferred grant type for the approver (stored as a hint; applied on approve). */
+  preferredGrantType?: CreateAccessRequestDtoPreferredGrantType;
+  /** Required when preferredGrantType is temporary — preferred grant expiry. */
+  preferredGrantExpiresAt?: string;
 }

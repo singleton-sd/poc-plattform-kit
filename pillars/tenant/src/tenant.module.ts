@@ -4,17 +4,20 @@ import { ClaimTenancyInterceptor } from './claim-tenancy.interceptor';
 import { TenancyContext } from './tenancy.context';
 import { TenancyMiddleware } from './tenancy.middleware';
 import { TenantController } from './tenant.controller';
+import { TenantInvitationController } from './tenant-invitation.controller';
+import { TenantInvitationService } from './tenant-invitation.service';
 import { TenantService } from './tenant.service';
 
 @Module({
-  controllers: [TenantController],
+  controllers: [TenantController, TenantInvitationController],
   providers: [
     TenancyContext,
     TenancyMiddleware,
     TenantService,
+    TenantInvitationService,
     { provide: APP_INTERCEPTOR, useClass: ClaimTenancyInterceptor },
   ],
-  exports: [TenancyContext, TenantService],
+  exports: [TenancyContext, TenantService, TenantInvitationService],
 })
 export class TenantModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

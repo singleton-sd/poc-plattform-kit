@@ -32,7 +32,7 @@ export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Em
   const fromAddress =
     env.EMAIL_FROM_ADDRESS?.trim() ||
     env.CONTACT_FROM_EMAIL?.trim() ||
-    'noreply@plattform-kit.poc.singletonsd.com';
+    'noreply@mail.plattform-kit.poc.singletonsd.com';
   const fromName = env.EMAIL_FROM_NAME?.trim() || 'Plattform Kit';
   const contactInboxAddress =
     env.CONTACT_INBOX_ADDRESS?.trim() || env.CONTACT_INBOX_EMAIL?.trim() || 'hello@singletonsd.com';

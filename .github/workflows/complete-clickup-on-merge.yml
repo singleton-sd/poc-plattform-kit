@@ -7,6 +7,8 @@ on:
 permissions:
   contents: read
   id-token: write
+  pull-requests: write
+  issues: write
 
 jobs:
   complete-clickup-ticket:
@@ -24,6 +26,17 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Clear hygiene labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" \
+            --remove-label needs-rebase \
+            --remove-label ci-failed \
+            --remove-label has-feedback \
+            --remove-label preview-blocked || true
 
       - name: Complete linked ClickUp ticket
         env:

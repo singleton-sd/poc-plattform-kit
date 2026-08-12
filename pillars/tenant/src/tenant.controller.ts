@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiHeader,
@@ -18,6 +19,15 @@ import { TenantResponseDto } from './dto/tenant-response.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { Roles } from './roles.decorator';
 import { TenantService } from './tenant.service';
+
+const DEFAULT_SELF_SERVICE_TENANT_LIMIT = 1;
+
+/** Per-user cap on tenants ownable via the self-service route; see `createSelfService`. */
+function selfServiceTenantLimit(): number {
+  const raw = process.env.SELF_SERVICE_TENANT_LIMIT?.trim();
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_SELF_SERVICE_TENANT_LIMIT;
+}
 
 @ApiTags('tenants')
 @ApiBearerAuth()
@@ -38,6 +48,16 @@ export class TenantController {
     return this.tenants.findAll(query);
   }
 
+  /**
+   * Admin/support-facing tenant creation -- role-gated, uncapped. This is
+   * the path support-agent and tenant-admin callers use to provision a
+   * tenant on someone else's behalf (or their own, as an admin). It stays
+   * separate from `createSelfService` below on purpose: this route trusts
+   * the caller's coarse Entra role and does not enforce a per-user quota,
+   * while the self-service route trusts only "is authenticated" and caps
+   * usage. Do not merge the two back together -- the role gate and the cap
+   * each belong to exactly one of them.
+   */
   @Post()
   @Roles('support-agent', 'tenant-admin')
   @ApiCreatedResponse({
@@ -54,6 +74,38 @@ export class TenantController {
     // tracked ticket that starts populating real local User.id values; no
     // membership-specific fix belongs here.
     return this.tenants.create(dto, user.id);
+  }
+
+  /**
+   * Self-service tenant creation -- open to any authenticated user (no
+   * `@Roles(...)` gate; only the global session/JWT `APP_GUARD` applies),
+   * capped at `SELF_SERVICE_TENANT_LIMIT` (default 1) owned tenants per
+   * user. This is the entry point the onboarding card
+   * (`apps/web/src/features/onboarding`) uses so a brand-new signed-in user
+   * with no tenant can create one without needing support-agent or
+   * tenant-admin first -- see ClickUp 86d3zetkw and the PR #111 discussion
+   * on why `create()` above was not simply loosened for this. Delegates to
+   * the exact same `TenantService.create` transactional path (entity +
+   * audit + outbox + owner membership) as the admin route, with
+   * `maxOwnedTenants` so the quota is enforced inside that transaction.
+   * Do not merge these two routes back together -- see the comment on
+   * `create()`.
+   */
+  @Post('self-service')
+  @ApiCreatedResponse({
+    type: TenantResponseDto,
+    description:
+      'Tenant created via self-service; the caller is auto-assigned as its owner. Requires only an authenticated session -- no support-agent/tenant-admin role.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
+  @ApiConflictResponse({
+    description:
+      'Caller already owns the maximum number of self-service tenants (SELF_SERVICE_TENANT_LIMIT, default 1).',
+  })
+  createSelfService(@Body() dto: CreateTenantDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.tenants.create(dto, user.id, {
+      maxOwnedTenants: selfServiceTenantLimit(),
+    });
   }
 
   @Get(':id')
@@ -73,7 +125,6 @@ export class TenantController {
   }
 
   @Patch(':id')
-  @Roles('tenant-admin')
   @ApiHeader({
     name: 'x-tenant-id',
     required: false,
@@ -82,13 +133,21 @@ export class TenantController {
   })
   @ApiOkResponse({
     type: TenantResponseDto,
-    description: 'Tenant updated after AuthN, tenancy, role, and Permissions AuthZ checks.',
+    description:
+      'Tenant updated after AuthN, tenancy, and owner or tenant-admin checks (plus Permissions when configured).',
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session/JWT.' })
   @ApiForbiddenResponse({
-    description: 'Requires tenant-admin role and Permissions tuple user:<id>, update, tenant:<id>.',
+    description:
+      'Requires matching tenancy context and either tenant-admin or owner membership for this tenant.',
   })
-  update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
-    return this.tenants.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTenantDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    // Coarse Entra tenant-admin still works; self-service owners are a
+    // TenantMembership row, not that role -- enforce both in the service.
+    return this.tenants.update(id, dto, user);
   }
 }

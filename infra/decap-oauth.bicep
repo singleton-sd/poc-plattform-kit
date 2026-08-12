@@ -32,7 +32,7 @@ param oauthClientSecretName string = 'github-decap-oauth-client-secret'
 param contactInboxAddress string = 'hello@singletonsd.com'
 
 @description('Transactional From address (Forward Email alias)')
-param emailFromAddress string = 'noreply@plattform-kit.poc.singletonsd.com'
+param emailFromAddress string = 'noreply@mail.plattform-kit.poc.singletonsd.com'
 
 @description('From display name')
 param emailFromName string = 'Plattform Kit'
