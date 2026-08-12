@@ -30,6 +30,16 @@ feature/<clickup-task-id>-<kebab-title>
 
 Example: `feature/86dxxxx-prisma-azure-sql`
 
+**Workspace layout (locked):** open a parent folder in Cursor that contains the clone and ticket worktrees:
+
+```text
+plattform-kit/                 <-- Open this
+  repo/                        <-- git clone (main only)
+  worktrees/<id>-<kebab-slug>/
+```
+
+Create worktrees with `pnpm worktree:add -- -TaskId <id> -Slug <kebab>` (Windows/PowerShell) or `./scripts/add-worktree.sh --task-id <id> --slug <kebab>` (macOS / Linux / Docker / Cloud - see `AGENTS.md`). The parent folder can live anywhere on any OS, e.g. `~/dev/singleton-sd/plattform-kit/` on macOS or `/workspace/plattform-kit/` in a container. Do not create `poc-plattform-kit-wt-*` siblings next to other projects.
+
 **Where to click in GitHub (optional enforcement):**
 
 1. Open the repo -> **Settings** -> **Rules** -> **Rulesets**.
