@@ -5,6 +5,16 @@ import { useMe } from '@/features/auth/me';
 const mockFindTenant = jest.fn();
 const mockConfigureApiClient = jest.fn();
 
+jest.mock('@tanstack/react-query', () => {
+  const actual = jest.requireActual(
+    '@tanstack/react-query',
+  ) as typeof import('@tanstack/react-query');
+  return {
+    ...actual,
+    useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+  };
+});
+
 jest.mock('@/features/auth/me', () => ({
   useMe: jest.fn(),
 }));
@@ -31,20 +41,25 @@ describe('SupportPage', () => {
     });
   });
 
-  it('shows a loading state while resolving the session', () => {
+  it('shows the shared auth-guard loading state while resolving the session', () => {
     mockUseMe.mockReturnValue({ data: undefined, isLoading: true, isError: false });
 
     render(<SupportPage />);
 
-    expect(screen.getByTestId('support-loading')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-guard-loading')).toBeInTheDocument();
   });
 
-  it('shows an error state when the session query fails', () => {
-    mockUseMe.mockReturnValue({ data: undefined, isLoading: false, isError: true });
+  it('shows the shared auth-guard error state when the session query fails', () => {
+    mockUseMe.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: jest.fn(),
+    });
 
     render(<SupportPage />);
 
-    expect(screen.getByTestId('support-error')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-guard-error')).toBeInTheDocument();
   });
 
   it('restricts access when the user lacks the support-agent role', () => {
@@ -58,9 +73,10 @@ describe('SupportPage', () => {
 
     expect(screen.getByTestId('support-restricted')).toBeInTheDocument();
     expect(screen.getByTestId('support-login-link')).toHaveAttribute('href', '/');
+    expect(screen.getByTestId('support-login-link')).toHaveTextContent('Switch account');
   });
 
-  it('links signed-out users to /', () => {
+  it('shows LoginPanel on the current route when signed out', () => {
     mockUseMe.mockReturnValue({
       data: null,
       isLoading: false,
@@ -69,9 +85,9 @@ describe('SupportPage', () => {
 
     render(<SupportPage />);
 
-    expect(screen.getByTestId('support-restricted')).toBeInTheDocument();
-    expect(screen.getByTestId('support-login-link')).toHaveTextContent('Sign in');
-    expect(screen.getByTestId('support-login-link')).toHaveAttribute('href', '/');
+    expect(screen.getByTestId('login-sign-in')).toBeInTheDocument();
+    expect(screen.queryByTestId('support-restricted')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('support-shell')).not.toBeInTheDocument();
   });
 
   it('renders the shell for a support-agent', () => {
