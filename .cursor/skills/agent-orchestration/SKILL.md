@@ -54,12 +54,13 @@ feature/<clickup-task-id>-<kebab-title>
 hotfix/<clickup-task-id>-<kebab-title>
 ```
 
-Typical setup:
+Typical setup (parent workspace: `repo/` + `worktrees/<id>-<slug>/`):
 
-```bash
-git fetch origin
-git worktree add ../worktrees/<ticket-id> -b feature/<ticket-id>-<slug> origin/main
+```powershell
+pnpm worktree:add -- -TaskId <clickup-task-id> -Slug <kebab-title>
 ```
+
+Linux / Cloud: `./scripts/add-worktree.sh --task-id <clickup-task-id> --slug <kebab-title>`
 
 Rules:
 
@@ -70,7 +71,7 @@ Rules:
 - Remove the worktree after merge or abandonment:
 
 ```bash
-git worktree remove ../worktrees/<ticket-id>
+git worktree remove ../worktrees/<clickup-task-id>-<kebab-title>
 git worktree prune
 ```
 
@@ -236,7 +237,7 @@ Repository workflow
 
 1. Never work directly on main.
 2. Fetch origin before starting.
-3. Create your branch/worktree from origin/main using the repository branch naming convention.
+3. Create your branch/worktree from origin/main with `pnpm worktree:add` (parent `worktrees/<id>-<slug>`).
 4. Do not incorporate another agent's branch unless the ticket explicitly declares a dependency.
 5. Before pushing completed work:
    - git fetch origin

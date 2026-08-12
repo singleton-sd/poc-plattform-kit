@@ -3,7 +3,7 @@
 ## Repo
 
 - GitHub: `singleton-sd/poc-plattform-kit` (`git@github.com:singleton-sd/poc-plattform-kit.git`)
-- Local: `C:\00Personal\singleton-sd\poc-plattform-kit`
+- Local: `C:\00Personal\singleton-sd\plattform-kit\repo` (parent workspace `plattform-kit\` also holds `worktrees\` - see § Worktrees)
 - ClickUp tickets must include `[repo=singleton-sd/poc-plattform-kit]`
 
 ## ClickUp (locked)
@@ -135,9 +135,42 @@ Rationale: worktrees do not share dependencies reliably on Windows; installing p
 
 ## Worktrees
 
-- Every implementer subagent must use its own `git worktree` (and branch named per **Branch naming** above).
+**Layout (locked):** open a **parent workspace** folder in Cursor, not the git clone.
+
+```text
+<parent>/                      <-- Open this folder
+  repo/                        <-- git clone; stays on main
+  worktrees/
+    <clickup-id>-<kebab-slug>/ <-- one worktree per ticket
+```
+
+Windows example: `C:\00Personal\singleton-sd\plattform-kit\repo` + `...\worktrees\86d3zc5af-permission-gating`.
+
+macOS / Docker example (same layout, any parent directory you choose):
+
+```text
+~/dev/singleton-sd/plattform-kit/repo
+~/dev/singleton-sd/plattform-kit/worktrees/86d3zc5af-permission-gating
+```
+
+- Worktree folder name = branch name without `feature/` or `hotfix/`.
+- Create from `origin/main` only, via the helper (do not invent sibling `*-wt-*` paths or in-repo `.worktrees/`):
+
+```powershell
+pnpm worktree:add -- -TaskId 86d3zc5af -Slug permission-gating
+```
+
+macOS / Linux / Docker / Cloud: `./scripts/add-worktree.sh --task-id 86d3zc5af --slug permission-gating`. `add-worktree.sh` is plain bash and runs unchanged on macOS; Alpine-based containers need `apk add bash` first since the script uses bash arrays (not available under `sh`/`dash`).
+
+- Then `pnpm bootstrap:worktree` (the helper runs this unless `-SkipBootstrap`).
+- Every implementer subagent must use its own worktree (branch named per **Branch naming** above).
 - Never share a dirty `main` working tree across parallel agents.
-- Remove the worktree when the run finishes.
+- Remove the worktree when the PR is merged or the run is abandoned:
+
+```powershell
+git worktree remove ../worktrees/<clickup-id>-<kebab-slug>
+git worktree prune
+```
 
 ## Shared hub files (conflict prevention)
 
