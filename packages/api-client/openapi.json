@@ -330,6 +330,159 @@
         ]
       }
     },
+    "/tenants/{tenantId}/invitations": {
+      "post": {
+        "operationId": "TenantInvitationController_create",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pending invitation created; emits tenant.invitation_created for Notifications.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantInvitationResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Coarse guard (temporary, see Permissions pillar epic): requires the global tenant-admin/support-agent role, or a TenantMembership with role \"owner\" on this tenant."
+          },
+          "409": {
+            "description": "A pending invitation already exists for this email."
+          }
+        },
+        "tags": [
+          "tenant-invitations"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "TenantInvitationController_findAll",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All invitations for the tenant, any status, oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TenantInvitationResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Coarse guard (temporary, see Permissions pillar epic): requires the global tenant-admin/support-agent role, or a TenantMembership with role \"owner\" on this tenant."
+          }
+        },
+        "tags": [
+          "tenant-invitations"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/tenants/{tenantId}/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "TenantInvitationController_revoke",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "invitationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Pending invitation revoked."
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT."
+          },
+          "403": {
+            "description": "Coarse guard (temporary, see Permissions pillar epic): requires the global tenant-admin/support-agent role, or a TenantMembership with role \"owner\" on this tenant."
+          },
+          "404": {
+            "description": "Invitation not found for this tenant."
+          },
+          "409": {
+            "description": "Only pending invitations can be revoked."
+          }
+        },
+        "tags": [
+          "tenant-invitations"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/me": {
       "get": {
         "operationId": "SingleSignOnController_me",
@@ -1010,6 +1163,85 @@
             "additionalProperties": true
           }
         }
+      },
+      "CreateTenantInvitationDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "newmember@example.test"
+          },
+          "role": {
+            "type": "string",
+            "example": "member",
+            "description": "Role the invitee will receive on their TenantMembership once they accept."
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ]
+      },
+      "TenantInvitationResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx1tenantinvitation000000001"
+          },
+          "tenantId": {
+            "type": "string",
+            "example": "clx1tenant00000000000000001"
+          },
+          "email": {
+            "type": "string",
+            "example": "newmember@example.test"
+          },
+          "role": {
+            "type": "string",
+            "example": "member"
+          },
+          "invitedByUserId": {
+            "type": "string",
+            "description": "Local User.id (or Entra oid fallback) of the caller who created the invitation."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "revoked",
+              "expired"
+            ],
+            "example": "pending"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "respondedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the invitation left \"pending\" (accepted/declined/revoked/expired), or null."
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "email",
+          "role",
+          "invitedByUserId",
+          "status",
+          "expiresAt",
+          "createdAt",
+          "respondedAt"
+        ]
       },
       "MeResponseDto": {
         "type": "object",
