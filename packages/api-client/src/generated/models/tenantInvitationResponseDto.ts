@@ -20,5 +20,5 @@ export interface TenantInvitationResponseDto {
    * When the invitation left "pending" (accepted/declined/revoked/expired), or null.
    * @nullable
    */
-  respondedAt?: string | null;
+  respondedAt: string | null;
 }

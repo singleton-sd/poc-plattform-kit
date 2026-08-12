@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class TenantInvitationResponseDto {
   // Prisma defaults these to cuid() — do not advertise format: 'uuid'.
@@ -31,7 +31,10 @@ export class TenantInvitationResponseDto {
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: Date;
 
-  @ApiPropertyOptional({
+  // Always present on the response (never omitted), just possibly null --
+  // @ApiProperty + nullable, not @ApiPropertyOptional, so the generated
+  // client types this as `Date | null` rather than `Date | null | undefined`.
+  @ApiProperty({
     type: String,
     format: 'date-time',
     nullable: true,
