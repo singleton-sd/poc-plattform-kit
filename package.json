@@ -30,7 +30,7 @@
     "changelog:backfill:dry-run": "node ./scripts/backfill-client-changelogs.mjs --dry-run",
     "prepare": "husky",
     "pr:gate": "node scripts/pr-handoff-gate.mjs",
-    "test:pr-automation": "node scripts/pr-handoff-gate.test.mjs && bash scripts/clickup-handoff.test.sh && bash scripts/recover-clickup-pr.test.sh && bash scripts/complete-clickup-on-merge.test.sh && node scripts/worktree-paths.test.mjs",
+    "test:pr-automation": "node scripts/pr-handoff-gate.test.mjs && node scripts/upsert-pr-review-brief.test.mjs && bash scripts/clickup-handoff.test.sh && bash scripts/recover-clickup-pr.test.sh && bash scripts/complete-clickup-on-merge.test.sh && node scripts/worktree-paths.test.mjs",
     "bootstrap:worktree": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-worktree.ps1",
     "bootstrap:worktree:quick": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-worktree.ps1 -QuickCheck",
     "worktree:add": "powershell -ExecutionPolicy Bypass -File ./scripts/add-worktree.ps1",

@@ -204,26 +204,27 @@ pnpm stage:api-deploy:docker -- --kudu  # Windows-friendly (copy into Linux cont
 
 ## PR hygiene (conflicts, CI, feedback)
 
-Agents do **not** get push notifications. Poll GitHub before ClickUp handoffs (`AGENTS.md` § PR hygiene). Workflow: `.github/workflows/pr-hygiene.yml`.
+Hygiene workflows set **labels only**. They do not post “bounce to READY FOR AI” comments. The human presentation surface is one upserted **Human Review Brief** (`<!-- pr-review-brief -->`) from `scripts/upsert-pr-review-brief.mjs`.
 
 | Label | Meaning | Cleared when | Agent action |
 | --- | --- | --- | --- |
 | `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Mergeability is known and not `dirty` (never cleared while `unknown`) | `git merge origin/main` → `pnpm resolve:conflicts` → hand-fix leftovers → push → re-check CI → ClickUp **READY FOR AI** |
-| `ci-failed` | A watched PR workflow failed | No `FAILURE` checks remain on the PR after a success | Diagnose via linked run; fix or document human blocker → **READY FOR AI** |
-| `has-feedback` | Bugbot or human (non-author) comment | PR `synchronize` (new push); re-applied if new feedback arrives | Fetch issue + review comments; address or bounce → **READY FOR AI** |
+| `ci-failed` | Required CI job failed (`Lint / test / build (api)` or `Lint / format / build (web)`) | Those jobs are no longer `FAILURE` | Fix the required CI cause and push |
+| `has-feedback` | Bugbot, Copilot, or human (non-author) comment | PR `synchronize` when no unresolved threads remain | Fetch issue + review comments; address with a threaded reply |
+| `preview-blocked` | SWA / ACA / Chromatic infra failed | Those infra jobs are no longer `FAILURE` | Document on the brief. Do **not** bounce ClickUp. Chromatic visual-accept is human-only. |
 
 ```bash
 gh pr list --label needs-rebase
 gh pr list --label ci-failed
 gh pr list --label has-feedback
+gh pr list --label preview-blocked
 gh pr view <n> --json mergeable,mergeStateStatus,statusCheckRollup
-gh api repos/singleton-sd/poc-plattform-kit/issues/<n>/comments --jq '.[].body'
-gh api repos/singleton-sd/poc-plattform-kit/pulls/<n>/comments --jq '.[].body'
+node scripts/upsert-pr-review-brief.mjs --pr <n>
 ```
 
-Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI/preview workflows (set/clear `ci-failed`), issue/review comments from Bugbot or collaborators. The hygiene workflow needs `checks: read` so the success path can query `statusCheckRollup` (with a check-runs API fallback) when clearing `ci-failed`.
+Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI Web/API (set/clear `ci-failed`) and preview/Chromatic (set/clear `preview-blocked`), issue/review comments from Bugbot/Copilot/collaborators. Usage-limit and `github-actions` comments are ignored.
 
-**READY FOR HUMAN** only when mergeable, required checks green, and no open actionable feedback. ClickUp API bridge from Actions is phase 2; v1 uses labels + PR comments.
+**READY FOR HUMAN** only when mergeable, required lint/test/build checks green, and no open actionable feedback. Preview red is an infra note on the brief.
 
 ## Shared hub conflicts (agent playbook)
 
@@ -283,35 +284,32 @@ status transition:
 ./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>
 ```
 
-The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp. The gate
-pins the PR head SHA, requires all path-applicable CI and preview checks to
-appear and finish successfully, requires a mergeable/non-dirty PR, rejects the
-hygiene labels, rejects unresolved review threads, and waits for a 90-second
-external-feedback quiet period. Empty check lists and `UNKNOWN` mergeability fail closed.
-Override polling only for diagnostics with `PR_GATE_QUIET_SECONDS`,
-`PR_GATE_TIMEOUT_SECONDS`, and `PR_GATE_POLL_SECONDS`.
+The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp, then
+upserts the Human Review Brief. The gate pins the PR head SHA, requires
+path-applicable **required** CI (`Lint / test / build (api)`,
+`Lint / format / build (web)`, `conflict-on-pr`) to appear and finish
+successfully, requires a mergeable/non-dirty PR, rejects `ci-failed` /
+`has-feedback` / `needs-rebase`, and rejects unresolved review threads.
+`preview-blocked` does not fail the gate. Empty check lists and `UNKNOWN`
+mergeability fail closed. A reviewer quiet period is optional
+(`PR_GATE_QUIET_SECONDS`, default `0`). Override polling with
+`PR_GATE_TIMEOUT_SECONDS` and `PR_GATE_POLL_SECONDS`.
 
-`.github/workflows/pr-handoff-gate.yml` applies the same policy in GitHub and
-publishes the commit status context `pr-handoff-gate`. Configure the `main`
-ruleset to require this context together with the API/web CI checks. The workflow
-restarts on pushes, CI/preview completion, reviews, and review/issue comments so
-late bot feedback moves the status back to pending/failure before stabilising.
+There is **no** GitHub `pr-handoff-gate` commit status. Do not add it to the
+`main` ruleset. The CLI is the handoff authority.
 
-Open the `pr-handoff-gate` status link to see the workflow run summary. It lists
-every current blocker beside a specific next action. `Waiting` means checks or
-the reviewer quiet period are still in progress; `Blocked` means an action is
-required. A cancelled check is called out separately and should be re-run before
-changing code. Superseded gate runs queue instead of cancelling the active run;
-this guarantees that every run reaches its summary and final-status steps. A
-stale run detects that the PR head changed, exits with that explicit blocker,
-and then allows the replacement run to evaluate the new commit.
+`.github/workflows/pr-review-brief.yml` upserts the same brief comment on PR
+open/sync and after CI/preview completion so humans always see one presentation
+surface.
 
 ## Asynchronous ClickUp recovery
 
 `.github/workflows/clickup-pr-recovery.yml` is the server-side safety net. It
 uses GitHub OIDC to read `clickup-api-token` from Key Vault, never GitHub
-Secrets. After CI, hygiene, review, comment, or `main` events it checks open PRs.
-When a ticket is already in `READY FOR REVIEW` or `READY FOR HUMAN` and the PR
-has a conflict, failed check, or blocking hygiene label, it clears Claim Token,
-returns the ticket to `READY FOR AI`, and posts one blocker-oriented ClickUp
-comment. Active implementation and closed tickets are not changed.
+Secrets. It runs on `ci-failed` / `has-feedback` / `needs-rebase` label
+changes, required CI completion, and `main` pushes. When a ticket is already
+in `READY FOR REVIEW` or `READY FOR HUMAN` and the PR has a conflict, required
+CI failure, or blocking hygiene label, it clears Claim Token, returns the
+ticket to `READY FOR AI`, and posts one blocker-oriented ClickUp comment.
+`preview-blocked` and preview/Chromatic check failures do not bounce.
+Active implementation and closed tickets are not changed.

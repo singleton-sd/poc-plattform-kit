@@ -27,7 +27,8 @@ MOCK
 chmod +x "$TMP/curl" "$TMP/node" "$TMP/gh"
 export PATH="$TMP:$PATH" CALLS_FILE="$TMP/calls" CLICKUP_API_TOKEN=test
 bash "$ROOT/scripts/clickup.sh" handoff 86d3test 123 "READY FOR REVIEW" claim-1 >/dev/null
-grep -Fq 'gate ' "$CALLS_FILE"
+grep -Fq 'pr-handoff-gate.mjs' "$CALLS_FILE"
+grep -Fq 'upsert-pr-review-brief.mjs' "$CALLS_FILE"
 grep -Fq 'READY FOR REVIEW' "$CALLS_FILE"
 grep -Fq 'pull/123' "$CALLS_FILE"
 status_line=$(grep -n -F 'READY FOR REVIEW' "$CALLS_FILE" | tail -1 | cut -d: -f1)

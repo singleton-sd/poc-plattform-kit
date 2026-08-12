@@ -15,7 +15,7 @@
 #   ./scripts/clickup.sh comment 86d3xxxx "text"
 #   ./scripts/clickup.sh field 86d3xxxx <fieldId> <value>
 #   ./scripts/clickup.sh preview 86d3xxxx https://...
-#   ./scripts/clickup.sh create "Title" ["BACKLOG"] [estimate]
+#   ./scripts/clickup.sh create "Title" ["BACKLOG"] [estimate] [--list-id LIST_ID]
 #   ./scripts/clickup.sh depend <childId> <parentId>
 
 set -euo pipefail
@@ -189,6 +189,7 @@ print(json.dumps({
       die "Handoff refused: claim token mismatch for task $task_id"
     repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     node "$repo_root/scripts/pr-handoff-gate.mjs" --pr "$pr_number"
+    node "$repo_root/scripts/upsert-pr-review-brief.mjs" --pr "$pr_number"
     pr_url="$(gh pr view "$pr_number" --json url --jq .url)"
     api POST "/task/$task_id/field/$PREVIEW_FIELD_ID" \
       "$(python3 -c 'import json,sys; print(json.dumps({"value":sys.argv[1]}))' "$pr_url")" >/dev/null
@@ -243,9 +244,32 @@ print(json.dumps({
     echo "OK Preview URL on $task_id"
     ;;
   create)
-    name="${1:-}"; status="${2:-TO DO}"; estimate="${3:-}"
+    name="${1:-}"
     [[ -n "$name" ]] || die "create requires name"
-    created="$(api POST "/list/$LIST_ID/task" "$(python3 -c 'import json,sys; print(json.dumps({"name":sys.argv[1],"status":sys.argv[2]}))' "$name" "$status")")"
+    shift || true
+    status="TO DO"
+    estimate=""
+    list_id="$LIST_ID"
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --list-id)
+          list_id="${2:-}"
+          [[ -n "$list_id" ]] || die "create --list-id requires a list id"
+          shift 2
+          ;;
+        *)
+          if [[ "$1" =~ ^[0-9]+$ && -z "$estimate" ]]; then
+            estimate="$1"
+          elif [[ "$status" == "TO DO" ]]; then
+            status="$1"
+          else
+            die "unexpected create argument: $1"
+          fi
+          shift
+          ;;
+      esac
+    done
+    created="$(api POST "/list/$list_id/task" "$(python3 -c 'import json,sys; print(json.dumps({"name":sys.argv[1],"status":sys.argv[2]}))' "$name" "$status")")"
     tid="$(printf '%s' "$created" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
     if [[ -n "$estimate" ]]; then
       api POST "/task/$tid/field/$ESTIMATE_FIELD_ID" "$(python3 -c 'import json,sys; print(json.dumps({"value":sys.argv[1]}))' "$estimate")" >/dev/null

@@ -52,6 +52,8 @@ Agents often share one ClickUp identity (`assignees: ["me"]`), so assignee alone
 
 ### Exclusive claim protocol
 
+**Delivery list only.** Never claim Ideas & Discovery or Human & Operations tasks.
+
 1. Filter candidates via REST: `powershell -File scripts/clickup.ps1 list -Status "READY FOR AI"`. On Linux/Cloud: `./scripts/clickup.sh list "READY FOR AI"`. Script already drops rows with a Claim Token. Prefer oldest / unassigned.
 2. Generate `claimToken` = Cursor chat/session id, or `agent-<uuid>` if unknown.
 3. Claim: `powershell -File scripts/clickup.ps1 claim -TaskId <id> -ClaimToken <claimToken> -Status "IN PROGRESS"` (implementer). Linux/Cloud: `./scripts/clickup.sh claim <id> <claimToken> "IN PROGRESS"`. Prefer Claim Token only (default); add `-AssignMe` only when an owner must show. Optionally set **Token Estimate** with `field`.
@@ -72,17 +74,18 @@ Agents often share one ClickUp identity (`assignees: ["me"]`), so assignee alone
 
 ### PR hygiene (mandatory)
 
-Agents do not get push notifications for conflicts, Bugbot/human PR comments, or CI. Poll GitHub before every handoff. Labels from `pr-hygiene.yml`: `needs-rebase`, `ci-failed`, `has-feedback` (filter with `gh pr list --label ...`). Bounce agent-fixable issues to **READY FOR AI**; leave **READY FOR HUMAN** only when mergeable + required checks green + no open actionable feedback. See `docs/pr-pipelines.md`.
+Agents do not get push notifications for conflicts, Bugbot/human PR comments, or CI. After a PR is open, watch required CI in-session (`gh pr checks --watch`) and upsert the **Human Review Brief**. Labels from `pr-hygiene.yml`: `needs-rebase`, `ci-failed`, `has-feedback`, `preview-blocked` (filter with `gh pr list --label ...`). `ci-failed` is required lint/test/build only. `preview-blocked` is SWA/ACA/Chromatic infra and does not bounce ClickUp. Hygiene workflows set labels only — they do not post status comments. Bounce agent-fixable issues to **READY FOR AI**; leave **READY FOR HUMAN** only when mergeable + required checks green + no open actionable feedback. See `docs/pr-pipelines.md`.
 
 #### Implementer (before READY FOR REVIEW)
 
 After push / PR open:
 
-1. `gh pr checks --watch` (or loop-on-ci) until required checks green (or document skip-only failures).
+1. `gh pr checks --watch` (or loop-on-ci) until required lint/test/build checks green (or document skip-only failures). Preview/Chromatic red is infra — put it on the brief, do not treat it as a code defect.
 2. `gh pr view --json mergeable,mergeStateStatus` -> must be `MERGEABLE` / not `DIRTY`.
 3. If dirty: follow **Shared hub files / conflict playbook** below (`git merge origin/main` then `pnpm resolve:conflicts`), push, re-check CI.
-4. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`. Raw `status` transitions are forbidden for PR-backed work. This atomically gates CI registration/completion, mergeability, unresolved review threads, blocking labels, and the external-feedback quiet period before setting Preview URL and clearing the claim.
-5. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop - do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
+4. Upsert the Human Review Brief (`node scripts/upsert-pr-review-brief.mjs --pr <n>`). Do not post hygiene/status comments.
+5. Handoff only with `./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>`. Raw `status` transitions are forbidden for PR-backed work. The CLI gate requires required CI, mergeability, and no unresolved review threads, then upserts the brief and sets Preview URL.
+6. Own green CI before handoff; after conflict fixes or follow-up commits, re-run CI before re-handing off. Env/Entra blockers (e.g. AADSTS700213): one ClickUp blocker comment and stop - do not spin. Prefer current Node pin (24); do not default to `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`.
 
 #### Automated review and human validation
 
@@ -141,7 +144,14 @@ Rationale: worktrees do not share dependencies reliably on Windows; installing p
     <clickup-id>-<kebab-slug>/ <-- one worktree per ticket
 ```
 
-Example: `C:\00Personal\singleton-sd\plattform-kit\repo` + `...\worktrees\86d3zc5af-permission-gating`.
+Windows example: `C:\00Personal\singleton-sd\plattform-kit\repo` + `...\worktrees\86d3zc5af-permission-gating`.
+
+macOS / Docker example (same layout, any parent directory you choose):
+
+```text
+~/dev/singleton-sd/plattform-kit/repo
+~/dev/singleton-sd/plattform-kit/worktrees/86d3zc5af-permission-gating
+```
 
 - Worktree folder name = branch name without `feature/` or `hotfix/`.
 - Create from `origin/main` only, via the helper (do not invent sibling `*-wt-*` paths or in-repo `.worktrees/`):
@@ -150,7 +160,7 @@ Example: `C:\00Personal\singleton-sd\plattform-kit\repo` + `...\worktrees\86d3zc
 pnpm worktree:add -- -TaskId 86d3zc5af -Slug permission-gating
 ```
 
-Linux / Cloud: `./scripts/add-worktree.sh --task-id 86d3zc5af --slug permission-gating`
+macOS / Linux / Docker / Cloud: `./scripts/add-worktree.sh --task-id 86d3zc5af --slug permission-gating`. `add-worktree.sh` is plain bash and runs unchanged on macOS; Alpine-based containers need `apk add bash` first since the script uses bash arrays (not available under `sh`/`dash`).
 
 - Then `pnpm bootstrap:worktree` (the helper runs this unless `-SkipBootstrap`).
 - Every implementer subagent must use its own worktree (branch named per **Branch naming** above).
@@ -275,6 +285,8 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 ## Skills
 
 Read curated skills under `.cursor/skills/` before coding (backend, frontend, test-generation, code-review, git-conventions, task-driven-development, etc.).
+
+Discovery → delivery: `refine-idea` → `discover-requirements` → `idea-to-delivery` (multi-ticket) or `backlog-refinement` (one existing Delivery ticket). Do not file Delivery work while the idea or requirements are unresolved.
 
 ## TDD / quality
 

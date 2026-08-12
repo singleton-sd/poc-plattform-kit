@@ -33,7 +33,12 @@ describe('TenantService', () => {
     };
     tenantAudit: { create: jest.Mock };
     tenantOutbox: { create: jest.Mock };
-    tenantMembership: { create: jest.Mock; findMany: jest.Mock };
+    tenantMembership: {
+      create: jest.Mock;
+      findMany: jest.Mock;
+      findUnique: jest.Mock;
+      count: jest.Mock;
+    };
   };
   let tenancy: TenancyContext;
   let service: TenantService;
@@ -49,7 +54,12 @@ describe('TenantService', () => {
       },
       tenantAudit: { create: jest.fn() },
       tenantOutbox: { create: jest.fn() },
-      tenantMembership: { create: jest.fn(), findMany: jest.fn() },
+      tenantMembership: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+        count: jest.fn(),
+      },
     };
     tenancy = new TenancyContext();
     service = new TenantService(prisma as never, tenancy);
@@ -407,7 +417,11 @@ describe('TenantService', () => {
     prisma.tenantOutbox.create.mockResolvedValue({});
 
     await tenancy.run('t1', async () => {
-      const result = await service.update('t1', { name: 'Acme Corp' });
+      const result = await service.update(
+        't1',
+        { name: 'Acme Corp' },
+        { id: actorUserId, roles: ['tenant-admin'] },
+      );
       expect(result.name).toBe('Acme Corp');
       expect(result.settings).toBeNull();
     });
@@ -430,6 +444,146 @@ describe('TenantService', () => {
       expect(prisma.tenantMembership.findMany).toHaveBeenCalledWith({
         where: { tenantId: 't1' },
         orderBy: { createdAt: 'asc' },
+      });
+    });
+  });
+
+  describe('countOwnedTenants', () => {
+    it('counts only owner-role memberships for the given user', async () => {
+      prisma.tenantMembership.count.mockResolvedValue(2);
+
+      await expect(service.countOwnedTenants('u1')).resolves.toBe(2);
+      expect(prisma.tenantMembership.count).toHaveBeenCalledWith({
+        where: { userId: 'u1', role: 'owner' },
+      });
+    });
+  });
+
+  describe('self-service quota', () => {
+    function mockSuccessfulCreate(): void {
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+        fn(prisma),
+      );
+      prisma.tenant.create.mockResolvedValue(tenantRow);
+      prisma.tenantAudit.create.mockResolvedValue({});
+      prisma.tenantOutbox.create.mockResolvedValue({});
+      prisma.tenantMembership.create.mockResolvedValue({});
+    }
+
+    it('counts owned tenants inside the create transaction before inserting', async () => {
+      const order: string[] = [];
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+        fn(prisma),
+      );
+      prisma.tenantMembership.count.mockImplementation(async () => {
+        order.push('count');
+        return 0;
+      });
+      prisma.tenant.create.mockImplementation(async () => {
+        order.push('create');
+        return tenantRow;
+      });
+      prisma.tenantAudit.create.mockResolvedValue({});
+      prisma.tenantOutbox.create.mockResolvedValue({});
+      prisma.tenantMembership.create.mockResolvedValue({});
+
+      await service.create({ name: 'Acme', slug: 'acme' }, actorUserId, {
+        maxOwnedTenants: 1,
+      });
+
+      expect(order).toEqual(['count', 'create']);
+      expect(prisma.tenantMembership.count).toHaveBeenCalledWith({
+        where: { userId: actorUserId, role: 'owner' },
+      });
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        isolationLevel: 'Serializable',
+      });
+    });
+
+    it('rejects when the caller is already at the owned-tenant cap', async () => {
+      mockSuccessfulCreate();
+      prisma.tenantMembership.count.mockResolvedValue(1);
+
+      await expect(
+        service.create({ name: 'Second Co' }, actorUserId, { maxOwnedTenants: 1 }),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.tenant.create).not.toHaveBeenCalled();
+    });
+
+    it('does not apply a quota when maxOwnedTenants is omitted', async () => {
+      mockSuccessfulCreate();
+
+      await service.create({ name: 'Acme', slug: 'acme' }, actorUserId);
+
+      expect(prisma.tenantMembership.count).not.toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), undefined);
+    });
+  });
+
+  describe('update authorization', () => {
+    const admin = { id: actorUserId, roles: ['tenant-admin'] };
+    const owner = { id: actorUserId, roles: [] as string[] };
+
+    beforeEach(() => {
+      prisma.tenant.findUnique.mockResolvedValue(tenantRow);
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) =>
+        fn(prisma),
+      );
+      prisma.tenant.update.mockResolvedValue({ ...tenantRow, name: 'Acme Corp' });
+      prisma.tenantAudit.create.mockResolvedValue({});
+      prisma.tenantOutbox.create.mockResolvedValue({});
+    });
+
+    it('allows a tenant-admin without checking membership', async () => {
+      await tenancy.run('t1', async () => {
+        await expect(service.update('t1', { name: 'Acme Corp' }, admin)).resolves.toMatchObject({
+          name: 'Acme Corp',
+        });
+      });
+      expect(prisma.tenantMembership.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('allows the tenant owner via membership', async () => {
+      prisma.tenantMembership.findUnique.mockResolvedValue({
+        id: 'm1',
+        tenantId: 't1',
+        userId: actorUserId,
+        role: 'owner',
+      });
+
+      await tenancy.run('t1', async () => {
+        await expect(service.update('t1', { name: 'Acme Corp' }, owner)).resolves.toMatchObject({
+          name: 'Acme Corp',
+        });
+      });
+      expect(prisma.tenantMembership.findUnique).toHaveBeenCalledWith({
+        where: { tenantId_userId: { tenantId: 't1', userId: actorUserId } },
+      });
+    });
+
+    it('rejects a non-owner member', async () => {
+      prisma.tenantMembership.findUnique.mockResolvedValue({
+        id: 'm1',
+        tenantId: 't1',
+        userId: actorUserId,
+        role: 'member',
+      });
+
+      await tenancy.run('t1', async () => {
+        await expect(service.update('t1', { name: 'Acme Corp' }, owner)).rejects.toThrow(
+          ForbiddenException,
+        );
+      });
+      expect(prisma.tenant.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a caller with no membership', async () => {
+      prisma.tenantMembership.findUnique.mockResolvedValue(null);
+
+      await tenancy.run('t1', async () => {
+        await expect(service.update('t1', { name: 'Acme Corp' }, owner)).rejects.toThrow(
+          ForbiddenException,
+        );
       });
     });
   });

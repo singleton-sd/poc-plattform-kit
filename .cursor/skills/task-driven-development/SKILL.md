@@ -65,8 +65,10 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
    - **Handoff:** `scripts/clickup.ps1 status -TaskId <id> -Status "…"
      -ClearClaim`. Prefer `preview -Url <pr>` over a comment when the only
      payload is the PR link. Set Token Spent via `field` when finishing.
-   - **Implementer:** claim → implement → PR → **PR hygiene** → Preview URL
-     (or one handoff comment) → clear Claim Token → **READY FOR REVIEW**.
+   - **Implementer:** claim → implement → PR → watch required CI → upsert
+     the Human Review Brief (`node scripts/upsert-pr-review-brief.mjs --pr <n>`)
+     → `clickup.sh handoff` → **READY FOR REVIEW**. Do not post hygiene/status
+     comments.
    - **Automated review:** Cursor Bugbot, ChatGPT Codex Connector, and similar
      GitHub bots review the PR after handoff. Agents must not pick up
      **READY FOR REVIEW** tickets to review another agent's work. Agents may
@@ -77,8 +79,9 @@ Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000
      Token) when agent-fixable. May clear a Claim Token older than ~4h with
      no PR comment; agents must not clear another session’s token unless the
      user asks.
-   - Labels to watch: `needs-rebase`, `ci-failed`, `has-feedback` (see
-     `docs/pr-pipelines.md` / `AGENTS.md` § PR hygiene).
+   - Labels to watch: `needs-rebase`, `ci-failed`, `has-feedback` (code).
+     `preview-blocked` is infra only — document it on the brief, do not bounce
+     ClickUp (see `docs/pr-pipelines.md` / `AGENTS.md` § PR hygiene).
    - **Dirty PR / `needs-rebase`:** follow `AGENTS.md` § **Shared hub files /
      conflict playbook**. Prefer `git merge origin/main`, then
      `pnpm resolve:conflicts`. Do not hand-merge `pnpm-lock.yaml` or

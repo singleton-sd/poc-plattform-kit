@@ -8,7 +8,20 @@ status: stable
 
 # Idea to Delivery
 
-Use this skill when the user develops an idea in chat and wants it converted into executable project work.
+Use this skill when a **Requirements Discovery Brief** is
+`READY FOR DESIGN / DELIVERY PLANNING` (or the user already has an
+equally decision-complete brief) and they want executable ClickUp work.
+
+Do **not** use this skill to reshape the product idea or invent behavior:
+
+- unstable premise, users, or value → `refine-idea`
+- blocking behavioral/business questions → `discover-requirements`
+- one existing Delivery ticket that only needs acceptance criteria →
+  `backlog-refinement`
+
+UX/UI or architecture **solution** design that is still missing: stop and
+ask the user. Do not invent screens, schemas, or infra, and do not call a
+design skill that is not in `.cursor/skills/`.
 
 ## ClickUp topology
 
@@ -141,7 +154,8 @@ Never use READY FOR HUMAN as a general storage place for manual tasks. Standalon
 
 ## Discovery-to-delivery flow
 
-1. Capture/refine the idea.
+1. Consume the `refine-idea` brief and `discover-requirements` brief (or
+   send the work back if either is missing or blocking).
 2. Inspect existing ClickUp tasks and repository architecture to avoid duplicates or contradictory work.
 3. Identify unresolved decisions. Keep the work in Ideas & Discovery while material decisions remain.
 4. For architecture/cross-cutting changes, update the ClickUp Architecture Doc before or with ticket creation.
@@ -175,3 +189,26 @@ Join
 ```
 
 Do not claim tickets while planning. Browse/refinement is not implementation.
+
+`AGENTS.md` is authoritative for list IDs. Create examples:
+
+```powershell
+powershell -File scripts/clickup.ps1 create -Name "..." -Status "BACKLOG" -Description "..." -Estimate 50000
+powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..."
+powershell -File scripts/clickup.ps1 create -ListId 901616397767 -Name "..." -Status "TO DO" -Description "..."
+powershell -File scripts/clickup.ps1 depend -TaskId <child> -DependsOn <parent>
+```
+
+```bash
+./scripts/clickup.sh create "..." "BACKLOG" 50000
+./scripts/clickup.sh create "..." "TO DO" --list-id 901616397764
+./scripts/clickup.sh create "..." "TO DO" --list-id 901616397767
+./scripts/clickup.sh depend <childId> <parentId>
+```
+
+Preserve `FR-nn` / `BR-nn` / `NFR-nn` IDs from `discover-requirements`. Do
+not silently change product requirements. After slices exist, run
+`backlog-refinement` on any Delivery ticket that is not yet agent-ready.
+
+Do not duplicate `refine-idea`, `discover-requirements`, or
+`backlog-refinement`.
