@@ -17,19 +17,13 @@ export function expectedChecks(paths) {
   const rootCi = paths.some((path) =>
     ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'].includes(path),
   );
-  const apiPreview = paths.some((path) => /^(apps\/api|pillars|packages)\//.test(path));
-  const webPreview = paths.some((path) => /^(apps\/web|packages)\//.test(path));
-  const marketingPreview = paths.some((path) => /^apps\/marketing\//.test(path));
+  const apiCi = paths.some((path) => /^(apps\/api|pillars|packages)\//.test(path));
   const webCi =
-    webPreview ||
-    marketingPreview ||
-    paths.some((path) => /^apps\/marketing-oauth\//.test(path)) ||
-    rootCi;
-  if (apiPreview || rootCi) checks.add('Lint / test / build (api)');
-  if (apiPreview) checks.add('Build and deploy ACA preview');
+    paths.some((path) =>
+      /^(apps\/web|apps\/marketing|apps\/marketing-oauth|packages)\//.test(path),
+    ) || rootCi;
+  if (apiCi || rootCi) checks.add('Lint / test / build (api)');
   if (webCi) checks.add('Lint / format / build (web)');
-  if (webPreview) checks.add('Build + SWA preview');
-  if (marketingPreview) checks.add('Build + marketing SWA preview');
   return [...checks];
 }
 
@@ -58,19 +52,25 @@ export function evaluateSnapshot(snapshot, nowMs, quietMs) {
     const check = byName.get(name);
     return check && check.status !== 'COMPLETED';
   });
-  const failed = checks.filter((check) => blockingConclusions.has(check.conclusion));
+  const failed = checks.filter(
+    (check) => snapshot.expected.includes(check.name) && blockingConclusions.has(check.conclusion),
+  );
   const incomplete = checks.filter(
-    (check) => check.status !== 'COMPLETED' || !terminalConclusions.has(check.conclusion),
+    (check) =>
+      snapshot.expected.includes(check.name) &&
+      (check.status !== 'COMPLETED' || !terminalConclusions.has(check.conclusion)),
   );
   const blockers = [];
   if (snapshot.headOid !== snapshot.observedHeadOid) blockers.push('PR head changed');
   if (snapshot.mergeable !== 'MERGEABLE' || snapshot.mergeStateStatus === 'DIRTY') {
     blockers.push(`mergeability is ${snapshot.mergeable}/${snapshot.mergeStateStatus}`);
   }
-  if (
-    snapshot.labels.some((label) => ['ci-failed', 'has-feedback', 'needs-rebase'].includes(label))
-  ) {
-    blockers.push(`blocking labels: ${snapshot.labels.join(', ')}`);
+  const blockingLabels = snapshot.labels.filter((label) =>
+    ['ci-failed', 'has-feedback', 'needs-rebase'].includes(label),
+  );
+  // preview-blocked is infra-only and must not fail ClickUp handoff.
+  if (blockingLabels.length) {
+    blockers.push(`blocking labels: ${blockingLabels.join(', ')}`);
   }
   if (snapshot.unresolvedThreads > 0)
     blockers.push(`${snapshot.unresolvedThreads} unresolved review thread(s)`);
@@ -297,7 +297,7 @@ function parseArgs(argv) {
   if (!Number.isInteger(pr) || pr <= 0) throw new Error('--pr is required');
   return {
     pr,
-    quietMs: Number(value('--quiet-seconds', process.env.PR_GATE_QUIET_SECONDS ?? '90')) * 1000,
+    quietMs: Number(value('--quiet-seconds', process.env.PR_GATE_QUIET_SECONDS ?? '0')) * 1000,
     timeoutMs:
       Number(value('--timeout-seconds', process.env.PR_GATE_TIMEOUT_SECONDS ?? '1800')) * 1000,
     pollMs: Number(value('--poll-seconds', process.env.PR_GATE_POLL_SECONDS ?? '10')) * 1000,

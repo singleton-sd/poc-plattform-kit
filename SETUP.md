@@ -59,7 +59,7 @@ Example: `feature/86dxxxx-prisma-azure-sql`
 - [ ] Human: follow the PR test plan, leave feature feedback, and merge only after CI and actionable bot findings are resolved
 - [ ] Assignment / Claim Token only when claiming work - not when browsing
 - [x] Merge automation: merged task branches set ClickUp to **COMPLETE** via OIDC -> Key Vault (`clickup-api-token`) -> ClickUp REST
-- [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`) from `.github/workflows/pr-hygiene.yml` - see `docs/pr-pipelines.md` / `AGENTS.md`
+- [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`, `preview-blocked`) from `.github/workflows/pr-hygiene.yml` - see `docs/pr-pipelines.md` / `AGENTS.md`
 
 ## 4. Azure
 

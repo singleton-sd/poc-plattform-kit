@@ -1,13 +1,11 @@
-# PR hygiene — conflicts, CI, and feedback labels
-#
-# Labels (create if missing): needs-rebase, ci-failed, has-feedback
-# Agents filter with: gh pr list --label needs-rebase
-# ClickUp bridge is phase 2 (OIDC → KV → ClickUp); v1 uses PR labels/comments only.
+# PR hygiene — conflicts, required CI, preview infra, and feedback labels.
+# Labels only. Do not post hygiene comments (they do not wake agents).
 #
 # Label lifecycle:
 # - needs-rebase: set when mergeable_state=dirty; cleared only when state is known and not dirty
-# - ci-failed: set on watched workflow failure; cleared when no FAILURE checks remain on the PR
-# - has-feedback: set on supported review-bot/collaborator comments; cleared on PR synchronize (new push)
+# - ci-failed: set when a required CI job fails (CI Web / CI API lint-test-build)
+# - preview-blocked: set when SWA/ACA/Chromatic infra fails; does not bounce ClickUp
+# - has-feedback: set on Bugbot/Copilot/human comments; cleared on PR synchronize
 
 name: PR hygiene
 
@@ -23,6 +21,7 @@ on:
       - Preview Web (SWA)
       - Preview Marketing (SWA)
       - Preview API (Container Apps)
+      - Chromatic
     types: [completed]
   issue_comment:
     types: [created]
@@ -36,7 +35,6 @@ permissions:
   pull-requests: write
   issues: write
   actions: read
-  # Required for gh pr view --json statusCheckRollup (and check-runs fallback)
   checks: read
 
 concurrency:
@@ -59,8 +57,9 @@ jobs:
             fi
           }
           ensure "needs-rebase" "d93f0b" "PR has merge conflicts with base"
-          ensure "ci-failed" "b60205" "Required or PR CI check failed"
-          ensure "has-feedback" "0e8a16" "Review bot or human feedback on the PR"
+          ensure "ci-failed" "b60205" "Required CI (lint/test/build) failed"
+          ensure "has-feedback" "0e8a16" "Bugbot, Copilot, or human feedback on the PR"
+          ensure "preview-blocked" "fbca04" "Preview or Chromatic infra failed; not a code bounce"
 
   conflict-on-pr:
     needs: ensure-labels
@@ -73,7 +72,6 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          # mergeable_state is often "unknown" briefly after synchronize — poll until known
           STATE="unknown"
           for _ in 1 2 3 4 5 6; do
             sleep 5
@@ -82,24 +80,12 @@ jobs:
               break
             fi
           done
-          MARKER="<!-- pr-hygiene:needs-rebase -->"
           echo "mergeable_state=${STATE}"
           if [ "$STATE" = "dirty" ]; then
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-rebase || true
-            if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].body' | grep -Fq "$MARKER"; then
-              gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$(cat <<EOF
-          $MARKER
-          **PR hygiene:** merge state is \`dirty\` (conflicts with base).
-
-          Rebase or merge \`main\` into this branch, resolve conflicts, push, then re-check CI.
-          Label: \`needs-rebase\` → ClickUp should bounce to **READY FOR AI**.
-          EOF
-          )"
-            fi
           elif [ "$STATE" = "unknown" ] || [ "$STATE" = "null" ] || [ -z "$STATE" ]; then
             echo "Mergeability still unknown; leave needs-rebase unchanged"
           else
-            # clean | unstable | blocked | behind | has_hooks — known non-conflict states
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label needs-rebase || true
           fi
 
@@ -125,6 +111,19 @@ jobs:
             echo "$UNRESOLVED unresolved review thread(s); keep has-feedback"
           fi
 
+      - name: Minimize leftover hygiene comments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+            --jq '.[] | select(.body | test("<!-- pr-hygiene:")) | .node_id' |
+          while read -r NODE; do
+            [ -n "$NODE" ] || continue
+            gh api graphql -f query='mutation($id:ID!){minimizeComment(input:{subjectId:$id,classifier:OUTDATED}){minimizedComment{isMinimized}}}' -F id="$NODE" >/dev/null || true
+          done
+
   conflict-after-main:
     needs: ensure-labels
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -136,21 +135,10 @@ jobs:
         run: |
           set -euo pipefail
           sleep 20
-          MARKER="<!-- pr-hygiene:needs-rebase -->"
-          gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,author --jq '.[] | "\(.number) \(.author.login)"' | while read -r PR AUTHOR; do
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number' | while read -r PR; do
             STATE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.mergeable_state')
             if [ "$STATE" = "dirty" ]; then
               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-rebase || true
-              if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].body' | grep -Fq "$MARKER"; then
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$(cat <<EOF
-          $MARKER
-          **PR hygiene:** \`main\` advanced and this PR now has merge conflicts.
-
-          @${AUTHOR} please rebase onto \`main\`, resolve, push, and re-run CI.
-          Label: \`needs-rebase\`.
-          EOF
-          )"
-              fi
             fi
           done
 
@@ -172,16 +160,16 @@ jobs:
               gh label create "$name" --repo "$GITHUB_REPOSITORY" --color "$color" --description "$desc" || true
             fi
           }
-          ensure "ci-failed" "b60205" "Required or PR CI check failed"
+          ensure "ci-failed" "b60205" "Required CI (lint/test/build) failed"
+          ensure "preview-blocked" "fbca04" "Preview or Chromatic infra failed; not a code bounce"
           ensure "needs-rebase" "d93f0b" "PR has merge conflicts with base"
-          ensure "has-feedback" "0e8a16" "Review bot or human feedback on the PR"
+          ensure "has-feedback" "0e8a16" "Bugbot, Copilot, or human feedback on the PR"
 
-      - name: Sync ci-failed label
+      - name: Sync ci-failed and preview-blocked
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
           NAME: ${{ github.event.workflow_run.name }}
           EVENT_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
@@ -195,39 +183,46 @@ jobs:
             exit 0
           fi
 
-          if [ "$CONCLUSION" = "failure" ]; then
-            MARKER="<!-- pr-hygiene:ci-failed:${RUN_ID} -->"
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ci-failed || true
-            if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].body' | grep -Fq "$MARKER"; then
-              gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$(cat <<EOF
-          $MARKER
-          **PR hygiene:** workflow **${NAME}** failed.
-
-          Logs: ${RUN_URL}
-          Label: \`ci-failed\` → ClickUp should bounce to **READY FOR AI** after investigating.
-          EOF
-          )"
-            fi
-            exit 0
-          fi
-
-          # success: clear ci-failed only when no FAILURE checks remain on the PR
-          FAILING=""
-          if FAILING=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json statusCheckRollup --jq \
-            '[.statusCheckRollup[]? | select((.conclusion // "") | ascii_upcase == "FAILURE")] | length' 2>/dev/null); then
-            echo "failing_checks=${FAILING} (statusCheckRollup)"
+          FAILING_NAMES=""
+          if FAILING_NAMES=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json statusCheckRollup --jq \
+            '[.statusCheckRollup[]? | select((.conclusion // "") | ascii_upcase == "FAILURE") | (.name // .context // "")] | join("\n")' 2>/dev/null); then
+            echo "failing checks from statusCheckRollup"
           else
-            echo "statusCheckRollup unavailable; falling back to check-runs API"
             HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.head.sha')
-            FAILING=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100" --jq \
-              '[.check_runs[]? | select((.conclusion // "") | ascii_upcase == "FAILURE")] | length')
-            echo "failing_checks=${FAILING} (check-runs)"
+            FAILING_NAMES=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100" --jq \
+              '[.check_runs[]? | select((.conclusion // "") | ascii_upcase == "FAILURE") | .name] | join("\n")')
           fi
-          if [ "${FAILING:-0}" = "0" ]; then
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ci-failed || true
-          else
-            echo "Other checks still failing; keep ci-failed"
-          fi
+
+          # Exact job-name match only. Do not build a regex from these strings —
+          # parentheses and + are literal in GitHub check names.
+          required_fail=0
+          preview_fail=0
+          while IFS= read -r job; do
+            [ -n "$job" ] || continue
+            case "$job" in
+              "Lint / test / build (api)"|"Lint / format / build (web)") required_fail=1 ;;
+            esac
+            case "$job" in
+              "Build + SWA preview"|"Build + marketing SWA preview"|"Build and deploy ACA preview"|"Chromatic visual tests") preview_fail=1 ;;
+            esac
+          done <<< "$FAILING_NAMES"
+
+          case "$NAME" in
+            "CI Web"|"CI API")
+              if [ "$CONCLUSION" = "failure" ] && [ "$required_fail" = 1 ]; then
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ci-failed || true
+              elif [ "$required_fail" = 0 ]; then
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ci-failed || true
+              fi
+              ;;
+            "Preview Web (SWA)"|"Preview Marketing (SWA)"|"Preview API (Container Apps)"|"Chromatic")
+              if [ "$CONCLUSION" = "failure" ] || [ "$preview_fail" = 1 ]; then
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label preview-blocked || true
+              elif [ "$preview_fail" = 0 ]; then
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label preview-blocked || true
+              fi
+              ;;
+          esac
 
   has-feedback:
     if: >
@@ -260,43 +255,46 @@ jobs:
             BODY="$COMMENT_BODY"
           fi
 
-          if [[ "${BODY,,}" == *"couldn't run - usage limit reached"* ]]; then
-            echo "Skip: reviewer did not run because its usage limit was reached"
+          LOWER_BODY=$(printf '%s' "$BODY" | tr '[:upper:]' '[:lower:]')
+          if printf '%s' "$LOWER_BODY" | grep -Eq "couldn't run - usage limit reached|usage limits for code reviews|you have reached your .*usage limit"; then
+            echo "Skip: reviewer usage limit"
+            exit 0
+          fi
+          if printf '%s' "$BODY" | grep -Fq '<!-- pr-hygiene:'; then
+            echo "Skip: hygiene marker"
+            exit 0
+          fi
+          if printf '%s' "$BODY" | grep -Fq '<!-- pr-review-brief -->'; then
+            echo "Skip: review brief"
             exit 0
           fi
 
           PR_AUTHOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.user.login')
-          # Skip comments from the PR author (noise from implementer bots posting status)
           if [ "$AUTHOR" = "$PR_AUTHOR" ]; then
             echo "Skip: comment from PR author"
             exit 0
           fi
 
           LOWER=$(echo "$AUTHOR" | tr '[:upper:]' '[:lower:]')
+          if [ "$LOWER" = "github-actions[bot]" ] || [ "$LOWER" = "github-actions" ]; then
+            echo "Skip: github-actions"
+            exit 0
+          fi
+
           INTERESTING=0
           case "$LOWER" in
-            *bugbot*|cursor*|cursor\[bot\]|*cursoragent*|*codex*|*chatgpt*) INTERESTING=1 ;;
+            *bugbot*|cursor*|cursor\[bot\]|*cursoragent*|*copilot*|*codex*|*chatgpt*) INTERESTING=1 ;;
           esac
           case "$ASSOCIATION" in
             OWNER|MEMBER|COLLABORATOR|CONTRIBUTOR) INTERESTING=1 ;;
           esac
 
           if [ "$INTERESTING" -ne 1 ]; then
-            echo "Skip: not a supported review bot/human collaborator"
+            echo "Skip: not Bugbot/Copilot/Codex/human collaborator"
             exit 0
           fi
 
           if ! gh label list --repo "$GITHUB_REPOSITORY" --search "has-feedback" --json name --jq '.[].name' | grep -Fxq "has-feedback"; then
-            gh label create "has-feedback" --repo "$GITHUB_REPOSITORY" --color "0e8a16" --description "Review bot or human feedback on the PR" || true
+            gh label create "has-feedback" --repo "$GITHUB_REPOSITORY" --color "0e8a16" --description "Bugbot, Copilot, or human feedback on the PR" || true
           fi
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label has-feedback || true
-          MARKER="<!-- pr-hygiene:has-feedback -->"
-          if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq '.[].body' | grep -Fq "$MARKER"; then
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$(cat <<EOF
-          $MARKER
-          **PR hygiene:** new feedback from \`${AUTHOR}\`.
-
-          Label: \`has-feedback\`. Agents: poll comments and bounce ClickUp to **READY FOR AI** if actionable.
-          EOF
-          )"
-          fi
