@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
-import { fireEvent } from '@testing-library/react';
 import { expect, userEvent, within } from 'storybook/test';
 import {
   CreateProjectForm,
@@ -43,9 +42,19 @@ export const ValidationError: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Submit is gated on validity (button disabled while incomplete). Fire
-    // form submit directly so the handler gate + multi-issue summary still demo.
-    fireEvent.submit(canvas.getByTestId('create-project-form'));
+    await expect(canvas.queryByTestId('create-project-validation-error')).not.toBeInTheDocument();
+    await expect(canvas.getByTestId('create-project-submit')).toBeDisabled();
+
+    // Primary submit is disabled while invalid; append a temporary enabled
+    // submitter so Chromatic can still demo the handler gate + multi-issue summary.
+    const form = canvas.getByTestId('create-project-form');
+    const tempSubmit = document.createElement('button');
+    tempSubmit.type = 'submit';
+    tempSubmit.textContent = 'Force submit';
+    form.appendChild(tempSubmit);
+    await userEvent.click(tempSubmit);
+    tempSubmit.remove();
+
     await expect(await canvas.findByTestId('create-project-validation-error')).toBeVisible();
   },
 };
