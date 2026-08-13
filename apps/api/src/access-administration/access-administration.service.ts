@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PermissionsService } from '@poc-plattform-kit/pillar-permissions';
+import { RoleAssignmentCommandService } from '@poc-plattform-kit/pillar-permissions';
 import {
   type AuthenticatedUser,
   UserIdentityService,
@@ -48,6 +49,7 @@ function sortProvenance(
 export class AccessAdministrationService {
   constructor(
     private readonly permissions: PermissionsService,
+    private readonly roleAssignments: RoleAssignmentCommandService,
     private readonly tenants: TenantService,
     private readonly identities: UserIdentityService,
     private readonly groups: TenantGroupAccessReader,
@@ -85,11 +87,14 @@ export class AccessAdministrationService {
     const pageIds = afterCursor.slice(0, limit);
     const hasMore = afterCursor.length > pageIds.length;
 
-    const [displayRecords, tuplePage, groupProjection] = await Promise.all([
-      this.identities.findDisplayRecords(pageIds),
-      this.permissions.listResourceTuples(`tenant:${tenantId}`),
-      this.groups.listMemberships(tenantId),
-    ]);
+    const [displayRecords, tuplePage, groupProjection, localAssignments, roleVersion] =
+      await Promise.all([
+        this.identities.findDisplayRecords(pageIds),
+        this.permissions.listResourceTuples(`tenant:${tenantId}`),
+        this.groups.listMemberships(tenantId),
+        this.roleAssignments.listAssignments(tenantId),
+        this.roleAssignments.currentVersion(tenantId),
+      ]);
     const displayById = new Map(displayRecords.map((record) => [record.id, record]));
     const membershipByUser = new Map(
       memberships.map((membership) => [membership.userId, membership]),
@@ -111,7 +116,20 @@ export class AccessAdministrationService {
         provenance.push({ source: 'membership', roleId: membershipRole });
       }
 
-      for (const tuple of tuplePage.tuples) {
+      const tuples = [
+        ...tuplePage.tuples,
+        ...localAssignments.map((assignment) => ({
+          subject:
+            assignment.principalType === 'user'
+              ? `user:${assignment.principalId}`
+              : `group:${assignment.principalId}#member`,
+          relation: assignment.roleId,
+          resource: `tenant:${tenantId}`,
+          condition: null,
+          createdAt: assignment.syncedAt?.toISOString() ?? null,
+        })),
+      ];
+      for (const tuple of tuples) {
         if (!isRoleId(tuple.relation)) {
           continue;
         }
@@ -150,7 +168,7 @@ export class AccessAdministrationService {
 
     return {
       tenantId,
-      consistencyVersion: `permissions:${tuplePage.consistencyVersion};groups:${groupProjection.consistencyVersion}`,
+      consistencyVersion: roleVersion,
       roles: ACCESS_ROLE_CATALOG.map((role) => ({
         ...role,
         permissionIds: [...role.permissionIds],

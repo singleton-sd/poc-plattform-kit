@@ -4,6 +4,7 @@ import { AccessRequestService } from './access-request.service';
 import { ManagerChainService } from './manager-chain.service';
 import { PermissionsController } from './permissions.controller';
 import { PermissionsService } from './permissions.service';
+import { RoleAssignmentCommandService } from './role-assignment-command.service';
 
 export const TENANT_GROUP_PERMISSIONS = 'TENANT_GROUP_PERMISSIONS';
 
@@ -14,12 +15,14 @@ export const TENANT_GROUP_PERMISSIONS = 'TENANT_GROUP_PERMISSIONS';
     PermissionsService,
     ManagerChainService,
     AccessRequestService,
+    RoleAssignmentCommandService,
     { provide: TENANT_GROUP_PERMISSIONS, useExisting: PermissionsService },
   ],
   exports: [
     PermissionsService,
     ManagerChainService,
     AccessRequestService,
+    RoleAssignmentCommandService,
     TENANT_GROUP_PERMISSIONS,
   ],
 })

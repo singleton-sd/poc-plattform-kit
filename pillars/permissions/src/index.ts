@@ -26,3 +26,9 @@ export {
   type PermissionTupleRecord,
 } from './permissions.service';
 export { CurrentUser } from './current-user.decorator';
+export {
+  RoleAssignmentCommandService,
+  type RoleAssignmentCommand,
+  type RoleAssignmentCommandResult,
+  type RolePrincipalType,
+} from './role-assignment-command.service';

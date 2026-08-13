@@ -1306,6 +1306,366 @@
           }
         ]
       }
+    },
+    "/tenants/{tenantId}/access-administration/users/{userId}/roles/{roleId}": {
+      "put": {
+        "operationId": "AccessAdministrationController_assignUser",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAssignmentCommandResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed headers or unknown role."
+          },
+          "401": {
+            "description": ""
+          },
+          "403": {
+            "description": "Permission denied."
+          },
+          "404": {
+            "description": "Tenant-safe principal not found."
+          },
+          "409": {
+            "description": "Idempotency key conflict or owner invariant."
+          },
+          "412": {
+            "description": "Stale If-Match."
+          },
+          "503": {
+            "description": "OpenFGA synchronization pending."
+          }
+        },
+        "tags": [
+          "tenant access administration"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AccessAdministrationController_revokeUser",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAssignmentCommandResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed headers or unknown role."
+          },
+          "401": {
+            "description": ""
+          },
+          "403": {
+            "description": "Permission denied."
+          },
+          "404": {
+            "description": "Tenant-safe principal not found."
+          },
+          "409": {
+            "description": "Idempotency key conflict or owner invariant."
+          },
+          "412": {
+            "description": "Stale If-Match."
+          },
+          "503": {
+            "description": "OpenFGA synchronization pending."
+          }
+        },
+        "tags": [
+          "tenant access administration"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/tenants/{tenantId}/access-administration/groups/{groupId}/roles/{roleId}": {
+      "put": {
+        "operationId": "AccessAdministrationController_assignGroup",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAssignmentCommandResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed headers or unknown role."
+          },
+          "401": {
+            "description": ""
+          },
+          "403": {
+            "description": "Permission denied."
+          },
+          "404": {
+            "description": "Tenant-safe principal not found."
+          },
+          "409": {
+            "description": "Idempotency key conflict or owner invariant."
+          },
+          "412": {
+            "description": "Stale If-Match."
+          },
+          "503": {
+            "description": "OpenFGA synchronization pending."
+          }
+        },
+        "tags": [
+          "tenant access administration"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AccessAdministrationController_revokeGroup",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAssignmentCommandResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed headers or unknown role."
+          },
+          "401": {
+            "description": ""
+          },
+          "403": {
+            "description": "Permission denied."
+          },
+          "404": {
+            "description": "Tenant-safe principal not found."
+          },
+          "409": {
+            "description": "Idempotency key conflict or owner invariant."
+          },
+          "412": {
+            "description": "Stale If-Match."
+          },
+          "503": {
+            "description": "OpenFGA synchronization pending."
+          }
+        },
+        "tags": [
+          "tenant access administration"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -2190,6 +2550,28 @@
           "roles",
           "permissions",
           "users"
+        ]
+      },
+      "RoleAssignmentCommandResponseDto": {
+        "type": "object",
+        "properties": {
+          "consistencyVersion": {
+            "type": "string",
+            "description": "Opaque tenant role-assignment revision."
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "Whether this logical command changed desired state."
+          },
+          "assigned": {
+            "type": "boolean",
+            "description": "The resulting desired assignment state."
+          }
+        },
+        "required": [
+          "consistencyVersion",
+          "changed",
+          "assigned"
         ]
       }
     }

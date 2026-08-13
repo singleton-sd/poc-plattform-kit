@@ -48,6 +48,11 @@ export type TenantGroupMembershipRecord = {
   updatedAt: Date;
 };
 
+export type TenantGroupAccessProjection = {
+  consistencyVersion: string;
+  groups: Array<{ groupId: string; userIds: string[] }>;
+};
+
 function isUniqueConflict(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -79,6 +84,32 @@ export class TenantGroupService implements OnApplicationBootstrap, OnModuleDestr
 
   onModuleDestroy(): void {
     if (this.reconciliationTimer) clearInterval(this.reconciliationTimer);
+  }
+
+  /** Narrow internal projection; unsynchronized memberships are never effective. */
+  async listAccessProjection(tenantId: string): Promise<TenantGroupAccessProjection> {
+    const memberships = await this.prisma.tenantGroupMembership.findMany({
+      where: { tenantId, syncStatus: 'synced' },
+      orderBy: [{ groupId: 'asc' }, { userId: 'asc' }],
+    });
+    const grouped = new Map<string, string[]>();
+    let consistencyVersion: string | undefined;
+    for (const membership of memberships) {
+      grouped.set(membership.groupId, [
+        ...(grouped.get(membership.groupId) ?? []),
+        membership.userId,
+      ]);
+      const stamp = membership.updatedAt.toISOString();
+      if (!consistencyVersion || stamp > consistencyVersion) consistencyVersion = stamp;
+    }
+    return {
+      consistencyVersion: consistencyVersion ?? 'empty',
+      groups: [...grouped].map(([groupId, userIds]) => ({ groupId, userIds })),
+    };
+  }
+
+  async existsForTenant(tenantId: string, groupId: string): Promise<boolean> {
+    return (await this.prisma.tenantGroup.count({ where: { id: groupId, tenantId } })) === 1;
   }
 
   async list(tenantId: string, actor: AuthenticatedUser): Promise<TenantGroupRecord[]> {

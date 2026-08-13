@@ -48,6 +48,7 @@ describe('TenantGroupService', () => {
       findMany: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
+      count: jest.Mock;
     };
     tenantGroupMembership: {
       create: jest.Mock;
@@ -83,6 +84,7 @@ describe('TenantGroupService', () => {
         findMany: jest.fn().mockResolvedValue([group]),
         update: jest.fn().mockResolvedValue({ ...group, name: 'Writers' }),
         delete: jest.fn().mockResolvedValue(group),
+        count: jest.fn().mockResolvedValue(1),
       },
       tenantGroupMembership: {
         create: jest.fn().mockResolvedValue(membership),
@@ -114,6 +116,22 @@ describe('TenantGroupService', () => {
     await expect(service.list('tenant-1', { ...actor, roles: ['tenant-admin'] })).resolves.toEqual([
       group,
     ]);
+  });
+
+  it('projects only synchronized group members for access evaluation', async () => {
+    const updatedAt = new Date('2026-08-13T01:00:00Z');
+    prisma.tenantGroupMembership.findMany.mockResolvedValue([
+      { ...membership, syncStatus: 'synced', updatedAt },
+    ]);
+
+    await expect(service.listAccessProjection('tenant-1')).resolves.toEqual({
+      consistencyVersion: updatedAt.toISOString(),
+      groups: [{ groupId: 'group-1', userIds: ['user-1'] }],
+    });
+    expect(prisma.tenantGroupMembership.findMany).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', syncStatus: 'synced' },
+      orderBy: [{ groupId: 'asc' }, { userId: 'asc' }],
+    });
   });
 
   it('creates a tenant-local group with audit and outbox records atomically', async () => {

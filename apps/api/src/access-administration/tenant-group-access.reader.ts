@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { TenantGroupService } from '@poc-plattform-kit/pillar-tenant';
 
 export type TenantGroupMemberProjection = {
   groupId: string;
@@ -16,7 +17,9 @@ export type TenantGroupAccessProjection = {
  */
 @Injectable()
 export class TenantGroupAccessReader {
-  async listMemberships(_tenantId: string): Promise<TenantGroupAccessProjection> {
-    return { consistencyVersion: 'not-available', groups: [] };
+  constructor(private readonly tenantGroups: TenantGroupService) {}
+
+  async listMemberships(tenantId: string): Promise<TenantGroupAccessProjection> {
+    return this.tenantGroups.listAccessProjection(tenantId);
   }
 }

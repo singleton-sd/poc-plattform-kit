@@ -326,4 +326,54 @@ export function registerTenantScenarios(registry) {
       return { ok: true, message: 'one processed and one pending safe outbox row present' };
     },
   });
+
+  registry.define({
+    name: 'feature/tenant-access/role-assignments',
+    description:
+      'A synchronized direct editor role and group viewer role for the access-administration command/read projection.',
+    dependsOn: ['pillar/tenant/multi-membership', 'pillar/tenant/groups'],
+    testInstructions:
+      'GET /tenants/seed-tenant-acme-rocketry/access-administration and observe direct editor and group viewer provenance with consistencyVersion roles:2.',
+    seed: async (prisma) => {
+      await prisma.permissionsRoleRevision.upsert({
+        where: { tenantId: 'seed-tenant-acme-rocketry' },
+        create: { tenantId: 'seed-tenant-acme-rocketry', revision: 2 },
+        update: { revision: 2 },
+      });
+      await upsertById(prisma.permissionsRoleAssignment, 'seed-role-direct-editor', {
+        tenantId: 'seed-tenant-acme-rocketry',
+        principalType: 'user',
+        principalId: 'seed-user-acme-member',
+        roleId: 'editor',
+        assigned: true,
+        syncStatus: 'synced',
+        syncError: null,
+        syncedAt: atOffsetMinutes(50),
+        revision: 1,
+      });
+      await upsertById(prisma.permissionsRoleAssignment, 'seed-role-group-viewer', {
+        tenantId: 'seed-tenant-acme-rocketry',
+        principalType: 'group',
+        principalId: 'seed-group-editors',
+        roleId: 'viewer',
+        assigned: true,
+        syncStatus: 'synced',
+        syncError: null,
+        syncedAt: atOffsetMinutes(51),
+        revision: 2,
+      });
+    },
+    verify: async (prisma) => {
+      const assignments = await prisma.permissionsRoleAssignment.count({
+        where: {
+          tenantId: 'seed-tenant-acme-rocketry',
+          assigned: true,
+          syncStatus: 'synced',
+        },
+      });
+      return assignments === 2
+        ? { ok: true, message: 'direct and group role assignments are synchronized' }
+        : { ok: false, message: `expected 2 synchronized assignments, found ${assignments}` };
+    },
+  });
 }
