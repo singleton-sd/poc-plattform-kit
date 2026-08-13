@@ -8,30 +8,36 @@
  * Emotion class names include component labels; substring selectors may drift
  * across Decap versions — pin the CDN build in index.html.
  */
-@import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
+@import url('./tokens/dark.css');
 
 html[data-theme='dark'] {
-  /* Product roles */
-  --pk-bg: var(--colors-gray-900);
-  --pk-fg: var(--colors-gray-100);
-  --pk-muted: var(--colors-gray-400);
-  --pk-accent: var(--colors-yellow-light-400);
-  --pk-accent-on: var(--colors-gray-900);
-  --pk-accent-bg: var(--colors-yellow-light-900);
-  --pk-surface: var(--colors-gray-800);
-  --pk-surface-raised: var(--colors-gray-700);
-  --pk-border: var(--colors-gray-700);
+  /* Product roles from @singleton-sd/tokens primitives. */
+  --pk-bg: var(--ssd-color-gray-900);
+  --pk-fg: var(--ssd-color-gray-100);
+  --pk-muted: var(--ssd-color-gray-400);
+  --pk-accent: var(--ssd-color-yellow-light-400);
+  --pk-accent-on: var(--ssd-color-gray-900);
+  --pk-accent-bg: var(--ssd-color-yellow-light-900);
+  --pk-surface: var(--ssd-color-gray-800);
+  --pk-surface-raised: var(--ssd-color-gray-700);
+  --pk-border: var(--ssd-color-gray-700);
   --pk-glow: color-mix(in srgb, var(--pk-accent) 18%, transparent);
-  --pk-danger: var(--colors-red-400);
-  --pk-danger-bg: var(--colors-red-900);
-  --pk-success: var(--colors-green-400);
-  --pk-success-bg: var(--colors-green-900);
-  --pk-warn: var(--colors-yellow-light-300);
-  --pk-warn-bg: var(--colors-yellow-light-900);
+  --pk-danger: var(--ssd-color-red-400);
+  --pk-danger-bg: var(--ssd-color-red-900);
+  --pk-success: var(--ssd-color-green-400);
+  --pk-success-bg: var(--ssd-color-green-900);
+  --pk-warn: var(--ssd-color-yellow-light-300);
+  --pk-warn-bg: var(--ssd-color-yellow-light-900);
   --pk-info: var(--pk-accent);
   --pk-info-bg: var(--pk-accent-bg);
 
-  /* Override CDN token semantics that clash with product yellow/gray */
+  /* Override package semantic text (brand yellow) that clashes with product gray */
+  --ssd-color-text-default: var(--pk-fg);
+  --ssd-color-text-muted: var(--pk-muted);
+  --ssd-color-background-default: var(--pk-bg);
+  --ssd-color-background-muted: var(--pk-surface);
+  --ssd-color-background-brand: var(--pk-accent);
+  --ssd-color-text-on-brand: var(--pk-accent-on);
   --fg-default: var(--pk-fg);
   --fg-muted: var(--pk-muted);
   --bg-default: var(--pk-bg);
@@ -53,13 +59,13 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: var(--font-families-body), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--ssd-font-family-body), ui-sans-serif, system-ui, sans-serif;
   background-color: var(--bg-default);
   background-image:
     radial-gradient(ellipse 80% 55% at 50% -12%, var(--pk-glow), transparent 55%),
     radial-gradient(
       circle at 88% 82%,
-      color-mix(in srgb, var(--colors-gray-700) 35%, transparent),
+      color-mix(in srgb, var(--ssd-color-gray-700) 35%, transparent),
       transparent 42%
     );
   color: var(--fg-default);

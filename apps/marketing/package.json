@@ -8,11 +8,12 @@
     "build": "node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro build",
     "preview": "astro preview",
     "lint": "node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check",
-    "test": "node --test ../../scripts/validate-staticwebapp-config.test.mjs && node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check"
+    "test": "node --test ../../scripts/validate-staticwebapp-config.test.mjs && node --test scripts/token-consumption.test.mjs && node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
     "@astrojs/tailwind": "^5.1.4",
+    "@singleton-sd/tokens": "1.3.0",
     "astro": "^4.16.18",
     "tailwindcss": "^3.4.15",
     "typescript": "^5.7.2"
