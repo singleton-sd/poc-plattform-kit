@@ -5,7 +5,6 @@
  * poc-plattform-kit API
  */
 import type { TenantGroupMembershipResponseDtoSyncStatus } from './tenantGroupMembershipResponseDtoSyncStatus';
-import type { TenantGroupMembershipResponseDtoSyncError } from './tenantGroupMembershipResponseDtoSyncError';
 
 export interface TenantGroupMembershipResponseDto {
   id: string;
@@ -14,9 +13,9 @@ export interface TenantGroupMembershipResponseDto {
   userId: string;
   syncStatus: TenantGroupMembershipResponseDtoSyncStatus;
   /** @nullable */
-  syncError?: TenantGroupMembershipResponseDtoSyncError;
+  syncError: string | null;
   /** @nullable */
-  syncedAt?: string | null;
+  syncedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

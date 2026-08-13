@@ -1609,7 +1609,7 @@
             "type": "string"
           },
           "description": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "createdAt": {
@@ -1625,6 +1625,7 @@
           "id",
           "tenantId",
           "name",
+          "description",
           "createdAt",
           "updatedAt"
         ]
@@ -1686,7 +1687,7 @@
             ]
           },
           "syncError": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "syncedAt": {
@@ -1709,6 +1710,8 @@
           "groupId",
           "userId",
           "syncStatus",
+          "syncError",
+          "syncedAt",
           "createdAt",
           "updatedAt"
         ]

@@ -4,14 +4,13 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
-import type { TenantGroupResponseDtoDescription } from './tenantGroupResponseDtoDescription';
 
 export interface TenantGroupResponseDto {
   id: string;
   tenantId: string;
   name: string;
   /** @nullable */
-  description?: TenantGroupResponseDtoDescription;
+  description: string | null;
   createdAt: string;
   updatedAt: string;
 }

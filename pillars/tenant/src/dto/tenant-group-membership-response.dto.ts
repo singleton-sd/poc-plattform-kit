@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class TenantGroupMembershipResponseDto {
   @ApiProperty()
@@ -16,10 +16,10 @@ export class TenantGroupMembershipResponseDto {
   @ApiProperty({ enum: ['pending', 'synced', 'failed'] })
   syncStatus!: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   syncError!: string | null;
 
-  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
   syncedAt!: Date | null;
 
   @ApiProperty({ type: String, format: 'date-time' })
