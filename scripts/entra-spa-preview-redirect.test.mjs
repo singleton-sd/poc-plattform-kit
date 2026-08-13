@@ -5,6 +5,7 @@ import {
   addRedirectUri,
   buildSwaPrPreviewOrigin,
   normalizeOrigin,
+  parseAcaWebPrPreviewOrigin,
   parseSwaPrPreviewOrigin,
   removeRedirectUri,
   sweepSpaPrPreviewRedirects,
@@ -65,6 +66,31 @@ test('parseSwaPrPreviewOrigin extracts PR from preview host', () => {
   );
   assert.equal(parseSwaPrPreviewOrigin('https://kind-rock-0f409fe00.7.azurestaticapps.net'), null);
   assert.equal(parseSwaPrPreviewOrigin('http://localhost:3000'), null);
+});
+
+const acaWebOrigin =
+  'https://ssd-pocpk-aca-web-pr-190-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+const acaApiOrigin =
+  'https://ssd-pocpk-aca-pr-190-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+
+test('parseAcaWebPrPreviewOrigin extracts PR from web ACA host', () => {
+  assert.deepEqual(parseAcaWebPrPreviewOrigin(acaWebOrigin + '/'), {
+    pr: '190',
+    hash: 'victoriouscliff-509c369b',
+  });
+  assert.equal(parseAcaWebPrPreviewOrigin(acaApiOrigin), null);
+  assert.equal(parseSwaPrPreviewOrigin(acaWebOrigin), null);
+});
+
+test('addRedirectUri accepts ACA web origins and rejects API ACA hosts', () => {
+  const once = addRedirectUri(['http://localhost:3000'], acaWebOrigin + '/');
+  assert.deepEqual(once, ['http://localhost:3000', acaWebOrigin]);
+  assert.throws(() => addRedirectUri([], acaApiOrigin));
+});
+
+test('removeRedirectUri drops an explicit ACA web origin', () => {
+  const next = removeRedirectUri(['http://localhost:3000', acaWebOrigin], acaWebOrigin + '/');
+  assert.deepEqual(next, ['http://localhost:3000']);
 });
 
 test('sweepSpaPrPreviewRedirects drops closed PR previews only', () => {
