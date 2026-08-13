@@ -2,9 +2,14 @@
 /**
  * Route `pnpm worktree:add` to the PowerShell or bash helper.
  *
- * Accepts the Windows-style flags used by AGENTS.md / package.json:
+ * GitHub-native flags (see the "GitHub-native engineering workflow" section of AGENTS.md), Windows-style and
+ * bash-style:
+ *   -Issue <n> -Type <type> -Slug <kebab> [-SkipBootstrap] [-DryRun]
+ *   --issue <n> --type <type> --slug <kebab> [--skip-bootstrap] [--dry-run]
+ *
+ * Legacy ClickUp-tracked ticket flags (kept until docs/github-source-of-truth.md sections 8-9 migration
+ * issues land), Windows-style and bash-style:
  *   -TaskId <id> -Slug <kebab> [-Hotfix] [-SkipBootstrap] [-DryRun]
- * and the bash-style flags:
  *   --task-id <id> --slug <kebab> [--hotfix] [--skip-bootstrap] [--dry-run]
  */
 import { spawnSync } from 'node:child_process';
@@ -16,7 +21,8 @@ const scriptsDir = path.join(repoRoot, 'scripts');
 
 function parseArgs(argv) {
   const out = {
-    taskId: '',
+    issueId: '',
+    type: '',
     slug: '',
     hotfix: false,
     skipBootstrap: false,
@@ -25,15 +31,23 @@ function parseArgs(argv) {
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    // pnpm forwards a literal `--` when callers use `pnpm worktree:add -- -TaskId …`
+    // pnpm forwards a literal `--` when callers use `pnpm worktree:add -- -Issue …`
     if (arg === '--') {
       continue;
     }
     const next = argv[i + 1];
     switch (arg) {
+      // -TaskId/--task-id is a legacy alias for -Issue/--issue.
+      case '-Issue':
+      case '--issue':
       case '-TaskId':
       case '--task-id':
-        out.taskId = next ?? '';
+        out.issueId = next ?? '';
+        i += 1;
+        break;
+      case '-Type':
+      case '--type':
+        out.type = next ?? '';
         i += 1;
         break;
       case '-Slug':
@@ -72,9 +86,10 @@ function run(command, args) {
 }
 
 const parsed = parseArgs(process.argv.slice(2));
-if (!parsed.taskId || !parsed.slug) {
+if (!parsed.issueId || !parsed.slug) {
   console.error(
-    'Usage: pnpm worktree:add -- -TaskId <id> -Slug <kebab> [-Hotfix] [-SkipBootstrap] [-DryRun]',
+    'Usage: pnpm worktree:add -- -Issue <n> -Type <type> -Slug <kebab> [-SkipBootstrap] [-DryRun]\n' +
+      '   or: pnpm worktree:add -- -TaskId <id> -Slug <kebab> [-Hotfix] [-SkipBootstrap] [-DryRun]  (legacy ClickUp)',
   );
   process.exit(1);
 }
@@ -83,11 +98,12 @@ if (process.platform === 'win32') {
   const psArgs = [
     path.join(scriptsDir, 'invoke-ps1.mjs'),
     path.join(scriptsDir, 'add-worktree.ps1'),
-    '-TaskId',
-    parsed.taskId,
+    '-Issue',
+    parsed.issueId,
     '-Slug',
     parsed.slug,
   ];
+  if (parsed.type) psArgs.push('-Type', parsed.type);
   if (parsed.hotfix) psArgs.push('-Hotfix');
   if (parsed.skipBootstrap) psArgs.push('-SkipBootstrap');
   if (parsed.dryRun) psArgs.push('-DryRun');
@@ -96,11 +112,12 @@ if (process.platform === 'win32') {
 
 const bashArgs = [
   path.join(scriptsDir, 'add-worktree.sh'),
-  '--task-id',
-  parsed.taskId,
+  '--issue',
+  parsed.issueId,
   '--slug',
   parsed.slug,
 ];
+if (parsed.type) bashArgs.push('--type', parsed.type);
 if (parsed.hotfix) bashArgs.push('--hotfix');
 if (parsed.skipBootstrap) bashArgs.push('--skip-bootstrap');
 if (parsed.dryRun) bashArgs.push('--dry-run');

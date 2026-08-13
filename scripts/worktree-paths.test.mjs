@@ -11,13 +11,35 @@ import {
 const repoRoot = path.resolve('fixture-ws', 'repo');
 const workspaceRoot = path.resolve('fixture-ws');
 
+// GitHub-native: <type>/<issue-number>-<kebab-title>
+assert.equal(folderName('174', 'github-native-orchestration'), '174-github-native-orchestration');
+assert.equal(
+  branchName({ issueId: '174', slug: 'github-native-orchestration', type: 'docs' }),
+  'docs/174-github-native-orchestration',
+);
+assert.equal(
+  branchName({ issueId: '184', slug: 'support-ticket-api', type: 'feat' }),
+  'feat/184-support-ticket-api',
+);
+assert.equal(
+  branchName({ issueId: '211', slug: 'login-redirect', type: 'fix' }),
+  'fix/211-login-redirect',
+);
+// No explicit type defaults to `feature/` for backward compatibility with existing tooling.
+assert.equal(
+  branchName({ issueId: '174', slug: 'github-native-orchestration' }),
+  'feature/174-github-native-orchestration',
+);
+
+// Legacy: ClickUp-tracked worktrees keep working with their custom ids and the
+// feature/hotfix-only prefix scheme.
 assert.equal(folderName('86d3zc5af', 'permission-gating'), '86d3zc5af-permission-gating');
 assert.equal(
-  branchName({ taskId: '86d3zc5af', slug: 'permission-gating' }),
+  branchName({ issueId: '86d3zc5af', slug: 'permission-gating' }),
   'feature/86d3zc5af-permission-gating',
 );
 assert.equal(
-  branchName({ taskId: '86d3zc5af', slug: 'permission-gating', hotfix: true }),
+  branchName({ issueId: '86d3zc5af', slug: 'permission-gating', hotfix: true }),
   'hotfix/86d3zc5af-permission-gating',
 );
 
@@ -26,16 +48,17 @@ assert.throws(() => mainRepoFromGitCommonDir(repoRoot), /\.git/);
 
 assert.equal(workspaceRootFromRepo(repoRoot), workspaceRoot);
 assert.equal(
-  worktreePath({ repoRoot, taskId: '86d3zc5af', slug: 'permission-gating' }),
+  worktreePath({ repoRoot, issueId: '86d3zc5af', slug: 'permission-gating' }),
   path.join(workspaceRoot, 'worktrees', '86d3zc5af-permission-gating'),
 );
-
-assert.throws(() => branchName({ taskId: 'SSDOP-42', slug: 'dark-mode' }), /ClickUp/i);
-assert.throws(() => branchName({ taskId: '86d3zc5af', slug: 'Feature/Nope' }), /kebab/i);
-assert.throws(
-  () => branchName({ taskId: '86d3zc5af', slug: 'feature-permission-gating' }),
-  /prefix/i,
+assert.equal(
+  worktreePath({ repoRoot, issueId: '174', slug: 'github-native-orchestration' }),
+  path.join(workspaceRoot, 'worktrees', '174-github-native-orchestration'),
 );
+
+assert.throws(() => branchName({ issueId: 'SSDOP-42', slug: 'dark-mode' }), /GitHub issue number/i);
+assert.throws(() => branchName({ issueId: '174', slug: 'Feature/Nope' }), /kebab/i);
+assert.throws(() => branchName({ issueId: '174', slug: 'docs', type: 'Docs' }), /lowercase/i);
 assert.throws(() => folderName('86d3zc5af', ''), /slug/i);
 
 console.log('worktree-paths.test.mjs: ok');

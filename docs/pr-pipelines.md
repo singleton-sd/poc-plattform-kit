@@ -19,7 +19,7 @@
 
 **Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). It then **dispatches** matching **deploy-*** workflows via `workflow_dispatch` on **`main`** (the release tip; `gh workflow run --ref` requires a branch/tag, not a raw SHA) so shipped builds embed the new `package.json` version in the web footer / Swagger. A plain `GITHUB_TOKEN` push of the release commit does **not** start other workflows — do not rely on the push event alone.
 
-Branch naming stays `feature/<clickup-task-id>-<kebab-title>`. Create the matching worktree with `pnpm worktree:add` under the parent workspace `worktrees/` folder (see `AGENTS.md`). Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
+Branch naming is `<type>/<issue-number>-<kebab-title>` (e.g. `docs/174-github-native-orchestration-instructions`) per section 6 of [`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md); legacy `feature/<clickup-task-id>-<kebab-title>` branches remain supported for ClickUp-tracked tickets still in flight. Create the matching worktree with `pnpm worktree:add` under the parent workspace `worktrees/` folder (see `AGENTS.md`). Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 
 ## Secrets / config for pipelines (locked)
 
@@ -173,7 +173,7 @@ Provision / re-bootstrap (idempotent; OIDC login same Variables as above — no 
 powershell -File ./infra/deploy-openfga.ps1
 ```
 
-Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: `infra/README.md` § Permissions / OpenFGA.
+Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: the "Permissions / OpenFGA" section of `infra/README.md`.
 
 ## Production deploy on `main` (locked)
 
@@ -203,31 +203,33 @@ pnpm stage:api-deploy:docker -- --kudu  # Windows-friendly (copy into Linux cont
 
 ## PR hygiene (conflicts, CI, feedback)
 
-Hygiene workflows set **labels only**. They do not post “bounce to READY FOR AI” comments. The human presentation surface is one upserted **Human Review Brief** (`<!-- pr-review-brief -->`) from `scripts/upsert-pr-review-brief.mjs`.
+Hygiene workflows set **labels only** — this is GitHub-native and tracker-neutral; it does not read from or write to ClickUp. They do not post “fix this” comments. The human presentation surface is one upserted **Human Review Brief** (`<!-- pr-review-brief -->`) from `scripts/upsert-pr-review-brief.mjs`.
 
 | Label | Meaning | Cleared when | Agent action |
 | --- | --- | --- | --- |
-| `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Mergeability is known and not `dirty` (never cleared while `unknown`) | `git merge origin/main` → `pnpm resolve:conflicts` → hand-fix leftovers → push → re-check CI → ClickUp **READY FOR AI** |
+| `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Mergeability is known and not `dirty` (never cleared while `unknown`) | `git merge origin/main` → `pnpm resolve:conflicts` → hand-fix leftovers → push → re-check CI |
 | `ci-failed` | Required CI job failed (`Lint / test / build (api)` or `Lint / format / build (web)`) | Those jobs are no longer `FAILURE` | Fix the required CI cause and push |
 | `has-feedback` | Bugbot, Copilot, or human (non-author) comment | PR `synchronize` when no unresolved threads remain | Fetch issue + review comments; address with a threaded reply |
 | `preview-blocked` | SWA / ACA / Chromatic **infra** failed (OIDC, token, Storybook build, capture/interaction errors) | Those infra jobs are no longer `FAILURE` | Document on the brief. Do **not** bounce ClickUp. Pending Chromatic **UI Tests** (unreviewed visual diffs) is not infra and must not set this label. Visual-accept is human-only. |
+| `ready-for-human` | Mergeable + required CI green + no open feedback | Any of `needs-rebase` / `ci-failed` / `has-feedback` is (re-)added | Nothing — applied by `pnpm pr:gate -- --pr <n>` once the PR clears the other three labels; see the "Enforced PR handoff gate" section below. |
 
 ```bash
 gh pr list --label needs-rebase
 gh pr list --label ci-failed
 gh pr list --label has-feedback
 gh pr list --label preview-blocked
+gh pr list --label ready-for-human
 gh pr view <n> --json mergeable,mergeStateStatus,statusCheckRollup
 node scripts/upsert-pr-review-brief.mjs --pr <n>
 ```
 
 Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI Web/API (set/clear `ci-failed`) and preview/Chromatic (set/clear `preview-blocked`), issue/review comments from Bugbot/Copilot/collaborators. Usage-limit and `github-actions` comments are ignored.
 
-**READY FOR HUMAN** only when mergeable, required lint/test/build checks green, and no open actionable feedback. Preview red is an infra note on the brief. Unaccepted Chromatic visual diffs are human-only; they are not required CI and must not bounce ClickUp.
+A PR is ready for human merge only when mergeable, required lint/test/build checks are green, and there is no open actionable feedback — signalled by the `ready-for-human` label (see below). Preview red is an infra note on the brief, not a blocker. Unaccepted Chromatic visual diffs are human-only; they are not required CI and must not bounce ClickUp.
 
 ## Shared hub conflicts (agent playbook)
 
-Do **not** hand-merge `pnpm-lock.yaml` or `infra/main.json`. Prefer merge over rebase. Full hub ownership table: `AGENTS.md` § **Shared hub files**.
+Do **not** hand-merge `pnpm-lock.yaml` or `infra/main.json`. Prefer merge over rebase. Full hub ownership table: the **Shared hub files** section of `AGENTS.md`.
 
 ```text
 1. git fetch origin main
@@ -260,55 +262,83 @@ Hand-fix leftovers: `infra/main.bicep`, `apps/api/src/main.ts`, `app.module.ts`,
 | Merging `main` into feature | `--theirs` | `--ours` |
 | Rebasing onto `main` | `--ours` | `--theirs` |
 
-## Complete ClickUp tickets after merge
+## Issue closure (GitHub-native)
 
-`.github/workflows/complete-clickup-on-merge.yml` runs when GitHub closes a
-merged pull request. It extracts the ClickUp task id from the required
-`feature/<task-id>-...` or `hotfix/<task-id>-...` branch name, verifies that the
-task belongs to the Platform Kit ops list, and moves it to **COMPLETE**. Closing
-a pull request without merging it, or merging a branch without a task id, does
-not update ClickUp.
-
-The workflow authenticates to Azure with the repository's OIDC variables and
-reads `clickup-api-token` from Key Vault `ssd-pocpk-kv-dev-ae`; the token must
-not be stored in GitHub Secrets. The OIDC service principal needs permission to
-read that Key Vault secret.
+For GitHub-native work there is no separate "mark complete" step. Every PR
+links its issue with a closing keyword (`Closes #N`) per
+section 6 of [`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md); a
+human merging the PR closes the linked issue automatically, and no workflow
+writes that status anywhere else. Do not add new automation that mirrors
+GitHub issue/PR state back into a second system (source-of-truth policy section 2).
 
 ## Enforced PR handoff gate
 
-PR-backed ClickUp handoffs must use the fail-closed command instead of a raw
-status transition:
+A PR is ready for human review/merge only once it is mergeable, required CI
+is green, and there is no open actionable feedback. This is enforced by the
+same fail-closed logic that used to gate a ClickUp status write — it now
+applies the GitHub-native `ready-for-human` label instead:
 
 ```bash
-./scripts/clickup.sh handoff <task-id> <pr-number> "READY FOR REVIEW" <claim-token>
+pnpm pr:gate -- --pr <pr-number>
 ```
 
-The command runs `scripts/pr-handoff-gate.mjs` before mutating ClickUp, then
-upserts the Human Review Brief. The gate pins the PR head SHA, requires
-path-applicable **required** CI (`Lint / test / build (api)`,
+(`pnpm pr:gate` runs `scripts/pr-handoff-gate.mjs`.) The gate pins the PR head
+SHA, requires path-applicable **required** CI (`Lint / test / build (api)`,
 `Lint / format / build (web)`, `conflict-on-pr`) to appear and finish
 successfully, requires a mergeable/non-dirty PR, rejects `ci-failed` /
 `has-feedback` / `needs-rebase`, and rejects unresolved review threads.
 `preview-blocked` does not fail the gate. Empty check lists and `UNKNOWN`
 mergeability fail closed. A reviewer quiet period is optional
 (`PR_GATE_QUIET_SECONDS`, default `0`). Override polling with
-`PR_GATE_TIMEOUT_SECONDS` and `PR_GATE_POLL_SECONDS`.
+`PR_GATE_TIMEOUT_SECONDS` and `PR_GATE_POLL_SECONDS`. Pass `--no-label` (or
+set `PR_GATE_NO_LABEL=1`) to run the gate as a pure readiness check without
+touching the `ready-for-human` label.
 
-There is **no** GitHub `pr-handoff-gate` commit status. Do not add it to the
-`main` ruleset. The CLI is the handoff authority.
+Run it after opening the PR and again after every push, before considering
+the implementation done. On success it adds `ready-for-human` (creating the
+label if needed); on failure/timeout it removes the label and reports the
+blockers. There is **no** GitHub `pr-handoff-gate` commit status — do not add
+it to the `main` branch protection ruleset; the label is the signal.
 
-`.github/workflows/pr-review-brief.yml` upserts the same brief comment on PR
-open/sync and after CI/preview completion so humans always see one presentation
-surface.
+`.github/workflows/pr-review-brief.yml` upserts the same Human Review Brief
+comment on PR open/sync and after CI/preview completion so humans always see
+one presentation surface, independent of the `ready-for-human` label.
 
-## Asynchronous ClickUp recovery
+**Legacy ClickUp-tracked tickets:** `./scripts/clickup.sh handoff <task-id>
+<pr-number> "READY FOR REVIEW" <claim-token>` still runs this same gate before
+writing the ClickUp status, for tickets opened under the pre-migration
+ClickUp Delivery workflow (see the "Legacy ClickUp workflow" section of `AGENTS.md`). New
+GitHub-native work never calls `clickup.sh`.
 
-`.github/workflows/clickup-pr-recovery.yml` is the server-side safety net. It
-uses GitHub OIDC to read `clickup-api-token` from Key Vault, never GitHub
-Secrets. It runs on `ci-failed` / `has-feedback` / `needs-rebase` label
-changes, required CI completion, and `main` pushes. When a ticket is already
-in `READY FOR REVIEW` or `READY FOR HUMAN` and the PR has a conflict, required
-CI failure, or blocking hygiene label, it clears Claim Token, returns the
-ticket to `READY FOR AI`, and posts one blocker-oriented ClickUp comment.
-`preview-blocked` and preview/Chromatic check failures do not bounce.
-Active implementation and closed tickets are not changed.
+## Legacy ClickUp automation (ClickUp-tracked tickets only)
+
+The following workflows read or write ClickUp. They apply only to branches
+matching `feature/<clickup-task-id>-...` / `hotfix/<clickup-task-id>-...` and
+are no-ops for GitHub-native `<type>/<issue-number>-...` branches. They exist
+to finish out ClickUp Delivery tickets already in flight and are retired by
+[#177](https://github.com/singleton-sd/poc-plattform-kit/issues/177) /
+[#178](https://github.com/singleton-sd/poc-plattform-kit/issues/178) per
+section 8 of [`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md). Do
+not extend them to cover new engineering work.
+
+- **`.github/workflows/complete-clickup-on-merge.yml`** runs when GitHub
+  closes a merged pull request. It extracts the ClickUp task id from the
+  branch name, verifies the task belongs to the Platform Kit ops list, and
+  moves it to **COMPLETE**. Branches without a ClickUp task id (all
+  GitHub-native branches) are skipped — the linked GitHub issue closes on its
+  own via `Closes #N`.
+- **`.github/workflows/clickup-pr-recovery.yml`** is the server-side safety
+  net for ClickUp handoffs: on `ci-failed` / `has-feedback` / `needs-rebase`
+  label changes, required CI completion, and `main` pushes, if a ClickUp
+  ticket is already in `READY FOR REVIEW` or `READY FOR HUMAN` and the PR has
+  a conflict, required CI failure, or blocking hygiene label, it clears Claim
+  Token, returns the ticket to `READY FOR AI`, and posts one blocker-oriented
+  ClickUp comment. `preview-blocked` does not bounce. GitHub-native PRs need
+  no equivalent: `pr-hygiene.yml` already keeps `needs-rebase` / `ci-failed` /
+  `has-feedback` / `ready-for-human` in sync with PR state reactively on every
+  relevant event, so the label state itself is always current — there is
+  nothing separate to "recover."
+
+Both workflows authenticate to Azure with the repository's OIDC variables and
+read `clickup-api-token` from Key Vault `ssd-pocpk-kv-dev-ae`; the token must
+not be stored in GitHub Secrets.

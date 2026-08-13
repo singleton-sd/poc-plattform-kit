@@ -22,32 +22,52 @@ This is a solo GitHub identity repo. GitHub forbids self-approve, so do not requ
 
 ### Branch naming (agents + optional GitHub rules)
 
-**Convention (primary - agents follow `AGENTS.md`):**
+**Convention (primary - agents follow the "GitHub-native engineering workflow" section of `AGENTS.md`):**
 
 ```
-feature/<clickup-task-id>-<kebab-title>
+<type>/<issue-number>-<kebab-title>
 ```
 
-Example: `feature/86dxxxx-prisma-azure-sql`
+Example: `feat/184-support-ticket-api`. `<type>` is a conventional-commit
+prefix (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`, etc.).
 
-**Workspace layout (locked):** open a parent folder in Cursor that contains the clone and ticket worktrees:
+**Workspace layout (locked):** open a parent folder in Cursor that contains the clone and issue worktrees:
 
 ```text
 plattform-kit/                 <-- Open this
   repo/                        <-- git clone (main only)
-  worktrees/<id>-<kebab-slug>/
+  worktrees/<issue-number>-<kebab-slug>/
 ```
 
-Create worktrees with `pnpm worktree:add -- -TaskId <id> -Slug <kebab>` (Windows/PowerShell) or `./scripts/add-worktree.sh --task-id <id> --slug <kebab>` (macOS / Linux / Docker / Cloud - see `AGENTS.md`). The parent folder can live anywhere on any OS, e.g. `~/dev/singleton-sd/plattform-kit/` on macOS or `/workspace/plattform-kit/` in a container. Do not create `poc-plattform-kit-wt-*` siblings next to other projects.
+Create worktrees with `pnpm worktree:add -- -Issue <n> -Type <type> -Slug <kebab>` (Windows/PowerShell) or `./scripts/add-worktree.sh --issue <n> --type <type> --slug <kebab>` (macOS / Linux / Docker / Cloud - see `AGENTS.md`). The parent folder can live anywhere on any OS, e.g. `~/dev/singleton-sd/plattform-kit/` on macOS or `/workspace/plattform-kit/` in a container. Do not create `poc-plattform-kit-wt-*` siblings next to other projects.
+
+Legacy ClickUp-tracked tickets (existing `feature/<clickup-task-id>-...` /
+`hotfix/<clickup-task-id>-...` branches only): `-TaskId <id>` /
+`--task-id <id>` remain as aliases - see the "Legacy ClickUp workflow" section of `AGENTS.md`.
+workflow. Do not use them for new work.
 
 **Where to click in GitHub (optional enforcement):**
 
 1. Open the repo -> **Settings** -> **Rules** -> **Rulesets**.
 2. **Protect `main`:** as above (CI + human merge; no required approvals).
-3. **Optional `feature/*` pattern:** New ruleset targeting `refs/heads/feature/*`. Prefer documenting the convention in `AGENTS.md` and using rulesets as a safety net.
-4. Ensure PRs into `main` come from feature/hotfix branches only (agents never merge; humans merge).
+3. **Optional branch-name pattern:** New ruleset targeting
+   `refs/heads/{feat,fix,docs,chore,refactor,test}/*`. Prefer documenting the
+   convention in `AGENTS.md` and using rulesets as a safety net.
+4. Ensure PRs into `main` come from those branches only (agents never merge; humans merge).
 
-## 2. ClickUp (workspace `90161394355`) - locked locations
+## 2. GitHub Issues (primary) and legacy ClickUp - locked locations
+
+Engineering work is tracked in **GitHub Issues** in this repo - see
+`docs/github-source-of-truth.md` and the "GitHub-native engineering workflow" section of `AGENTS.md`
+workflow. The GitHub Project view (issue tracking board) is set up per
+[#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172).
+
+The ClickUp locations below remain real for **business/commercial
+planning** (per `docs/github-source-of-truth.md` section 1) and for finishing out
+tickets already tracked in ClickUp Delivery until
+[#177](https://github.com/singleton-sd/poc-plattform-kit/issues/177) /
+[#178](https://github.com/singleton-sd/poc-plattform-kit/issues/178) land.
+Do not file new engineering work in ClickUp Delivery.
 
 - Existing workflow lists only (space PoC, folder Plattform Kit — do **not** create a new space/list):
   - **Delivery** (implementation / AI loop): https://app.clickup.com/90161394355/v/li/901616287298 (`901616287298`)
@@ -63,13 +83,19 @@ Create worktrees with `pnpm worktree:add -- -TaskId <id> -Slug <kebab>` (Windows
 
 ## 3. Agent automations
 
+**GitHub-native (primary):**
+
+- [ ] Implementer: pick an agent-ready GitHub Issue -> branch/worktree + open PR (`Closes #N`) is the claim -> **PR hygiene** (CI + mergeable + feedback labels) -> `pnpm pr:gate -- --pr <n>` applies `ready-for-human`
+- [ ] Review bots: inspect open PRs and leave findings on GitHub; agents do not review other agents' work
+- [ ] Human: follow the PR test plan, leave feedback, and merge only after CI and actionable bot findings are resolved - merging closes the linked issue automatically
+- [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`, `preview-blocked`, `ready-for-human`) from `.github/workflows/pr-hygiene.yml` - see `docs/pr-pipelines.md` / `AGENTS.md`
+
+**Legacy ClickUp (existing ClickUp-tracked tickets only, see the "Legacy ClickUp workflow" section of `AGENTS.md`):**
+
 - [x] Agents use REST [`scripts/clickup.ps1`](scripts/clickup.ps1) + `CLICKUP_API_TOKEN` (not ClickUp MCP for routine ops)
 - [ ] Implementer: pick tickets in **READY FOR AI** -> claim via `scripts/clickup.ps1 claim` -> **IN PROGRESS** -> PR -> **PR hygiene** (CI + mergeable) -> **READY FOR REVIEW**
-- [ ] Review bots: inspect PRs in **READY FOR REVIEW** and leave findings on GitHub; agents do not claim tickets for review
-- [ ] Human: follow the PR test plan, leave feature feedback, and merge only after CI and actionable bot findings are resolved
 - [ ] Assignment / Claim Token only when claiming work - not when browsing
-- [x] Merge automation: merged task branches set ClickUp to **COMPLETE** via OIDC -> Key Vault (`clickup-api-token`) -> ClickUp REST
-- [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`, `preview-blocked`) from `.github/workflows/pr-hygiene.yml` - see `docs/pr-pipelines.md` / `AGENTS.md`
+- [x] Merge automation: merged ClickUp-tracked branches set ClickUp to **COMPLETE** via OIDC -> Key Vault (`clickup-api-token`) -> ClickUp REST (no-op for GitHub-native branches)
 
 ## 4. Azure
 
