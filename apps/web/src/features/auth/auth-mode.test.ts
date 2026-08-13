@@ -1,8 +1,4 @@
-import {
-  isAzureContainerAppsHost,
-  isAzureStaticAppsHost,
-  resolveAuthMode,
-} from './auth-mode';
+import { isAzureContainerAppsHost, isAzureStaticAppsHost, resolveAuthMode } from './auth-mode';
 
 describe('auth-mode', () => {
   it('detects Azure Static Web Apps hosts', () => {
@@ -27,9 +23,7 @@ describe('auth-mode', () => {
   it('uses bearer mode on SWA and ACA hosts and cookies elsewhere', () => {
     expect(resolveAuthMode('kind-rock-0f409fe00-76.eastasia.7.azurestaticapps.net')).toBe('bearer');
     expect(
-      resolveAuthMode(
-        'ssd-pocpk-aca-web-pr-190-ae.example.australiaeast.azurecontainerapps.io',
-      ),
+      resolveAuthMode('ssd-pocpk-aca-web-pr-190-ae.example.australiaeast.azurecontainerapps.io'),
     ).toBe('bearer');
     expect(resolveAuthMode('app.plattform-kit.poc.singletonsd.com')).toBe('cookie');
     expect(resolveAuthMode('localhost')).toBe('cookie');
