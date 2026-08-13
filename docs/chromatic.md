@@ -33,6 +33,13 @@ Expected visual differences are reviewed at the Chromatic build URL on the
 **UI Tests** check. The Actions job staying green while that check is pending
 is expected.
 
+## Agents
+
+Visual diffs require a human to accept or reject them in Chromatic. Agents must
+not treat pixel changes as required CI to auto-fix. `preview-blocked` is
+SWA/ACA/Chromatic **infra** (OIDC, token, Storybook build, capture/interaction
+errors), not an unreviewed visual diff. Do not bounce ClickUp for visual-accept.
+
 ## One-time bootstrap
 
 1. Create the Chromatic project from `singleton-sd/poc-plattform-kit` and copy

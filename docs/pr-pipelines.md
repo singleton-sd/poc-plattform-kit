@@ -225,7 +225,7 @@ node scripts/upsert-pr-review-brief.mjs --pr <n>
 
 Triggers: PR opened/synchronize (dirty check + clear `has-feedback` on sync), push to `main` (scan open PRs), completed `workflow_run` for CI Web/API (set/clear `ci-failed`) and preview/Chromatic (set/clear `preview-blocked`), issue/review comments from Bugbot/Copilot/collaborators. Usage-limit and `github-actions` comments are ignored.
 
-A PR is ready for human merge only when mergeable, required lint/test/build checks are green, and there is no open actionable feedback — signalled by the `ready-for-human` label (see below). Preview red is an infra note on the brief, not a blocker.
+A PR is ready for human merge only when mergeable, required lint/test/build checks are green, and there is no open actionable feedback — signalled by the `ready-for-human` label (see below). Preview red is an infra note on the brief, not a blocker. Unaccepted Chromatic visual diffs are human-only; they are not required CI and must not bounce ClickUp.
 
 ## Shared hub conflicts (agent playbook)
 

@@ -87,10 +87,15 @@ export function formatBrief(snapshot) {
       lines.push('- `preview-blocked`: SWA/ACA/Chromatic infra failed. Not a code defect.');
     }
     for (const note of snapshot.infraNotes ?? []) lines.push(`- ${note}`);
-    lines.push('- Chromatic visual-accept is human-only.');
   } else {
     lines.push('- None');
   }
+
+  lines.push(
+    '',
+    '### Visual review',
+    '- Chromatic visual-accept is human-only. Agents must not treat visual-change builds as required CI.',
+  );
 
   lines.push('', `### Next action`, '', `**${snapshot.nextAction}**`, '');
   return `${lines.join('\n')}\n`;

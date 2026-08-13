@@ -84,6 +84,11 @@ const again = formatBrief({
   nextAction: 'waiting on CI',
 });
 assert.equal((again.match(new RegExp(BRIEF_MARKER, 'g')) ?? []).length, 1);
+assert.match(again, /### Visual review/);
+assert.match(again, /Chromatic visual-accept is human-only/);
+assert.match(again, /Agents must not treat visual-change builds as required CI/);
+assert.doesNotMatch(again, /preview-blocked/);
+assert.match(again, /### Infra blockers\n- None/);
 
 const comments = [
   { id: 1, body: '<!-- swa-preview-web --> https://preview.example/' },
