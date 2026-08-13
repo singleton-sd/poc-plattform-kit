@@ -84,6 +84,22 @@ materially differs from the global 1280 px default.
 Decorators in `.storybook/decorators.tsx` omit Entra bootstrap on purpose.
 Data-backed stories must supply their own handlers.
 
+## PermissionGate catalogue
+
+Reusable gating under `Features/Permissions/PermissionGate`. Compose
+`meSignedInHandlers` with permission MSW handlers (`onUnhandledRequest: 'error'`).
+
+| State | Story | Notes |
+| --- | --- | --- |
+| Loading | `Loading` | Infinite delay on Check; "Checking access…" |
+| Allowed | `Allowed` | Children only; Save enabled |
+| Denied | `Denied` | Request access CTA |
+| Denied tooltip | `DeniedTooltip` | play hover/focus |
+| Pending / approving | `Pending`, `Approving` | Status only; no CTA |
+| Last denied | `LastRequestDenied` | Status plus CTA |
+| Check error | `CheckError` | Nest `OpenFGA unavailable` + Retry |
+| Dialog | `DialogOpen`, `DialogTemporaryExpiry`, `DialogSubmitError` | play open / Temporary / 400 |
+
 ## Interaction and accessibility
 
 - Use `play` + `expect` for validation messages, dialogs, empty recovery, and
