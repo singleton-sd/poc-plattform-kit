@@ -25,7 +25,7 @@ export const meSignedOutHandlers = [http.get(mePath, () => meResponse(createMeFi
 
 /**
  * Loading state: delayed response simulates a pending session verification.
- * Triggers the "Loading…" UI in HomeAuthGate.
+ * Triggers the "Loading…" UI in AuthenticationGuard / HomeAuthGate.
  * Uses infinite delay to keep the UI in a stable loading state for deterministic snapshots.
  */
 export const meLoadingHandlers = [
@@ -38,7 +38,7 @@ export const meLoadingHandlers = [
 /**
  * Session verification error: simulates a network failure during session check.
  * Causes `fetch()` to reject, setting `isError` in React Query for error recovery UI.
- * Triggers the error recovery UI in HomeAuthGate.
+ * Triggers the error recovery UI in AuthenticationGuard / HomeAuthGate.
  */
 export const meErrorHandlers = [http.get(mePath, () => HttpResponse.error())];
 

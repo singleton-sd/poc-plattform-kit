@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { HomeAuthGate, LoginPanel } from '@/features/auth/login-panel';
+import { HomeAuthGate } from '@/features/auth/home-auth-gate';
+import { LoginPanel } from '@/features/auth/login-panel';
 import { useMe } from '@/features/auth/me';
 import { signIn } from '@/features/auth/auth-urls';
 
@@ -82,22 +83,22 @@ describe('HomeAuthGate', () => {
     window.localStorage.clear();
   });
 
-  it('shows a loading state while resolving the session', () => {
+  it('shows the shared auth-guard loading state while resolving the session', () => {
     mockUseMe.mockReturnValue({ data: undefined, isLoading: true, isError: false });
 
     render(<HomeAuthGate />);
 
-    expect(screen.getByTestId('login-loading')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-guard-loading')).toBeInTheDocument();
   });
 
-  it('shows a session error with retry when useMe fails', () => {
+  it('shows the shared auth-guard error with retry when useMe fails', () => {
     const refetch = jest.fn();
     mockUseMe.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch });
 
     render(<HomeAuthGate />);
 
-    expect(screen.getByTestId('login-session-error')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('login-session-retry'));
+    expect(screen.getByTestId('auth-guard-error')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('auth-guard-retry'));
     expect(refetch).toHaveBeenCalled();
   });
 
