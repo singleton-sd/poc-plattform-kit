@@ -247,7 +247,9 @@ Ops tip: merge foundation/hub PRs (CI, hooks, skills sync, SETUP) before long-li
 
 ## Architecture
 
-Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**, **Permissions** (OpenFGA - see Architecture Doc), **Notifications**.
+Narrative overview, multitenancy model, and settled architecture decisions: [`docs/architecture/overview.md`](docs/architecture/overview.md), [`docs/architecture/engineering-principles.md`](docs/architecture/engineering-principles.md), [`docs/adr/`](docs/adr/). The summary below is the quick-reference version of the same material.
+
+Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**, **Permissions** (OpenFGA - see [`docs/adr/0002-openfga-fine-grained-authorization.md`](docs/adr/0002-openfga-fine-grained-authorization.md)), **Notifications**.
 
 - Messaging: Azure Service Bus (topics = events, queues = jobs)
 - Mutations: same transaction -> entity + **local Audit** + **Outbox** (when others must be notified)
@@ -265,7 +267,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - **CI/CD:** GitHub Actions **OIDC** -> Azure -> Key Vault / App Config (no deploy tokens or connection strings in GitHub Secrets)
 - **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App **B1** for custom-domain HTTPS, SWA Free x2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
 - **Public hostnames (locked):** `plattform-kit.poc.singletonsd.com` (marketing), `app.plattform-kit.poc.singletonsd.com` (web), `api.plattform-kit.poc.singletonsd.com` (API). DNS in AWS Route53 -> Azure CNAMEs.
-- **Telemetry:** Application Insights + Log Analytics - see [docs/telemetry.md](docs/telemetry.md) and ClickUp Architecture Doc (Telemetry / Observability)
+- **Telemetry:** Application Insights + Log Analytics - see [docs/telemetry.md](docs/telemetry.md)
 
 ## Secrets + configuration (locked)
 
