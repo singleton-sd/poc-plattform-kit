@@ -32,7 +32,9 @@ assert.deepEqual(expectedChecks(['apps/web/src/app/page.tsx']), [
   'conflict-on-pr',
   'Lint / format / build (web)',
 ]);
-assert.ok(!expectedChecks(['apps/web/src/app/page.tsx']).includes('Build + SWA preview'));
+assert.ok(
+  !expectedChecks(['apps/web/src/app/page.tsx']).includes('Build and deploy web ACA preview'),
+);
 
 const now = Date.now();
 const base = {
@@ -73,7 +75,7 @@ assert.equal(
       expected: ['Lint / format / build (web)'],
       checks: [
         { name: 'Lint / format / build (web)', status: 'COMPLETED', conclusion: 'SUCCESS' },
-        { name: 'Build + SWA preview', status: 'COMPLETED', conclusion: 'FAILURE' },
+        { name: 'Build and deploy web ACA preview', status: 'COMPLETED', conclusion: 'FAILURE' },
       ],
     },
     now,

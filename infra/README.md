@@ -54,7 +54,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Log Analytics | `ssd-pocpk-law-dev-ae` | (CAF) | PerGB2018 (CAE + App Insights) |
 | Application Insights | `ssd-pocpk-appi-dev-ae` | (CAF) | Workspace-based |
 | ACR | `ssdpocpkacrdevae` | CAF would be `ssd-pocpk-acr-dev-ae` (hyphens illegal) | Basic |
-| Ephemeral ACA (PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
+| Ephemeral ACA (API PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
+| Ephemeral ACA (web PR) | `ssd-pocpk-aca-web-pr-<n>-ae` | (CAF) | Consumption |
 | OpenFGA Container App | `ssd-pocpk-openfga-dev-ae` | (CAF) | Consumption (min 1) |
 | OpenFGA Files (SQLite) | `ssdpocpkstofga` / share `openfga-data` | CAF alphanumeric | Standard_LRS (provisioned; SQLite PoC uses EmptyDir — share reserved for backup/Postgres follow-up) |
 
@@ -94,7 +95,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:marketing:baseUrl` | plain — `https://plattform-kit.poc.singletonsd.com` |
 | `app:web:swaName` | plain |
 | `app:marketing:swaName` | plain — `ssd-pocpk-mkt-dev-ae` |
-| `app:cors:origins` | plain — comma-separated allowed browser origins; use `https://{swaName}*.azurestaticapps.net` for this repo’s SWA Free / PR preview hosts (not open `https://*.azurestaticapps.net`) |
+| `app:cors:origins` | plain — comma-separated allowed browser origins; use `https://{swaName}*.azurestaticapps.net` for this repo’s SWA Free hosts (not open `https://*.azurestaticapps.net`). Web **PR** previews are ACA (`ssd-pocpk-aca-web-pr-<n>-ae`); Nest also allows those hosts in code even when this list is overridden. |
 | `app:auth:url` | plain — Auth.js `AUTH_URL` (API public origin) |
 | `app:auth:cookieDomain` | plain — Auth.js cookie Domain (Option B; e.g. `.plattform-kit.poc.singletonsd.com`) |
 | `app:azure:resourceGroup` | plain |

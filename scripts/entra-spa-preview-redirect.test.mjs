@@ -107,6 +107,23 @@ test('sweepSpaPrPreviewRedirects drops closed PR previews only', () => {
   assert.deepEqual(plan.next, ['http://localhost:3000', prod, open]);
 });
 
+test('sweepSpaPrPreviewRedirects drops closed ACA web origins', () => {
+  const openAca =
+    'https://ssd-pocpk-aca-web-pr-95-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+  const closedAca =
+    'https://ssd-pocpk-aca-web-pr-44-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+  const apiAca =
+    'https://ssd-pocpk-aca-pr-44-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+  const plan = sweepSpaPrPreviewRedirects(
+    ['http://localhost:3000', openAca, closedAca, apiAca],
+    [95, 97],
+    'eastasia',
+  );
+  assert.deepEqual(plan.remove, [closedAca]);
+  assert.deepEqual(plan.keep, [openAca]);
+  assert.deepEqual(plan.next, ['http://localhost:3000', openAca, apiAca]);
+});
+
 test('credentialed redirect jobs use only the trusted base helper', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
   const credentialedJobs = workflow.slice(workflow.indexOf('  register_entra_redirect:'));
@@ -132,10 +149,22 @@ test('credentialed redirect jobs use only the trusted base helper', async () => 
   }
 });
 
-test('all redirect mutations share a non-cancelling concurrency group', async () => {
+test('register_entra_redirect serializes Entra mutations', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
   const credentialedJobs = workflow.slice(workflow.indexOf('  register_entra_redirect:'));
+  const register = credentialedJobs.slice(0, credentialedJobs.indexOf('\n  close_preview:'));
 
-  assert.equal((credentialedJobs.match(/group: entra-spa-preview-redirects/g) ?? []).length, 2);
-  assert.equal((credentialedJobs.match(/cancel-in-progress: false/g) ?? []).length, 2);
+  assert.equal((register.match(/group: entra-spa-preview-redirects/g) ?? []).length, 1);
+  assert.match(register, /cancel-in-progress: false/);
+});
+
+test('close_preview shares deploy concurrency so close cancels in-flight deploy', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  assert.match(
+    workflow,
+    /build_and_preview:[\s\S]*group: preview-web-\$\{\{ github\.event\.pull_request\.number \}\}/,
+  );
+  const close = workflow.slice(workflow.indexOf('  close_preview:'));
+  assert.match(close, /group: preview-web-\$\{\{ github\.event\.pull_request\.number \}\}/);
+  assert.match(close, /cancel-in-progress: true/);
 });

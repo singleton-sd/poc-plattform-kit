@@ -29,7 +29,7 @@ grep -Fq 'has-feedback' "$CALLS_FILE"
 
 cat > "$TMP/gh" <<'MOCK'
 #!/usr/bin/env bash
-printf '{"headRefName":"feature/86d3test-gate","url":"https://example/pr/7","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","labels":[{"name":"preview-blocked"}],"statusCheckRollup":[{"name":"Build + SWA preview","conclusion":"FAILURE","state":"FAILURE"}]}'
+printf '{"headRefName":"feature/86d3test-gate","url":"https://example/pr/7","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","labels":[{"name":"preview-blocked"}],"statusCheckRollup":[{"name":"Build and deploy web ACA preview","conclusion":"FAILURE","state":"FAILURE"}]}'
 MOCK
 chmod +x "$TMP/gh"
 : > "$CALLS_FILE"

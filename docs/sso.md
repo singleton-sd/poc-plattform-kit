@@ -66,27 +66,31 @@ Sibling subdomains under `singletonsd.com` are same-site, so `SameSite=Lax` + sh
 
 Do **not** upgrade app SWA to Standard solely for `/api` linking unless cost lock is explicitly revised.
 
-## SWA PR previews
+## Web PR previews
 
-Preview hosts stay on `*.azurestaticapps.net` (no custom preview domains). They **cannot** share the PoC cookie Domain, and Auth.js CSRF (`__Host-…; SameSite=Lax`) fails cross-site (`MissingCSRF`).
+Production web stays on SWA Free (`app.plattform-kit.poc.singletonsd.com` and the SWA default hostname). **PR** previews for `apps/web` run on Container Apps (`ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io`). Marketing PR previews stay on SWA Free staging.
+
+Preview hosts **cannot** share the PoC cookie Domain, and Auth.js CSRF (`__Host-…; SameSite=Lax`) fails cross-site (`MissingCSRF`).
 
 ### Auth mode (locked)
 
 | Host | Mode |
 | --- | --- |
-| `app.plattform-kit.poc.singletonsd.com` (and other non-SWA hosts) | Auth.js cookies (Option B) |
-| `*.azurestaticapps.net` (default + PR preview) | MSAL **redirect** → Entra access token → `Authorization: Bearer` on `/api/me` and Orval `customFetch` (popup is blocked by Entra `Cross-Origin-Opener-Policy`) |
+| `app.plattform-kit.poc.singletonsd.com` (and other custom / localhost hosts) | Auth.js cookies (Option B) |
+| `*.azurestaticapps.net` (production SWA default hostname) | MSAL **redirect** → Entra access token → `Authorization: Bearer` on `/api/me` and Orval `customFetch` (popup is blocked by Entra `Cross-Origin-Opener-Policy`) |
+| `ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io` (web PR previews) | Same MSAL Bearer path as SWA hosts |
 
-Nest already accepts Bearer via `EntraJwtStrategy` (`AZURE_AD_API_AUDIENCE` / client id). Prod cookie path is unchanged.
+Nest already accepts Bearer via `EntraJwtStrategy` (`AZURE_AD_API_AUDIENCE` / client id). Prod cookie path is unchanged. API preview hosts (`ssd-pocpk-aca-pr-<n>-ae`) are **not** SPA origins.
 
 ### CORS (locked)
 
 `CORS_ORIGINS` / App Config `app:cors:origins` includes:
 
 - Custom domains: `https://app.plattform-kit.poc.singletonsd.com`, `https://plattform-kit.poc.singletonsd.com`
-- Instance-scoped SWA hosts: `https://kind-rock-0f409fe00*.azurestaticapps.net`, `https://purple-field-05048bf00*.azurestaticapps.net` (default hostname + PR preview hosts such as `https://kind-rock-…-57.eastasia.7.azurestaticapps.net`)
+- Instance-scoped SWA hosts: `https://kind-rock-0f409fe00*.azurestaticapps.net`, `https://purple-field-05048bf00*.azurestaticapps.net` (default hostname; leftover SWA staging hosts)
+- Web ACA PR previews: Nest also allows `ssd-pocpk-aca-web-pr-<n>-ae.<hash>.australiaeast.azurecontainerapps.io` even when App Config overrides the list (see `apps/api/src/cors-origins.ts`)
 
-Do **not** use open `https://*.azurestaticapps.net` for Auth.js redirects — that would allow any Azure customer’s Static Web App as a post-login redirect target. Nest CORS may still parse that suffix form if misconfigured; Auth.js redirect checks ignore it and only honour exact origins + `{swaName}*` instance prefixes.
+Do **not** use open `https://*.azurestaticapps.net` or `https://*.azurecontainerapps.io` for Auth.js redirects — that would allow any Azure customer’s app as a post-login redirect target. Nest CORS may still parse a SWA suffix form if misconfigured; Auth.js redirect checks ignore it and only honour exact origins + `{swaName}*` instance prefixes. Open ACA wildcards are rejected.
 
 Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirectOriginAllowed`). Applies to prod App Service and ACA PR API previews (same Nest bootstrap).
 
@@ -94,9 +98,9 @@ Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirect
 
 | Flow | Redirect URI |
 | --- | --- |
-| Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). SWA preview origins are **not** Entra redirect URIs for this flow. |
-| Swagger UI OAuth2 (PKCE) | **Web** redirects: prod `…/docs/oauth2-redirect.html`, local `http://localhost:3001/docs/oauth2-redirect.html`, and each ACA PR preview host’s `…/docs/oauth2-redirect.html`. Do **not** use SPA platform for these URIs. |
-| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` wildcards for SPA redirect URIs. `preview-web.yml` registers the **exact** PR preview origin (add after deploy, remove on PR close) via `scripts/entra-spa-preview-redirect.sh` using Graph + the OIDC SP. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. SWA also sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
+| Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). Preview origins are **not** Entra redirect URIs for this flow. |
+| Swagger UI OAuth2 (PKCE) | **Web** redirects: prod `…/docs/oauth2-redirect.html`, local `http://localhost:3001/docs/oauth2-redirect.html`, and each ACA PR API preview host’s `…/docs/oauth2-redirect.html`. Do **not** use SPA platform for these URIs. |
+| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` or `*.azurecontainerapps.io` wildcards for SPA redirect URIs. `preview-web.yml` registers the **exact** PR preview origin (add after deploy with `--origin https://<fqdn>`, remove on PR close) via `scripts/entra-spa-preview-redirect.sh` using Graph + the OIDC SP. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. The nginx preview image sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
 
 ### Build / GitHub Variables
 
@@ -112,7 +116,7 @@ Set matching repo **Variables**. Prefer the exposed delegated scope `api://api.p
 
 | Title | Intent |
 | --- | --- |
-| Preview: SWA API base URL prod vs ACA | Bake `NEXT_PUBLIC_API_BASE_URL` → prod or ACA per PR |
+| Preview: SWA API base URL prod vs ACA | Bake `NEXT_PUBLIC_API_BASE_URL` → this PR’s API ACA preview when it exists, else prod |
 
 ## Human portal follow-ups
 
@@ -121,7 +125,7 @@ Entra app registration, admin consent, and KV/App Config seeding are tracked as 
 - Auth.js callback (Web): `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`
 - Swagger OAuth2 (Web, not SPA): `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`
 
-Also ensure App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. SWA PR preview MSAL redirects are registered automatically by `preview-web.yml` (see below). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
+Also ensure App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. Web PR preview MSAL redirects are registered automatically by `preview-web.yml` (see above). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
 
 ### OIDC SP Graph permission (preview redirect automation)
 
@@ -131,7 +135,7 @@ GitHub Actions OIDC app `ssd-pocpk-gha-oidc-dev` must be able to PATCH the Entra
 | --- | --- |
 | Microsoft Graph app role | `Application.ReadWrite.OwnedBy` (admin consented) |
 | Ownership | OIDC SP is an **owner** of Entra app `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` |
-| Soft-fail | Missing Graph rights logs a warning and does **not** fail the SWA deploy |
+| Soft-fail | Missing Graph rights logs a warning and does **not** fail the web preview deploy |
 
 Manual one-time setup (human / tenant admin) if previews skip registration:
 
