@@ -25,7 +25,7 @@ When planning an issue, every **Out of scope** item that is real follow-up work 
 
 1. Search existing issues by title/intent first (`gh issue list --search "<keywords>"`) — do not invent duplicates.
 2. Create missing issues with acceptance criteria: `gh issue create --title "..." --body "..."`.
-3. Wire dependency by adding a `Depends on: #<parent>` (and, on the parent, `Blocks: #<new>`) line to the issue body — see `docs/github-source-of-truth.md` §5.
+3. Wire dependency by adding a `Depends on: #<parent>` (and, on the parent, `Blocks: #<new>`) line to the issue body — see `docs/github-source-of-truth.md` section 5.
 4. Leave new backlog issues **unassigned**; do not self-assign an issue you are not about to implement (browse/file ≠ claim).
 5. Mention new issue numbers on the parent issue/PR description (a comment is fine, but prefer linking rather than a comment dump).
 
@@ -46,9 +46,9 @@ See also `backlog-refinement`.
    - Do not start the next issue until the current one is staged and summarized.
 
 3. Readiness and claiming:
-   - An issue is **agent-ready** only when it meets `docs/github-source-of-truth.md` §4 (clear
+   - An issue is **agent-ready** only when it meets `docs/github-source-of-truth.md` section 4 (clear
      goal, scope, testable acceptance criteria, stated constraints, and — critically — **no
-     unresolved `Depends on`**, §5). Verify readiness from the issue body alone; do not guess.
+     unresolved `Depends on`**, section 5). Verify readiness from the issue body alone; do not guess.
    - **Claim before plan/implement** (including Plan mode when asked to pick up an issue):
      1. `gh issue view <n> --json assignees,state,body,labels` — confirm it is open, agent-ready,
         and has no unresolved `Depends on`.
@@ -76,7 +76,7 @@ See also `backlog-refinement`.
    - Labels to watch (if the repository defines them via its GitHub Actions/PR hygiene setup):
      `needs-rebase`, `ci-failed`, `has-feedback`. Infra-only preview failures are not code defects
      — note them on the PR, do not treat them as blocking.
-   - **Dirty PR / `needs-rebase`:** follow `AGENTS.md` § **Shared hub files / conflict playbook**.
+   - **Dirty PR / `needs-rebase`:** follow `AGENTS.md`'s "Shared hub files / conflict playbook" section.
      Prefer `git merge origin/main`, then `pnpm resolve:conflicts`. Do not hand-merge
      `pnpm-lock.yaml` or `infra/main.json`. Hand-fix only paths the script lists
      (`infra/main.bicep`, Nest `main.ts` / `app.module.ts`, workflows). After fixing
@@ -162,7 +162,7 @@ Only say the issue is complete when the PR has actually merged (which closes it)
 When the user says "next", "next task", or similar:
 
 1. If the previous issue's PR is open and ready, leave it open — do not close it yourself.
-2. Verify the next issue is agent-ready and has no unresolved `Depends on` (§4–§5).
+2. Verify the next issue is agent-ready and has no unresolved `Depends on` (sections 4-5).
 3. Claim it (self-assign, confirm no existing PR/assignee owns it), then create its worktree from
    `origin/main`.
 4. Only after a successful claim, read details, implement, verify, and stage.

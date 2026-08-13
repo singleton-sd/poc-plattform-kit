@@ -258,7 +258,7 @@ Keep the document proportional. A small UI behavior may need only a short brief;
 
 ## Persisting the brief
 
-[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) §1 and §3 are
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) section 1 and section 3 are
 authoritative: GitHub Issues own engineering work, including technical discovery — there is no
 separate pre-GitHub "discovery" queue.
 

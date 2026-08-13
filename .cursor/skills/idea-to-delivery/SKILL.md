@@ -26,7 +26,7 @@ design skill that is not in `.cursor/skills/`.
 
 For `singleton-sd/poc-plattform-kit`, engineering work is planned and executed as **GitHub
 Issues** in this repository — see
-[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) §1 and §3. There is
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) section 1 and section 3. There is
 no separate list/queue by technical area or pillar; Area/Pillar/Work Type distinctions (Web App,
 API, Marketing, Infrastructure; Tenant, Permissions, Notifications, etc.) belong in the issue body
 or in labels defined by the repository's issue templates (see
@@ -63,7 +63,7 @@ implementation ticket. Include:
 - Rollout / preview strategy
 - Completion rule: all required child issues and manual steps are complete
 
-`docs/github-source-of-truth.md` §5 gives the canonical example of this pattern (the migration
+`docs/github-source-of-truth.md` section 5 gives the canonical example of this pattern (the migration
 umbrella issue [#170](https://github.com/singleton-sd/poc-plattform-kit/issues/170) and its
 waves).
 
@@ -85,7 +85,7 @@ Every agent-ready GitHub issue must include:
 
 An issue is agent-ready only when there are no unresolved product/architecture questions that
 would force the implementer to redesign the feature, and no unresolved `Depends on`
-(`docs/github-source-of-truth.md` §4).
+(`docs/github-source-of-truth.md` section 4).
 
 ## Issue state
 

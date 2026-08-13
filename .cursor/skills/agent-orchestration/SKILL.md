@@ -25,7 +25,7 @@ This skill coordinates work. It does not replace `task-driven-development`; each
 
 ## Repository workflow
 
-Every implementing agent must follow this baseline (`docs/github-source-of-truth.md` §6):
+Every implementing agent must follow this baseline (`docs/github-source-of-truth.md` section 6):
 
 1. Never work directly on `main`.
 2. Fetch `origin` before starting.
@@ -48,7 +48,7 @@ If `AGENTS.md` defines a repository-specific conflict playbook for special hub f
 
 Each agent gets exactly one worktree for the issue it owns.
 
-Branch naming must follow `docs/github-source-of-truth.md` §6:
+Branch naming must follow `docs/github-source-of-truth.md` section 6:
 
 ```text
 <type>/<issue-number>-<kebab-title>
@@ -81,7 +81,7 @@ Delete the local feature branch after the PR is merged if normal repository clea
 
 Before starting multiple issues, read each candidate issue's body for its
 `Depends on:` / `Blocks:` / `Parent:` lines (`docs/github-source-of-truth.md`
-§5) and classify each as one of:
+section 5) and classify each as one of:
 
 - **Independent**: no unresolved `Depends on` — can start immediately from `origin/main`.
 - **Depends on**: `Depends on: #N` names an issue that is not yet closed — must wait.
@@ -101,7 +101,7 @@ C ───────── E
 Here `A`, `B`, and `C` can start in parallel. `D` starts only after both `A` and `B` are merged (their issues closed) on `main`. `E` starts after `C` is merged.
 
 A GitHub Issue with an unresolved `Depends on` is **never agent-ready**
-(`docs/github-source-of-truth.md` §4), regardless of how well-specified it
+(`docs/github-source-of-truth.md` section 4), regardless of how well-specified it
 is. Do not start a downstream issue early just to keep an agent busy.
 Starting from stale or unmerged dependencies creates avoidable conflict
 chains.
@@ -190,7 +190,7 @@ Before launch:
 2. Build the dependency DAG.
 3. Identify shared-file collision risk.
 4. Group work into parallel waves.
-5. Confirm each issue meets the agent-ready definition (`docs/github-source-of-truth.md` §4) — clear goal, scope, acceptance criteria, no unresolved blocking `Depends on`.
+5. Confirm each issue meets the agent-ready definition (`docs/github-source-of-truth.md` section 4) — clear goal, scope, acceptance criteria, no unresolved blocking `Depends on`.
 6. Launch only the issues whose prerequisites are satisfied (closed).
 
 During execution:

@@ -24,8 +24,8 @@ Engineering work has no separate custom status field to maintain. State lives en
 
 | State | What it means |
 |-------|----------------|
-| Open, no `Depends on` unresolved, agent-ready (§4) | Ready to be claimed and implemented |
-| Open, unresolved `Depends on` (§5) | Blocked — not agent-ready until the dependency closes |
+| Open, no `Depends on` unresolved, agent-ready (section 4) | Ready to be claimed and implemented |
+| Open, unresolved `Depends on` (section 5) | Blocked — not agent-ready until the dependency closes |
 | Open, missing goal/scope/acceptance criteria | Needs refinement (`backlog-refinement` /
   `discover-requirements`) before it is agent-ready |
 | Open, assigned, branch/PR exists | Actively being worked |
@@ -35,7 +35,7 @@ Engineering work has no separate custom status field to maintain. State lives en
 
 Do not invent a parallel status field (a label, a comment marker, an external board) as the
 source of truth for these states unless the repository's GitHub Project (see #172-style project
-configuration, when present) already provides one — in that case the Project view is prioritisation/visibility on top of the issue, not a replacement for it (`docs/github-source-of-truth.md` §1).
+configuration, when present) already provides one — in that case the Project view is prioritisation/visibility on top of the issue, not a replacement for it (`docs/github-source-of-truth.md` section 1).
 
 ---
 
@@ -46,11 +46,11 @@ When creating a GitHub issue:
 1. **Title** — use sentence case, action-first: `Add dark mode toggle`, `Fix null pointer in
    token parser`. Keep it concise and human-readable.
 2. **Body** — include: goal, context, scope, acceptance criteria, relevant constraints, and any
-   `Depends on:` / `Blocks:` / `Parent:` lines (`docs/github-source-of-truth.md` §5).
+   `Depends on:` / `Blocks:` / `Parent:` lines (`docs/github-source-of-truth.md` section 5).
 3. **Labels / milestone** — apply whatever labels the repository's issue templates define (owned
    by the repository's GitHub Project setup); do not invent ad hoc label taxonomies.
 4. Do not mark an issue agent-ready (i.e., do not hand it to an implementer) until it satisfies
-   the agent-ready definition in `docs/github-source-of-truth.md` §4.
+   the agent-ready definition in `docs/github-source-of-truth.md` section 4.
 
 ### Referring to issues
 
@@ -121,7 +121,7 @@ Ask for: title, body (goal/context/scope/acceptance criteria), and whether it de
 blocks other issues. File via `gh issue create`.
 
 ### Check if a task is ready to claim
-Read the issue body: does it meet the agent-ready definition (§4), and does its `Depends on` line
+Read the issue body: does it meet the agent-ready definition (section 4), and does its `Depends on` line
 (if any) point at a closed issue? If either check fails, it is not ready.
 
 ### Bulk triage

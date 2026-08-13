@@ -146,7 +146,7 @@ Keep the brief proportional to the idea. Small ideas do not need ceremony.
 
 ## Persisting the brief
 
-[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) §1 and §3 are
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) section 1 and section 3 are
 authoritative: GitHub Issues own engineering work, including technical discovery — there is no
 separate pre-GitHub "ideas" queue for anything that has already crossed into engineering framing.
 
@@ -159,7 +159,7 @@ For `singleton-sd/poc-plattform-kit`, only when the user asks to store the brief
 - **HOLD / DO NOT BUILD**: no issue is needed unless the user wants the rejection recorded for
   future reference (a comment on a related existing issue is usually enough).
 - A private business/commercial idea that has **not yet** crossed the engineering boundary (see
-  `docs/github-source-of-truth.md` §3) is out of this skill's scope to file anywhere — that is
+  `docs/github-source-of-truth.md` section 3) is out of this skill's scope to file anywhere — that is
   business planning, not engineering discovery.
 
 Browsing/refinement is not claiming: filing the issue does not assign it to anyone.

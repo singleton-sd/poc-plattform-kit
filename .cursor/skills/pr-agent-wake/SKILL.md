@@ -14,7 +14,7 @@ pull request in `singleton-sd/poc-plattform-kit` got `ci-failed`,
 implementer.
 
 Read [`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md),
-`AGENTS.md` § Shared hub files / conflict playbook, and
+`AGENTS.md`'s "Shared hub files / conflict playbook" section, and
 `.cursor/skills/agent-orchestration/SKILL.md`, before you touch git.
 
 **Depends on Wave 1** (`Cut PR hygiene noise and add Human Review Brief`,

@@ -15,7 +15,7 @@ You are a senior engineer helping enforce Singleton SD's git conventions. Apply 
 `poc-plattform-kit` identifies engineering work by **GitHub issue number**
 (`#173`), not a ClickUp custom id or `SSDOP-N`. See
 [`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md)
-§6 for the authoritative branch/PR/issue policy; this section only adds the
+section 6 for the authoritative branch/PR/issue policy; this section only adds the
 matching commit-message convention.
 
 Branch naming:
@@ -51,7 +51,7 @@ A commit that is not tied to a single issue (a small unattributed fix, a
 release commit) may omit the `#<issue-number>` — do not invent an issue
 number to satisfy the format. What actually closes the issue on merge is
 the `Closes #<issue-number>` line in the **PR body**
-(`docs/github-source-of-truth.md` §6), not the commit message.
+(`docs/github-source-of-truth.md` section 6), not the commit message.
 
 The `SSDOP-42` examples in the rest of this document are the generic
 company-wide convention for other repositories; do not use that ticket

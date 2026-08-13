@@ -17,7 +17,7 @@ For multi-issue feature planning, also apply `idea-to-delivery`.
 
 For `singleton-sd/poc-plattform-kit`, engineering work — including technical discovery, spikes,
 bugs, infrastructure work, and technical debt — lives as **GitHub Issues** in this repository.
-See [`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) §1 and §3 for the
+See [`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) section 1 and section 3 for the
 authoritative system-ownership and lifecycle policy. Architecture/design decision documentation
 still lives where the repository's docs conventions put it (`docs/**` or the ClickUp Architecture
 Doc, per current repository convention) — that's a documentation-ownership question, not an
@@ -80,12 +80,12 @@ Open questions:
 For bugs also include Steps to reproduce, Expected behavior and Actual behavior.
 
 Use `Depends on:` / `Blocks:` / `Parent:` exactly as plain, greppable lines
-(`docs/github-source-of-truth.md` §5) — do not bury dependency information only in prose.
+(`docs/github-source-of-truth.md` section 5) — do not bury dependency information only in prose.
 
 ## Agent-ready gate
 
 An issue may be handed to an implementing agent only when it satisfies the agent-ready definition
-in `docs/github-source-of-truth.md` §4: clear goal/problem statement, sufficient scope, testable
+in `docs/github-source-of-truth.md` section 4: clear goal/problem statement, sufficient scope, testable
 acceptance criteria, stated constraints, discoverable technical references, no unresolved open
 questions that would force an implementer to make an unrecorded judgment call, and **no
 unresolved `Depends on`**.
@@ -100,7 +100,7 @@ CI/CD topology, or other cross-cutting plans:
 
 1. Update/add the relevant Architecture Doc page with goal, chosen approach, trade-offs,
    boundaries, operational implications and links to work (documentation ownership/location is
-   unchanged by this skill — see `docs/github-source-of-truth.md` §1 and the migration tracked in
+   unchanged by this skill — see `docs/github-source-of-truth.md` section 1 and the migration tracked in
    [#175](https://github.com/singleton-sd/poc-plattform-kit/issues/175)).
 2. Create the parent/tracking issue and implementation-slice issues after the decision is
    documented.
