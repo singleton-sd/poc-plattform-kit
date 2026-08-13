@@ -16,8 +16,9 @@ export interface Me {
  * Client for Nest SingleSignOn `GET /api/me`.
  *
  * - Custom domains: Auth.js httpOnly cookies (`credentials: 'include'`).
- * - SWA PR / Free hosts: MSAL Bearer token (`Authorization`) — cookies cannot
- *   share `AUTH_COOKIE_DOMAIN` with `*.azurestaticapps.net`.
+ * - SWA / ACA PR preview hosts: MSAL Bearer token (`Authorization`) —
+ *   cookies cannot share `AUTH_COOKIE_DOMAIN` with `*.azurestaticapps.net`
+ *   or `*.azurecontainerapps.io`.
  *
  * Returns null (signed out) for any non-2xx / non-JSON response — callers
  * should treat null as unauthenticated, not as an error.

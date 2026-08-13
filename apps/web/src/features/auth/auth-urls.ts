@@ -82,7 +82,7 @@ async function signOutWithCookies(callbackUrl: string): Promise<void> {
 /**
  * Start Entra sign-in.
  * Custom domains: Auth.js CSRF + form POST (cookies).
- * SWA preview hosts: MSAL popup + Bearer access token.
+ * SWA / ACA preview hosts: MSAL redirect + Bearer access token.
  */
 export async function signIn(callbackUrl = defaultCallbackUrl()): Promise<void> {
   if (resolveAuthMode() === 'bearer') {
