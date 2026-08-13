@@ -112,6 +112,8 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
             className="rounded border border-fg-subtle bg-bg px-3 py-2 text-fg"
             value={tenantIdInput}
             onChange={(event) => setTenantIdInput(event.target.value)}
+            required
+            aria-required="true"
             data-testid="tenant-settings-id-input"
           />
         </label>

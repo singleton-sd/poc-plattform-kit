@@ -1,12 +1,20 @@
 # poc-plattform-kit
 
-Platform kit PoC: nine NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus, ClickUp → Cursor agents.
+Platform kit PoC: nine NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus.
 
-## ClickUp (locked)
+## Engineering source of truth
 
-- **Tickets:** https://app.clickup.com/90161394355/v/li/901616287298
-- **Architecture Doc:** https://app.clickup.com/90161394355/docs/2kz0kcnk-1416
-- **Docs folder:** https://app.clickup.com/90161394355/v/f/901610744236/90165834867
+Engineering work (features, bugs, infra, tech debt) is tracked as **GitHub
+Issues** in this repository, not ClickUp — see
+[`docs/github-source-of-truth.md`](./docs/github-source-of-truth.md) for the
+full policy. Engineering technical documentation lives under
+[`docs/`](./docs/README.md) (start at
+[`docs/architecture/overview.md`](./docs/architecture/overview.md)).
+
+ClickUp remains the system of record for private business/commercial
+planning only (ideas, commercial strategy, pricing, customer-private
+information) — it is not part of how engineering work is defined,
+sequenced, or claimed.
 
 ## Stack
 
