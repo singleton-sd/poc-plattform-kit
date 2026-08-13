@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class TenantMembershipResponseDto {
+  @ApiProperty({ example: 'tenant-id' })
+  tenantId!: string;
+
+  @ApiProperty({ example: 'owner' })
+  role!: string;
+}
+
 /** Documented `GET /api/me` body — keep in sync with `toMeResponse`. */
 export class MeResponseDto {
   @ApiProperty({ example: 'oid-or-local-user-id' })
@@ -17,4 +25,7 @@ export class MeResponseDto {
     description: 'Coarse Entra app roles from the access token / session.',
   })
   roles!: string[];
+
+  @ApiProperty({ type: [TenantMembershipResponseDto] })
+  memberships!: TenantMembershipResponseDto[];
 }

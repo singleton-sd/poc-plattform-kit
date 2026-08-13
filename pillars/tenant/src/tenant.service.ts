@@ -315,6 +315,14 @@ export class TenantService {
     });
   }
 
+  /** Tenant-owned read contract for consumers that need a user's memberships. */
+  async listMembershipsForUser(userId: string): Promise<TenantMembershipRecord[]> {
+    return this.prisma.tenantMembership.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   /**
    * Count of tenants `userId` owns (an `owner`-role `TenantMembership` row).
    * Used by tests and as the query shape for the self-service quota check.

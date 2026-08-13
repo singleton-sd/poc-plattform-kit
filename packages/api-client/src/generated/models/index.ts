@@ -28,6 +28,7 @@ export * from './tenantControllerFindAllParams';
 export * from './tenantInvitationResponseDto';
 export * from './tenantInvitationResponseDtoStatus';
 export * from './tenantListResponseDto';
+export * from './tenantMembershipResponseDto';
 export * from './tenantResponseDto';
 export * from './tenantResponseDtoSettings';
 export * from './updateTenantDto';

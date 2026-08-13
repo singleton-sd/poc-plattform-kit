@@ -184,7 +184,7 @@ describe('HomeAuthGate', () => {
       expect(mutate).toHaveBeenCalledWith({ data: { name: 'Acme', slug: undefined } });
     });
     expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
-    expect(screen.getByTestId('onboarding-success')).toHaveTextContent('Acme');
+    expect(screen.getByTestId('onboarding-success')).toHaveTextContent('owner');
     // Carries the newly-created tenant's id into /tenant so the settings
     // page's lookup form doesn't need it copy/pasted in manually.
     expect(screen.getByRole('link', { name: 'Manage your tenant' })).toHaveAttribute(
@@ -225,54 +225,26 @@ describe('HomeAuthGate', () => {
     expect(screen.getByTestId('onboarding-card')).toBeInTheDocument();
   });
 
-  it('keeps the manage-tenant link after remount once a tenant was created', async () => {
+  it('uses server membership state to hide onboarding and link the tenant', () => {
     mockUseMe.mockReturnValue({
-      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
+      data: {
+        id: 'user-1',
+        email: 'a@b.co',
+        name: 'A',
+        roles: [],
+        memberships: [{ tenantId: 't1', role: 'owner' }],
+      },
       isLoading: false,
       isError: false,
     });
-
-    const { unmount } = render(<HomeAuthGate />);
-    fireEvent.click(screen.getByTestId('onboarding-create-open'));
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Acme' } });
-    fireEvent.click(screen.getByTestId('onboarding-create-submit'));
-    await waitFor(() => {
-      expect(screen.getByTestId('onboarding-success')).toBeInTheDocument();
-    });
-    unmount();
 
     render(<HomeAuthGate />);
 
     expect(screen.queryByTestId('onboarding-card')).not.toBeInTheDocument();
-    expect(screen.getByTestId('onboarding-success')).toHaveTextContent('Acme');
+    expect(screen.getByTestId('onboarding-success')).toHaveTextContent('owner');
     expect(screen.getByRole('link', { name: 'Manage your tenant' })).toHaveAttribute(
       'href',
       '/tenant?tenantId=t1',
     );
-  });
-
-  it('still offers onboarding to a different user on the same browser', async () => {
-    mockUseMe.mockReturnValue({
-      data: { id: 'user-1', email: 'a@b.co', name: 'A', roles: [] },
-      isLoading: false,
-      isError: false,
-    });
-    const { unmount } = render(<HomeAuthGate />);
-    fireEvent.click(screen.getByTestId('onboarding-create-open'));
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Acme' } });
-    fireEvent.click(screen.getByTestId('onboarding-create-submit'));
-    await waitFor(() => {
-      expect(screen.getByTestId('onboarding-success')).toBeInTheDocument();
-    });
-    unmount();
-
-    mockUseMe.mockReturnValue({
-      data: { id: 'user-2', email: 'b@b.co', name: 'B', roles: [] },
-      isLoading: false,
-      isError: false,
-    });
-    render(<HomeAuthGate />);
-
-    expect(screen.getByTestId('onboarding-card')).toBeInTheDocument();
   });
 });

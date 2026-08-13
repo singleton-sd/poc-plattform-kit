@@ -448,6 +448,21 @@ describe('TenantService', () => {
     });
   });
 
+  describe('listMembershipsForUser', () => {
+    it('reads memberships for a user ordered by creation time', async () => {
+      const rows = [
+        { id: 'm1', tenantId: 't1', userId: 'u1', role: 'owner', createdAt: tenantRow.createdAt },
+      ];
+      prisma.tenantMembership.findMany.mockResolvedValue(rows);
+
+      await expect(service.listMembershipsForUser('u1')).resolves.toEqual(rows);
+      expect(prisma.tenantMembership.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+  });
+
   describe('countOwnedTenants', () => {
     it('counts only owner-role memberships for the given user', async () => {
       prisma.tenantMembership.count.mockResolvedValue(2);
