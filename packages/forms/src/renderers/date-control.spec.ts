@@ -1,8 +1,7 @@
-import type { ControlProps } from '@jsonforms/core';
-import { DateControlRenderer } from './date-control';
+import { DateControlRenderer, type DateControlRendererProps } from './date-control';
 import { findByType } from './test-utils';
 
-function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
+function baseProps(overrides: Partial<DateControlRendererProps> = {}): DateControlRendererProps {
   return {
     data: '',
     handleChange: () => {},
@@ -13,7 +12,7 @@ function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
     enabled: true,
     id: 'launchDate',
     ...overrides,
-  } as ControlProps;
+  } as DateControlRendererProps;
 }
 
 describe('DateControlRenderer', () => {
@@ -30,5 +29,14 @@ describe('DateControlRenderer', () => {
   it('never sets the native required attribute, to avoid the browser intercepting submission before the app runs its own validation', () => {
     const input = findByType(DateControlRenderer(baseProps({ required: true })), 'input');
     expect(input?.props.required).toBeUndefined();
+  });
+
+  it('hides the accessible error until the host marks the field as showing', () => {
+    const input = findByType(
+      DateControlRenderer(baseProps({ errors: 'Required', showError: false })),
+      'input',
+    );
+    expect(input?.props['aria-invalid']).toBe(false);
+    expect(input?.props['aria-describedby']).toBeUndefined();
   });
 });

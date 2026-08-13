@@ -40,6 +40,7 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
   // Rule 2: first JSON check on blur or submit; then re-validate live.
   const [settingsJsonChecked, setSettingsJsonChecked] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [formValid, setFormValid] = useState(false);
 
   useEffect(() => {
     if (!initialTenantId) return;
@@ -174,6 +175,7 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
                 ? errorMessage(updateMutation.error, 'Could not save changes. Try again.')
                 : null
             }
+            onValidityChange={setFormValid}
             onSubmit={handleNameSubmit}
           />
 
@@ -210,7 +212,7 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
             type="submit"
             form={UPDATE_TENANT_FORM_ID}
             className="self-start rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
-            disabled={updateMutation.isPending || showSettingsJsonError}
+            disabled={updateMutation.isPending || !formValid || showSettingsJsonError}
             data-testid="tenant-settings-save"
           >
             {updateMutation.isPending ? 'Saving…' : 'Save changes'}

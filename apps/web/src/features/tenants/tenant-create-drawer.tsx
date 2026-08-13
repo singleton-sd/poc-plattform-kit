@@ -1,7 +1,7 @@
 'use client';
 
 import { useTenantControllerCreate, type TenantResponseDto } from '@poc-plattform-kit/api-client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Drawer } from '@/components/drawer';
 import { errorMessage, tenantPayload } from './api';
 import { CREATE_TENANT_FORM_ID, CreateTenantForm } from './create-tenant-form';
@@ -15,6 +15,7 @@ type TenantCreateDrawerProps = {
 const FALLBACK_ERROR = 'Could not create the tenant. Try again.';
 
 export function TenantCreateDrawer({ open, onClose, onCreated }: TenantCreateDrawerProps) {
+  const [formValid, setFormValid] = useState(false);
   const mutation = useTenantControllerCreate({
     mutation: {
       onSuccess: (response) => {
@@ -44,7 +45,7 @@ export function TenantCreateDrawer({ open, onClose, onCreated }: TenantCreateDra
           <button
             type="submit"
             form={CREATE_TENANT_FORM_ID}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !formValid}
             className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
             data-testid="tenant-create-submit"
           >
@@ -66,6 +67,7 @@ export function TenantCreateDrawer({ open, onClose, onCreated }: TenantCreateDra
       <CreateTenantForm
         pending={mutation.isPending}
         errorMessage={mutation.isError ? errorMessage(mutation.error, FALLBACK_ERROR) : null}
+        onValidityChange={setFormValid}
         onSubmit={(data) => mutation.mutate({ data })}
       />
     </Drawer>

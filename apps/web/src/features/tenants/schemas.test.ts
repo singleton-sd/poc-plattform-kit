@@ -1,4 +1,9 @@
-import { createTenantSchema, toCreateTenantPayload, updateTenantSchema } from './schemas';
+import {
+  createTenantSchema,
+  toCreateTenantPayload,
+  uniqueIssueMessages,
+  updateTenantSchema,
+} from './schemas';
 
 describe('tenant schemas', () => {
   it('accepts a valid create payload', () => {
@@ -71,5 +76,16 @@ describe('toCreateTenantPayload', () => {
 
   it('converts a missing slug to undefined', () => {
     expect(toCreateTenantPayload({ name: 'Acme' })).toEqual({ name: 'Acme', slug: undefined });
+  });
+});
+
+describe('uniqueIssueMessages', () => {
+  it('returns every distinct Zod issue, not only the first', () => {
+    const parsed = createTenantSchema.safeParse({ name: '', slug: 'Acme!' });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    const messages = uniqueIssueMessages(parsed.error);
+    expect(messages.length).toBeGreaterThan(1);
+    expect(messages).toEqual(expect.arrayContaining(['Name is required']));
   });
 });

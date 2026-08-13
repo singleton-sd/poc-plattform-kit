@@ -111,7 +111,8 @@ describe('OnboardingCard', () => {
     render(<OnboardingCard onCreated={jest.fn()} onDismiss={jest.fn()} />);
 
     fireEvent.click(screen.getByTestId('onboarding-create-open'));
-    fireEvent.click(screen.getByTestId('onboarding-create-submit'));
+    expect(screen.getByTestId('onboarding-create-submit')).toBeDisabled();
+    fireEvent.submit(screen.getByTestId('tenant-create-form'));
 
     expect(screen.getByTestId('tenant-create-client-error')).toBeInTheDocument();
     expect(mutate).not.toHaveBeenCalled();
