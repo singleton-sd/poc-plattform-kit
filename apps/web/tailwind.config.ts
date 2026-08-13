@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-// Colors map to the Singleton SD design token CSS variables imported in
+// Colors map to @singleton-sd/tokens CSS variables imported in
 // src/app/globals.css -- never hardcode palette hex here (see AGENTS.md).
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
@@ -8,24 +8,24 @@ const config: Config = {
     extend: {
       colors: {
         fg: {
-          DEFAULT: 'var(--fg-default)',
-          muted: 'var(--fg-muted)',
-          subtle: 'var(--fg-subtle)',
+          DEFAULT: 'var(--ssd-color-text-default)',
+          muted: 'var(--ssd-color-text-muted)',
+          subtle: 'var(--ssd-color-text-subtle)',
         },
         bg: {
-          DEFAULT: 'var(--bg-default)',
-          muted: 'var(--bg-muted)',
-          subtle: 'var(--bg-subtle)',
+          DEFAULT: 'var(--ssd-color-background-default)',
+          muted: 'var(--ssd-color-background-muted)',
+          subtle: 'var(--ssd-color-background-subtle)',
         },
         accent: {
-          DEFAULT: 'var(--accent-default)',
-          on: 'var(--accent-on-accent)',
-          bg: 'var(--accent-bg)',
+          DEFAULT: 'var(--ssd-color-background-brand)',
+          on: 'var(--ssd-color-text-on-brand)',
+          bg: 'var(--pk-accent-bg)',
         },
       },
       fontFamily: {
-        heading: 'var(--font-families-heading)',
-        body: 'var(--font-families-body)',
+        heading: 'var(--ssd-font-family-heading)',
+        body: 'var(--ssd-font-family-body)',
       },
     },
   },
