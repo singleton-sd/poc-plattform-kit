@@ -9,6 +9,7 @@ export interface Me {
   name: string | null;
   /** Coarse AuthN roles from SingleSignOn (e.g. 'tenant-admin', 'support-agent'). */
   roles: string[];
+  memberships: Array<{ tenantId: string; role: string }>;
 }
 
 /**

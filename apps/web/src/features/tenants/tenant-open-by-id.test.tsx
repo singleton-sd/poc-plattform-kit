@@ -14,6 +14,14 @@ describe('TenantOpenById', () => {
     expect(screen.getByTestId('tenant-open-by-id-form')).toBeInTheDocument();
   });
 
+  it('marks the tenant id input as required for assistive tech', () => {
+    render(<TenantOpenById onOpen={jest.fn()} />);
+    fireEvent.click(screen.getByTestId('tenant-open-by-id-toggle'));
+    const input = screen.getByLabelText('Tenant ID');
+    expect(input).toBeRequired();
+    expect(input).toHaveAttribute('aria-required', 'true');
+  });
+
   it('opens the given tenant id and collapses back', () => {
     const onOpen = jest.fn();
     render(<TenantOpenById onOpen={onOpen} />);

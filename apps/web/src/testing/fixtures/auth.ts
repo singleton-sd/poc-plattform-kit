@@ -11,6 +11,7 @@ export const meRegularUser = {
   email: 'alice@example.com',
   name: 'Alice Johnson',
   roles: [],
+  memberships: [],
 } as const satisfies Me;
 
 /**
@@ -22,6 +23,7 @@ export const meSupportAgent = {
   email: 'bob.support@example.com',
   name: 'Bob Support',
   roles: ['support-agent'],
+  memberships: [],
 } as const satisfies Me;
 
 /**
@@ -33,6 +35,7 @@ export const meTenantAdmin = {
   email: 'carol.admin@example.com',
   name: 'Carol Admin',
   roles: ['tenant-admin'],
+  memberships: [{ tenantId: '00000000-0000-4000-8000-000000000100', role: 'admin' }],
 } as const satisfies Me;
 
 /**
@@ -44,6 +47,7 @@ export const meMultipleRoles = {
   email: 'david.multi@example.com',
   name: 'David Multi-Role',
   roles: ['support-agent', 'tenant-admin'],
+  memberships: [{ tenantId: '00000000-0000-4000-8000-000000000100', role: 'owner' }],
 } as const satisfies Me;
 
 /**
@@ -63,5 +67,6 @@ export function createMeFixture(me: Me | null): Me | null {
     email: me.email,
     name: me.name,
     roles: [...me.roles],
+    memberships: me.memberships.map((membership) => ({ ...membership })),
   };
 }

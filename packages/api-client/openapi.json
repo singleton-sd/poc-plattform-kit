@@ -1155,6 +1155,23 @@
           "respondedAt"
         ]
       },
+      "TenantMembershipResponseDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "example": "tenant-id"
+          },
+          "role": {
+            "type": "string",
+            "example": "owner"
+          }
+        },
+        "required": [
+          "tenantId",
+          "role"
+        ]
+      },
       "MeResponseDto": {
         "type": "object",
         "properties": {
@@ -1181,13 +1198,20 @@
             "items": {
               "type": "string"
             }
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantMembershipResponseDto"
+            }
           }
         },
         "required": [
           "id",
           "email",
           "name",
-          "roles"
+          "roles",
+          "memberships"
         ]
       },
       "CheckPermissionDto": {

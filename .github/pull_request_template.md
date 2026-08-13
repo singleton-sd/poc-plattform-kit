@@ -17,6 +17,13 @@ rejects a PR that touches those paths without this line filled in, an
 unknown scenario name, or a scenario that fails to seed.
 -->
 
+## Linked issue
+
+<!-- Required — use a GitHub closing keyword so merging auto-closes the issue.
+     See docs/github-source-of-truth.md, section 6 ("PR linking"). -->
+
+Closes #
+
 ## Summary
 
 - What changed and why?
