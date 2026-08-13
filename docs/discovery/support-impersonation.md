@@ -461,7 +461,7 @@ Every ticket description must link this ADR and the authoritative ClickUp Archit
 #### C-V2 — Validate end-to-end impersonation security and threat model
 
 **Type/size:** Security validation, XL  
-**Acceptance criteria:** execute every E2E security case in §14; tenant isolation matrix; OWASP-style manual abuse review; audit/telemetry leakage scan; revocation SLA measurement; documented residual risks and human security sign-off.  
+**Acceptance criteria:** execute every E2E security case in section 14; tenant isolation matrix; OWASP-style manual abuse review; audit/telemetry leakage scan; revocation SLA measurement; documented residual risks and human security sign-off.
 **Dependencies:** all implementation and seed tickets. Must not be self-approved by implementer.
 
 #### C-V3 — Publish impersonation operations and incident runbook

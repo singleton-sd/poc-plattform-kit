@@ -49,7 +49,7 @@ Fine-grained AuthZ lives in the **Permissions** pillar (`Check(subject, action, 
 
 ## Related
 
-- Deploy / OIDC: [`infra/README.md`](../infra/README.md) § Permissions / OpenFGA
+- Deploy / OIDC: the "Permissions / OpenFGA" section in [`infra/README.md`](../infra/README.md)
 - Pillar API: [`pillars/permissions/README.md`](../pillars/permissions/README.md)
 - Access Request workflow: `POST/GET /permissions/access-requests*` (approver AuthZ + Grant)
 - Agent skill: [`.cursor/skills/register-permissions/SKILL.md`](../.cursor/skills/register-permissions/SKILL.md)
