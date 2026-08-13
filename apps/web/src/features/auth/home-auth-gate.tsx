@@ -10,7 +10,6 @@ import { meKeys, useMe, type Me } from '@/features/auth/me';
 import { signOut } from '@/features/auth/auth-urls';
 import { CopyTenantIdButton } from '@/features/tenants/copy-tenant-id-button';
 import { OnboardingCard } from '@/features/onboarding/onboarding-card';
-import { getCreatedTenant, rememberCreatedTenant } from '@/features/onboarding/onboarding-store';
 
 /**
  * Root gate for `/`: session loading / error / signed-out login come from
@@ -73,11 +72,11 @@ type SignedInHomeProps = {
 function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeProps) {
   const [sessionDismissed, setSessionDismissed] = useState(false);
   const [createdTenant, setCreatedTenant] = useState<Pick<TenantResponseDto, 'id' | 'name'> | null>(
-    () => getCreatedTenant(me.id),
+    null,
   );
+  const membership = me.memberships?.[0];
 
   function handleOnboardingCreated(tenant: TenantResponseDto) {
-    rememberCreatedTenant(me.id, { id: tenant.id, name: tenant.name });
     setCreatedTenant(tenant);
   }
 
@@ -98,22 +97,23 @@ function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeP
         Signed in as {me.email}. Manage tenants and support from here.
       </p>
 
-      {createdTenant ? (
+      {createdTenant || membership ? (
         <div
           className="flex w-full max-w-md flex-col items-center gap-2 rounded border border-fg-subtle bg-bg-muted p-4 text-sm text-fg-muted"
           data-testid="onboarding-success"
         >
           <p>
-            You&apos;re the owner of <strong className="text-fg">{createdTenant.name}</strong>.
+            You belong to a tenant as{' '}
+            <strong className="text-fg">{createdTenant ? 'owner' : membership.role}</strong>.
           </p>
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs" data-testid="onboarding-success-tenant-id">
-              {createdTenant.id}
+              {createdTenant?.id ?? membership.tenantId}
             </span>
-            <CopyTenantIdButton tenantId={createdTenant.id} />
+            <CopyTenantIdButton tenantId={createdTenant?.id ?? membership.tenantId} />
           </div>
           <Link
-            href={`/tenant?tenantId=${encodeURIComponent(createdTenant.id)}`}
+            href={`/tenant?tenantId=${encodeURIComponent(createdTenant?.id ?? membership.tenantId)}`}
             className="text-accent underline-offset-2 hover:underline"
           >
             Manage your tenant

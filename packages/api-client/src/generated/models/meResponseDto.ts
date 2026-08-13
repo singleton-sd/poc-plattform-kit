@@ -4,6 +4,7 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
+import type { TenantMembershipResponseDto } from './tenantMembershipResponseDto';
 
 export interface MeResponseDto {
   id: string;
@@ -12,4 +13,5 @@ export interface MeResponseDto {
   name: string | null;
   /** Coarse Entra app roles from the access token / session. */
   roles: string[];
+  memberships: TenantMembershipResponseDto[];
 }
