@@ -1,6 +1,10 @@
 ﻿import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import {
+  type AuthenticatedUser,
+  UserIdentityService,
+} from '@poc-plattform-kit/pillar-single-sign-on';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import { isPublicPath } from './public-paths';
 
@@ -19,6 +23,7 @@ export class SessionOrJwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtGuard: JwtAuthGuard,
     private readonly reflector: Reflector,
+    private readonly identities: UserIdentityService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -28,18 +33,21 @@ export class SessionOrJwtAuthGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest<{
       headers: { authorization?: string };
-      user?: unknown;
-      authUser?: unknown;
+      user?: AuthenticatedUser;
+      authUser?: AuthenticatedUser;
     }>();
 
     if (req.authUser) {
-      req.user = req.authUser;
+      req.user = await this.identities.persist(req.authUser);
       return true;
     }
 
     const auth = req.headers.authorization;
     if (auth?.toLowerCase().startsWith('bearer ')) {
       const ok = await this.jwtGuard.canActivate(context);
+      if (ok === true && req.user) {
+        req.user = await this.identities.persist(req.user);
+      }
       return ok === true;
     }
 
