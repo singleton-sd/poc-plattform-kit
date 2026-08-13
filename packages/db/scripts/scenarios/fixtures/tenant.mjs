@@ -206,6 +206,48 @@ export function registerTenantScenarios(registry) {
   });
 
   registry.define({
+    name: 'pillar/tenant/groups',
+    description:
+      'A tenant-local Editors group with one synchronized member and one failed, fail-closed membership for reconciliation review.',
+    dependsOn: ['pillar/tenant/multi-membership'],
+    testInstructions:
+      'GET /tenants/seed-tenant-acme-rocketry/groups and then /groups/seed-group-editors/members; observe one synced and one failed membership.',
+    seed: async (prisma) => {
+      await upsertById(prisma.tenantGroup, 'seed-group-editors', {
+        tenantId: 'seed-tenant-acme-rocketry',
+        name: 'Editors',
+        description: 'Synthetic tenant-local group',
+      });
+      await upsertById(prisma.tenantGroupMembership, 'seed-group-editor-synced', {
+        tenantId: 'seed-tenant-acme-rocketry',
+        groupId: 'seed-group-editors',
+        userId: 'seed-user-acme-admin',
+        syncStatus: 'synced',
+        syncError: null,
+        syncedAt: atOffsetMinutes(12),
+      });
+      await upsertById(prisma.tenantGroupMembership, 'seed-group-editor-failed', {
+        tenantId: 'seed-tenant-acme-rocketry',
+        groupId: 'seed-group-editors',
+        userId: 'seed-user-acme-member',
+        syncStatus: 'failed',
+        syncError: 'Synthetic OpenFGA failure',
+        syncedAt: null,
+      });
+    },
+    verify: async (prisma) => {
+      const memberships = await prisma.tenantGroupMembership.findMany({
+        where: { groupId: 'seed-group-editors' },
+        select: { syncStatus: true },
+      });
+      const states = memberships.map((row) => row.syncStatus).sort();
+      return states.join(',') === 'failed,synced'
+        ? { ok: true, message: 'tenant group has synced and fail-closed membership examples' }
+        : { ok: false, message: `unexpected tenant-group states: ${states.join(',')}` };
+    },
+  });
+
+  registry.define({
     name: 'pillar/tenant/audit-history',
     description:
       'Seed Acme Rocketry with a realistic multi-step audit timeline (creation, membership changes, a role change) — the "reviewing history" state.',

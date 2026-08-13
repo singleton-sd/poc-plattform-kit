@@ -22,14 +22,23 @@ type user
     # Transitive reporting line (A manages B manages C => A in_manager_chain of C).
     define in_manager_chain: manager or in_manager_chain from manager
 
+# Tenant-owned principal. Group membership is synchronized from the Tenant
+# database and is never sourced from Entra group claims.
+type group
+  relations
+    define member: [user]
+
 type tenant
   relations
-    define admin: [user, user with not_yet_expired]
-    define member: [user, user with not_yet_expired] or admin
+    define owner: [user, group#member]
+    define admin: [user, group#member, user with not_yet_expired] or owner
+    define editor: [user, group#member, user with not_yet_expired] or admin
+    define viewer: [user, group#member, user with not_yet_expired] or editor
+    define member: [user, group#member, user with not_yet_expired] or viewer
     define create: [user, user with not_yet_expired] or admin
-    define update: [user, user with not_yet_expired] or admin
-    define delete: [user, user with not_yet_expired] or admin
-    define read: [user, user with not_yet_expired] or member
+    define update: [user, user with not_yet_expired] or editor
+    define delete: [user, user with not_yet_expired] or owner
+    define read: [user, user with not_yet_expired] or viewer
 
 # Marker objects: one_time_grant:{resource}|{action} → pending: [user]
 type one_time_grant

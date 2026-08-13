@@ -9,6 +9,62 @@
       "resourceType": "tenant",
       "resourceIdParam": "id",
       "notes": "PermissionsGuard maps PATCH /tenants/:id → Check(user:<id>, update, tenant:<id>)"
+    },
+    {
+      "id": "tenant-groups.list",
+      "method": "GET",
+      "path": "/tenants/:tenantId/groups",
+      "action": "read",
+      "resourceType": "tenant",
+      "resourceIdParam": "tenantId"
+    },
+    {
+      "id": "tenant-groups.create",
+      "method": "POST",
+      "path": "/tenants/:tenantId/groups",
+      "action": "update",
+      "resourceType": "tenant",
+      "resourceIdParam": "tenantId"
+    },
+    {
+      "id": "tenant-groups.update",
+      "method": "PATCH",
+      "path": "/tenants/:tenantId/groups/:groupId",
+      "action": "update",
+      "resourceType": "tenant",
+      "resourceIdParam": "tenantId"
+    },
+    {
+      "id": "tenant-groups.delete",
+      "method": "DELETE",
+      "path": "/tenants/:tenantId/groups/:groupId",
+      "action": "update",
+      "resourceType": "tenant",
+      "resourceIdParam": "tenantId"
+    },
+    {
+      "id": "tenant-group-members.list",
+      "method": "GET",
+      "path": "/tenants/:tenantId/groups/:groupId/members",
+      "action": "read",
+      "resourceType": "tenant",
+      "resourceIdParam": "tenantId"
+    },
+    {
+      "id": "tenant-group-members.add",
+      "method": "POST",
+      "path": "/tenants/:tenantId/groups/:groupId/members",
+      "action": "update",
+      "resourceType": "tenant",
+      "resourceIdParam": "tenantId"
+    },
+    {
+      "id": "tenant-group-members.remove",
+      "method": "DELETE",
+      "path": "/tenants/:tenantId/groups/:groupId/members/:userId",
+      "action": "update",
+      "resourceType": "tenant",
+      "resourceIdParam": "tenantId"
     }
   ]
 }

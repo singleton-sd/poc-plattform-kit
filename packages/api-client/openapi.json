@@ -483,6 +483,372 @@
         ]
       }
     },
+    "/tenants/{tenantId}/groups": {
+      "get": {
+        "operationId": "TenantGroupController_list",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TenantGroupResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": ""
+          },
+          "403": {
+            "description": "Requires tenant-admin or an owner membership on the target tenant."
+          }
+        },
+        "tags": [
+          "tenant-groups"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "TenantGroupController_create",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantGroupResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Requires tenant-admin or an owner membership on the target tenant."
+          },
+          "409": {
+            "description": "A group with the same name already exists."
+          }
+        },
+        "tags": [
+          "tenant-groups"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/tenants/{tenantId}/groups/{groupId}": {
+      "patch": {
+        "operationId": "TenantGroupController_update",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTenantGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantGroupResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tenant group not found."
+          },
+          "409": {
+            "description": "A group with the same name already exists."
+          }
+        },
+        "tags": [
+          "tenant-groups"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "TenantGroupController_remove",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "Tenant group not found."
+          },
+          "503": {
+            "description": "OpenFGA revocation failed; the local group remains unchanged."
+          }
+        },
+        "tags": [
+          "tenant-groups"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/tenants/{tenantId}/groups/{groupId}/members": {
+      "get": {
+        "operationId": "TenantGroupController_listMembers",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TenantGroupMembershipResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tenant-groups"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "TenantGroupController_addMember",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTenantGroupMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantGroupMembershipResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group or tenant membership not found."
+          },
+          "503": {
+            "description": "Membership is recorded as failed/pending and is not effective in OpenFGA."
+          }
+        },
+        "tags": [
+          "tenant-groups"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/tenants/{tenantId}/groups/{groupId}/members/{userId}": {
+      "delete": {
+        "operationId": "TenantGroupController_removeMember",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "Group membership not found."
+          },
+          "503": {
+            "description": "OpenFGA revocation failed; local membership remains unchanged."
+          }
+        },
+        "tags": [
+          "tenant-groups"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/me": {
       "get": {
         "operationId": "SingleSignOnController_me",
@@ -1228,6 +1594,138 @@
           "expiresAt",
           "createdAt",
           "respondedAt"
+        ]
+      },
+      "TenantGroupResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "description",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateTenantGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Editors",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "example": "People who can edit tenant content.",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateTenantGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Editors",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "example": "People who can edit tenant content.",
+            "maxLength": 1000
+          }
+        }
+      },
+      "TenantGroupMembershipResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "syncStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "synced",
+              "failed"
+            ]
+          },
+          "syncError": {
+            "type": "string",
+            "nullable": true
+          },
+          "syncedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "groupId",
+          "userId",
+          "syncStatus",
+          "syncError",
+          "syncedAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AddTenantGroupMemberDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "Durable local user id to add to the group."
+          }
+        },
+        "required": [
+          "userId"
         ]
       },
       "TenantMembershipResponseDto": {
