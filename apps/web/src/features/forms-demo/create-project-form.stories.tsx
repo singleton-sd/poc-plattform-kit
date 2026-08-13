@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
+import { fireEvent } from '@testing-library/react';
 import { expect, userEvent, within } from 'storybook/test';
 import {
   CreateProjectForm,
@@ -42,7 +43,9 @@ export const ValidationError: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByTestId('create-project-submit'));
+    // Submit is gated on validity (button disabled while incomplete). Fire
+    // form submit directly so the handler gate + multi-issue summary still demo.
+    fireEvent.submit(canvas.getByTestId('create-project-form'));
     await expect(await canvas.findByTestId('create-project-validation-error')).toBeVisible();
   },
 };
