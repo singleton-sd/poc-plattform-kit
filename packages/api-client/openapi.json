@@ -865,6 +865,81 @@
           }
         ]
       }
+    },
+    "/tenants/{tenantId}/access-administration": {
+      "get": {
+        "operationId": "AccessAdministrationController_list",
+        "summary": "List a tenant access administration projection",
+        "description": "Returns tenant members, canonical role and permission catalogs, and direct/group/effective assignment provenance. Requires an OpenFGA tenant admin decision for the exact tenant.",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque user id cursor from the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25,
+              "type": "number"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "description": "Legacy/dev tenant context; when present it must match tenantId.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessAdministrationResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session/JWT or tenant context."
+          },
+          "403": {
+            "description": "Permission denied without revealing tenant existence."
+          }
+        },
+        "tags": [
+          "tenant access administration"
+        ],
+        "security": [
+          {
+            "oauth2": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -1457,6 +1532,167 @@
             "description": "Optional denial reason shared with the requester."
           }
         }
+      },
+      "AccessRoleCatalogItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "admin"
+          },
+          "name": {
+            "type": "string",
+            "example": "Admin"
+          },
+          "description": {
+            "type": "string"
+          },
+          "permissionIds": {
+            "example": [
+              "read",
+              "create",
+              "update",
+              "delete"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "permissionIds"
+        ]
+      },
+      "AccessPermissionCatalogItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "read"
+          },
+          "name": {
+            "type": "string",
+            "example": "Read"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description"
+        ]
+      },
+      "AccessAssignmentProvenanceDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "membership",
+              "direct",
+              "group"
+            ]
+          },
+          "roleId": {
+            "type": "string",
+            "example": "viewer"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "engineering"
+          }
+        },
+        "required": [
+          "source",
+          "roleId"
+        ]
+      },
+      "TenantAccessUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "effectiveRoleIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "effectivePermissionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "provenance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessAssignmentProvenanceDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "effectiveRoleIds",
+          "effectivePermissionIds",
+          "provenance"
+        ]
+      },
+      "AccessAdministrationResponseDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "consistencyVersion": {
+            "type": "string",
+            "description": "Opaque source versions used to build this read projection."
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessRoleCatalogItemDto"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessPermissionCatalogItemDto"
+            }
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantAccessUserDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "tenantId",
+          "consistencyVersion",
+          "roles",
+          "permissions",
+          "users"
+        ]
       }
     }
   }

@@ -4,7 +4,8 @@ import { UserIdentityService } from './user-identity.service';
 
 describe('UserIdentityService', () => {
   const upsert = jest.fn();
-  const prisma = { user: { upsert } } as unknown as PrismaService;
+  const findMany = jest.fn();
+  const prisma = { user: { upsert, findMany } } as unknown as PrismaService;
   const service = new UserIdentityService(prisma);
 
   beforeEach(() => jest.resetAllMocks());
@@ -98,5 +99,27 @@ describe('UserIdentityService', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
     expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('resolves durable user display records in deterministic id order', async () => {
+    findMany.mockResolvedValue([
+      { id: 'user-a', email: 'a@example.com', name: null },
+      { id: 'user-b', email: 'b@example.com', name: 'Bee' },
+    ]);
+
+    await expect(service.findDisplayRecords(['user-b', 'user-a', 'user-b'])).resolves.toEqual([
+      { id: 'user-a', email: 'a@example.com', name: null },
+      { id: 'user-b', email: 'b@example.com', name: 'Bee' },
+    ]);
+    expect(findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['user-a', 'user-b'] } },
+      select: { id: true, email: true, name: true },
+      orderBy: { id: 'asc' },
+    });
+  });
+
+  it('does not query when no durable user ids are requested', async () => {
+    await expect(service.findDisplayRecords([])).resolves.toEqual([]);
+    expect(findMany).not.toHaveBeenCalled();
   });
 });

@@ -21,6 +21,19 @@ type OpenFgaTupleKey = {
   };
 };
 
+export type PermissionTupleRecord = {
+  subject: string;
+  relation: string;
+  resource: string;
+  condition: { name: string; context: Record<string, string> } | null;
+  createdAt: string | null;
+};
+
+export type PermissionTuplePage = {
+  consistencyVersion: string;
+  tuples: PermissionTupleRecord[];
+};
+
 /** Companion OpenFGA object for one-time grant markers. */
 export function oneTimeGrantObject(resource: string, action: string): string {
   return `one_time_grant:${resource}|${action}`;
@@ -159,6 +172,46 @@ export class PermissionsService {
     }
   }
 
+  /** Read-only OpenFGA projection seam for tenant access administration. */
+  async listResourceTuples(resource: string): Promise<PermissionTuplePage> {
+    const consistencyVersion = process.env.OPENFGA_AUTHORIZATION_MODEL_ID?.trim() || 'unversioned';
+    if (!this.isConfigured()) {
+      return { consistencyVersion, tuples: [] };
+    }
+
+    try {
+      const tuples: PermissionTupleRecord[] = [];
+      let continuationToken: string | undefined;
+
+      do {
+        const page = await this.openFgaRead(resource, continuationToken);
+        if (!page) {
+          return { consistencyVersion, tuples: [] };
+        }
+        tuples.push(
+          ...page.tuples.map((tuple) => ({
+            subject: tuple.key.user,
+            relation: tuple.key.relation,
+            resource: tuple.key.object,
+            condition: tuple.key.condition ?? null,
+            createdAt: tuple.timestamp ?? null,
+          })),
+        );
+        continuationToken = page.continuationToken;
+      } while (continuationToken);
+
+      tuples.sort(
+        (left, right) =>
+          left.subject.localeCompare(right.subject) ||
+          left.relation.localeCompare(right.relation) ||
+          (left.createdAt ?? '').localeCompare(right.createdAt ?? ''),
+      );
+      return { consistencyVersion, tuples };
+    } catch {
+      return { consistencyVersion, tuples: [] };
+    }
+  }
+
   /**
    * @returns `undefined` when not a one-time grant; `true` when consumed;
    * `false` when a concurrent consumer already claimed it or delete failed.
@@ -241,6 +294,56 @@ export class PermissionsService {
       body: JSON.stringify(body),
     });
     return response.ok;
+  }
+
+  private async openFgaRead(
+    resource: string,
+    continuationToken?: string,
+  ): Promise<
+    | {
+        tuples: Array<{
+          key: OpenFgaTupleKey;
+          timestamp?: string;
+        }>;
+        continuationToken?: string;
+      }
+    | undefined
+  > {
+    const apiUrl = process.env.OPENFGA_API_URL!.trim().replace(/\/$/, '');
+    const storeId = process.env.OPENFGA_STORE_ID!.trim();
+    const authorizationModelId = process.env.OPENFGA_AUTHORIZATION_MODEL_ID?.trim();
+    const authHeader = await this.resolveAuthorizationHeader();
+    const response = await fetch(`${apiUrl}/stores/${encodeURIComponent(storeId)}/read`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...authHeader,
+      },
+      body: JSON.stringify({
+        tuple_key: { object: resource },
+        page_size: 100,
+        ...(continuationToken ? { continuation_token: continuationToken } : {}),
+        ...(authorizationModelId ? { authorization_model_id: authorizationModelId } : {}),
+      }),
+    });
+    if (!response.ok) {
+      return undefined;
+    }
+    const page = (await response.json()) as {
+      tuples?: Array<{ key?: OpenFgaTupleKey; timestamp?: string }>;
+      continuation_token?: unknown;
+    };
+    const validTuples = (page.tuples ?? []).filter(
+      (tuple): tuple is { key: OpenFgaTupleKey; timestamp?: string } =>
+        Boolean(tuple.key?.user && tuple.key.relation && tuple.key.object),
+    );
+    return {
+      tuples: validTuples,
+      continuationToken:
+        typeof page.continuation_token === 'string' && page.continuation_token
+          ? page.continuation_token
+          : undefined,
+    };
   }
 
   private async resolveAuthorizationHeader(): Promise<Record<string, string>> {
