@@ -1,5 +1,23 @@
 # AGENTS.md - poc-plattform-kit
 
+## Engineering source of truth (read first)
+
+The repository is migrating engineering delivery from ClickUp to GitHub
+(tracking issue [#170](https://github.com/singleton-sd/poc-plattform-kit/issues/170)).
+**[`docs/github-source-of-truth.md`](docs/github-source-of-truth.md) is the
+authoritative policy** for engineering system ownership, the engineering
+lifecycle, agent-ready criteria, issue dependency/parallel-execution rules,
+issue/branch/worktree/PR relationships, and the public-repository safety
+boundary. Read it before starting new engineering work; where it conflicts
+with the ClickUp-based sections below, the policy document wins.
+
+The **AI loop**, **ClickUp**, and ClickUp-keyed **Branch naming** sections
+below describe the pre-migration workflow. They remain the operative
+mechanics for existing ClickUp-tracked work until the migration issues
+referenced in `docs/github-source-of-truth.md` §8–§9 land, but they are not
+the source of truth for how new engineering work is defined, sequenced, or
+claimed — that is now GitHub Issues, per the policy document.
+
 ## Repo
 
 - GitHub: `singleton-sd/poc-plattform-kit` (`git@github.com:singleton-sd/poc-plattform-kit.git`)
