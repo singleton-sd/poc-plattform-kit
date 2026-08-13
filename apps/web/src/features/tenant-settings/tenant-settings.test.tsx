@@ -90,6 +90,13 @@ describe('TenantSettings', () => {
     expect(screen.queryByTestId('tenant-settings-form')).not.toBeInTheDocument();
   });
 
+  it('marks the tenant id lookup input as required for assistive tech', () => {
+    renderComponent();
+    const input = screen.getByTestId('tenant-settings-id-input');
+    expect(input).toBeRequired();
+    expect(input).toHaveAttribute('aria-required', 'true');
+  });
+
   it('configures the api client with the entered tenant id and loads it', () => {
     findState = { data: { data: tenant }, isFetching: false, isError: false, error: null };
     renderComponent();
