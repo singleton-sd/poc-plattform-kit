@@ -57,10 +57,11 @@ Branch naming must follow `docs/github-source-of-truth.md` section 6:
 Typical setup (parent workspace: `repo/` + `worktrees/<issue-number>-<slug>/`):
 
 ```powershell
-pnpm worktree:add -- -TaskId <issue-number> -Slug <kebab-title>
+pnpm worktree:add -- -Issue <issue-number> -Type <type> -Slug <kebab-title>
 ```
 
-Linux / Cloud: `./scripts/add-worktree.sh --task-id <issue-number> --slug <kebab-title>`
+Linux / Cloud:
+`./scripts/add-worktree.sh --issue <issue-number> --type <type> --slug <kebab-title>`
 
 Rules:
 

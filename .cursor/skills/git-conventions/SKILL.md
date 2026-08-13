@@ -30,10 +30,10 @@ conventional-commit prefix matching the primary nature of the change (see
 the type table below).
 
 Worktrees live beside the clone: `../worktrees/<issue-number>-<kebab-title>`.
-Create them with `pnpm worktree:add -- -TaskId <issue-number> -Slug <kebab-title>`
-(Linux/Cloud: `./scripts/add-worktree.sh --task-id <issue-number> --slug <kebab-title>`)
-— the flag is positional tooling for the worktree folder name, not a
-ClickUp lookup.
+Create them with
+`pnpm worktree:add -- -Issue <issue-number> -Type <type> -Slug <kebab-title>`
+(Linux/Cloud:
+`./scripts/add-worktree.sh --issue <issue-number> --type <type> --slug <kebab-title>`).
 
 ### Commit message format (this repository)
 

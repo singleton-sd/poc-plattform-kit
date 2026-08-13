@@ -26,7 +26,7 @@ When planning an issue, every **Out of scope** item that is real follow-up work 
 1. Search existing issues by title/intent first (`gh issue list --search "<keywords>"`) — do not invent duplicates.
 2. Create missing issues with acceptance criteria: `gh issue create --title "..." --body "..."`.
 3. Wire dependency by adding a `Depends on: #<parent>` (and, on the parent, `Blocks: #<new>`) line to the issue body — see `docs/github-source-of-truth.md` section 5.
-4. Leave new backlog issues **unassigned**; do not self-assign an issue you are not about to implement (browse/file ≠ claim).
+4. Leave new backlog issues **unassigned**; filing an issue does not claim it.
 5. Mention new issue numbers on the parent issue/PR description (a comment is fine, but prefer linking rather than a comment dump).
 
 See also `backlog-refinement`.
@@ -50,19 +50,15 @@ See also `backlog-refinement`.
      goal, scope, testable acceptance criteria, stated constraints, and — critically — **no
      unresolved `Depends on`**, section 5). Verify readiness from the issue body alone; do not guess.
    - **Claim before plan/implement** (including Plan mode when asked to pick up an issue):
-     1. `gh issue view <n> --json assignees,state,body,labels` — confirm it is open, agent-ready,
+     1. `gh issue view <n> --json state,body,labels` — confirm it is open, agent-ready,
         and has no unresolved `Depends on`.
-     2. Check nobody else already owns it: no existing assignee actively working it, and no open
-        PR already declares `Closes #<n>` (`gh pr list --search "linked:<n>"` or
+     2. Check no open PR already declares `Closes #<n>` (`gh pr list --search "linked:<n>"` or
         `gh pr list --search "in:body #<n>"`). If one exists, do not start a second PR — see
         `pr-agent-wake` instead.
-     3. Self-assign as the claim signal: `gh issue edit <n> --add-assignee @me` (or the
-        equivalent for the current agent identity).
-     4. Only then create the branch/worktree from `origin/main` and implement.
-   - There is no separate "in progress" status field to set — the self-assignment plus the
-     branch/PR *is* the claim. If a claimed issue shows no branch/PR activity for an
-     unreasonably long time, a human or orchestrator may unassign it and treat it as available
-     again; agents must not unassign another session's issue unless the user asks.
+     3. Create the branch/worktree from `origin/main` and open a PR for it as soon as practical.
+   - There is no separate claim token, assignment, or "in progress" status field to set. The
+     branch/worktree plus the linked open PR is the claim. If work is abandoned, close the PR
+     (or leave an issue comment) so the issue reads as available again.
    - **Handoff:** open (or update) the PR with `Closes #<n>` in the body. That is the entire
      handoff — merging the PR closes the issue automatically. There is no separate status
      transition to perform.
@@ -163,7 +159,7 @@ When the user says "next", "next task", or similar:
 
 1. If the previous issue's PR is open and ready, leave it open — do not close it yourself.
 2. Verify the next issue is agent-ready and has no unresolved `Depends on` (sections 4-5).
-3. Claim it (self-assign, confirm no existing PR/assignee owns it), then create its worktree from
-   `origin/main`.
+3. Confirm no existing open PR owns it, then create its worktree from `origin/main` and open a
+   linked PR as soon as practical.
 4. Only after a successful claim, read details, implement, verify, and stage.
 5. Leave the issue's PR open until the user asks to merge or move on again.
