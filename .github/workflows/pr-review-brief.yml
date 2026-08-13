@@ -7,7 +7,6 @@ on:
     workflows:
       - CI Web
       - CI API
-      - Preview Web (SWA)
       - Preview Web (Container Apps)
       - Preview Marketing (SWA)
       - Preview API (Container Apps)
