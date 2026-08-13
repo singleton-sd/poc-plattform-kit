@@ -116,6 +116,27 @@ describe('PermissionsService', () => {
     ).resolves.toEqual({ allowed: false });
   });
 
+  it('writes a tenant-local group membership tuple', async () => {
+    configureOpenFga();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+
+    await expect(new PermissionsService().addTenantGroupMember('group-1', 'user-1')).resolves.toBe(
+      true,
+    );
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openfga.example.test/stores/store-1/write',
+      expect.objectContaining({
+        body: JSON.stringify({
+          writes: {
+            tuple_keys: [{ user: 'user:user-1', relation: 'member', object: 'group:group-1' }],
+          },
+          authorization_model_id: 'model-1',
+        }),
+      }),
+    );
+  });
+
   it('reads all direct tuples for a resource across OpenFGA pages', async () => {
     configureOpenFga();
     (global.fetch as jest.Mock)
@@ -172,6 +193,53 @@ describe('PermissionsService', () => {
       expect.objectContaining({
         body: expect.stringContaining('"continuation_token":"next-page"'),
       }),
+    );
+  });
+
+  it('deletes a tenant-local group membership tuple', async () => {
+    configureOpenFga();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+
+    await expect(
+      new PermissionsService().removeTenantGroupMember('group-1', 'user-1'),
+    ).resolves.toBe(true);
+
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body as string);
+    expect(body.deletes.tuple_keys).toEqual([
+      { user: 'user:user-1', relation: 'member', object: 'group:group-1' },
+    ]);
+  });
+
+  it('fails closed for group membership writes when OpenFGA is unavailable', async () => {
+    const service = new PermissionsService();
+
+    await expect(service.addTenantGroupMember('group-1', 'user-1')).resolves.toBe(false);
+    await expect(service.removeTenantGroupMember('group-1', 'user-1')).resolves.toBe(false);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('detects whether a group principal currently holds the tenant owner role', async () => {
+    configureOpenFga();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ allowed: true }),
+    });
+
+    await expect(new PermissionsService().isTenantGroupOwner('tenant-1', 'group-1')).resolves.toBe(
+      true,
+    );
+
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body as string);
+    expect(body.tuple_key).toEqual({
+      user: 'group:group-1#member',
+      relation: 'owner',
+      object: 'tenant:tenant-1',
+    });
+  });
+
+  it('fails closed when group owner status cannot be checked', async () => {
+    await expect(new PermissionsService().isTenantGroupOwner('tenant-1', 'group-1')).resolves.toBe(
+      true,
     );
   });
 

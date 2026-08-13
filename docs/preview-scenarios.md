@@ -162,17 +162,19 @@ what the preview Docker image does) and seed/verify/re-seed it.
 
 ## Preview PR previews (deployment)
 
-See [`docs/pr-pipelines.md`](./pr-pipelines.md) § "Workflow behaviour
-(`preview-api.yml`)" for how a PR's declared scenarios reach the deployed
-preview: `PREVIEW_SEED_SCENARIOS` is resolved from the PR body and passed as
+See the "Workflow behaviour (`preview-api.yml`)" section in
+[`docs/pr-pipelines.md`](./pr-pipelines.md) for how a PR's declared scenarios
+reach the deployed preview. `PREVIEW_SEED_SCENARIOS` is resolved from the PR
+body and passed as
 a Docker build-arg, seeded and verified at build time into the immutable
 template, then re-verified against the writable copy on every container
 start (`apps/api/docker-entrypoint.sh`) before Nest starts serving traffic.
 
 ## Delivery standard (required for feature/pillar/bug PRs)
 
-See [`AGENTS.md`](../AGENTS.md) § "Preview scenario delivery standard" for
-the full requirement and enforcement (`validate-preview-scenarios.yml`).
+See the "Preview scenario delivery standard" section in
+[`AGENTS.md`](../AGENTS.md) for the full requirement and enforcement
+(`validate-preview-scenarios.yml`).
 The declaration is a plain, visible `Preview scenarios:` line in the PR
 body — not an HTML comment, so it's easy for a human reviewer to spot and
 doesn't depend on a hidden comment surviving whatever tool opened or

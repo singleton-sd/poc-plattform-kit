@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Helpers + tiny CLI for Entra SPA redirect URI updates on SWA PR previews.
+ * Helpers + tiny CLI for Entra SPA redirect URI updates on SWA and ACA
+ * web PR previews.
  *
  * CLI:
  *   node entra-spa-preview-redirect.mjs normalize <url>
@@ -68,7 +69,7 @@ export function normalizeOrigin(value) {
  * @returns {string[]}
  */
 export function addRedirectUri(uris, origin) {
-  const normalized = normalizeOrigin(origin);
+  const normalized = assertSpaPreviewRedirectOrigin(origin);
   const list = Array.isArray(uris) ? [...uris] : [];
   if (!list.includes(normalized)) {
     list.push(normalized);
@@ -85,6 +86,49 @@ export function removeRedirectUri(uris, origin) {
   const normalized = normalizeOrigin(origin);
   const list = Array.isArray(uris) ? [...uris] : [];
   return list.filter((u) => u !== normalized);
+}
+
+/**
+ * Parse this-repo web ACA PR preview origin.
+ * Host: `ssd-pocpk-aca-web-pr-<n>-ae.<hash>.australiaeast.azurecontainerapps.io`
+ *
+ * @param {string} origin
+ * @returns {{ pr: string, hash: string } | null}
+ */
+export function parseAcaWebPrPreviewOrigin(origin) {
+  let normalized;
+  try {
+    normalized = normalizeOrigin(origin);
+  } catch {
+    return null;
+  }
+  const host = new URL(normalized).host.toLowerCase();
+  const match = host.match(
+    /^ssd-pocpk-aca-web-pr-(\d+)-ae\.([a-z0-9-]+)\.australiaeast\.azurecontainerapps\.io$/,
+  );
+  if (!match) {
+    return null;
+  }
+  return { pr: match[1], hash: match[2] };
+}
+
+/**
+ * Allow SWA / custom / localhost origins. If the host is Container Apps,
+ * require the web preview app name (not the API preview app).
+ *
+ * @param {string} origin
+ * @returns {string} normalized origin
+ */
+export function assertSpaPreviewRedirectOrigin(origin) {
+  const normalized = normalizeOrigin(origin);
+  const host = new URL(normalized).host.toLowerCase();
+  if (!host.endsWith('.azurecontainerapps.io') && host !== 'azurecontainerapps.io') {
+    return normalized;
+  }
+  if (parseAcaWebPrPreviewOrigin(normalized)) {
+    return normalized;
+  }
+  throw new Error(`refusing Entra SPA redirect for non-web ACA host: ${normalized}`);
 }
 
 /**

@@ -2,6 +2,14 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## Unreleased
+
+### New
+
+- Allow CORS from ACA web PR preview hosts
+
+  Scoped `ssd-pocpk-aca-web-pr-*` origins only — not every Container App.
+
 ## 0.22.0 — 2026-08-08
 
 ### New

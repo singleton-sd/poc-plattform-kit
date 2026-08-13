@@ -2,6 +2,14 @@
 
 Release history for **@poc-plattform-kit/web**, generated from conventional commits by the release-it workflow.
 
+## Unreleased
+
+### Changed
+
+- Use MSAL Bearer on Azure Container Apps preview hosts
+
+  Same cross-site cookie limitation as SWA Free / PR hosts.
+
 ## 0.15.0 — 2026-08-08
 
 ### New

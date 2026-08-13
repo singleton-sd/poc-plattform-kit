@@ -1,4 +1,6 @@
-# Ignore local secrets and heavy trees when building apps/api image
+# Ignore local secrets and heavy trees when building preview images.
+# apps/web must stay in the context for apps/web/Dockerfile (API image
+# does not COPY it).
 .git
 .github
 .cursor
@@ -12,5 +14,4 @@
 **/*.tsbuildinfo
 infra
 docs
-apps/web
 *.md

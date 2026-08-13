@@ -3,31 +3,26 @@
  * Mirrors marketing token roles + home / [slug] layouts.
  *
  * Token sheet vars are gated on [data-theme='dark']. Decap’s preview iframe
- * has no data-theme by default (admin-preview.js stamps it). Mirror the needed
- * --colors-* / font tokens on :root so contrast works even before that runs.
+ * has no data-theme by default (admin-preview.js stamps it). Import the
+ * :root dark sheet from @singleton-sd/tokens so contrast works before that.
  */
-@import url('https://tokens.design.singletonsd.com/css/dark/_variables.css');
+@import url('./tokens/root-dark.css');
 @import url('https://cdn.jsdelivr.net/npm/@fontsource/open-sauce-sans@5.3.0/index.css');
 
 :root {
-  /* Same values as tokens.design.singletonsd.com dark sheet (iframe bridge). */
-  --colors-gray-100: #f5f6f7;
-  --colors-gray-400: #b3b7bd;
-  --colors-gray-700: #60656b;
-  --colors-gray-800: #44484d;
-  --colors-gray-900: #292c30;
-  --colors-yellow-light-400: #fdc94a;
-  --colors-yellow-light-900: #6b4500;
-  --font-families-heading: 'Open Sauce Sans';
-  --font-families-body: 'Open Sauce Sans';
+  --ssd-color-text-default: var(--ssd-color-gray-100);
+  --ssd-color-text-muted: var(--ssd-color-gray-400);
+  --ssd-color-background-default: var(--ssd-color-gray-900);
+  --ssd-color-background-brand: var(--ssd-color-yellow-light-400);
+  --ssd-color-text-on-brand: var(--ssd-color-gray-900);
 
-  --pk-bg: var(--colors-gray-900);
-  --pk-fg: var(--colors-gray-100);
-  --pk-muted: var(--colors-gray-400);
-  --pk-accent: var(--colors-yellow-light-400);
-  --pk-accent-on: var(--colors-gray-900);
-  --pk-accent-bg: var(--colors-yellow-light-900);
-  --pk-surface: var(--colors-gray-800);
+  --pk-bg: var(--ssd-color-gray-900);
+  --pk-fg: var(--ssd-color-gray-100);
+  --pk-muted: var(--ssd-color-gray-400);
+  --pk-accent: var(--ssd-color-yellow-light-400);
+  --pk-accent-on: var(--ssd-color-gray-900);
+  --pk-accent-bg: var(--ssd-color-yellow-light-900);
+  --pk-surface: var(--ssd-color-gray-800);
   --fg-default: var(--pk-fg);
   --fg-muted: var(--pk-muted);
   --bg-default: var(--pk-bg);
@@ -41,7 +36,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-families-body), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--ssd-font-family-body), ui-sans-serif, system-ui, sans-serif;
   background: var(--bg-default);
   color: var(--fg-default);
 }
@@ -57,7 +52,7 @@ body {
 
 .pk-preview__brand {
   margin: 0 0 1.25rem;
-  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(2.25rem, 7vw, 3.5rem);
   font-weight: 700;
   line-height: 1;
@@ -71,7 +66,7 @@ body {
 
 .pk-preview__headline {
   margin: 0 0 0.75rem;
-  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(1.15rem, 2.5vw, 1.35rem);
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -128,7 +123,7 @@ body {
 
 .pk-preview__title {
   margin: 0 0 0.25rem;
-  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
   font-size: 1.875rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -168,7 +163,7 @@ body {
 .pk-preview__brand,
 .pk-preview__headline {
   color: var(--pk-fg) !important;
-  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
 }
 
 .pk-preview__body a,
@@ -185,7 +180,7 @@ h1,
 h2,
 h3 {
   color: var(--fg-default);
-  font-family: var(--font-families-heading), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
 }
 
 p,

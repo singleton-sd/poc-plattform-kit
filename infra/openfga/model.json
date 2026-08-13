@@ -48,153 +48,121 @@
       }
     },
     {
+      "type": "group",
+      "relations": {
+        "member": { "this": {} }
+      },
+      "metadata": {
+        "relations": {
+          "member": {
+            "directly_related_user_types": [{ "type": "user" }]
+          }
+        }
+      }
+    },
+    {
       "type": "tenant",
       "relations": {
+        "owner": { "this": {} },
         "admin": {
-          "this": {}
+          "union": {
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "owner" } }]
+          }
+        },
+        "editor": {
+          "union": {
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "admin" } }]
+          }
+        },
+        "viewer": {
+          "union": {
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "editor" } }]
+          }
         },
         "member": {
           "union": {
-            "child": [
-              {
-                "this": {}
-              },
-              {
-                "computedUserset": {
-                  "object": "",
-                  "relation": "admin"
-                }
-              }
-            ]
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "viewer" } }]
           }
         },
         "create": {
           "union": {
-            "child": [
-              {
-                "this": {}
-              },
-              {
-                "computedUserset": {
-                  "object": "",
-                  "relation": "admin"
-                }
-              }
-            ]
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "admin" } }]
           }
         },
         "update": {
           "union": {
-            "child": [
-              {
-                "this": {}
-              },
-              {
-                "computedUserset": {
-                  "object": "",
-                  "relation": "admin"
-                }
-              }
-            ]
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "editor" } }]
           }
         },
         "delete": {
           "union": {
-            "child": [
-              {
-                "this": {}
-              },
-              {
-                "computedUserset": {
-                  "object": "",
-                  "relation": "admin"
-                }
-              }
-            ]
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "owner" } }]
           }
         },
         "read": {
           "union": {
-            "child": [
-              {
-                "this": {}
-              },
-              {
-                "computedUserset": {
-                  "object": "",
-                  "relation": "member"
-                }
-              }
-            ]
+            "child": [{ "this": {} }, { "computedUserset": { "object": "", "relation": "viewer" } }]
           }
         }
       },
       "metadata": {
         "relations": {
+          "owner": {
+            "directly_related_user_types": [
+              { "type": "user" },
+              { "type": "group", "relation": "member" }
+            ]
+          },
           "admin": {
             "directly_related_user_types": [
-              {
-                "type": "user"
-              },
-              {
-                "type": "user",
-                "condition": "not_yet_expired"
-              }
+              { "type": "user" },
+              { "type": "group", "relation": "member" },
+              { "type": "user", "condition": "not_yet_expired" }
+            ]
+          },
+          "editor": {
+            "directly_related_user_types": [
+              { "type": "user" },
+              { "type": "group", "relation": "member" },
+              { "type": "user", "condition": "not_yet_expired" }
+            ]
+          },
+          "viewer": {
+            "directly_related_user_types": [
+              { "type": "user" },
+              { "type": "group", "relation": "member" },
+              { "type": "user", "condition": "not_yet_expired" }
             ]
           },
           "member": {
             "directly_related_user_types": [
-              {
-                "type": "user"
-              },
-              {
-                "type": "user",
-                "condition": "not_yet_expired"
-              }
+              { "type": "user" },
+              { "type": "group", "relation": "member" },
+              { "type": "user", "condition": "not_yet_expired" }
             ]
           },
           "create": {
             "directly_related_user_types": [
-              {
-                "type": "user"
-              },
-              {
-                "type": "user",
-                "condition": "not_yet_expired"
-              }
+              { "type": "user" },
+              { "type": "user", "condition": "not_yet_expired" }
             ]
           },
           "update": {
             "directly_related_user_types": [
-              {
-                "type": "user"
-              },
-              {
-                "type": "user",
-                "condition": "not_yet_expired"
-              }
+              { "type": "user" },
+              { "type": "user", "condition": "not_yet_expired" }
             ]
           },
           "delete": {
             "directly_related_user_types": [
-              {
-                "type": "user"
-              },
-              {
-                "type": "user",
-                "condition": "not_yet_expired"
-              }
+              { "type": "user" },
+              { "type": "user", "condition": "not_yet_expired" }
             ]
           },
           "read": {
             "directly_related_user_types": [
-              {
-                "type": "user"
-              },
-              {
-                "type": "user",
-                "condition": "not_yet_expired"
-              }
+              { "type": "user" },
+              { "type": "user", "condition": "not_yet_expired" }
             ]
           }
         }

@@ -11,16 +11,13 @@ wins — this file only adds configuration detail.
 
 ## Current status
 
-Creating and configuring a Projects v2 board requires a `project` OAuth/App
-scope that is broader than this repository's GitHub App/token grants, and the
-GitHub MCP server this session used exposes no Projects v2 tools (confirmed:
-no `gh` CLI in this session's environment, and no `projects`/`project_v2`
-tool in the connected GitHub MCP server's tool set). Everything else in this
-issue's scope — issue templates, the PR template, labels, and label-bootstrap
-automation — is configured and lives in this PR. **Standing up the Project
-board itself is the one remaining manual step**, and the exact commands below
-are what a human (or a future agent session with `gh` + the `project` scope)
-should run.
+The live organization Project is
+[Platform Kit Engineering](https://github.com/orgs/singleton-sd/projects/1).
+It is linked to this repository and has the fields, six views, and lifecycle
+statuses specified below. The built-in `Item added to project`, `Item closed`,
+`Pull request linked to issue`, and `Pull request merged` workflows are enabled.
+Issue #212 and its linked PR provide the final end-to-end evidence for the
+automatic `In Review` and `Done` transitions.
 
 ## Project fields
 
@@ -49,7 +46,7 @@ analogue worth tracking here.
 | **Roadmap** | no status filter | Projects v2 "Roadmap" layout (or a table grouped by Priority) — timeline visibility across the backlog |
 | **Done** | `Status = Done` | sorted by closed date, most recent first |
 
-## Manual setup (human, one-time)
+## Setup reference (one-time)
 
 Run with a `gh` CLI authenticated with the `project` scope
 (`gh auth refresh -s project`):
@@ -83,10 +80,8 @@ gh project field-create <project-number> --owner singleton-sd \
 gh project link <project-number> --owner singleton-sd --repo singleton-sd/poc-plattform-kit
 ```
 
-Then create the six views listed above in the Project UI — as of this
-writing `gh project` has no subcommand for creating saved views, so this step
-is UI-only (Project → `+` next to the view tabs → set filter/group per the
-table above).
+The six views listed above are present. GitHub's Projects API supports setting
+their names, layouts, and filters, but grouping and sorting remain UI-only.
 
 ## Built-in Project automation to enable (Project → Workflows tab)
 

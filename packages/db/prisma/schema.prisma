@@ -53,6 +53,41 @@ model TenantMembership {
   @@map("tenant_memberships")
 }
 
+/// Tenant-local authorization principal. Groups deliberately do not mirror
+/// Entra groups: their lifecycle and membership are owned by the tenant.
+model TenantGroup {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId, createdAt])
+  @@map("tenant_groups")
+}
+
+/// Local source of truth for a user's membership of a tenant group.
+/// `syncStatus` gates effective OpenFGA membership: pending/failed additions
+/// are denied until reconciliation has written the tuple successfully.
+model TenantGroupMembership {
+  id          String   @id @default(cuid())
+  tenantId    String
+  groupId     String
+  userId      String
+  syncStatus  String   @default("pending")
+  syncError   String?
+  syncedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([groupId, userId])
+  @@index([tenantId, userId])
+  @@index([syncStatus, updatedAt])
+  @@map("tenant_group_memberships")
+}
+
 /// Pending invitation for someone to join a tenant by email. Accept/decline
 /// handling lands in a follow-up ticket (86d3zetkn) and the send-the-email
 /// step lives in a Notifications ticket (86d3zetkq); this model only backs
