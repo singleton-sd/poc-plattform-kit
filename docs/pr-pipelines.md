@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
-| `preview-web.yml` | `apps/web/**`, `packages/**` | SWA **PR preview** (Free) via OIDC → Key Vault |
+| `preview-web.yml` | `apps/web/**`, `packages/**` (skips deploy when only generated api-client OpenAPI/Orval files change) | SWA **PR preview** (Free) via OIDC → Key Vault |
 | `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook visual regression; TurboSnap + explicit review via OIDC → Key Vault |
 | `playwright.yml` | `apps/web/**`, `packages/**` | Chromium public journeys against a local production-like static export; failure artifacts retained 7 days |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** (Free) via OIDC → Key Vault (`apps/marketing/dist`) |
@@ -59,6 +59,7 @@ Azure Static Web Apps **Free** includes PR preview environments.
 - App location: `apps/web/out` (Next.js static export; workflow builds first)
 - Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
 - After deploy: `scripts/entra-spa-preview-redirect.sh add` registers the preview origin as an Entra **SPA** redirect URI (MSAL). On PR `closed`, the same script removes it before closing the SWA environment. Requires Graph `Application.ReadWrite.OwnedBy` + ownership on the Entra app (see `docs/sso.md`); missing rights soft-fail.
+- Generated-only OpenAPI/Orval diffs under `packages/api-client/openapi.json` and `packages/api-client/src/generated/**` skip the web SWA build/deploy (job succeeds with a notice) so Free SKU staging slots are not burned — see `scripts/should-run-web-preview.mjs`.
 
 **Marketing**
 

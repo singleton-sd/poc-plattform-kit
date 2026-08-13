@@ -14,6 +14,8 @@ on:
       - '.github/workflows/preview-web.yml'
       - 'scripts/entra-spa-preview-redirect.sh'
       - 'scripts/entra-spa-preview-redirect.mjs'
+      - 'scripts/should-run-web-preview.mjs'
+      - 'scripts/should-run-web-preview.test.mjs'
 
 concurrency:
   group: preview-web-${{ github.event.pull_request.number || github.ref }}
@@ -26,6 +28,7 @@ jobs:
     name: Build + SWA preview
     outputs:
       preview_url: ${{ steps.deploy.outputs.static_web_app_url }}
+      should_run: ${{ steps.filter.outputs.should_run }}
     permissions:
       contents: read
       id-token: write
@@ -36,20 +39,61 @@ jobs:
           submodules: true
           lfs: false
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: List changed files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            fs.writeFileSync('changed-files.txt', files.map((f) => f.filename).join('\n'));
+
+      - name: Filter unit tests
+        run: node --test scripts/should-run-web-preview.test.mjs
+
+      - name: Decide whether to run SWA preview
+        id: filter
+        run: |
+          set -euo pipefail
+          should_run=$(node scripts/should-run-web-preview.mjs --changed-files=changed-files.txt)
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          if [ "$should_run" = "true" ]; then
+            echo "Web-preview-relevant non-generated changes detected — continuing SWA build/deploy."
+          else
+            echo "Only generated api-client OpenAPI/Orval files (or no web-preview paths) changed — skipping SWA build/deploy."
+          fi
+
+      - name: Skip notice (generated-only)
+        if: steps.filter.outputs.should_run != 'true'
+        run: |
+          echo "SWA preview skipped — changes are limited to packages/api-client/openapi.json and/or packages/api-client/src/generated/** (or no preview-web path matches). See scripts/should-run-web-preview.mjs."
+
       - uses: pnpm/action-setup@v4
+        if: steps.filter.outputs.should_run == 'true'
         with:
           version: 9.15.0
 
       - uses: actions/setup-node@v4
+        if: steps.filter.outputs.should_run == 'true'
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install
+        if: steps.filter.outputs.should_run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Check OIDC Variables
         id: oidc
+        if: steps.filter.outputs.should_run == 'true'
         run: |
           set -euo pipefail
           if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
@@ -60,7 +104,7 @@ jobs:
           fi
 
       - name: Azure login (OIDC)
-        if: steps.oidc.outputs.configured == 'true'
+        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -69,6 +113,7 @@ jobs:
 
       - name: Resolve preview API base URL
         id: api_url
+        if: steps.filter.outputs.should_run == 'true'
         env:
           FALLBACK_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
         run: |
@@ -93,6 +138,7 @@ jobs:
           fi
 
       - name: Build web
+        if: steps.filter.outputs.should_run == 'true'
         env:
           # Baked into the static export; SWA runtime cannot inject this later.
           # Resolved above: this PR's own ACA API preview when available (see
@@ -108,7 +154,7 @@ jobs:
         run: pnpm --filter @poc-plattform-kit/web... run build
 
       - name: Read SWA deploy token from Key Vault
-        if: steps.oidc.outputs.configured == 'true'
+        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
           token=$(az keyvault secret show \
@@ -120,7 +166,7 @@ jobs:
 
       - name: Deploy SWA preview
         id: deploy
-        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
+        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
         uses: Azure/static-web-apps-deploy@v1
         env:
           SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
@@ -133,7 +179,7 @@ jobs:
           skip_app_build: true
 
       - name: Add preview URL to PR body once
-        if: steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
+        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
         uses: actions/github-script@v7
         with:
           script: |
@@ -169,12 +215,12 @@ jobs:
             }
 
       - name: Skip notice (OIDC not configured)
-        if: steps.oidc.outputs.configured != 'true'
+        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured != 'true'
         run: |
           echo "SWA preview skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC IDs only; token stays in Key Vault)."
 
   register_entra_redirect:
-    if: github.event.action != 'closed' && needs.build_and_preview.result == 'success'
+    if: github.event.action != 'closed' && needs.build_and_preview.result == 'success' && needs.build_and_preview.outputs.should_run == 'true'
     needs: build_and_preview
     concurrency:
       group: entra-spa-preview-redirects
