@@ -5,9 +5,16 @@
  * poc-plattform-kit API
  */
 
+export * from './accessAdministrationControllerListParams';
+export * from './accessAdministrationResponseDto';
+export * from './accessAssignmentProvenanceDto';
+export * from './accessAssignmentProvenanceDtoSource';
+export * from './accessPermissionCatalogItemDto';
 export * from './accessRequestControllerListMineParams';
 export * from './accessRequestListResponseDto';
 export * from './accessRequestResponseDto';
+export * from './accessRoleCatalogItemDto';
+export * from './addTenantGroupMemberDto';
 export * from './approveAccessRequestDto';
 export * from './approveAccessRequestDtoGrantType';
 export * from './changelogChangeDto';
@@ -19,12 +26,19 @@ export * from './createAccessRequestDto';
 export * from './createAccessRequestDtoPreferredGrantType';
 export * from './createTenantDto';
 export * from './createTenantDtoSettings';
+export * from './createTenantGroupDto';
 export * from './createTenantInvitationDto';
 export * from './denyAccessRequestDto';
 export * from './healthResponseDto';
 export * from './meResponseDto';
 export * from './permissionsHealthResponseDto';
+export * from './tenantAccessUserDto';
 export * from './tenantControllerFindAllParams';
+export * from './tenantGroupMembershipResponseDto';
+export * from './tenantGroupMembershipResponseDtoSyncError';
+export * from './tenantGroupMembershipResponseDtoSyncStatus';
+export * from './tenantGroupResponseDto';
+export * from './tenantGroupResponseDtoDescription';
 export * from './tenantInvitationResponseDto';
 export * from './tenantInvitationResponseDtoStatus';
 export * from './tenantListResponseDto';
@@ -33,3 +47,4 @@ export * from './tenantResponseDto';
 export * from './tenantResponseDtoSettings';
 export * from './updateTenantDto';
 export * from './updateTenantDtoSettings';
+export * from './updateTenantGroupDto';

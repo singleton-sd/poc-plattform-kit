@@ -97,7 +97,11 @@ jobs:
         with:
           workingDir: apps/web
           onlyChanged: true
-          exitZeroOnChanges: false
+          # Succeed when the only outstanding work is visual review.
+          # Chromatic's UI Tests status stays pending until accept/deny.
+          # Do not set exitOnceUploaded: capture/interaction errors must
+          # still fail this job.
+          exitZeroOnChanges: true
           autoAcceptChanges: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
   fork_notice:
