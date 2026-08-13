@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -43,8 +42,21 @@ export class RoleAssignmentService {
     ifMatch?: string;
   }): Promise<RoleAssignmentCommandResult> {
     this.validateHeaders(input.idempotencyKey, input.ifMatch);
-    this.assertTenant(input.tenantId, input.actor);
     const roleId = this.role(input.roleId);
+    const command = {
+      tenantId: input.tenantId,
+      principalType: input.principalType,
+      principalId: input.principalId,
+      roleId,
+      assigned: input.assigned,
+      actorId: input.actor.id,
+      idempotencyKey: input.idempotencyKey!,
+      ifMatch: input.ifMatch!,
+      protectLastOwner: roleId === 'owner',
+    };
+    const replay = await this.commands.replayIfPresent(command);
+    if (replay) return replay;
+    this.assertTenant(input.tenantId, input.actor);
     const admin = await this.permissions.check({
       subject: `user:${input.actor.id}`,
       action: 'admin',
@@ -68,85 +80,8 @@ export class RoleAssignmentService {
         ) ||
         (await this.permissions.checkTenantRole(`user:${input.actor.id}`, 'owner', input.tenantId));
       if (!actorOwner) throw new ForbiddenException('Only an owner may change owner access');
-      if (!input.assigned) {
-        await this.assertOwnerRemains(
-          input.tenantId,
-          input.principalType,
-          input.principalId,
-          memberships,
-        );
-      }
     }
-
-    return this.commands.execute({
-      tenantId: input.tenantId,
-      principalType: input.principalType,
-      principalId: input.principalId,
-      roleId,
-      assigned: input.assigned,
-      actorId: input.actor.id,
-      idempotencyKey: input.idempotencyKey!,
-      ifMatch: input.ifMatch!,
-    });
-  }
-
-  private async assertOwnerRemains(
-    tenantId: string,
-    principalType: RolePrincipalType,
-    principalId: string,
-    memberships: Array<{ userId: string; role: string }>,
-  ): Promise<void> {
-    const humans = new Set(
-      memberships.filter((membership) => membership.role === 'owner').map((m) => m.userId),
-    );
-    const [assignments, projection] = await Promise.all([
-      this.commands.listAssignments(tenantId),
-      this.groups.listAccessProjection(tenantId),
-    ]);
-    for (const assignment of assignments.filter((item) => item.roleId === 'owner')) {
-      if (assignment.principalType === 'user') humans.add(assignment.principalId);
-      else {
-        projection.groups
-          .find((group) => group.groupId === assignment.principalId)
-          ?.userIds.forEach((id) => humans.add(id));
-      }
-    }
-    if (principalType === 'user') {
-      const hasOtherOwnerSource =
-        memberships.some(
-          (membership) => membership.userId === principalId && membership.role === 'owner',
-        ) ||
-        assignments.some(
-          (assignment) =>
-            assignment.roleId === 'owner' &&
-            assignment.principalType === 'group' &&
-            projection.groups
-              .find((group) => group.groupId === assignment.principalId)
-              ?.userIds.includes(principalId),
-        );
-      if (!hasOtherOwnerSource) humans.delete(principalId);
-    } else {
-      const removedUsers =
-        projection.groups.find((group) => group.groupId === principalId)?.userIds ?? [];
-      for (const userId of removedUsers) {
-        const hasOtherOwnerSource =
-          memberships.some((m) => m.userId === userId && m.role === 'owner') ||
-          assignments.some(
-            (a) => a.roleId === 'owner' && a.principalType === 'user' && a.principalId === userId,
-          ) ||
-          assignments.some(
-            (a) =>
-              a.roleId === 'owner' &&
-              a.principalType === 'group' &&
-              a.principalId !== principalId &&
-              projection.groups
-                .find((group) => group.groupId === a.principalId)
-                ?.userIds.includes(userId),
-          );
-        if (!hasOtherOwnerSource) humans.delete(userId);
-      }
-    }
-    if (humans.size === 0) throw new ConflictException('A tenant must retain an owner');
+    return this.commands.execute(command);
   }
 
   private assertTenant(tenantId: string, actor: AuthenticatedUser): void {

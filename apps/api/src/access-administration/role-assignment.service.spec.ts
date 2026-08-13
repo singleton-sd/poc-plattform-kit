@@ -13,6 +13,7 @@ describe('RoleAssignmentService', () => {
   const commands = {
     execute: jest.fn(),
     listAssignments: jest.fn(),
+    replayIfPresent: jest.fn(),
   };
   const permissions = {
     check: jest.fn(),
@@ -42,6 +43,7 @@ describe('RoleAssignmentService', () => {
       changed: true,
       assigned: true,
     });
+    commands.replayIfPresent.mockResolvedValue(undefined);
   });
 
   it('requires bounded idempotency and concurrency headers', async () => {
@@ -112,5 +114,47 @@ describe('RoleAssignmentService', () => {
         actorId: 'admin-1',
       }),
     );
+  });
+
+  it('returns a matching replay before authorization and principal gates', async () => {
+    const replay = { consistencyVersion: 'roles:1', changed: true, assigned: true };
+    commands.replayIfPresent.mockResolvedValue(replay);
+    permissions.check.mockResolvedValue({ allowed: false });
+    tenants.listMemberships.mockResolvedValue([]);
+
+    await expect(
+      service.execute({
+        tenantId: 'tenant-1',
+        principalType: 'user',
+        principalId: 'gone',
+        roleId: 'editor',
+        assigned: true,
+        actor,
+        idempotencyKey: 'command-1234',
+        ifMatch: 'roles:0',
+      }),
+    ).resolves.toEqual(replay);
+    expect(permissions.check).not.toHaveBeenCalled();
+    expect(tenants.listMemberships).not.toHaveBeenCalled();
+  });
+
+  it('forbids an admin who is not an owner from changing owner access', async () => {
+    tenants.listMemberships.mockResolvedValue([
+      { tenantId: 'tenant-1', userId: 'user-1', role: 'member' },
+    ]);
+    permissions.checkTenantRole.mockResolvedValue(false);
+    await expect(
+      service.execute({
+        tenantId: 'tenant-1',
+        principalType: 'user',
+        principalId: 'user-1',
+        roleId: 'owner',
+        assigned: true,
+        actor,
+        idempotencyKey: 'command-1234',
+        ifMatch: 'roles:0',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(commands.execute).not.toHaveBeenCalled();
   });
 });

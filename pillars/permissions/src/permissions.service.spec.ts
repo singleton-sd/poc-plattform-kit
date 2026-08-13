@@ -435,4 +435,15 @@ describe('PermissionsService', () => {
       }),
     ).resolves.toEqual({ granted: false, grantType: PermissionGrantType.Permanent });
   });
+
+  it('treats an already-applied tenant role write as idempotent success', async () => {
+    configureOpenFga();
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false, status: 400 })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ allowed: true }) });
+
+    await expect(
+      new PermissionsService().setTenantRole('user:alice', 'editor', 'one', true),
+    ).resolves.toBe(true);
+  });
 });

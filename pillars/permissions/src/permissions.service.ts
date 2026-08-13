@@ -147,7 +147,11 @@ export class PermissionsService {
     if (!this.isConfigured()) return false;
     const tuple = { user: subject, relation: roleId, object: `tenant:${tenantId}` };
     try {
-      return await this.openFgaWrite(assigned ? { writes: [tuple] } : { deletes: [tuple] });
+      const written = await this.openFgaWrite(
+        assigned ? { writes: [tuple] } : { deletes: [tuple] },
+      );
+      if (written) return true;
+      return (await this.openFgaCheck(subject, roleId, `tenant:${tenantId}`)) === assigned;
     } catch {
       return false;
     }

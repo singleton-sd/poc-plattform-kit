@@ -1,4 +1,5 @@
-import { Controller, Delete, Get, Headers, Param, Put, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Put, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -62,8 +63,7 @@ export class AccessAdministrationController {
     @Param('userId') userId: string,
     @Param('roleId') roleId: string,
     @CurrentUser() actor: AuthenticatedUser,
-    @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('if-match') ifMatch?: string,
+    @Req() request: Request,
   ) {
     return this.roleAssignments.execute({
       tenantId,
@@ -72,8 +72,8 @@ export class AccessAdministrationController {
       roleId,
       assigned: true,
       actor,
-      idempotencyKey,
-      ifMatch,
+      idempotencyKey: request.header('idempotency-key'),
+      ifMatch: request.header('if-match'),
     });
   }
 
@@ -85,8 +85,7 @@ export class AccessAdministrationController {
     @Param('userId') userId: string,
     @Param('roleId') roleId: string,
     @CurrentUser() actor: AuthenticatedUser,
-    @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('if-match') ifMatch?: string,
+    @Req() request: Request,
   ) {
     return this.roleAssignments.execute({
       tenantId,
@@ -95,8 +94,8 @@ export class AccessAdministrationController {
       roleId,
       assigned: false,
       actor,
-      idempotencyKey,
-      ifMatch,
+      idempotencyKey: request.header('idempotency-key'),
+      ifMatch: request.header('if-match'),
     });
   }
 
@@ -108,8 +107,7 @@ export class AccessAdministrationController {
     @Param('groupId') groupId: string,
     @Param('roleId') roleId: string,
     @CurrentUser() actor: AuthenticatedUser,
-    @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('if-match') ifMatch?: string,
+    @Req() request: Request,
   ) {
     return this.roleAssignments.execute({
       tenantId,
@@ -118,8 +116,8 @@ export class AccessAdministrationController {
       roleId,
       assigned: true,
       actor,
-      idempotencyKey,
-      ifMatch,
+      idempotencyKey: request.header('idempotency-key'),
+      ifMatch: request.header('if-match'),
     });
   }
 
@@ -131,8 +129,7 @@ export class AccessAdministrationController {
     @Param('groupId') groupId: string,
     @Param('roleId') roleId: string,
     @CurrentUser() actor: AuthenticatedUser,
-    @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('if-match') ifMatch?: string,
+    @Req() request: Request,
   ) {
     return this.roleAssignments.execute({
       tenantId,
@@ -141,8 +138,8 @@ export class AccessAdministrationController {
       roleId,
       assigned: false,
       actor,
-      idempotencyKey,
-      ifMatch,
+      idempotencyKey: request.header('idempotency-key'),
+      ifMatch: request.header('if-match'),
     });
   }
 }

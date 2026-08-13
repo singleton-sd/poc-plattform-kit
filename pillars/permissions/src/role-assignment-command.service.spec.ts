@@ -106,4 +106,14 @@ describe('RoleAssignmentCommandService', () => {
       data: { syncStatus: 'synced', syncError: null, syncedAt: expect.any(Date) },
     });
   });
+
+  it('maps exhausted serialization conflicts to 412', async () => {
+    const prisma = {
+      permissionsRoleCommand: { findUnique: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn().mockRejectedValue({ code: 'P2034' }),
+    };
+    const service = new RoleAssignmentCommandService(prisma as never, {} as never);
+    await expect(service.execute(command)).rejects.toMatchObject({ status: 412 });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+  });
 });
