@@ -50,6 +50,40 @@ one screenshot. Assert user-visible copy and actions with `play` functions.
 - Keep toast / animation durations long enough for Chromatic, or pause them in
   story parameters when motion would flake.
 
+## Auth story convention
+
+Auth-dependent stories must stay offline: no live Entra, `/api/me`, or production
+API. Reuse the existing MSW session handlers instead of inventing a second mock.
+
+| Piece | Path |
+| --- | --- |
+| Session fixtures (`Me` users, `createMeFixture`) | [`apps/web/src/testing/fixtures/auth.ts`](../apps/web/src/testing/fixtures/auth.ts) |
+| MSW `GET */api/me` handlers | [`apps/web/src/testing/handlers/auth.ts`](../apps/web/src/testing/handlers/auth.ts) |
+
+Wire handlers the same way as tenants: `parameters: { msw: { handlers: { auth: meSignedOutHandlers } } }`.
+
+Available handlers: `meSignedOutHandlers` (401), `meLoadingHandlers` (`delay('infinite')`),
+`meErrorHandlers` (network error → React Query `isError`), `meSignedInHandlers` (no
+roles), `meSupportAgentHandlers`, `meTenantAdminHandlers`, `meMultipleRolesHandlers`.
+
+Title pattern: `Features/Auth/<Screen>` for the login/guard matrix
+(`Features/Auth/Login & Session`, `Features/Auth/AuthenticationGuard`). Route
+auth matrices live next to the feature (`Features/Support/Support page auth`,
+`Features/Tenant Settings/Tenant page auth`).
+
+Keep **authentication** (session) and **authorization** (roles) as separate
+stories. Signed-out must show `LoginPanel` on the current route; signed-in
+without a required role must show Access restricted, never the login overlay.
+
+Do **not** snapshot LoginPanel signing-in / sign-in-error from a click: those
+are ephemeral local React state. Cover them in Jest (`login-panel.test.tsx`)
+unless the component gains story-only props for a deterministic pending/error
+surface. Extra Chromatic viewports are N/A unless the login/guard layout
+materially differs from the global 1280 px default.
+
+Decorators in `.storybook/decorators.tsx` omit Entra bootstrap on purpose.
+Data-backed stories must supply their own handlers.
+
 ## Interaction and accessibility
 
 - Use `play` + `expect` for validation messages, dialogs, empty recovery, and
