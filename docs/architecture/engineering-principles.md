@@ -21,15 +21,15 @@ Every domain mutation that other pillars might need to react to writes its
 entity, a local `{Pillar}Audit` row, and (when something else must be
 notified) a local `{Pillar}Outbox` row in one database transaction. Never a
 separate, unguarded write for the audit/outbox half. See
-[`docs/db-practices.md`](../db-practices.md) § Audit columns / Outbox.
+[`docs/db-practices.md`](../db-practices.md)'s "Audit columns / Outbox" section.
 
 ## Migrations are forward-only and additive
 
 Prisma migrations are the only schema history; no destructive rename/drop
 without an expand → backfill → contract sequence across multiple releases.
 New columns are nullable or defaulted so old and new code can coexist
-during a rollout. See [`docs/db-practices.md`](../db-practices.md) §
-Additive evolution / Expand-contract.
+during a rollout. See [`docs/db-practices.md`](../db-practices.md)'s
+"Additive evolution / Expand-contract" section.
 
 ## Secrets live in Key Vault only
 
@@ -38,8 +38,8 @@ Azure Key Vault (`ssd-pocpk-kv-dev-ae`) and are referenced — never inlined —
 from Azure App Configuration or GitHub Actions. GitHub Actions authenticates
 via OIDC (repository **Variables**, not **Secrets**) and fetches secrets at
 job runtime. Never commit a secret value, and never paste one into ClickUp,
-a PR, or a commit. See `AGENTS.md` § Secrets + configuration and
-`infra/README.md` § Secrets & config surfaces.
+a PR, or a commit. See `AGENTS.md`'s "Secrets + configuration and" section
+`infra/README.md`'s "Secrets & config surfaces" section.
 
 ## Cheapest working SKU, CAF naming for anything new
 
@@ -49,7 +49,7 @@ HTTPS + always-on need it, SWA Free, Container Apps Consumption for
 anything that can scale to zero). New Azure resources follow CAF naming
 (`ssd-pocpk-{resource}-dev-ae`); existing pre-CAF resource names are kept as
 legacy aliases rather than renamed (renaming several of them would recreate
-the resource). See `infra/README.md` § Locked constraints.
+the resource). See `infra/README.md`'s "Locked constraints" section.
 
 ## Fine-grained authorization is centralized, not reimplemented per pillar
 
@@ -66,7 +66,7 @@ pricing/commercial terms, and sensitive roadmap never go into a GitHub
 issue, PR, commit, or repository doc — that content stays in ClickUp, in
 generic-enough language on the GitHub side to describe the engineering work
 without it. See
-[`docs/github-source-of-truth.md`](../github-source-of-truth.md) §7 for the
+[`docs/github-source-of-truth.md`](../github-source-of-truth.md) section 7 for the
 exact boundary and examples.
 
 ## Tests come first for behavior changes, and preview scenarios complement them

@@ -5,7 +5,7 @@ architecture — what the system is made of, how the pieces talk to each
 other, and where to go for the detail on any one piece. It exists so an
 implementation agent (or a new engineer) can get oriented without opening
 ClickUp; per
-[`docs/github-source-of-truth.md`](../github-source-of-truth.md) §1,
+[`docs/github-source-of-truth.md`](../github-source-of-truth.md) section 1,
 repository documentation, not ClickUp, is now the authoritative store for
 this kind of technical knowledge. For the full list of what else exists
 under `docs/**`, see [`docs/README.md`](../README.md).
@@ -61,12 +61,12 @@ changes as feature work lands.
 
 - Every tenant-scoped table carries a `tenantId`; repositories always filter
   by the authenticated tenant, never trust a client-supplied value alone —
-  see [`docs/db-practices.md`](../db-practices.md) § Multi-tenancy.
+  see [`docs/db-practices.md`](../db-practices.md)'s "Multi-tenancy" section.
 - The tenant id for a request is resolved from, in order: an optional
   `tenant_id` claim on the Auth.js session / Entra JWT, then a legacy/dev
   `x-tenant-id` header when that claim is absent. A verified JWT claim
   always overrides a client-forged header once authentication has run. See
-  [`docs/sso.md`](../sso.md) § Tenancy and `pillars/tenant/README.md`.
+  [`docs/sso.md`](../sso.md)'s "Tenancy" section and `pillars/tenant/README.md`.
 - Entra's own directory tenant id (`tid`) is a different concept from this
   platform's `Tenant.id` — never conflate the two.
 - Tenant membership/roles (`TenantMembership`) are identity/membership

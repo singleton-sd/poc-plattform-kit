@@ -62,7 +62,7 @@ replacement for it. Permission denials may optionally emit an Audit event.
 - OpenFGA becomes a runtime dependency for any protected request path; the
   PoC datastore is SQLite on ACA `EmptyDir` with a single replica (Azure
   Files SMB cannot reliably host SQLite's locking model at OpenFGA's
-  latency budget) — see `infra/README.md` § Permissions / OpenFGA for the
+  latency budget) — see `infra/README.md`'s "Permissions / OpenFGA for the" section
   exact constraint and the reserved Azure Files share for a future
   backup/Postgres follow-up.
 - Ephemeral PR API preview identities are intentionally **not** granted
@@ -74,9 +74,9 @@ replacement for it. Permission denials may optionally emit an Audit event.
 
 ## References
 
-- `AGENTS.md` § Architecture (AuthZ line)
+- `AGENTS.md`'s "Architecture" section (AuthZ line)
 - [`docs/permissions.md`](../permissions.md) (manifest workflow, checklist)
-- `infra/README.md` § Permissions / OpenFGA (locked) (datastore, AuthN,
+- `infra/README.md`'s "Permissions / OpenFGA" section (locked) (datastore, AuthN,
   model, bootstrap)
 - `infra/openfga/model.fga` (authorization model)
 - `pillars/permissions/README.md`

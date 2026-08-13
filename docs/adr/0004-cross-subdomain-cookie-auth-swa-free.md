@@ -82,5 +82,5 @@ downgrade of the production path.
 
 - [`docs/sso.md`](../sso.md) (full runtime contract, Option B, CORS,
   redirect URIs, follow-ups)
-- `AGENTS.md` § Architecture (AuthN line)
+- `AGENTS.md`'s "Architecture" section (AuthN line)
 - `infra/README.md` (Key Vault / App Config `app:auth:*` keys)

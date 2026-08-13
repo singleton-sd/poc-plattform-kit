@@ -3,7 +3,7 @@
 Repository documentation is the authoritative source for engineering
 technical knowledge — architecture, conventions, runbooks, pipelines. Not
 ClickUp. See [`docs/github-source-of-truth.md`](./github-source-of-truth.md)
-§1 for the exact system-ownership boundary this follows, and §7 for what
+section 1 for the exact system-ownership boundary this follows, and section 7 for what
 must never appear here (secrets, customer-private data, pricing, contracts,
 commercial roadmap — that stays in ClickUp).
 

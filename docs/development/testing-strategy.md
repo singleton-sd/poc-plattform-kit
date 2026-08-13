@@ -5,7 +5,7 @@ agent can pick the right layer instead of reaching for the one it happens to
 know. Each layer already has its own detailed doc for exact commands/setup —
 this page is the index and the "why this layer, not that one" reasoning.
 TDD is the default workflow, not one option among several: write a failing
-test before changing behavior (`AGENTS.md` § TDD / quality).
+test before changing behavior (`AGENTS.md`'s "TDD / quality" section).
 
 ## The layers
 
@@ -13,7 +13,7 @@ test before changing behavior (`AGENTS.md` § TDD / quality).
 | --- | --- | --- | --- |
 | Unit / component logic | Jest | A function/class/module behaves correctly in isolation | (per-package `*.spec.ts` / `*.test.ts`; no dedicated doc yet — see `apps/api` for the current reference implementation) |
 | Schema / migration validation | `prisma validate` | The Prisma schema is internally consistent | `packages/db` scripts (invoked by `pnpm test` / `pnpm build`) |
-| DB scenario integration | `packages/db` scenario tests | A named preview scenario actually seeds and verifies against a real (temporary) SQLite database | [`docs/preview-scenarios.md`](../preview-scenarios.md) § Testing |
+| DB scenario integration | `packages/db` scenario tests | A named preview scenario actually seeds and verifies against a real (temporary) SQLite database | [`docs/preview-scenarios.md`](../preview-scenarios.md)'s "Testing" section |
 | Component visual states | Storybook + Chromatic | A component renders correctly across its meaningful states, and hasn't regressed visually | [`docs/storybook.md`](../storybook.md), [`docs/chromatic.md`](../chromatic.md) |
 | Full-application browser journeys | Playwright | A small set of real end-to-end journeys work in a real browser | [`docs/playwright.md`](../playwright.md) |
 | Deployed-preview acceptance | Seeded PR preview (SQLite) | A reviewer (human or bot) can exercise a real deployed instance of the change | [`docs/preview-scenarios.md`](../preview-scenarios.md), [`docs/pr-pipelines.md`](../pr-pipelines.md) |
@@ -21,7 +21,7 @@ test before changing behavior (`AGENTS.md` § TDD / quality).
 None of these layers substitutes for another. In particular: a preview
 scenario demonstrates a state to a reviewer — it is a delivery/review aid,
 never a replacement for a unit, integration, contract, or regression test
-covering the same behavior (see `AGENTS.md` § Preview scenario delivery
+covering the same behavior (see `AGENTS.md`'s "Preview scenario delivery" section
 standard).
 
 ## Picking a layer
@@ -40,12 +40,12 @@ standard).
 - **Changing a UI component's visual states** → a Storybook story per
   meaningful state (including empty/error states for API-driven screens)
   and let Chromatic catch visual regressions — see
-  [`docs/storybook.md`](../storybook.md) § Definition of Done.
+  [`docs/storybook.md`](../storybook.md)'s "Definition of Done" section.
 - **Changing a cross-page or cross-feature user flow** → only if it's
   within Playwright's deliberately small initial scope (signed-out
   boot/navigation journeys today) does it belong there; most flows are
   covered at the unit + Storybook + preview-scenario layers instead. See
-  [`docs/playwright.md`](../playwright.md) § Initial scope before adding a
+  [`docs/playwright.md`](../playwright.md)'s "Initial scope before adding a" section
   new Playwright journey — it is intentionally not the default place to add
   coverage.
 - **A data-dependent bug fix** → add a minimal `bug/<ticket-id>/<scenario>`

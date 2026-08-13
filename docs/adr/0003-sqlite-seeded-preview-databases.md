@@ -67,7 +67,7 @@ mechanism (schema transform, scenario registry, seeding, verification).
 ## References
 
 - [`docs/preview-scenarios.md`](../preview-scenarios.md) (full mechanism)
-- `AGENTS.md` § Preview scenario delivery standard (the PR requirement)
+- `AGENTS.md`'s "Preview scenario delivery standard" section (the PR requirement)
 - `apps/api/Dockerfile`, `apps/api/docker-entrypoint.sh` (preview-only image
   build and runtime template copy)
-- `docs/pr-pipelines.md` § "Workflow behaviour (`preview-api.yml`)"
+- `docs/pr-pipelines.md`'s "Workflow behaviour (`preview-api.yml`)" section

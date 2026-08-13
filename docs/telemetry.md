@@ -1,7 +1,7 @@
 # Telemetry / Observability
 
 This file is the authoritative technical reference for telemetry/observability
-(see [`docs/github-source-of-truth.md`](./github-source-of-truth.md) §1 —
+(see [`docs/github-source-of-truth.md`](./github-source-of-truth.md) section 1 —
 repository documentation, not ClickUp, owns engineering technical knowledge).
 Update this file directly; do not require ClickUp access to understand or
 change telemetry behavior. The historical ClickUp Architecture Doc page this

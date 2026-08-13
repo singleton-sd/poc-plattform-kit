@@ -73,9 +73,9 @@ join.
 
 ## References
 
-- `AGENTS.md` § Architecture (pillar list, messaging/mutation rules)
+- `AGENTS.md`'s "Architecture" section (pillar list, messaging/mutation rules)
 - [`docs/db-practices.md`](../db-practices.md) (ownership boundaries, outbox
   pattern, cross-pillar data rules)
 - [`docs/architecture/overview.md`](../architecture/overview.md) (pillar map
   and current Service Bus topic/queue list)
-- `infra/README.md` § Service Bus topics/queues
+- `infra/README.md`'s "Service Bus topics/queues" section
