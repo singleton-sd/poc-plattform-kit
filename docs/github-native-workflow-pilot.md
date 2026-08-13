@@ -71,7 +71,8 @@ all of the following are true:
 - The repository's live GitHub Project status transitions are verified. The
   configuration is specified in [`github-project.md`](./github-project.md),
   but PR #181 recorded that creating/configuring the live Project required
-  permissions unavailable to its implementation session.
+  permissions unavailable to its implementation session. Issue #212 tracks
+  that blocking setup and verification work.
 
 Until these gates pass, #177 remains blocked. This is intentional: an open PR
 is evidence that claiming and review work, but it is not evidence that merge,
