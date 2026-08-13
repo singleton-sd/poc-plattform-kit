@@ -11,9 +11,17 @@
     }
   },
   "scripts": {
+    "prebuild": "pnpm --filter @poc-plattform-kit/db run build",
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"lint:pillar-single-sign-on stub\"",
+    "pretest": "pnpm --filter @poc-plattform-kit/db run build",
     "test": "jest"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.15",
+    "@poc-plattform-kit/db": "workspace:*",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -32,6 +40,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^@poc-plattform-kit/db$": "<rootDir>/../../../packages/db/src/index.ts"
     },
     "testEnvironment": "node"
   }
