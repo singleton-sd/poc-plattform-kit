@@ -1,6 +1,7 @@
 import { PATH_METADATA } from '@nestjs/common/constants';
+import { Test } from '@nestjs/testing';
 import { AccessAdministrationController } from './access-administration.controller';
-import type { AccessAdministrationService } from './access-administration.service';
+import { AccessAdministrationService } from './access-administration.service';
 
 describe('AccessAdministrationController', () => {
   it('uses the tenant-scoped access administration route', () => {
@@ -18,10 +19,16 @@ describe('AccessAdministrationController', () => {
       users: [],
       nextCursor: null,
     };
-    const accessAdministration = { list: jest.fn().mockResolvedValue(result) };
-    const controller = new AccessAdministrationController(
-      accessAdministration as unknown as AccessAdministrationService,
-    );
+    const list = jest.fn<
+      ReturnType<AccessAdministrationService['list']>,
+      Parameters<AccessAdministrationService['list']>
+    >();
+    list.mockResolvedValue(result);
+    const module = await Test.createTestingModule({
+      controllers: [AccessAdministrationController],
+      providers: [{ provide: AccessAdministrationService, useValue: { list } }],
+    }).compile();
+    const controller = module.get(AccessAdministrationController);
     const actor = {
       id: 'admin-1',
       entraOid: 'oid-1',
@@ -32,6 +39,6 @@ describe('AccessAdministrationController', () => {
     };
 
     await expect(controller.list('tenant-1', actor, { limit: 10 })).resolves.toBe(result);
-    expect(accessAdministration.list).toHaveBeenCalledWith('tenant-1', actor, { limit: 10 });
+    expect(list).toHaveBeenCalledWith('tenant-1', actor, { limit: 10 });
   });
 });
