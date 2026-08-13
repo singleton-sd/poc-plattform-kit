@@ -12,8 +12,14 @@ Done live in [`docs/storybook.md`](./storybook.md).
 - TurboSnap (`onlyChanged`) limits captures to affected stories. The global
   Storybook configuration uses one 1280 px Chromium viewport; add another
   viewport to a specific story only when its behavior requires it.
-- Feature branches never auto-accept visual changes. A visual difference keeps
-  the check actionable until a reviewer accepts or rejects it in Chromatic.
+- Feature branches never auto-accept visual changes. Chromatic's **UI Tests**
+  GitHub status stays pending until a reviewer accepts or rejects diffs. That
+  status is the visual-review gate; it is not a false success while pending.
+- The Actions job `Chromatic visual tests` reports publish and capture health
+  (`exitZeroOnChanges: true`). It succeeds when the only outstanding work is
+  visual review, and fails on OIDC, token, Storybook build, capture, or
+  interaction errors. Do not set `exitOnceUploaded`; that would hide capture
+  failures from the Actions job.
 - A successful `main` build is auto-accepted and becomes the comparison baseline
   for later pull requests. Humans still merge; agents never approve or merge.
 - Fork pull requests do not receive Azure OIDC credentials or the Chromatic
@@ -23,10 +29,9 @@ Done live in [`docs/storybook.md`](./storybook.md).
   with an actionable error. A skipped or unavailable external visual run must
   not be described as a successful regression test.
 
-Build or interaction failures are reported by the Chromatic action. Expected
-visual differences are reviewed at the build URL attached to its pull-request
-check; `exitZeroOnChanges` remains disabled so an unreviewed change is not a
-false success.
+Expected visual differences are reviewed at the Chromatic build URL on the
+**UI Tests** check. The Actions job staying green while that check is pending
+is expected.
 
 ## One-time bootstrap
 

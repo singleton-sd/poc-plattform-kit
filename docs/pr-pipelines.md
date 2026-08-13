@@ -7,7 +7,7 @@
 | `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` (skips deploy when only generated api-client OpenAPI/Orval files change) | SWA **PR preview** (Free) via OIDC → Key Vault |
-| `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook visual regression; TurboSnap + explicit review via OIDC → Key Vault |
+| `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook publish/capture (Actions); visual review is Chromatic **UI Tests** (pending until accept) via OIDC → Key Vault |
 | `playwright.yml` | `apps/web/**`, `packages/**` | Chromium public journeys against a local production-like static export; failure artifacts retained 7 days |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** (Free) via OIDC → Key Vault (`apps/marketing/dist`) |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
@@ -210,7 +210,7 @@ Hygiene workflows set **labels only**. They do not post “bounce to READY FOR A
 | `needs-rebase` | Merge conflicts with base (`mergeable_state=dirty`) | Mergeability is known and not `dirty` (never cleared while `unknown`) | `git merge origin/main` → `pnpm resolve:conflicts` → hand-fix leftovers → push → re-check CI → ClickUp **READY FOR AI** |
 | `ci-failed` | Required CI job failed (`Lint / test / build (api)` or `Lint / format / build (web)`) | Those jobs are no longer `FAILURE` | Fix the required CI cause and push |
 | `has-feedback` | Bugbot, Copilot, or human (non-author) comment | PR `synchronize` when no unresolved threads remain | Fetch issue + review comments; address with a threaded reply |
-| `preview-blocked` | SWA / ACA / Chromatic infra failed | Those infra jobs are no longer `FAILURE` | Document on the brief. Do **not** bounce ClickUp. Chromatic visual-accept is human-only. |
+| `preview-blocked` | SWA / ACA / Chromatic **infra** failed (OIDC, token, Storybook build, capture/interaction errors) | Those infra jobs are no longer `FAILURE` | Document on the brief. Do **not** bounce ClickUp. Pending Chromatic **UI Tests** (unreviewed visual diffs) is not infra and must not set this label. Visual-accept is human-only. |
 
 ```bash
 gh pr list --label needs-rebase
