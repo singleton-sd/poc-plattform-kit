@@ -63,6 +63,59 @@ export class PermissionsService {
     }
   }
 
+  /** Synchronize the local Tenant group's user membership into OpenFGA. */
+  async addTenantGroupMember(groupId: string, userId: string): Promise<boolean> {
+    if (!this.isConfigured()) {
+      return false;
+    }
+    try {
+      return await this.openFgaWrite({
+        writes: [
+          {
+            user: `user:${userId}`,
+            relation: 'member',
+            object: `group:${groupId}`,
+          },
+        ],
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  /** Remove the OpenFGA tuple before local membership is deleted (fail closed). */
+  async removeTenantGroupMember(groupId: string, userId: string): Promise<boolean> {
+    if (!this.isConfigured()) {
+      return false;
+    }
+    try {
+      return await this.openFgaWrite({
+        deletes: [
+          {
+            user: `user:${userId}`,
+            relation: 'member',
+            object: `group:${groupId}`,
+          },
+        ],
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Conservative last-owner safeguard for group lifecycle changes. A group
+   * holding owner must have that role revoked through the role command first.
+   */
+  async isTenantGroupOwner(tenantId: string, groupId: string): Promise<boolean> {
+    if (!this.isConfigured()) return true;
+    try {
+      return await this.openFgaCheck(`group:${groupId}#member`, 'owner', `tenant:${tenantId}`);
+    } catch {
+      return true;
+    }
+  }
+
   async grant(request: GrantPermissionDto): Promise<GrantPermissionResponseDto> {
     if (!this.isConfigured()) {
       return { granted: false, grantType: request.grantType };
@@ -207,7 +260,7 @@ export class PermissionsService {
       }),
     });
     if (!response.ok) {
-      return false;
+      throw new Error(`OpenFGA check failed with status ${response.status}`);
     }
     const decision = (await response.json()) as { allowed?: unknown };
     return decision.allowed === true;
