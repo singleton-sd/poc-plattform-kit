@@ -1,16 +1,24 @@
-# ClickUp sources of truth
+# Engineering sources of truth
 
-Workspace: `90161394355` (space PoC). Do not invent a new Platform Kit space/list.
+Repo mirror: `AGENTS.md` § GitHub-native engineering workflow;
+`docs/github-source-of-truth.md` is the authoritative policy.
 
-Repo mirror: `AGENTS.md` § ClickUp (locked).
+## Issues and PRs
 
-## Tickets
+- Work unit: GitHub Issue (`#N`) in this repo. Do not flag a PR for lacking a
+  ClickUp ticket reference.
+- Branch / PR naming (primary): `<type>/<issue-number>-<kebab-title>` (e.g.
+  `feat/184-support-ticket-api`). Legacy ClickUp-tracked tickets still use
+  `feature/<clickup-task-id>-<kebab-title>` / `hotfix/<clickup-task-id>-...` —
+  do not flag either form as wrong on its own.
+- Every PR body links its issue with a closing keyword (`Closes #N`); legacy
+  ClickUp-tracked PRs instead carry a ClickUp Preview URL / comment.
+- Humans merge; agents never merge.
 
-- Ops list (only): https://app.clickup.com/90161394355/v/li/901616287298
-  (`list_id=901616287298`)
-- Branch / PR naming: `feature/<clickup-task-id>-<kebab-title>`
-- Status flow: TO DO → IN PROGRESS / READY FOR AI → READY FOR REVIEW → READY FOR HUMAN → COMPLETE
-- Humans merge; agents never merge
+Workspace `90161394355` (space PoC) remains the ClickUp workspace for
+business/commercial planning and for legacy ClickUp-tracked tickets only —
+see `AGENTS.md` § Legacy ClickUp workflow. Do not invent a new Platform Kit
+space/list there.
 
 ## Documents
 
@@ -41,6 +49,6 @@ Flag violations of locked architecture (`AGENTS.md`):
 ## Review expectations
 
 - Prefer acceptance criteria and Architecture Doc over inventing product requirements
-- Flag PRs that contradict locked ClickUp architecture/decisions or ticket AC
+- Flag PRs that contradict locked architecture/decisions (`AGENTS.md`, `docs/github-source-of-truth.md`) or the linked issue's acceptance criteria
 - Never request secrets in comments; secrets live in Azure Key Vault only
 - Agent Skills (`.cursor/skills/`, synced via `pnpm sync:skills`) are for Cursor Agent only — do not treat them as Bugbot configuration

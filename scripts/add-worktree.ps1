@@ -1,18 +1,23 @@
-# Create a ticket worktree beside the clone (Example A parent workspace).
+# Create an issue worktree beside the clone (Example A parent workspace).
 #
 # Layout (open the parent folder in Cursor, not the clone):
 #   <parent>/repo/                          git clone, stays on main
 #   <parent>/worktrees/<id>-<slug>/         this script
 #
-# Usage:
+# GitHub-native usage (default — see AGENTS.md § GitHub-native engineering workflow):
+#   powershell -File scripts/add-worktree.ps1 -Issue 174 -Type docs -Slug github-native-orchestration
+#   pnpm worktree:add -- -Issue 211 -Type fix -Slug login-redirect
+#
+# Legacy ClickUp-tracked ticket usage (kept until docs/github-source-of-truth.md §8-9 migration
+# issues land):
 #   powershell -File scripts/add-worktree.ps1 -TaskId 86d3zc5af -Slug permission-gating
-#   pnpm worktree:add -- -TaskId 86d3zc5af -Slug permission-gating
 #   pnpm worktree:add -- -TaskId 86d3zc5af -Slug permission-gating -Hotfix -SkipBootstrap
 
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory = $true)]
+  [string]$Issue,
   [string]$TaskId,
+  [string]$Type,
   [Parameter(Mandatory = $true)]
   [string]$Slug,
   [switch]$Hotfix,
@@ -21,6 +26,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# -TaskId is a legacy alias for -Issue, kept for existing ClickUp-tracked worktrees.
+$IssueId = if ($Issue) { $Issue } elseif ($TaskId) { $TaskId } else { $null }
+if (-not $IssueId) {
+  throw '-Issue (or the legacy -TaskId) is required.'
+}
 
 function Get-MainRepoRoot {
   $common = (& git rev-parse --path-format=absolute --git-common-dir 2>$null)
@@ -41,14 +52,15 @@ $pathsScript = Join-Path $PSScriptRoot 'worktree-paths.mjs'
 $nodeArgs = @(
   $pathsScript,
   '--repo', $repoRoot,
-  '--taskId', $TaskId,
+  '--issueId', $IssueId,
   '--slug', $Slug
 )
+if ($Type) { $nodeArgs += @('--type', $Type) }
 if ($Hotfix) { $nodeArgs += '--hotfix' }
 
 $json = & node @nodeArgs
 if ($LASTEXITCODE -ne 0) {
-  throw 'worktree-paths.mjs failed. Fix TaskId/Slug and retry.'
+  throw 'worktree-paths.mjs failed. Fix Issue/Slug and retry.'
 }
 $paths = $json | ConvertFrom-Json
 

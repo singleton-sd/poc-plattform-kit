@@ -1,37 +1,51 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const TASK_ID = /^[0-9][0-9a-z]{5,15}$/i;
+// GitHub-native issue number (e.g. 174) or a legacy ClickUp custom id (e.g. 86d3zc5af),
+// kept for worktrees still tracking pre-migration ClickUp Delivery tickets.
+const ISSUE_ID = /^(?:[1-9][0-9]*|[0-9][0-9a-z]{5,15})$/i;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const SLUG_PREFIX = /^(feature|hotfix)(?:-|$)/;
+const TYPE = /^[a-z]+$/;
+const DEFAULT_TYPE = 'feature';
 
-export function assertTaskId(taskId) {
-  if (typeof taskId !== 'string' || !TASK_ID.test(taskId)) {
-    throw new Error(`Task id must be a ClickUp custom id (e.g. 86d3zc5af), got: ${taskId}`);
+export function assertIssueId(issueId) {
+  if (typeof issueId !== 'string' || !ISSUE_ID.test(issueId)) {
+    throw new Error(
+      `Issue id must be a GitHub issue number (e.g. 174) or a legacy ClickUp custom id (e.g. 86d3zc5af), got: ${issueId}`,
+    );
   }
 }
 
 export function assertSlug(slug) {
   if (typeof slug !== 'string' || slug.length === 0) {
-    throw new Error('Slug is required (kebab-case ticket title).');
+    throw new Error('Slug is required (kebab-case issue/ticket title).');
   }
   if (!SLUG.test(slug)) {
     throw new Error(`Slug must be kebab-case (a-z0-9 and hyphens), got: ${slug}`);
   }
-  if (SLUG_PREFIX.test(slug)) {
-    throw new Error(`Slug must not start with a branch prefix, got: ${slug}`);
+}
+
+export function assertType(type) {
+  if (typeof type !== 'string' || !TYPE.test(type)) {
+    throw new Error(
+      `Branch type must be lowercase letters (e.g. feat, fix, docs, chore, hotfix), got: ${type}`,
+    );
   }
 }
 
-export function folderName(taskId, slug) {
-  assertTaskId(taskId);
+export function folderName(issueId, slug) {
+  assertIssueId(issueId);
   assertSlug(slug);
-  return `${taskId}-${slug}`;
+  return `${issueId}-${slug}`;
 }
 
-export function branchName({ taskId, slug, hotfix = false } = {}) {
-  const folder = folderName(taskId, slug);
-  return `${hotfix ? 'hotfix' : 'feature'}/${folder}`;
+export function branchName({ issueId, slug, type, hotfix = false } = {}) {
+  const folder = folderName(issueId, slug);
+  // `hotfix: true` is a legacy alias predating the `type` parameter; an explicit
+  // `type` always wins.
+  const resolvedType = type ?? (hotfix ? 'hotfix' : DEFAULT_TYPE);
+  assertType(resolvedType);
+  return `${resolvedType}/${folder}`;
 }
 
 export function mainRepoFromGitCommonDir(gitCommonDir) {
@@ -52,8 +66,8 @@ export function workspaceRootFromRepo(repoRoot) {
   return path.dirname(path.resolve(repoRoot));
 }
 
-export function worktreePath({ repoRoot, taskId, slug } = {}) {
-  return path.join(workspaceRootFromRepo(repoRoot), 'worktrees', folderName(taskId, slug));
+export function worktreePath({ repoRoot, issueId, slug } = {}) {
+  return path.join(workspaceRootFromRepo(repoRoot), 'worktrees', folderName(issueId, slug));
 }
 
 function parseArgs(argv) {
@@ -64,8 +78,16 @@ function parseArgs(argv) {
       out.hotfix = true;
       continue;
     }
-    if (arg === '--repo' || arg === '--taskId' || arg === '--slug') {
-      out[arg.slice(2)] = argv[i + 1];
+    // --taskId is a legacy alias for --issueId, kept for existing ClickUp-tracked worktrees.
+    if (
+      arg === '--repo' ||
+      arg === '--issueId' ||
+      arg === '--taskId' ||
+      arg === '--slug' ||
+      arg === '--type'
+    ) {
+      const key = arg === '--taskId' ? '--issueId' : arg;
+      out[key.slice(2)] = argv[i + 1];
       i += 1;
     }
   }
@@ -74,18 +96,23 @@ function parseArgs(argv) {
 
 function main(argv) {
   const args = parseArgs(argv);
-  if (!args.repo || !args.taskId || !args.slug) {
+  if (!args.repo || !args.issueId || !args.slug) {
     throw new Error(
-      'Usage: node scripts/worktree-paths.mjs --repo <path> --taskId <id> --slug <kebab> [--hotfix]',
+      'Usage: node scripts/worktree-paths.mjs --repo <path> --issueId <id> --slug <kebab> [--type <type>] [--hotfix]',
     );
   }
   const payload = {
-    branch: branchName({ taskId: args.taskId, slug: args.slug, hotfix: args.hotfix }),
-    folder: folderName(args.taskId, args.slug),
+    branch: branchName({
+      issueId: args.issueId,
+      slug: args.slug,
+      type: args.type,
+      hotfix: args.hotfix,
+    }),
+    folder: folderName(args.issueId, args.slug),
     workspaceRoot: workspaceRootFromRepo(args.repo),
     worktreePath: worktreePath({
       repoRoot: args.repo,
-      taskId: args.taskId,
+      issueId: args.issueId,
       slug: args.slug,
     }),
   };

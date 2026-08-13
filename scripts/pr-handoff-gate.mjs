@@ -138,6 +138,45 @@ function gh(args, options = {}) {
   return result.stdout;
 }
 
+const READY_LABEL = 'ready-for-human';
+
+/**
+ * GitHub-native replacement for the old ClickUp "READY FOR HUMAN" status write: the
+ * `ready-for-human` label is the single, tracker-neutral signal that a PR is mergeable,
+ * required CI is green, and there is no open actionable feedback.
+ */
+function syncReadyForHumanLabel(prNumber, ready) {
+  try {
+    const exists = gh([
+      'label',
+      'list',
+      '--search',
+      READY_LABEL,
+      '--json',
+      'name',
+      '--jq',
+      '.[].name',
+    ])
+      .trim()
+      .split('\n');
+    if (!exists.includes(READY_LABEL)) {
+      gh([
+        'label',
+        'create',
+        READY_LABEL,
+        '--color',
+        '0e8a16',
+        '--description',
+        'Mergeable, required CI green, no open feedback — ready for human merge',
+      ]);
+    }
+    gh(['pr', 'edit', String(prNumber), ready ? '--add-label' : '--remove-label', READY_LABEL]);
+  } catch (error) {
+    // Best-effort: never fail the gate over a label sync problem.
+    process.stderr.write(`warning: could not sync ${READY_LABEL} label: ${error.message}\n`);
+  }
+}
+
 export function isRateLimitError(message) {
   return /rate limit/i.test(message ?? '');
 }
@@ -309,7 +348,15 @@ function loadSnapshot(number, observedHeadOid) {
   };
 }
 
-export async function runGate({ pr, quietMs, timeoutMs, pollMs, once = false, reportFile }) {
+export async function runGate({
+  pr,
+  quietMs,
+  timeoutMs,
+  pollMs,
+  once = false,
+  reportFile,
+  label = true,
+}) {
   const deadline = Date.now() + timeoutMs;
   const initial = JSON.parse(
     await retryOnRateLimit(() => gh(['pr', 'view', String(pr), '--json', 'headRefOid']), {
@@ -330,12 +377,17 @@ export async function runGate({ pr, quietMs, timeoutMs, pollMs, once = false, re
     }
     if (result.ready) {
       process.stdout.write(`PR #${pr} handoff gate passed at ${snapshot.headOid}\n`);
+      if (label) syncReadyForHumanLabel(pr, true);
       return;
     }
     process.stderr.write(`PR #${pr} not ready: ${result.blockers.join('; ')}\n`);
-    if (once) throw new Error('PR handoff gate did not pass');
+    if (once) {
+      if (label) syncReadyForHumanLabel(pr, false);
+      throw new Error('PR handoff gate did not pass');
+    }
     await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
+  if (label) syncReadyForHumanLabel(pr, false);
   throw new Error('PR handoff gate timed out');
 }
 
@@ -354,6 +406,7 @@ function parseArgs(argv) {
     pollMs: Number(value('--poll-seconds', process.env.PR_GATE_POLL_SECONDS ?? '10')) * 1000,
     once: argv.includes('--once'),
     reportFile: value('--report-file', process.env.PR_GATE_REPORT_FILE),
+    label: !argv.includes('--no-label') && process.env.PR_GATE_NO_LABEL !== '1',
   };
 }
 
