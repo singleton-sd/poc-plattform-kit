@@ -1,8 +1,7 @@
-import type { ControlProps } from '@jsonforms/core';
-import { TextControlRenderer } from './text-control';
+import { TextControlRenderer, type TextControlRendererProps } from './text-control';
 import { findById, findByType } from './test-utils';
 
-function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
+function baseProps(overrides: Partial<TextControlRendererProps> = {}): TextControlRendererProps {
   return {
     data: '',
     handleChange: () => {},
@@ -15,7 +14,7 @@ function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
     description: undefined,
     schema: { type: 'string' },
     ...overrides,
-  } as ControlProps;
+  } as TextControlRendererProps;
 }
 
 describe('TextControlRenderer', () => {
@@ -76,5 +75,27 @@ describe('TextControlRenderer', () => {
       'input',
     );
     expect(input?.props['aria-describedby']).toBe('name-error name-count');
+  });
+
+  it('hides the accessible error until the host marks the field as showing', () => {
+    const tree = TextControlRenderer(
+      baseProps({
+        errors: 'Name is required',
+        schema: { type: 'string', maxLength: 10 },
+        showError: false,
+      }),
+    );
+    const input = findByType(tree, 'input');
+    expect(input?.props['aria-invalid']).toBe(false);
+    expect(input?.props['aria-describedby']).toBe('name-count');
+    expect(findById(tree, 'name-error')).toBeUndefined();
+  });
+
+  it('shows the accessible error when the host opts in after blur or submit', () => {
+    const tree = TextControlRenderer(baseProps({ errors: 'Name is required', showError: true }));
+    const input = findByType(tree, 'input');
+    expect(input?.props['aria-invalid']).toBe(true);
+    expect(input?.props['aria-describedby']).toBe('name-error');
+    expect(findById(tree, 'name-error')?.props.role).toBe('alert');
   });
 });

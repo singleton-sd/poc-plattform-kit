@@ -5,7 +5,7 @@ import {
   useTenantControllerUpdate,
   type TenantResponseDto,
 } from '@poc-plattform-kit/api-client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Drawer } from '@/components/drawer';
 import { AlertIcon } from '@/components/icons';
 import { PermissionGate } from '@/features/permissions/permission-gate';
@@ -24,6 +24,7 @@ const FALLBACK_ERROR = 'Could not save changes. Try again.';
 
 export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDetailsDrawerProps) {
   const open = tenantId !== null;
+  const [formValid, setFormValid] = useState(false);
 
   useEffect(() => {
     if (tenantId) configureApiClient({ tenantId });
@@ -76,7 +77,7 @@ export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDeta
               <button
                 type="submit"
                 form={UPDATE_TENANT_FORM_ID}
-                disabled={updateMutation.isPending}
+                disabled={updateMutation.isPending || !formValid}
                 className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
                 data-testid="tenant-update-submit"
               >
@@ -127,6 +128,7 @@ export function TenantDetailsDrawer({ tenantId, onClose, onUpdated }: TenantDeta
             errorMessage={
               updateMutation.isError ? errorMessage(updateMutation.error, FALLBACK_ERROR) : null
             }
+            onValidityChange={setFormValid}
             onSubmit={(data) => updateMutation.mutate({ id: tenant.id, data })}
           />
 

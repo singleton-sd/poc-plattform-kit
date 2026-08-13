@@ -1,5 +1,8 @@
-import type { ControlProps } from '@jsonforms/core';
-import { enumValueAt, SelectControlRenderer } from './select-control';
+import {
+  enumValueAt,
+  SelectControlRenderer,
+  type SelectControlRendererProps,
+} from './select-control';
 import { findByType } from './test-utils';
 
 describe('enumValueAt', () => {
@@ -15,7 +18,9 @@ describe('enumValueAt', () => {
   });
 });
 
-function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
+function baseProps(
+  overrides: Partial<SelectControlRendererProps> = {},
+): SelectControlRendererProps {
   return {
     data: undefined,
     handleChange: () => {},
@@ -27,7 +32,7 @@ function baseProps(overrides: Partial<ControlProps> = {}): ControlProps {
     id: 'category',
     schema: { enum: ['Internal', 'Customer'] },
     ...overrides,
-  } as ControlProps;
+  } as SelectControlRendererProps;
 }
 
 describe('SelectControlRenderer', () => {
@@ -44,5 +49,14 @@ describe('SelectControlRenderer', () => {
   it('never sets the native required attribute, to avoid the browser intercepting submission before the app runs its own validation', () => {
     const select = findByType(SelectControlRenderer(baseProps({ required: true })), 'select');
     expect(select?.props.required).toBeUndefined();
+  });
+
+  it('hides the accessible error until the host marks the field as showing', () => {
+    const select = findByType(
+      SelectControlRenderer(baseProps({ errors: 'Required', showError: false })),
+      'select',
+    );
+    expect(select?.props['aria-invalid']).toBe(false);
+    expect(select?.props['aria-describedby']).toBeUndefined();
   });
 });

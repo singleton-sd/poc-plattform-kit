@@ -93,7 +93,10 @@ export const ClientValidationError: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByTestId('tenant-create-open'));
-    await userEvent.click(await canvas.findByTestId('tenant-create-submit'));
+    const submit = await canvas.findByTestId('tenant-create-submit');
+    await expect(submit).toBeDisabled();
+    // Disabled submit is the validity affordance; the form handler is the actual gate.
+    (canvas.getByTestId('tenant-create-form') as HTMLFormElement).requestSubmit();
     await expect(await canvas.findByTestId('tenant-create-client-error')).toHaveTextContent(
       'Name is required',
     );

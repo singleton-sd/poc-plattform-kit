@@ -90,7 +90,8 @@ describe('TenantCreateDrawer', () => {
   it('shows a client validation error and does not submit when name is missing', () => {
     render(<TenantCreateDrawer open onClose={jest.fn()} onCreated={jest.fn()} />);
 
-    fireEvent.click(screen.getByTestId('tenant-create-submit'));
+    expect(screen.getByTestId('tenant-create-submit')).toBeDisabled();
+    fireEvent.submit(screen.getByTestId('tenant-create-form'));
 
     expect(screen.getByTestId('tenant-create-client-error')).toBeInTheDocument();
     expect(mutate).not.toHaveBeenCalled();

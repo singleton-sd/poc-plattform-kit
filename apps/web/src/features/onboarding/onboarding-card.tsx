@@ -29,6 +29,7 @@ type OnboardingCardProps = {
  */
 export function OnboardingCard({ onCreated, onDismiss }: OnboardingCardProps) {
   const [open, setOpen] = useState(false);
+  const [formValid, setFormValid] = useState(false);
   const mutation = useTenantControllerCreateSelfService({
     mutation: {
       onSuccess: (response) => {
@@ -57,13 +58,14 @@ export function OnboardingCard({ onCreated, onDismiss }: OnboardingCardProps) {
           <CreateTenantForm
             pending={mutation.isPending}
             errorMessage={mutation.isError ? errorMessage(mutation.error, FALLBACK_ERROR) : null}
+            onValidityChange={setFormValid}
             onSubmit={(data) => mutation.mutate({ data })}
           />
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
               form={CREATE_TENANT_FORM_ID}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || !formValid}
               className="rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
               data-testid="onboarding-create-submit"
             >
