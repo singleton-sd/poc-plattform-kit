@@ -41,3 +41,27 @@ test('invoke-worktree-add dry-run accepts Windows-style flags on Unix', function
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /feature\/86d40rzbq-macos-script-executability/);
 });
+
+test('invoke-worktree-add dry-run accepts GitHub-native issue/type flags', function () {
+  if (process.platform === 'win32') {
+    this.skip();
+  }
+  const result = spawnSync(
+    process.execPath,
+    [
+      invokeWorktreeAdd,
+      '--',
+      '-Issue',
+      '174',
+      '-Type',
+      'docs',
+      '-Slug',
+      'github-native-orchestration',
+      '-DryRun',
+      '-SkipBootstrap',
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /docs\/174-github-native-orchestration/);
+});
