@@ -38,7 +38,7 @@ Azure Key Vault (`ssd-pocpk-kv-dev-ae`) and are referenced — never inlined —
 from Azure App Configuration or GitHub Actions. GitHub Actions authenticates
 via OIDC (repository **Variables**, not **Secrets**) and fetches secrets at
 job runtime. Never commit a secret value, and never paste one into ClickUp,
-a PR, or a commit. See `AGENTS.md`'s "Secrets + configuration and" section
+a PR, or a commit. See `AGENTS.md`'s "Secrets + configuration" section and
 `infra/README.md`'s "Secrets & config surfaces" section.
 
 ## Cheapest working SKU, CAF naming for anything new

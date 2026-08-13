@@ -21,8 +21,8 @@ test before changing behavior (`AGENTS.md`'s "TDD / quality" section).
 None of these layers substitutes for another. In particular: a preview
 scenario demonstrates a state to a reviewer — it is a delivery/review aid,
 never a replacement for a unit, integration, contract, or regression test
-covering the same behavior (see `AGENTS.md`'s "Preview scenario delivery" section
-standard).
+covering the same behavior (see `AGENTS.md`'s "Preview scenario delivery
+standard" section).
 
 ## Picking a layer
 
@@ -45,8 +45,8 @@ standard).
   within Playwright's deliberately small initial scope (signed-out
   boot/navigation journeys today) does it belong there; most flows are
   covered at the unit + Storybook + preview-scenario layers instead. See
-  [`docs/playwright.md`](../playwright.md)'s "Initial scope before adding a" section
-  new Playwright journey — it is intentionally not the default place to add
+  [`docs/playwright.md`](../playwright.md)'s "Initial scope before adding a
+  new Playwright journey" section — it is intentionally not the default place to add
   coverage.
 - **A data-dependent bug fix** → add a minimal `bug/<ticket-id>/<scenario>`
   preview fixture that reproduces the pre-fix state and keep it as a
