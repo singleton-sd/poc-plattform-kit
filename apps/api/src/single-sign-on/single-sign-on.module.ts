@@ -20,6 +20,6 @@ import { SingleSignOnController } from './single-sign-on.controller';
     { provide: APP_GUARD, useClass: SessionOrJwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [JwtAuthGuard, SessionOrJwtAuthGuard, RolesGuard],
+  exports: [JwtAuthGuard, SessionOrJwtAuthGuard, RolesGuard, UserIdentityService],
 })
 export class SingleSignOnModule {}
