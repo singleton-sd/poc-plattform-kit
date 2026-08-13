@@ -1,7 +1,13 @@
 # Telemetry / Observability
 
-> **Source of truth:** [ClickUp Architecture Doc — Telemetry / Observability](https://app.clickup.com/90161394355/docs/2kz0kcnk-1416/2kz0kcnk-2836)  
-> This file is a repo mirror for engineers. Prefer updating ClickUp first.
+This file is the authoritative technical reference for telemetry/observability
+(see [`docs/github-source-of-truth.md`](./github-source-of-truth.md) section 1 —
+repository documentation, not ClickUp, owns engineering technical knowledge).
+Update this file directly; do not require ClickUp access to understand or
+change telemetry behavior. The historical ClickUp Architecture Doc page this
+was originally drafted from (business framing/origin only, not kept in sync)
+is linked for traceability:
+[ClickUp Architecture Doc — Telemetry / Observability](https://app.clickup.com/90161394355/docs/2kz0kcnk-1416/2kz0kcnk-2836).
 
 ## Goal
 

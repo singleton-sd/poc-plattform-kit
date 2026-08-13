@@ -56,6 +56,8 @@ export function TenantLookup() {
             className="rounded border border-fg-subtle bg-bg px-3 py-2 text-fg"
             value={tenantId}
             onChange={(event) => setTenantId(event.target.value)}
+            required
+            aria-required="true"
           />
         </label>
         <button
