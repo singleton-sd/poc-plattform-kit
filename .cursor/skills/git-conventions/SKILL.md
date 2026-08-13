@@ -12,17 +12,50 @@ You are a senior engineer helping enforce Singleton SD's git conventions. Apply 
 
 ## This repository
 
-`poc-plattform-kit` uses **ClickUp custom ids** (`86d3zc5af`), not `SSDOP-N`.
-Follow `AGENTS.md` § Branch naming:
+`poc-plattform-kit` identifies engineering work by **GitHub issue number**
+(`#173`), not a ClickUp custom id or `SSDOP-N`. See
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md)
+section 6 for the authoritative branch/PR/issue policy; this section only adds the
+matching commit-message convention.
+
+Branch naming:
 
 ```text
-feature/<clickup-task-id>-<kebab-title>
-hotfix/<clickup-task-id>-<kebab-title>
+<type>/<issue-number>-<kebab-title>
 ```
 
-Worktrees live beside the clone: `../worktrees/<clickup-task-id>-<kebab-title>`.
-Create them with `pnpm worktree:add`. The `SSDOP-42` examples below are
-company-wide; do not use that ticket format here.
+Examples: `feat/184-support-ticket-api`, `fix/211-login-redirect`,
+`docs/171-github-engineering-source-of-truth`. `<type>` is a
+conventional-commit prefix matching the primary nature of the change (see
+the type table below).
+
+Worktrees live beside the clone: `../worktrees/<issue-number>-<kebab-title>`.
+Create them with
+`pnpm worktree:add -- -Issue <issue-number> -Type <type> -Slug <kebab-title>`
+(Linux/Cloud:
+`./scripts/add-worktree.sh --issue <issue-number> --type <type> --slug <kebab-title>`).
+
+### Commit message format (this repository)
+
+```
+type: #<issue-number> Description in sentence case
+```
+
+Example:
+
+```
+feat: #184 Add dark mode toggle to settings page
+```
+
+A commit that is not tied to a single issue (a small unattributed fix, a
+release commit) may omit the `#<issue-number>` — do not invent an issue
+number to satisfy the format. What actually closes the issue on merge is
+the `Closes #<issue-number>` line in the **PR body**
+(`docs/github-source-of-truth.md` section 6), not the commit message.
+
+The `SSDOP-42` examples in the rest of this document are the generic
+company-wide convention for other repositories; do not use that ticket
+format here — use the GitHub issue number as shown above instead.
 
 ---
 

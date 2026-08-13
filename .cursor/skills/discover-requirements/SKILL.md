@@ -22,7 +22,7 @@ Requirements describe **what must be true and how the capability behaves**. Avoi
 
 Be conversational and risk-driven. Resolve the most consequential ambiguity first rather than asking every possible question.
 
-Use available conversation, repository, Architecture Doc, existing ClickUp tickets, and current system behavior before asking the user for information that can be discovered directly.
+Use available conversation, repository, Architecture Doc, existing GitHub issues, and current system behavior before asking the user for information that can be discovered directly.
 
 Typical discovery order:
 
@@ -169,8 +169,8 @@ Next step depends on the work:
 - if UX/UI or architecture **solution** design is still needed, stop and
   ask the user — do not invent screens, schemas, or infra, and do not call
   a design skill that is not in `.cursor/skills/`;
-- use `backlog-refinement` for a single existing Delivery ticket;
-- use `idea-to-delivery` for multi-ticket feature planning and ClickUp
+- use `backlog-refinement` for a single existing GitHub issue;
+- use `idea-to-delivery` for multi-issue feature planning and GitHub
   execution slicing.
 
 ### NEEDS PRODUCT DECISION
@@ -256,36 +256,29 @@ Recommended next step
 
 Keep the document proportional. A small UI behavior may need only a short brief; cross-cutting support/auth/billing features deserve more detail.
 
-## ClickUp routing
+## Persisting the brief
 
-`AGENTS.md` is authoritative for list IDs, statuses, and create commands.
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) section 1 and section 3 are
+authoritative: GitHub Issues own engineering work, including technical discovery — there is no
+separate pre-GitHub "discovery" queue.
 
-For `singleton-sd/poc-plattform-kit`:
+For `singleton-sd/poc-plattform-kit`, when the user asks to store the brief:
 
-- persist unresolved requirements/discovery on **Ideas & Discovery**
-  (`901616397764`) when the user asks to store the brief;
-- validation/spike work stays on Ideas & Discovery until its question is
-  answered (statuses `TO DO` / `IN PROGRESS` / `COMPLETE` only — no Claim
-  Token, no `READY FOR AI`);
-- do not create **Delivery** (`901616287298`) tasks while blocking
-  requirements remain;
-- standalone manual validation/setup belongs on **Human & Operations**
-  (`901616397767`) only when it is a real operational action, not a question;
+- persist unresolved requirements/discovery as a GitHub issue (open a new one, or update the
+  issue the brief originated from);
+- validation/spike work stays as an open, not-yet-agent-ready issue until its question is
+  answered — do not mark it agent-ready;
+- do not create delivery-slice issues (`idea-to-delivery` / `backlog-refinement` territory) while
+  blocking requirements remain;
+- call out a standalone manual validation/setup step explicitly on the relevant issue only when
+  it is a real operational action, not an open question;
 - browsing/refinement is not claiming.
 
-Create discovery (Windows):
-
-```powershell
-powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..."
-```
-
-Create discovery (Linux / Cloud):
+Create:
 
 ```bash
-./scripts/clickup.sh create "..." "TO DO" --list-id 901616397764
+gh issue create --title "..." --body "..."
 ```
-
-Create a human ops action with `-ListId 901616397767` / `--list-id 901616397767`.
 
 ## Handoff contract
 
@@ -299,5 +292,5 @@ Do not duplicate the responsibilities of:
 
 - `refine-idea` — validating and shaping the product idea itself;
 - design skills — deciding UX/UI or technical solution structure;
-- `backlog-refinement` — converting known work into an agent-ready ticket;
-- `idea-to-delivery` — creating Epics, independently mergeable delivery slices, dependencies, parallel lanes, and ClickUp execution plans.
+- `backlog-refinement` — converting known work into an agent-ready GitHub issue;
+- `idea-to-delivery` — creating parent/tracking issues, independently mergeable delivery-slice issues, dependencies, and parallel lanes.
