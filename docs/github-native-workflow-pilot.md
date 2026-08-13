@@ -14,6 +14,7 @@ same state in ClickUp.
 | Discovery and decomposition | Tracking issue #196 | Goal, locked decisions, scope, child issues, and dependency graph are readable from GitHub alone. |
 | Parallel implementation | Issues #197, #198, #199, and #200 with PRs #206, #207, #208, and #209 | Four independent, agent-ready issues produced four isolated issue-number branches and non-overlapping PRs. |
 | Blocked integration | Issue #201 | Correctly remains labelled `blocked` while its four `Depends on:` issues are open. It must start from updated `origin/main` only after they close. |
+| Live Project automation | Issue #212 and its linked PR | The organization Project is live; linking this PR exercises the automatic `In Review` transition and merging it will exercise `Done`. |
 
 ## Validation
 
@@ -68,11 +69,8 @@ all of the following are true:
 - #201 starts from the resulting `origin/main`, completes through a linked
   PR, and verifies the deployed preview lifecycle described in its acceptance
   criteria.
-- The repository's live GitHub Project status transitions are verified. The
-  configuration is specified in [`github-project.md`](./github-project.md),
-  but PR #181 recorded that creating/configuring the live Project required
-  permissions unavailable to its implementation session. Issue #212 tracks
-  that blocking setup and verification work.
+- Merge the PR linked to #212 and confirm that the Project automatically moves
+  the issue from `In Review` to `Done`.
 
 Until these gates pass, #177 remains blocked. This is intentional: an open PR
 is evidence that claiming and review work, but it is not evidence that merge,

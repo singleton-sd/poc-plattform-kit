@@ -1,46 +1,46 @@
 /** @type {import('tailwindcss').Config} */
-// Colors map to Singleton SD design token CSS variables — never hardcode palette hex.
+// Colors map to @singleton-sd/tokens CSS variables — never hardcode palette hex.
 export default {
   content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
   theme: {
     extend: {
       colors: {
         fg: {
-          DEFAULT: 'var(--fg-default)',
-          muted: 'var(--fg-muted)',
-          subtle: 'var(--fg-subtle)',
-          inverse: 'var(--fg-inverse)',
-          brand: 'var(--fg-brand)',
+          DEFAULT: 'var(--ssd-color-text-default)',
+          muted: 'var(--ssd-color-text-muted)',
+          subtle: 'var(--ssd-color-text-subtle)',
+          inverse: 'var(--ssd-color-text-inverse)',
+          brand: 'var(--ssd-color-text-brand)',
         },
         bg: {
-          DEFAULT: 'var(--bg-default)',
-          muted: 'var(--bg-muted)',
-          subtle: 'var(--bg-subtle)',
-          inverse: 'var(--bg-inverse)',
-          hero: 'var(--bg-hero)',
+          DEFAULT: 'var(--ssd-color-background-default)',
+          muted: 'var(--ssd-color-background-muted)',
+          subtle: 'var(--ssd-color-background-subtle)',
+          inverse: 'var(--ssd-color-background-inverse)',
+          hero: 'var(--pk-hero)',
         },
         accent: {
-          DEFAULT: 'var(--accent-default)',
-          hover: 'var(--accent-hover)',
-          muted: 'var(--accent-muted)',
-          on: 'var(--accent-on-accent)',
-          bg: 'var(--accent-bg)',
+          DEFAULT: 'var(--ssd-color-background-brand)',
+          hover: 'var(--ssd-color-background-brand-hovered)',
+          muted: 'var(--pk-accent-muted)',
+          on: 'var(--ssd-color-text-on-brand)',
+          bg: 'var(--pk-accent-bg)',
         },
         border: {
-          DEFAULT: 'var(--border-default)',
-          muted: 'var(--border-muted)',
-          strong: 'var(--border-strong)',
+          DEFAULT: 'var(--ssd-color-border-default)',
+          muted: 'var(--ssd-color-border-muted)',
+          strong: 'var(--ssd-color-border-strong)',
         },
         status: {
-          error: 'var(--status-error)',
-          'error-bg': 'var(--status-error-bg)',
-          success: 'var(--status-success)',
-          'success-bg': 'var(--status-success-bg)',
+          error: 'var(--ssd-color-feedback-danger-text)',
+          'error-bg': 'var(--ssd-color-feedback-danger-background)',
+          success: 'var(--ssd-color-feedback-success-text)',
+          'success-bg': 'var(--ssd-color-feedback-success-background)',
         },
       },
       fontFamily: {
-        heading: 'var(--font-families-heading)',
-        body: 'var(--font-families-body)',
+        heading: 'var(--ssd-font-family-heading)',
+        body: 'var(--ssd-font-family-body)',
       },
       fontSize: {
         display: ['4.5rem', { lineHeight: '1', letterSpacing: '-0.02em', fontWeight: '500' }],
