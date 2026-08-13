@@ -6,7 +6,8 @@ import {
   meSignedInHandlers,
   meSupportAgentHandlers,
 } from '@/testing/handlers/auth';
-import { LoginPanel, HomeAuthGate } from './login-panel';
+import { HomeAuthGate } from './home-auth-gate';
+import { LoginPanel } from './login-panel';
 
 const meta = {
   title: 'Features/Auth/Login & Session',
@@ -36,8 +37,8 @@ export const LoginPanelSignedOut: Story = {
  */
 
 /**
- * HomeAuthGate in loading state.
- * Shows the session verification pending UI.
+ * HomeAuthGate in loading state (via AuthenticationGuard).
+ * Shows the shared session verification pending UI.
  * Uses delayed response to allow Chromatic to capture the loading state snapshot.
  */
 export const HomeAuthGateLoading: Story = {
@@ -46,8 +47,8 @@ export const HomeAuthGateLoading: Story = {
 };
 
 /**
- * HomeAuthGate in session verification error state.
- * Shows the error recovery UI with retry button.
+ * HomeAuthGate in session verification error state (via AuthenticationGuard).
+ * Shows the shared error recovery UI with retry button.
  */
 export const HomeAuthGateSessionError: Story = {
   parameters: { msw: { handlers: { auth: meErrorHandlers } } },

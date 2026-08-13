@@ -1,18 +1,13 @@
 'use client';
 
-import type { TenantResponseDto } from '@poc-plattform-kit/api-client';
 import { useState } from 'react';
-import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { BrandMark } from '@/components/brand-mark';
-import { meKeys, useMe, type Me } from '@/features/auth/me';
+import { meKeys } from '@/features/auth/me';
 import { captureReturnUrl } from '@/features/auth/auth-return-url';
-import { signIn, signOut } from '@/features/auth/auth-urls';
-import { CopyTenantIdButton } from '@/features/tenants/copy-tenant-id-button';
-import { OnboardingCard } from '@/features/onboarding/onboarding-card';
-import { getCreatedTenant, rememberCreatedTenant } from '@/features/onboarding/onboarding-store';
+import { signIn } from '@/features/auth/auth-urls';
 
-/** Signed-out login surface (also used at `/` via HomeAuthGate). */
+/** Signed-out login surface (also used at `/` via HomeAuthGate / AuthenticationGuard). */
 export function LoginPanel() {
   const queryClient = useQueryClient();
   const [signingIn, setSigningIn] = useState(false);
@@ -66,170 +61,6 @@ export function LoginPanel() {
       {signInError ? (
         <p className="text-sm text-fg-muted" data-testid="login-sign-in-error">
           {signInError}
-        </p>
-      ) : null}
-    </main>
-  );
-}
-
-/** Root gate: login when signed out, shell when signed in. */
-export function HomeAuthGate() {
-  const queryClient = useQueryClient();
-  const { data: me, isLoading, isError, refetch } = useMe();
-  const [signingOut, setSigningOut] = useState(false);
-  const [signOutError, setSignOutError] = useState<string | null>(null);
-
-  async function onSignOut() {
-    setSigningOut(true);
-    setSignOutError(null);
-    try {
-      await signOut();
-      await queryClient.invalidateQueries({ queryKey: meKeys.all });
-    } catch {
-      setSignOutError('Could not sign out. Try again.');
-    } finally {
-      setSigningOut(false);
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <main
-        className="flex min-h-[70vh] flex-col items-center justify-center gap-4 p-6 text-fg-muted"
-        data-testid="login-loading"
-      >
-        Loading…
-      </main>
-    );
-  }
-
-  if (isError) {
-    return (
-      <main
-        className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-6 text-center text-fg"
-        data-testid="login-session-error"
-      >
-        <BrandMark size="hero" />
-        <p className="text-fg-muted">Could not verify your session. Try again.</p>
-        <button
-          type="button"
-          className="rounded bg-accent px-6 py-3 font-semibold text-accent-on"
-          data-testid="login-session-retry"
-          onClick={() => void refetch()}
-        >
-          Retry
-        </button>
-      </main>
-    );
-  }
-
-  if (!me) {
-    return <LoginPanel />;
-  }
-
-  return (
-    <SignedInHome
-      me={me}
-      signingOut={signingOut}
-      signOutError={signOutError}
-      onSignOut={() => void onSignOut()}
-    />
-  );
-}
-
-type SignedInHomeProps = {
-  me: Me;
-  signingOut: boolean;
-  signOutError: string | null;
-  onSignOut: () => void;
-};
-
-/**
- * Signed-in home shell. Offers self-service tenant onboarding — see
- * `apps/web/src/features/onboarding` — ahead of the existing admin console
- * links. Created-tenant id is persisted per browser so the manage link
- * survives refresh; "Not now" is session-only until `/api/me` exposes
- * memberships (see `onboarding-store.ts`).
- */
-function SignedInHome({ me, signingOut, signOutError, onSignOut }: SignedInHomeProps) {
-  const [sessionDismissed, setSessionDismissed] = useState(false);
-  const [createdTenant, setCreatedTenant] = useState<Pick<TenantResponseDto, 'id' | 'name'> | null>(
-    () => getCreatedTenant(me.id),
-  );
-
-  function handleOnboardingCreated(tenant: TenantResponseDto) {
-    rememberCreatedTenant(me.id, { id: tenant.id, name: tenant.name });
-    setCreatedTenant(tenant);
-  }
-
-  function handleOnboardingDismiss() {
-    setSessionDismissed(true);
-  }
-
-  return (
-    <main
-      className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-6 pb-12 pt-[clamp(3rem,12vh,6rem)] text-center text-fg"
-      data-testid="home-shell"
-    >
-      <BrandMark size="hero" />
-      <h1 className="font-heading text-[clamp(1.15rem,2.5vw,1.35rem)] font-medium tracking-tight">
-        Admin console
-      </h1>
-      <p className="max-w-md text-base leading-relaxed text-fg-muted">
-        Signed in as {me.email}. Manage tenants and support from here.
-      </p>
-
-      {createdTenant ? (
-        <div
-          className="flex w-full max-w-md flex-col items-center gap-2 rounded border border-fg-subtle bg-bg-muted p-4 text-sm text-fg-muted"
-          data-testid="onboarding-success"
-        >
-          <p>
-            You&apos;re the owner of <strong className="text-fg">{createdTenant.name}</strong>.
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs" data-testid="onboarding-success-tenant-id">
-              {createdTenant.id}
-            </span>
-            <CopyTenantIdButton tenantId={createdTenant.id} />
-          </div>
-          <Link
-            href={`/tenant?tenantId=${encodeURIComponent(createdTenant.id)}`}
-            className="text-accent underline-offset-2 hover:underline"
-          >
-            Manage your tenant
-          </Link>
-        </div>
-      ) : sessionDismissed ? null : (
-        <OnboardingCard onCreated={handleOnboardingCreated} onDismiss={handleOnboardingDismiss} />
-      )}
-
-      <nav aria-label="Primary" className="mt-2 flex flex-wrap justify-center gap-4">
-        <Link
-          className="inline-block rounded bg-accent px-6 py-3 font-semibold text-accent-on transition hover:-translate-y-0.5"
-          href="/tenants"
-        >
-          Tenants
-        </Link>
-        <Link
-          className="inline-block rounded border border-fg-subtle px-6 py-3 font-semibold text-fg transition hover:border-accent hover:text-accent"
-          href="/support"
-        >
-          Support
-        </Link>
-      </nav>
-      <button
-        type="button"
-        className="mt-4 text-sm text-fg-muted underline-offset-2 hover:text-accent hover:underline disabled:opacity-60"
-        data-testid="login-sign-out"
-        disabled={signingOut}
-        onClick={onSignOut}
-      >
-        {signingOut ? 'Signing out…' : 'Sign out'}
-      </button>
-      {signOutError ? (
-        <p className="text-sm text-fg-muted" data-testid="login-sign-out-error">
-          {signOutError}
         </p>
       ) : null}
     </main>
