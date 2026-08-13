@@ -4,11 +4,11 @@
 #   <parent>/repo/                          git clone, stays on main
 #   <parent>/worktrees/<id>-<slug>/         this script
 #
-# GitHub-native usage (default — see AGENTS.md § GitHub-native engineering workflow):
+# GitHub-native usage (default — see AGENTS.md's "GitHub-native engineering workflow" section):
 #   powershell -File scripts/add-worktree.ps1 -Issue 174 -Type docs -Slug github-native-orchestration
 #   pnpm worktree:add -- -Issue 211 -Type fix -Slug login-redirect
 #
-# Legacy ClickUp-tracked ticket usage (kept until docs/github-source-of-truth.md §8-9 migration
+# Legacy ClickUp-tracked ticket usage (kept until docs/github-source-of-truth.md sections 8-9 migration
 # issues land):
 #   powershell -File scripts/add-worktree.ps1 -TaskId 86d3zc5af -Slug permission-gating
 #   pnpm worktree:add -- -TaskId 86d3zc5af -Slug permission-gating -Hotfix -SkipBootstrap

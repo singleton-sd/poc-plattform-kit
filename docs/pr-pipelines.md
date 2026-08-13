@@ -19,7 +19,7 @@
 
 **Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). It then **dispatches** matching **deploy-*** workflows via `workflow_dispatch` on **`main`** (the release tip; `gh workflow run --ref` requires a branch/tag, not a raw SHA) so shipped builds embed the new `package.json` version in the web footer / Swagger. A plain `GITHUB_TOKEN` push of the release commit does **not** start other workflows — do not rely on the push event alone.
 
-Branch naming is `<type>/<issue-number>-<kebab-title>` (e.g. `docs/174-github-native-orchestration-instructions`) per [`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md) §6; legacy `feature/<clickup-task-id>-<kebab-title>` branches remain supported for ClickUp-tracked tickets still in flight. Create the matching worktree with `pnpm worktree:add` under the parent workspace `worktrees/` folder (see `AGENTS.md`). Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
+Branch naming is `<type>/<issue-number>-<kebab-title>` (e.g. `docs/174-github-native-orchestration-instructions`) per [`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md) section 6; legacy `feature/<clickup-task-id>-<kebab-title>` branches remain supported for ClickUp-tracked tickets still in flight. Create the matching worktree with `pnpm worktree:add` under the parent workspace `worktrees/` folder (see `AGENTS.md`). Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 
 ## Secrets / config for pipelines (locked)
 
@@ -173,7 +173,7 @@ Provision / re-bootstrap (idempotent; OIDC login same Variables as above — no 
 powershell -File ./infra/deploy-openfga.ps1
 ```
 
-Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: `infra/README.md` § Permissions / OpenFGA.
+Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: `infra/README.md`'s "Permissions / OpenFGA" section.
 
 ## Production deploy on `main` (locked)
 
@@ -211,7 +211,7 @@ Hygiene workflows set **labels only** — this is GitHub-native and tracker-neut
 | `ci-failed` | Required CI job failed (`Lint / test / build (api)` or `Lint / format / build (web)`) | Those jobs are no longer `FAILURE` | Fix the required CI cause and push |
 | `has-feedback` | Bugbot, Copilot, or human (non-author) comment | PR `synchronize` when no unresolved threads remain | Fetch issue + review comments; address with a threaded reply |
 | `preview-blocked` | SWA / ACA / Chromatic infra failed | Those infra jobs are no longer `FAILURE` | Document on the brief. Not a code bounce. Chromatic visual-accept is human-only. |
-| `ready-for-human` | Mergeable + required CI green + no open feedback | Any of `needs-rebase` / `ci-failed` / `has-feedback` is (re-)added | Nothing — applied by `pnpm pr:gate -- --pr <n>` once the PR clears the other three labels; see § Enforced PR handoff gate below |
+| `ready-for-human` | Mergeable + required CI green + no open feedback | Any of `needs-rebase` / `ci-failed` / `has-feedback` is (re-)added | Nothing — applied by `pnpm pr:gate -- --pr <n>` once the PR clears the other three labels; see the "Enforced PR handoff gate" section below |
 
 ```bash
 gh pr list --label needs-rebase
@@ -229,7 +229,7 @@ A PR is ready for human merge only when mergeable, required lint/test/build chec
 
 ## Shared hub conflicts (agent playbook)
 
-Do **not** hand-merge `pnpm-lock.yaml` or `infra/main.json`. Prefer merge over rebase. Full hub ownership table: `AGENTS.md` § **Shared hub files**.
+Do **not** hand-merge `pnpm-lock.yaml` or `infra/main.json`. Prefer merge over rebase. Full hub ownership table: `AGENTS.md`'s "Shared hub files" section.
 
 ```text
 1. git fetch origin main
@@ -266,10 +266,10 @@ Hand-fix leftovers: `infra/main.bicep`, `apps/api/src/main.ts`, `app.module.ts`,
 
 For GitHub-native work there is no separate "mark complete" step. Every PR
 links its issue with a closing keyword (`Closes #N`) per
-[`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md) §6; a
+[`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md) section 6; a
 human merging the PR closes the linked issue automatically, and no workflow
 writes that status anywhere else. Do not add new automation that mirrors
-GitHub issue/PR state back into a second system (source-of-truth policy §2).
+GitHub issue/PR state back into a second system (source-of-truth policy section 2).
 
 ## Enforced PR handoff gate
 
@@ -307,7 +307,7 @@ one presentation surface, independent of the `ready-for-human` label.
 **Legacy ClickUp-tracked tickets:** `./scripts/clickup.sh handoff <task-id>
 <pr-number> "READY FOR REVIEW" <claim-token>` still runs this same gate before
 writing the ClickUp status, for tickets opened under the pre-migration
-ClickUp Delivery workflow (see `AGENTS.md` § Legacy ClickUp workflow). New
+ClickUp Delivery workflow (see `AGENTS.md`'s "Legacy ClickUp workflow" section). New
 GitHub-native work never calls `clickup.sh`.
 
 ## Legacy ClickUp automation (ClickUp-tracked tickets only)
@@ -318,7 +318,7 @@ are no-ops for GitHub-native `<type>/<issue-number>-...` branches. They exist
 to finish out ClickUp Delivery tickets already in flight and are retired by
 [#177](https://github.com/singleton-sd/poc-plattform-kit/issues/177) /
 [#178](https://github.com/singleton-sd/poc-plattform-kit/issues/178) per
-[`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md) §8. Do
+[`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md) section 8. Do
 not extend them to cover new engineering work.
 
 - **`.github/workflows/complete-clickup-on-merge.yml`** runs when GitHub

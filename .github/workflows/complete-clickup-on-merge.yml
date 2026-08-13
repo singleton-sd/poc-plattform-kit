@@ -1,9 +1,9 @@
-# Legacy — ClickUp-tracked tickets only (docs/github-source-of-truth.md §9).
+# Legacy — ClickUp-tracked tickets only (docs/github-source-of-truth.md section 9).
 # GitHub-native issues (`<type>/<issue-number>-<kebab-title>` branches, see AGENTS.md)
 # have no ClickUp task id to extract, so scripts/complete-clickup-on-merge.sh no-ops for
 # them: merging their PR with `Closes #N` already closes the linked GitHub issue and no
 # further step is required. This workflow stays only to finish out ClickUp Delivery
-# tickets in flight until docs/github-source-of-truth.md §8 issues #177/#178 land.
+# tickets in flight until docs/github-source-of-truth.md section 8 issues #177/#178 land.
 name: Complete ClickUp ticket on merge
 
 on:
