@@ -37,9 +37,9 @@ function parseArgs(argv) {
     }
     const next = argv[i + 1];
     switch (arg) {
+      // -TaskId/--task-id is a legacy alias for -Issue/--issue.
       case '-Issue':
       case '--issue':
-      // Legacy alias for issueId.
       case '-TaskId':
       case '--task-id':
         out.issueId = next ?? '';
