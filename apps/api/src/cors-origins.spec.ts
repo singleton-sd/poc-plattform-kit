@@ -60,6 +60,25 @@ describe('isCorsOriginAllowed', () => {
       ]),
     ).toBe(true);
   });
+
+  it('allows this-repo ACA web PR preview hosts', () => {
+    const webPreview =
+      'https://ssd-pocpk-aca-web-pr-190-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+    expect(isCorsOriginAllowed(webPreview, allowlist)).toBe(true);
+    expect(isCorsOriginAllowed(webPreview, [...DEFAULT_CORS_ORIGINS])).toBe(true);
+    expect(
+      isCorsOriginAllowed(webPreview, ['https://ssd-pocpk-aca-web-pr-*.azurecontainerapps.io']),
+    ).toBe(true);
+  });
+
+  it('rejects API ACA preview hosts and other container apps', () => {
+    const apiPreview =
+      'https://ssd-pocpk-aca-pr-190-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+    const otherApp =
+      'https://some-other-app.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+    expect(isCorsOriginAllowed(apiPreview, [...DEFAULT_CORS_ORIGINS])).toBe(false);
+    expect(isCorsOriginAllowed(otherApp, [...DEFAULT_CORS_ORIGINS])).toBe(false);
+  });
 });
 
 describe('isAuthRedirectOriginAllowed', () => {
@@ -83,6 +102,19 @@ describe('isAuthRedirectOriginAllowed', () => {
         'https://*.azurestaticapps.net',
       ]),
     ).toBe(false);
+  });
+
+  it('allows scoped ACA web PR hosts and rejects open ACA suffixes', () => {
+    const webPreview =
+      'https://ssd-pocpk-aca-web-pr-190-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+    const apiPreview =
+      'https://ssd-pocpk-aca-pr-190-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io';
+    expect(isAuthRedirectOriginAllowed(webPreview, [...DEFAULT_CORS_ORIGINS])).toBe(true);
+    expect(isAuthRedirectOriginAllowed(webPreview, ['https://*.azurecontainerapps.io'])).toBe(true);
+    expect(isAuthRedirectOriginAllowed(apiPreview, ['https://*.azurecontainerapps.io'])).toBe(
+      false,
+    );
+    expect(isAuthRedirectOriginAllowed(apiPreview, [...DEFAULT_CORS_ORIGINS])).toBe(false);
   });
 });
 

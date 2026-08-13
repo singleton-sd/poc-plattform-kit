@@ -2,7 +2,7 @@
 
 Repo architecture: `AGENTS.md`. Root rules: [`.cursor/BUGBOT.md`](../../.cursor/BUGBOT.md).
 
-Stack target: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/).
+Stack target: Next.js PWA SPA + Tailwind + `@singleton-sd/tokens` (`--ssd-*` CSS; npm, not the token CDN).
 
 ## Hard rules (flag violations)
 

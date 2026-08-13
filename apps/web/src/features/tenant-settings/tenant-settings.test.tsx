@@ -214,9 +214,32 @@ describe('TenantSettings', () => {
     });
     fireEvent.click(screen.getByTestId('tenant-settings-save'));
 
-    expect(screen.getByTestId('tenant-settings-client-error')).toHaveTextContent(
+    expect(screen.getByTestId('tenant-settings-json-error')).toHaveTextContent(
       'Settings must be valid JSON',
     );
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows an inline JSON error on blur before any submit', () => {
+    findState = { data: { data: tenant }, isFetching: false, isError: false, error: null };
+    renderComponent();
+    loadTenant();
+
+    const textarea = screen.getByTestId('tenant-settings-json');
+    fireEvent.change(textarea, { target: { value: '{not-json' } });
+
+    expect(screen.queryByTestId('tenant-settings-json-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('tenant-settings-save')).toBeEnabled();
+    expect(updateMutate).not.toHaveBeenCalled();
+
+    fireEvent.blur(textarea);
+
+    const error = screen.getByTestId('tenant-settings-json-error');
+    expect(error).toHaveTextContent('Settings must be valid JSON');
+    expect(error).toHaveAttribute('role', 'alert');
+    expect(textarea).toHaveAttribute('aria-invalid', 'true');
+    expect(textarea).toHaveAttribute('aria-describedby', 'tenant-settings-json-error');
+    expect(screen.getByTestId('tenant-settings-save')).toBeDisabled();
     expect(updateMutate).not.toHaveBeenCalled();
   });
 

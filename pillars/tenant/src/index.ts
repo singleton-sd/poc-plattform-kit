@@ -1,8 +1,13 @@
 export { CreateTenantDto } from './dto/create-tenant.dto';
+export { CreateTenantGroupDto } from './dto/create-tenant-group.dto';
+export { AddTenantGroupMemberDto } from './dto/add-tenant-group-member.dto';
 export { CreateTenantInvitationDto } from './dto/create-tenant-invitation.dto';
 export { ListTenantsQueryDto } from './dto/list-tenants-query.dto';
 export { TenantInvitationResponseDto } from './dto/tenant-invitation-response.dto';
 export { TenantResponseDto } from './dto/tenant-response.dto';
+export { TenantGroupResponseDto } from './dto/tenant-group-response.dto';
+export { TenantGroupMembershipResponseDto } from './dto/tenant-group-membership-response.dto';
+export { UpdateTenantGroupDto } from './dto/update-tenant-group.dto';
 export { UpdateTenantDto } from './dto/update-tenant.dto';
 export { ClaimTenancyInterceptor } from './claim-tenancy.interceptor';
 export { CurrentUser } from './current-user.decorator';
@@ -12,6 +17,13 @@ export type { TenancyStore } from './tenancy.context';
 export { TenancyMiddleware } from './tenancy.middleware';
 export { TenantController } from './tenant.controller';
 export { TenantInvitationController } from './tenant-invitation.controller';
+export { TenantGroupController } from './tenant-group.controller';
+export { TenantGroupService } from './tenant-group.service';
+export type {
+  TenantGroupRecord,
+  TenantGroupMembershipRecord,
+  TenantGroupPermissionsPort,
+} from './tenant-group.service';
 export { TenantInvitationService } from './tenant-invitation.service';
 export type { TenantInvitationRecord } from './tenant-invitation.service';
 export { TenantModule } from './tenant.module';

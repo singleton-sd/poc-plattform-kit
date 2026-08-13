@@ -23,6 +23,7 @@
     "@jsonforms/react": "^3.5.1",
     "@poc-plattform-kit/api-client": "workspace:*",
     "@poc-plattform-kit/forms": "workspace:*",
+    "@singleton-sd/tokens": "1.3.0",
     "@tanstack/react-query": "^5.62.7",
     "next": "^14.2.18",
     "react": "^18.3.1",

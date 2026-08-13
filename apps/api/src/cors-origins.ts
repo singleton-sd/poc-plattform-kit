@@ -2,12 +2,15 @@
  * Default browser origins allowed to call the API.
  * SWA entries are instance-scoped (`{swaName}*.azurestaticapps.net`) so PR
  * preview hosts of *this* SWA match, not every Azure customer's Static Web App.
+ * ACA web PR previews use `ssd-pocpk-aca-web-pr-*.azurecontainerapps.io`
+ * (not the API preview app `ssd-pocpk-aca-pr-<n>-ae`).
  */
 export const DEFAULT_CORS_ORIGINS = [
   'https://app.plattform-kit.poc.singletonsd.com',
   'https://plattform-kit.poc.singletonsd.com',
   'https://kind-rock-0f409fe00*.azurestaticapps.net',
   'https://purple-field-05048bf00*.azurestaticapps.net',
+  'https://ssd-pocpk-aca-web-pr-*.azurecontainerapps.io',
 ] as const;
 
 /** Host-suffix wildcard: `https://*.example.com` (https only). */
@@ -19,12 +22,23 @@ const HOST_SUFFIX_WILDCARD = /^https:\/\/\*\.([A-Za-z0-9.-]+)$/;
  */
 const SWA_INSTANCE_WILDCARD = /^https:\/\/([A-Za-z0-9-]+)\*\.azurestaticapps\.net$/i;
 
+/**
+ * This-repo web ACA PR previews:
+ * `https://ssd-pocpk-aca-web-pr-*.azurecontainerapps.io`
+ */
+const ACA_WEB_PREVIEW_WILDCARD = /^https:\/\/ssd-pocpk-aca-web-pr-\*\.azurecontainerapps\.io$/i;
+
 const AZURE_SWA_ROOT = 'azurestaticapps.net';
+const AZURE_ACA_ROOT = 'azurecontainerapps.io';
+
+const ACA_WEB_PREVIEW_HOST =
+  /^ssd-pocpk-aca-web-pr-\d+-ae\.[a-z0-9-]+\.australiaeast\.azurecontainerapps\.io$/i;
 
 /**
  * Parse CORS_ORIGINS env (comma-separated). Empty / whitespace → defaults.
- * Entries may be exact origins, `https://*.domain` suffixes, or
- * `https://{swaName}*.azurestaticapps.net` instance prefixes.
+ * Entries may be exact origins, `https://*.domain` suffixes,
+ * `https://{swaName}*.azurestaticapps.net` instance prefixes, or
+ * `https://ssd-pocpk-aca-web-pr-*.azurecontainerapps.io`.
  */
 export function parseCorsOrigins(raw: string | undefined): string[] {
   if (raw === undefined || raw.trim() === '') {
@@ -56,10 +70,23 @@ function matchesSwaInstance(hostname: string, swaName: string): boolean {
   return hostname.startsWith(`${swaName}.`) || hostname.startsWith(`${swaName}-`);
 }
 
+function matchesAcaWebPreview(hostname: string): boolean {
+  return ACA_WEB_PREVIEW_HOST.test(hostname);
+}
+
+function isBuiltInAcaWebPreviewOrigin(origin: string): boolean {
+  const hostname = httpsHostname(origin);
+  return hostname !== undefined && matchesAcaWebPreview(hostname);
+}
+
+function isOpenMultiTenantCloudSuffix(suffix: string): boolean {
+  return suffix === AZURE_SWA_ROOT || suffix === AZURE_ACA_ROOT;
+}
+
 function matchesAllowlistEntry(
   origin: string,
   entry: string,
-  options: { allowOpenAzureSwaSuffix: boolean },
+  options: { allowOpenMultiTenantSuffix: boolean },
 ): boolean {
   if (entry === origin) {
     return true;
@@ -71,14 +98,19 @@ function matchesAllowlistEntry(
     return hostname !== undefined && matchesSwaInstance(hostname, swa[1].toLowerCase());
   }
 
+  if (ACA_WEB_PREVIEW_WILDCARD.test(entry)) {
+    const hostname = httpsHostname(origin);
+    return hostname !== undefined && matchesAcaWebPreview(hostname);
+  }
+
   const suffixWild = HOST_SUFFIX_WILDCARD.exec(entry);
   if (!suffixWild) {
     return false;
   }
 
   const suffix = suffixWild[1].toLowerCase();
-  if (!options.allowOpenAzureSwaSuffix && suffix === AZURE_SWA_ROOT) {
-    // Multi-tenant SWA root is too broad for Auth.js redirects (open redirect).
+  if (!options.allowOpenMultiTenantSuffix && isOpenMultiTenantCloudSuffix(suffix)) {
+    // Multi-tenant SWA / ACA roots are too broad for Auth.js redirects.
     return false;
   }
 
@@ -91,18 +123,25 @@ function matchesAllowlistEntry(
 
 /** True when `origin` matches an exact entry or an allowed wildcard (CORS). */
 export function isCorsOriginAllowed(origin: string, allowlist: readonly string[]): boolean {
+  if (isBuiltInAcaWebPreviewOrigin(origin)) {
+    return true;
+  }
   return allowlist.some((entry) =>
-    matchesAllowlistEntry(origin, entry, { allowOpenAzureSwaSuffix: true }),
+    matchesAllowlistEntry(origin, entry, { allowOpenMultiTenantSuffix: true }),
   );
 }
 
 /**
- * Auth.js post-login redirect allowlist: exact origins + this-repo SWA instance
- * prefixes only. Ignores open `https://*.azurestaticapps.net` (any tenant).
+ * Auth.js post-login redirect allowlist: exact origins + this-repo SWA
+ * instance prefixes and web ACA PR hosts only. Ignores open
+ * `https://*.azurestaticapps.net` and `https://*.azurecontainerapps.io`.
  */
 export function isAuthRedirectOriginAllowed(origin: string, allowlist: readonly string[]): boolean {
+  if (isBuiltInAcaWebPreviewOrigin(origin)) {
+    return true;
+  }
   return allowlist.some((entry) =>
-    matchesAllowlistEntry(origin, entry, { allowOpenAzureSwaSuffix: false }),
+    matchesAllowlistEntry(origin, entry, { allowOpenMultiTenantSuffix: false }),
   );
 }
 

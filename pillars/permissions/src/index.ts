@@ -18,7 +18,7 @@ export { GrantPermissionResponseDto } from './dto/grant-permission-response.dto'
 export { RevokePermissionDto } from './dto/revoke-permission.dto';
 export { RevokePermissionResponseDto } from './dto/revoke-permission-response.dto';
 export { ManagerChainService, type ManagerChainDependencies } from './manager-chain.service';
-export { PermissionsModule } from './permissions.module';
+export { PermissionsModule, TENANT_GROUP_PERMISSIONS } from './permissions.module';
 export {
   oneTimeGrantObject,
   PermissionsService,

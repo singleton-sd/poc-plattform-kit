@@ -7,7 +7,7 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 | Layer | Choice |
 | --- | --- |
 | SSG | **Astro** (`apps/marketing`) — Markdown → static `dist/` |
-| Styling | **Tailwind 3** + [Singleton SD design tokens](https://tokens.design.singletonsd.com/) |
+| Styling | **Tailwind 3** + `@singleton-sd/tokens` (`--ssd-*` CSS; npm, not the token CDN) |
 | Content | Markdown collections under `apps/marketing/src/content/pages/` |
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
 | OAuth login | Azure Function on existing B1 `pocpk-plan` — `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`) |
@@ -55,6 +55,8 @@ Product theme layers:
 | `admin.css` | Maintainer-endorsed CSS overrides (solid `--pk-*` surfaces, nav vs CTA, editor) |
 | `admin-theme.js` | Unofficial Emotion hex remapper for `styles.js` `colorsRaw` leftovers; re-runs on `hashchange` |
 | `preview.css` | Preview iframe only (official `registerPreviewStyle` target) |
+
+`astro.config.mjs` copies `@singleton-sd/tokens` CSS into `public/admin/tokens/` so the static admin SPA can `@import` it (no token CDN).
 
 Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
 

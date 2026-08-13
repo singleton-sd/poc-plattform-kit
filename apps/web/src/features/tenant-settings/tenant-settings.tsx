@@ -13,6 +13,9 @@ import type { UpdateTenantInput } from '@/features/tenants/schemas';
 import { configureApiClient } from '@/lib/api-client';
 import { parseSettingsText } from './schemas';
 
+const SETTINGS_JSON_INPUT_ID = 'tenant-settings-json-input';
+const SETTINGS_JSON_ERROR_ID = 'tenant-settings-json-error';
+
 export type TenantSettingsProps = {
   /**
    * Pre-fills the lookup form and triggers the initial lookup, e.g. when
@@ -34,7 +37,8 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
   const [tenantIdInput, setTenantIdInput] = useState(initialTenantId ?? '');
   const [lookupId, setLookupId] = useState('');
   const [settingsText, setSettingsText] = useState('');
-  const [clientError, setClientError] = useState<string | null>(null);
+  // Rule 2: first JSON check on blur or submit; then re-validate live.
+  const [settingsJsonChecked, setSettingsJsonChecked] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [formValid, setFormValid] = useState(false);
 
@@ -59,6 +63,9 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
   });
 
   const tenant = tenantPayload(findQuery.data);
+  const settingsParseResult = parseSettingsText(settingsText);
+  const settingsJsonError = 'error' in settingsParseResult ? settingsParseResult.error : null;
+  const showSettingsJsonError = settingsJsonChecked && Boolean(settingsJsonError);
 
   useEffect(() => {
     if (!tenant) return;
@@ -71,7 +78,7 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
     if (!id) return;
     configureApiClient({ tenantId: id });
     updateMutation.reset();
-    setClientError(null);
+    setSettingsJsonChecked(false);
     if (id === lookupId) {
       void findQuery.refetch();
       return;
@@ -82,16 +89,14 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
   function handleNameSubmit(data: UpdateTenantInput) {
     if (!tenant) return;
 
-    const settingsResult = parseSettingsText(settingsText);
-    if ('error' in settingsResult) {
-      setClientError(settingsResult.error);
+    setSettingsJsonChecked(true);
+    if ('error' in settingsParseResult) {
       return;
     }
 
-    setClientError(null);
     updateMutation.mutate({
       id: tenant.id,
-      data: { ...data, ...settingsResult },
+      data: { ...data, ...settingsParseResult },
     });
   }
 
@@ -174,40 +179,44 @@ export function TenantSettings({ initialTenantId }: TenantSettingsProps = {}) {
             onSubmit={handleNameSubmit}
           />
 
-          <label className="flex flex-col gap-1 text-sm text-fg">
+          <label className="flex flex-col gap-1 text-sm text-fg" htmlFor={SETTINGS_JSON_INPUT_ID}>
             Settings (JSON)
             <textarea
+              id={SETTINGS_JSON_INPUT_ID}
               className="min-h-32 rounded border border-fg-subtle bg-bg px-3 py-2 font-mono text-xs text-fg"
               value={settingsText}
               onChange={(event) => setSettingsText(event.target.value)}
+              onBlur={() => setSettingsJsonChecked(true)}
               disabled={updateMutation.isPending}
+              aria-invalid={showSettingsJsonError}
+              aria-describedby={showSettingsJsonError ? SETTINGS_JSON_ERROR_ID : undefined}
               data-testid="tenant-settings-json"
             />
             <span className="text-xs text-fg-muted">
               Leave blank to keep the current settings unchanged.
             </span>
+            {showSettingsJsonError ? (
+              <p
+                id={SETTINGS_JSON_ERROR_ID}
+                className="flex items-center gap-2 text-sm text-fg"
+                role="alert"
+                data-testid="tenant-settings-json-error"
+              >
+                <AlertIcon className="h-4 w-4 shrink-0" />
+                {settingsJsonError}
+              </p>
+            ) : null}
           </label>
 
           <button
             type="submit"
             form={UPDATE_TENANT_FORM_ID}
             className="self-start rounded bg-accent px-4 py-2 text-sm font-medium text-accent-on disabled:opacity-50"
-            disabled={updateMutation.isPending || !formValid}
+            disabled={updateMutation.isPending || !formValid || showSettingsJsonError}
             data-testid="tenant-settings-save"
           >
             {updateMutation.isPending ? 'Saving…' : 'Save changes'}
           </button>
-
-          {clientError ? (
-            <p
-              className="flex items-center gap-2 text-sm text-fg"
-              role="alert"
-              data-testid="tenant-settings-client-error"
-            >
-              <AlertIcon className="h-4 w-4 shrink-0" />
-              {clientError}
-            </p>
-          ) : null}
         </div>
       ) : null}
 

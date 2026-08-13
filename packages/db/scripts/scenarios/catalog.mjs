@@ -11,6 +11,7 @@ import { registerTenantScenarios } from './fixtures/tenant.mjs';
 const DEMO_SCENARIOS = [
   'pillar/tenant/empty',
   'pillar/tenant/multi-membership',
+  'pillar/tenant/groups',
   'pillar/tenant/settings',
   'pillar/tenant/audit-history',
   'pillar/tenant/outbox-safe',
