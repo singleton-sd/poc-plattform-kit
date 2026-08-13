@@ -25,8 +25,8 @@ export) as the source of truth.
 | System | Owns | Does NOT own |
 | --- | --- | --- |
 | **ClickUp** | Private business/commercial planning: business ideas, commercial strategy, pricing, sales information, customer-private information, contracts, commercially sensitive roadmap, other private business planning. | Anything in the engineering execution lifecycle: no engineering task status, no engineering dependency tracking, no agent claim/handoff state. |
-| **GitHub Issues** | Engineering work units: features ready for engineering, technical discovery, bugs, infrastructure work, technical debt, engineering dependencies, executable work assigned to agents. | Commercial/business planning content that has not yet crossed the engineering boundary (see §3). |
-| **GitHub Project** | Engineering prioritisation, engineering lifecycle/status, backlog visibility, ready/in-progress/review/done views. | The definition of the work itself (that's the Issue body) or implementation history (that's the PR). Full Project configuration is defined in [#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172). |
+| **GitHub Issues** | Engineering work units: features ready for engineering, technical discovery, bugs, infrastructure work, technical debt, engineering dependencies, executable work assigned to agents. | Commercial/business planning content that has not yet crossed the engineering boundary (see section 3). |
+| **GitHub Project** | Engineering prioritisation, engineering lifecycle/status, backlog visibility, ready/in-progress/review/done views. | The definition of the work itself (that's the Issue body) or implementation history (that's the PR). Full Project configuration is defined in [#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172) and documented in [`docs/github-project.md`](./github-project.md). |
 | **Repository documentation** (`docs/**`, `AGENTS.md`, `.cursor/skills/**`, `.github/agents/**`) | Technical knowledge required by engineers and AI agents: architecture, conventions, runbooks, pipelines. | Business/commercial knowledge. Migration of remaining ClickUp technical docs is [#175](https://github.com/singleton-sd/poc-plattform-kit/issues/175). |
 | **Pull requests** | Implementation, code review, review discussion, CI validation, merge state. | Task definition or prioritisation — a PR implements an Issue, it does not replace one. |
 
@@ -50,7 +50,7 @@ require reading from or writing to ClickUp:
 
 Existing automation that still performs ClickUp reads/writes for engineering
 work (workflows, scripts, skills) is legacy and is addressed by the
-downstream migration issues in §10, not by this policy document itself.
+downstream migration issues in section 10, not by this policy document itself.
 Do not add *new* ClickUp engineering integrations after this policy lands.
 
 ## 3. Engineering lifecycle
@@ -290,14 +290,14 @@ even if later edited or deleted.
 
 **May remain public:** generic architecture, implementation details,
 engineering requirements, and ordinary product capability descriptions.
-This is unchanged from the repository's existing secrets policy in
-`AGENTS.md` § Secrets + configuration — this section restates it as part of
-the engineering source-of-truth policy so it travels with issue/PR
+This is unchanged from the repository's existing secrets policy in the
+Secrets + configuration section of `AGENTS.md` — this section restates it as
+part of the engineering source-of-truth policy so it travels with issue/PR
 authoring guidance, not because the underlying rule is new.
 
 If engineering work legitimately needs to reference something in the
 "never" list (e.g. a real customer's specific requirement), keep that detail
-in ClickUp (private business/commercial planning, §1) and write the public
+in ClickUp (private business/commercial planning, section 1) and write the public
 GitHub Issue in generic terms.
 
 ## 8. Migration scope boundaries
@@ -308,13 +308,13 @@ settled input, not something to re-decide:
 
 | Issue | Scope | Depends on this policy |
 | --- | --- | --- |
-| [#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172) | GitHub engineering project, issue templates, PR workflow | Uses §1, §3, §4 to design Project columns/templates |
+| [#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172) | GitHub engineering project, issue templates, PR workflow | Uses sections 1, 3, 4 to design Project columns/templates |
 | [#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173) | Migrate ClickUp-dependent agent skills to GitHub | Uses this document to know what each rewritten skill must say |
-| [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) | Update repository agent/orchestration instructions for GitHub-native delivery | Uses §3, §5, §6 as the target behavior |
-| [#175](https://github.com/singleton-sd/poc-plattform-kit/issues/175) | Migrate technical ClickUp documentation into the repository | Uses §1 to decide what belongs in repo docs |
-| [#176](https://github.com/singleton-sd/poc-plattform-kit/issues/176) | Pilot the GitHub-native agent workflow | Validates §3–§6 end to end |
-| [#177](https://github.com/singleton-sd/poc-plattform-kit/issues/177) | Migrate active ClickUp engineering backlog to GitHub | Uses §6 issue identity convention for migrated tickets |
-| [#178](https://github.com/singleton-sd/poc-plattform-kit/issues/178) | Archive ClickUp Delivery, remove legacy engineering references | Uses §1/§2 as the definition of "done" |
+| [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) | Update repository agent/orchestration instructions for GitHub-native delivery | Uses sections 3, 5, 6 as the target behavior |
+| [#175](https://github.com/singleton-sd/poc-plattform-kit/issues/175) | Migrate technical ClickUp documentation into the repository | Uses section 1 to decide what belongs in repo docs |
+| [#176](https://github.com/singleton-sd/poc-plattform-kit/issues/176) | Pilot the GitHub-native agent workflow | Validates sections 3–6 end to end |
+| [#177](https://github.com/singleton-sd/poc-plattform-kit/issues/177) | Migrate active ClickUp engineering backlog to GitHub | Uses section 6 issue identity convention for migrated tickets |
+| [#178](https://github.com/singleton-sd/poc-plattform-kit/issues/178) | Archive ClickUp Delivery, remove legacy engineering references | Uses sections 1 and 2 as the definition of "done" |
 
 This issue (#171) intentionally does **not**: configure the GitHub Project,
 rewrite ClickUp-dependent skills, comprehensively rewrite agent
@@ -325,9 +325,9 @@ above.
 ## 9. Known conflicts with this policy
 
 The following existing repository instructions describe the pre-migration,
-ClickUp-based engineering lifecycle and now conflict with §2–§6 of this
+ClickUp-based engineering lifecycle and now conflict with sections 2–6 of this
 document. They are **not** rewritten as part of #171 — each is in scope for
-one of the downstream issues in §8, noted below. Until that issue lands,
+one of the downstream issues in section 8, noted below. Until that issue lands,
 treat this document as authoritative for *policy*, and treat the files below
 as authoritative only for the *mechanics* of operations they describe that
 this document doesn't yet replace (e.g. the shared hub-file conflict
@@ -335,13 +335,13 @@ playbook, worktree tooling) — not for ClickUp claim/handoff/status steps.
 
 | File | Conflict | Owning issue |
 | --- | --- | --- |
-| `AGENTS.md` §§ "AI loop (mandatory)", "Branch naming", "Worktrees" | ClickUp Claim Token claim/handoff protocol, `feature/<clickup-task-id>-<kebab-title>` branch naming, ClickUp status workflow as the engineering lifecycle | [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) |
+| `AGENTS.md` sections "AI loop (mandatory)", "Branch naming", "Worktrees" | ClickUp Claim Token claim/handoff protocol, `feature/<clickup-task-id>-<kebab-title>` branch naming, ClickUp status workflow as the engineering lifecycle | [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) |
 | `.cursor/skills/task-management/SKILL.md` | ClickUp status workflow and task creation as *the* task management system | [#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173) |
 | `.cursor/skills/task-driven-development/SKILL.md` | ClickUp claim/handoff steps embedded in the implementation workflow | [#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173) |
 | `.cursor/skills/agent-orchestration/SKILL.md` | ClickUp task ids in branch/worktree naming, ClickUp status/Claim Token transitions in orchestrator responsibilities | [#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173) |
 | `.cursor/skills/backlog-refinement/SKILL.md`, `.cursor/skills/idea-to-delivery/SKILL.md`, `.cursor/skills/refine-idea/SKILL.md`, `.cursor/skills/discover-requirements/SKILL.md` | Idea→ticket flow targets ClickUp Ideas & Discovery / Delivery lists rather than GitHub Issues | [#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173) |
 | `.cursor/skills/git-conventions/SKILL.md` | Commit format keyed to ClickUp custom ids (`feat: <clickup-id> ...`) rather than GitHub issue numbers | [#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173) |
-| `docs/pr-pipelines.md` §§ "PR hygiene", "Complete ClickUp tickets after merge", "Enforced PR handoff gate", "Asynchronous ClickUp recovery" | PR handoff, hygiene labels, and merge completion are gated on ClickUp state via `scripts/clickup.sh handoff`, `complete-clickup-on-merge.yml`, `clickup-pr-recovery.yml` | [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) (and workflow changes may extend into [#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172)) |
+| `docs/pr-pipelines.md` sections "PR hygiene", "Complete ClickUp tickets after merge", "Enforced PR handoff gate", "Asynchronous ClickUp recovery" | PR handoff, hygiene labels, and merge completion are gated on ClickUp state via `scripts/clickup.sh handoff`, `complete-clickup-on-merge.yml`, `clickup-pr-recovery.yml` | [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) (and workflow changes may extend into [#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172)) |
 | `.github/workflows/complete-clickup-on-merge.yml`, `.github/workflows/clickup-pr-recovery.yml`, `.github/workflows/pr-hygiene.yml` (ClickUp-facing parts) | Automation reads/writes ClickUp as part of merge/hygiene lifecycle | [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) |
 | `scripts/clickup.ps1`, `scripts/clickup.sh`, `scripts/pr-handoff-gate.mjs` | Tooling implements the ClickUp claim/handoff gate described above | [#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173) / [#174](https://github.com/singleton-sd/poc-plattform-kit/issues/174) |
 | `README.md` "ClickUp (locked)" section | Presents ClickUp as the ticket source for engineering work | [#175](https://github.com/singleton-sd/poc-plattform-kit/issues/175) |
