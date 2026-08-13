@@ -124,24 +124,31 @@ test('sweepSpaPrPreviewRedirects drops closed ACA web origins', () => {
   assert.deepEqual(plan.next, ['http://localhost:3000', openAca, apiAca]);
 });
 
+function workflowJob(workflow, jobId) {
+  const start = workflow.indexOf(`  ${jobId}:`);
+  assert.ok(start >= 0, `missing job ${jobId}`);
+  const rest = workflow.slice(start + 3);
+  const next = rest.search(/\n {2}[a-z_]+:/);
+  return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 3 + next);
+}
+
 test('credentialed redirect jobs use only the trusted base helper', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
-  const credentialedJobs = workflow.slice(workflow.indexOf('  register_entra_redirect:'));
+  const credentialedJobs = ['register_entra_redirect', 'unregister_entra_redirect'].map((job) =>
+    workflowJob(workflow, job),
+  );
 
   assert.equal(
-    (credentialedJobs.match(/ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/g) ?? [])
+    credentialedJobs.filter((job) => job.includes('ref: ${{ github.event.pull_request.base.sha }}'))
       .length,
     2,
   );
-  assert.equal((credentialedJobs.match(/sparse-checkout-cone-mode: false/g) ?? []).length, 2);
+  assert.equal(
+    credentialedJobs.filter((job) => job.includes('sparse-checkout-cone-mode: false')).length,
+    2,
+  );
 
-  for (const job of ['register_entra_redirect', 'close_preview']) {
-    const start = credentialedJobs.indexOf(`  ${job}:`);
-    const nextJob = credentialedJobs.indexOf('\n  close_preview:', start + 3);
-    const definition = credentialedJobs.slice(
-      start,
-      job === 'register_entra_redirect' ? nextJob : undefined,
-    );
+  for (const definition of credentialedJobs) {
     assert.ok(
       definition.indexOf('Check out trusted redirect helper') <
         definition.indexOf('Azure login (OIDC)'),
@@ -149,13 +156,15 @@ test('credentialed redirect jobs use only the trusted base helper', async () => 
   }
 });
 
-test('register_entra_redirect serializes Entra mutations', async () => {
+test('register and unregister serialize Entra mutations on the global group', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
-  const credentialedJobs = workflow.slice(workflow.indexOf('  register_entra_redirect:'));
-  const register = credentialedJobs.slice(0, credentialedJobs.indexOf('\n  close_preview:'));
-
-  assert.equal((register.match(/group: entra-spa-preview-redirects/g) ?? []).length, 1);
-  assert.match(register, /cancel-in-progress: false/);
+  for (const jobId of ['register_entra_redirect', 'unregister_entra_redirect']) {
+    const job = workflowJob(workflow, jobId);
+    assert.equal((job.match(/group: entra-spa-preview-redirects/g) ?? []).length, 1);
+    assert.match(job, /cancel-in-progress: false/);
+  }
+  const register = workflowJob(workflow, 'register_entra_redirect');
+  assert.match(register, /Confirm PR still open/);
 });
 
 test('close_preview shares deploy concurrency so close cancels in-flight deploy', async () => {
@@ -164,7 +173,17 @@ test('close_preview shares deploy concurrency so close cancels in-flight deploy'
     workflow,
     /build_and_preview:[\s\S]*group: preview-web-\$\{\{ github\.event\.pull_request\.number \}\}/,
   );
-  const close = workflow.slice(workflow.indexOf('  close_preview:'));
+  const close = workflowJob(workflow, 'close_preview');
   assert.match(close, /group: preview-web-\$\{\{ github\.event\.pull_request\.number \}\}/);
   assert.match(close, /cancel-in-progress: true/);
+  assert.doesNotMatch(close, /entra-spa-preview-redirects/);
+  assert.doesNotMatch(close, /entra-spa-preview-redirect\.sh/);
+});
+
+test('unregister_entra_redirect runs after close captures the origin', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  const unregister = workflowJob(workflow, 'unregister_entra_redirect');
+  assert.match(unregister, /needs: close_preview/);
+  const close = workflowJob(workflow, 'close_preview');
+  assert.match(close, /preview_origin:/);
 });

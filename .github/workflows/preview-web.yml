@@ -352,6 +352,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      pull-requests: read
     steps:
       # Use only code from the trusted base on this credentialed runner.
       - name: Check out trusted redirect helper
@@ -378,8 +379,23 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Azure login (OIDC)
+      - name: Confirm PR still open
         if: steps.oidc.outputs.configured == 'true'
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
+          if [ "$state" = "open" ]; then
+            echo "open=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "open=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR is '$state' — skipping Entra redirect add so a queued register cannot restore a closed PR URI."
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true' && steps.open.outputs.open == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -388,7 +404,7 @@ jobs:
 
       # MSAL uses window.location.origin; Entra has no ACA host wildcards.
       - name: Register Entra SPA redirect URI for preview
-        if: steps.oidc.outputs.configured == 'true'
+        if: steps.oidc.outputs.configured == 'true' && steps.open.outputs.open == 'true'
         env:
           ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
         run: |
@@ -412,24 +428,13 @@ jobs:
       cancel-in-progress: true
     runs-on: ubuntu-latest
     name: Delete web ACA preview
+    outputs:
+      preview_origin: ${{ steps.origin.outputs.origin }}
     permissions:
       contents: read
       id-token: write
       pull-requests: write
     steps:
-      - name: Check out trusted redirect helper
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          sparse-checkout: |
-            scripts/entra-spa-preview-redirect.sh
-            scripts/entra-spa-preview-redirect.mjs
-          sparse-checkout-cone-mode: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
       - name: Require Azure OIDC Variables
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
@@ -462,25 +467,19 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Remove Entra SPA redirect URI for preview
+      - name: Resolve preview origin
+        id: origin
         env:
           APP_NAME: ssd-pocpk-aca-web-pr-${{ github.event.pull_request.number }}-ae
-          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
         run: |
           set -euo pipefail
-          if [ ! -f scripts/entra-spa-preview-redirect.sh ]; then
-            echo "warning: trusted base does not contain the redirect helper yet; skipping Entra remove"
-            exit 0
-          fi
           FQDN=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
-          if [ -z "$FQDN" ]; then
-            echo "No app $APP_NAME — skipping Entra remove (orphan sweep will drop leftover URIs)"
-            exit 0
+          if [ -n "$FQDN" ]; then
+            echo "origin=https://$FQDN" >> "$GITHUB_OUTPUT"
+          else
+            echo "origin=" >> "$GITHUB_OUTPUT"
+            echo "No app $APP_NAME — Entra remove will skip (orphan sweep drops leftover URIs)"
           fi
-          chmod +x scripts/entra-spa-preview-redirect.sh
-          scripts/entra-spa-preview-redirect.sh remove \
-            --pr "${{ github.event.pull_request.number }}" \
-            --origin "https://$FQDN"
 
       - name: Delete Container App
         env:
@@ -555,3 +554,70 @@ jobs:
                 body,
               });
             }
+
+  unregister_entra_redirect:
+    # Capture origin in close_preview (per-PR group) first so in-flight deploy
+    # is cancelled immediately; Entra PATCH shares the global group with
+    # register_entra_redirect and the orphan sweep.
+    if: >
+      always() &&
+      github.event.action == 'closed' &&
+      needs.close_preview.outputs.preview_origin != ''
+    needs: close_preview
+    concurrency:
+      group: entra-spa-preview-redirects
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    name: Remove Entra SPA redirect
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # Use only code from the trusted base on this credentialed runner.
+      - name: Check out trusted redirect helper
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: |
+            scripts/entra-spa-preview-redirect.sh
+            scripts/entra-spa-preview-redirect.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check OIDC Variables
+        id: oidc
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OIDC Variables not set — skipping Entra redirect removal."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Remove Entra SPA redirect URI for preview
+        if: steps.oidc.outputs.configured == 'true'
+        env:
+          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
+          ORIGIN: ${{ needs.close_preview.outputs.preview_origin }}
+        run: |
+          set -euo pipefail
+          if [ ! -f scripts/entra-spa-preview-redirect.sh ]; then
+            echo "warning: trusted base does not contain the redirect helper yet; skipping Entra remove"
+            exit 0
+          fi
+          chmod +x scripts/entra-spa-preview-redirect.sh
+          scripts/entra-spa-preview-redirect.sh remove \
+            --pr "${{ github.event.pull_request.number }}" \
+            --origin "$ORIGIN"
