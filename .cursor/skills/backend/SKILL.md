@@ -393,6 +393,16 @@ export class AppModule {}
 
 ---
 
+## Permissions catalog (this repo)
+
+When adding a Prisma model or guarded Nest route here, follow
+[`.cursor/skills/register-permissions/SKILL.md`](../register-permissions/SKILL.md):
+run `pnpm permissions:register` (dry-run, then `--apply`) and finish only when
+`pnpm permissions:check` is green. Project checklist:
+[`docs/permissions.md`](../../../docs/permissions.md).
+
+---
+
 ## Rules
 
 - Never use `any` — use Prisma-generated types or explicit interfaces
@@ -401,3 +411,6 @@ export class AppModule {}
 - Services own business logic and Prisma queries — controllers only handle HTTP concerns
 - One module per feature domain — keep `AppModule` as a thin orchestrator
 - Validate all env vars at startup via `@nestjs/config` + Joi — fail fast rather than at runtime
+- Do not ship a new Prisma model or guarded Nest route without registering
+  `{resource}:{action}` — see
+  [`.cursor/skills/register-permissions/SKILL.md`](../register-permissions/SKILL.md)

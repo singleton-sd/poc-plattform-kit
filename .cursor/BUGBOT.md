@@ -1,6 +1,6 @@
 # Engineering sources of truth
 
-Repo mirror: `AGENTS.md` § GitHub-native engineering workflow;
+Repo mirror: the "GitHub-native engineering workflow" section of `AGENTS.md`;
 `docs/github-source-of-truth.md` is the authoritative policy.
 
 ## Issues and PRs
@@ -17,7 +17,7 @@ Repo mirror: `AGENTS.md` § GitHub-native engineering workflow;
 
 Workspace `90161394355` (space PoC) remains the ClickUp workspace for
 business/commercial planning and for legacy ClickUp-tracked tickets only —
-see `AGENTS.md` § Legacy ClickUp workflow. Do not invent a new Platform Kit
+see the "Legacy ClickUp workflow" section of `AGENTS.md`. Do not invent a new Platform Kit
 space/list there.
 
 ## Documents

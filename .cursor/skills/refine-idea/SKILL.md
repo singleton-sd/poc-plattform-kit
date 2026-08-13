@@ -32,7 +32,7 @@ The agent is expected to challenge the premise. A valid outcome is **do not buil
 
 Do not dump a questionnaire on the user. Progressively resolve the highest-value uncertainty first.
 
-Prefer one focused question at a time when user input is needed. Use existing repository, architecture, ClickUp, and conversation context before asking questions the answer may already contain.
+Prefer one focused question at a time when user input is needed. Use existing repository, architecture, GitHub issues, and conversation context before asking questions the answer may already contain.
 
 Typical sequence:
 
@@ -62,7 +62,8 @@ When relevant, test the idea against:
 - whether an MVP can validate value before a large investment;
 - whether multiple ideas have been accidentally bundled together.
 
-For `poc-plattform-kit`, inspect the Architecture Doc and existing ClickUp work when doing so would materially change the recommendation. Browsing is not claiming work.
+For `poc-plattform-kit`, inspect the Architecture Doc and existing GitHub issues when doing so
+would materially change the recommendation. Browsing is not claiming work.
 
 ## Split bundled ideas
 
@@ -77,8 +78,8 @@ For each candidate capability identify:
 
 Do not create implementation slices yet. That is the responsibility of
 `idea-to-delivery` after `discover-requirements` marks the work
-`READY FOR DESIGN / DELIVERY PLANNING`. A single existing Delivery
-ticket goes to `backlog-refinement` instead.
+`READY FOR DESIGN / DELIVERY PLANNING`. A single existing GitHub issue
+goes to `backlog-refinement` instead.
 
 ## Readiness states
 
@@ -143,31 +144,30 @@ Next step
 
 Keep the brief proportional to the idea. Small ideas do not need ceremony.
 
-## ClickUp routing
+## Persisting the brief
 
-`AGENTS.md` is authoritative for list IDs, statuses, and create commands.
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) section 1 and section 3 are
+authoritative: GitHub Issues own engineering work, including technical discovery — there is no
+separate pre-GitHub "ideas" queue for anything that has already crossed into engineering framing.
 
-For `singleton-sd/poc-plattform-kit`:
+For `singleton-sd/poc-plattform-kit`, only when the user asks to store the brief:
 
-- persist unresolved/raw ideas and validation work on **Ideas & Discovery**
-  (`901616397764`) only when the user asks to store the brief;
-- do not create **Delivery** (`901616287298`) tasks from unresolved ideas;
-- do not use **Human & Operations** (`901616397767`) for a question — only
-  for a real manual action;
-- Ideas & Discovery statuses are `TO DO` / `IN PROGRESS` / `COMPLETE` only —
-  no Claim Token, no `READY FOR AI`;
-- browsing/refinement is not claiming.
+- **READY FOR REQUIREMENTS** or **NEEDS VALIDATION** (a spike is genuinely engineering
+  discovery): open (or update) a GitHub issue capturing the brief. Do not mark it agent-ready —
+  that happens later, via `discover-requirements` → `backlog-refinement` /
+  `idea-to-delivery`, once the open questions are resolved.
+- **HOLD / DO NOT BUILD**: no issue is needed unless the user wants the rejection recorded for
+  future reference (a comment on a related existing issue is usually enough).
+- A private business/commercial idea that has **not yet** crossed the engineering boundary (see
+  `docs/github-source-of-truth.md` section 3) is out of this skill's scope to file anywhere — that is
+  business planning, not engineering discovery.
 
-Create (Windows):
+Browsing/refinement is not claiming: filing the issue does not assign it to anyone.
 
-```powershell
-powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..."
-```
-
-Create (Linux / Cloud):
+Create:
 
 ```bash
-./scripts/clickup.sh create "..." "TO DO" --list-id 901616397764
+gh issue create --title "..." --body "..."
 ```
 
 ## Handoff contract
@@ -180,4 +180,4 @@ Do not duplicate the responsibilities of:
 
 - `discover-requirements` — detailed behavior, rules, actors, scenarios, NFRs, data/integration requirements;
 - `backlog-refinement` — making an existing backlog item decision-complete and agent-ready;
-- `idea-to-delivery` — Epics, delivery slices, dependencies, parallel lanes, and ClickUp execution planning.
+- `idea-to-delivery` — parent/tracking issues, delivery-slice issues, dependencies, and parallel lanes.

@@ -1,49 +1,51 @@
 ---
 name: Backlog Refinement
-description: Refine raw ideas and backlog items into decision-complete work, then route discovery, implementation, and human gates through the poc-plattform-kit ClickUp workflow.
-tags: [product, planning, agile, writing, clickup]
+description: Refine raw ideas and backlog items into decision-complete, agent-ready GitHub issues for poc-plattform-kit, with dependencies expressed as Depends on/Blocks/Parent.
+tags: [product, planning, agile, writing, github]
 audience: [product-managers, engineers, tech-leads]
 status: stable
 ---
 
 # Backlog Refinement
 
-Use this skill to turn a rough idea, bug, feature request, transcript, or existing ticket into work that can be safely executed by humans and AI agents.
+Use this skill to turn a rough idea, bug, feature request, transcript, or existing GitHub issue
+into work that can be safely executed by humans and AI agents.
 
-For multi-ticket feature planning, also apply `idea-to-delivery`.
+For multi-issue feature planning, also apply `idea-to-delivery`.
 
-## ClickUp routing
+## GitHub as the engineering tracker
 
-For `singleton-sd/poc-plattform-kit`:
-
-- **Ideas & Discovery** (`901616397764`) — unresolved ideas, spikes, design questions and discovery.
-- **Delivery** (`901616287298`) — approved implementation work.
-- **Human & Operations** (`901616397767`) — standalone manual gates and operational actions.
-- **Architecture Doc** (`2kz0kcnk-1416`) — source of truth for architecture/design decisions.
-
-Do not create Web/API/Marketing/pillar-specific lists. Those are task classifications.
+For `singleton-sd/poc-plattform-kit`, engineering work — including technical discovery, spikes,
+bugs, infrastructure work, and technical debt — lives as **GitHub Issues** in this repository.
+See [`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) section 1 and section 3 for the
+authoritative system-ownership and lifecycle policy. Architecture/design decision documentation
+still lives where the repository's docs conventions put it (`docs/**` or the ClickUp Architecture
+Doc, per current repository convention) — that's a documentation-ownership question, not an
+engineering-tracking one, and this skill doesn't change it.
 
 ## Refinement decision
 
 Classify the input before creating implementation work:
 
-- **Tiny isolated change:** one Delivery task.
-- **Medium feature:** Epic/initiative + roughly 2–5 Delivery tasks.
-- **Large/cross-cutting or materially uncertain work:** keep/create Discovery work first; once decisions are made, create an Epic/initiative and delivery slices.
-- **Manual requirement:** create a Human & Operations task rather than pretending an AI implementer can complete it.
+- **Tiny isolated change:** one GitHub issue.
+- **Medium feature:** a parent/tracking issue (`Parent: #N` on each child) + roughly 2–5 child issues.
+- **Large/cross-cutting or materially uncertain work:** open a discovery issue first; once
+  decisions are made, open the parent/tracking issue and delivery-slice issues that declare
+  `Parent: #<tracking-issue>`.
+- **Manual requirement:** call this out explicitly in the relevant issue (e.g. a checklist item
+  or a linked issue) rather than pretending an AI implementer can complete it — do not silently
+  fold a manual step into an "AI-ready" issue.
 
-Default slicing rule: one independently mergeable PR is usually one Delivery task.
+Default slicing rule: one independently mergeable PR is usually one GitHub issue.
 
-## Required ticket shape
+## Required issue shape
 
 ```text
 Title: <concise action-oriented title>
 
-Area: Web App | API | Marketing | Infrastructure | Developer Experience | Cross-cutting
-Pillar: Tenant | SingleSignOn | Subscriptions | Contact | Support | Audit | Reporting | Permissions | Notifications | Platform | None
-Work Type: Feature | Bug | Technical Debt | Discovery | Infrastructure | Documentation | Human Action
-Execution: AI | Human | AI + Human
-Parent Epic: <title/link or None>
+Parent: <#issue number, or omit>
+Depends on: <#issue number(s), or omit>
+Blocks: <#issue number(s), or omit>
 
 Goal:
 <observable outcome>
@@ -61,7 +63,8 @@ Technical direction:
 - <constraints, patterns, likely repo paths>
 
 Preview / seed scenarios:
-- <how the feature/bug is demonstrated in PR previews when applicable>
+- <how the feature/bug is demonstrated in PR previews when applicable — see
+  docs/preview-scenarios.md>
 
 Testing:
 - <automated expectations>
@@ -70,96 +73,69 @@ Testing:
 Out of scope:
 - <true non-goals>
 
-Dependencies:
-- <ticket titles / external gates>
-
 Open questions:
-- <must be empty before READY FOR AI unless explicitly safe for implementer choice>
-
-Sizing hint: XS | S | M | L | XL
+- <must be empty before the issue is agent-ready, unless explicitly safe for implementer choice>
 ```
 
 For bugs also include Steps to reproduce, Expected behavior and Actual behavior.
 
-When filing or updating a task through ClickUp tooling, set Area, Pillar, Work Type, and Execution using the dedicated custom fields listed below. Do not rely on tags or description text as the source of truth for these classifications.
+Use `Depends on:` / `Blocks:` / `Parent:` exactly as plain, greppable lines
+(`docs/github-source-of-truth.md` section 5) — do not bury dependency information only in prose.
 
-## READY FOR AI gate
+## Agent-ready gate
 
-A task may be marked **READY FOR AI** only when:
+An issue may be handed to an implementing agent only when it satisfies the agent-ready definition
+in `docs/github-source-of-truth.md` section 4: clear goal/problem statement, sufficient scope, testable
+acceptance criteria, stated constraints, discoverable technical references, no unresolved open
+questions that would force an implementer to make an unrecorded judgment call, and **no
+unresolved `Depends on`**.
 
-- acceptance criteria are testable;
-- material architecture/product decisions are resolved;
-- dependencies are complete or explicitly safe to run in parallel;
-- the task is independently deliverable;
-- repository constraints and relevant paths/patterns are identified when known;
-- preview/seed expectations are defined for user-facing changes or reproducible bugs;
-- any required manual setup is represented as a Human & Operations task;
-- no duplicate/equivalent ticket already owns the work.
-
-Otherwise keep it in BACKLOG/Discovery rather than handing ambiguity to an implementation agent.
+Otherwise leave the issue open with its gaps visible (e.g. via an "Open questions" section or a
+comment) rather than handing ambiguity to an implementation agent.
 
 ## Architecture documentation
 
-For architecture, design, new Azure resources, auth, messaging, pillar boundaries, secrets/config, CI/CD topology, or other cross-cutting plans:
+For architecture, design, new Azure resources, auth, messaging, pillar boundaries, secrets/config,
+CI/CD topology, or other cross-cutting plans:
 
-1. Update/add the relevant Architecture Doc page with goal, chosen approach, trade-offs, boundaries, operational implications and links to work.
-2. Create the Epic/initiative and implementation slices after the decision is documented.
-3. Put the Architecture Doc link in relevant ticket descriptions.
-4. A short repo `docs/*.md` mirror is optional; ClickUp Architecture Doc remains the planning source of truth.
+1. Update/add the relevant Architecture Doc page with goal, chosen approach, trade-offs,
+   boundaries, operational implications and links to work (documentation ownership/location is
+   unchanged by this skill — see `docs/github-source-of-truth.md` section 1 and the migration tracked in
+   [#175](https://github.com/singleton-sd/poc-plattform-kit/issues/175)).
+2. Create the parent/tracking issue and implementation-slice issues after the decision is
+   documented.
+3. Put the Architecture Doc link in relevant issue bodies.
 
 ## Out-of-scope follow-ups
 
-Every real follow-up discovered during refinement must be represented explicitly rather than hidden in prose.
+Every real follow-up discovered during refinement must be represented explicitly rather than
+hidden in prose.
 
-1. Search existing tasks by title/intent first (no duplicates):
-   - Delivery: `powershell -File scripts/clickup.ps1 list` (default `-ListId 901616287298`)
-   - Ideas & Discovery: `powershell -File scripts/clickup.ps1 list -ListId 901616397764`
-   - Human & Operations: `powershell -File scripts/clickup.ps1 list -ListId 901616397767`
-2. If missing, create on the correct list:
-   - Discovery: `powershell -File scripts/clickup.ps1 create -ListId 901616397764 -Name "..." -Status "TO DO" -Description "..." -Estimate <n>`
-   - Delivery: `powershell -File scripts/clickup.ps1 create -Name "..." -Status "BACKLOG" -Description "..." -Estimate <n>` (omit `-ListId`; default is Delivery)
-   - Manual: `powershell -File scripts/clickup.ps1 create -ListId 901616397767 -Name "..." -Status "TO DO" -Description "..." -Estimate <n>`
-3. Include clear acceptance criteria in `-Description`.
-4. **Token Estimate** is set via `-Estimate` on create (field `ab22f8d4-df04-435e-849a-9ca6c23489be`). Leave **Token Spent**, **Claim Token**, and **Preview URL** empty.
-5. After create: `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` so the new task waits on the parent (or named blocker).
-6. Leave new backlog tickets **unassigned** and do **not** set Claim Token (browse/create ≠ claim).
-7. Prefer linking via dependencies / description over a parent-ticket comment dump.
+1. Search existing issues by title/intent first (no duplicates): `gh issue list --search "..."`.
+2. If missing, create it: `gh issue create --title "..." --body "..."`.
+3. Include clear acceptance criteria in the body.
+4. Wire dependency by adding `Depends on: #<parent>` to the new issue's body (and `Blocks: #<new>`
+   on the parent, if useful).
+5. Leave new backlog issues **unassigned** — filing/browsing is not claiming.
+6. Prefer linking via `Depends on` / `Parent` over a parent-issue comment dump.
 
-### Token Estimate convention
-
-Map qualitative sizing to a rough token count when only a sizing hint is available:
-
-- XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000
-
-Store the number on **Token Estimate**; keep the sizing label in the description if useful.
-
-### ClickUp custom fields (when filing)
-
-| Field | ID | When filing backlog |
-| --- | --- | --- |
-| Area | `d046262e-bc5e-4e51-a13b-2ec91590f08e` | Set to the task's primary technical area |
-| Pillar | `63c6b89a-5c01-4ddf-90c3-c1ad7b6df60f` | Set to the owning product/domain pillar |
-| Work Type | `e7d43240-fe4a-4a62-8806-75a5b7f66ac7` | Set to the task's work classification |
-| Execution | `37574c9a-004c-419e-b1c1-5ac6f47fc501` | Set to AI, Human, or AI + Human |
-| Token Estimate | `ab22f8d4-df04-435e-849a-9ca6c23489be` | Set on create |
-| Token Spent | `be7b08e9-b094-4578-bd0a-49f20af85f3c` | Leave empty |
-| Claim Token | `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7` | Do not set |
-| Preview URL | `978d43d5-e404-4262-98a2-0193ade4736d` | Leave empty |
-
-## Epic and parallel execution
+## Parent issue and parallel execution
 
 For medium/large features, finish refinement with:
 
-- Epic/initiative title and outcome;
-- child Delivery task titles;
-- Human & Operations gates;
-- dependency graph;
+- Parent/tracking issue title and outcome;
+- child issue titles, each declaring `Parent: #<tracking-issue>`;
+- explicit manual/human-only steps called out on the relevant issue;
+- dependency graph (`Depends on` / `Blocks` lines across the children);
 - parallel lanes;
-- join/final integration work;
-- explicit list of tasks safe to mark READY FOR AI now.
+- join/final integration issue;
+- explicit list of issues that are agent-ready now.
 
-Do not put every ticket into READY FOR AI at once when dependencies make that unsafe.
+Do not mark every issue agent-ready at once when dependencies make that unsafe — an issue with an
+unresolved `Depends on` is never agent-ready regardless of how well-specified it is.
 
 ## Naming
 
-Use ticket titles as the primary human label. IDs belong in URLs, branch names, dependency wiring and secondary references. Do not add a repository marker to the task name or description — this is a single-repo workspace.
+Use issue titles as the primary human label. Numbers belong in URLs, branch names
+(`<type>/<issue-number>-<kebab-title>`), and dependency lines (`Depends on:` / `Blocks:` /
+`Parent:`).

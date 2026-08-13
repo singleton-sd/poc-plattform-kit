@@ -13,7 +13,7 @@
 #   required CI green + no open feedback). Removed here whenever needs-rebase,
 #   ci-failed, or has-feedback is (re-)added; added by `pnpm pr:gate -- --pr <n>`
 #   (scripts/pr-handoff-gate.mjs) once none of those blockers remain. See
-#   docs/pr-pipelines.md § Enforced PR handoff gate.
+#   the "Enforced PR handoff gate" section of docs/pr-pipelines.md.
 
 name: PR hygiene
 

@@ -22,7 +22,7 @@ This is a solo GitHub identity repo. GitHub forbids self-approve, so do not requ
 
 ### Branch naming (agents + optional GitHub rules)
 
-**Convention (primary - agents follow `AGENTS.md` § GitHub-native engineering workflow):**
+**Convention (primary - agents follow the "GitHub-native engineering workflow" section of `AGENTS.md`):**
 
 ```
 <type>/<issue-number>-<kebab-title>
@@ -43,7 +43,7 @@ Create worktrees with `pnpm worktree:add -- -Issue <n> -Type <type> -Slug <kebab
 
 Legacy ClickUp-tracked tickets (existing `feature/<clickup-task-id>-...` /
 `hotfix/<clickup-task-id>-...` branches only): `-TaskId <id>` /
-`--task-id <id>` remain as aliases - see `AGENTS.md` § Legacy ClickUp
+`--task-id <id>` remain as aliases - see the "Legacy ClickUp workflow" section of `AGENTS.md`.
 workflow. Do not use them for new work.
 
 **Where to click in GitHub (optional enforcement):**
@@ -58,12 +58,12 @@ workflow. Do not use them for new work.
 ## 2. GitHub Issues (primary) and legacy ClickUp - locked locations
 
 Engineering work is tracked in **GitHub Issues** in this repo - see
-`docs/github-source-of-truth.md` and `AGENTS.md` § GitHub-native engineering
+`docs/github-source-of-truth.md` and the "GitHub-native engineering workflow" section of `AGENTS.md`
 workflow. The GitHub Project view (issue tracking board) is set up per
 [#172](https://github.com/singleton-sd/poc-plattform-kit/issues/172).
 
 The ClickUp locations below remain real for **business/commercial
-planning** (per `docs/github-source-of-truth.md` §1) and for finishing out
+planning** (per `docs/github-source-of-truth.md` section 1) and for finishing out
 tickets already tracked in ClickUp Delivery until
 [#177](https://github.com/singleton-sd/poc-plattform-kit/issues/177) /
 [#178](https://github.com/singleton-sd/poc-plattform-kit/issues/178) land.
@@ -90,7 +90,7 @@ Do not file new engineering work in ClickUp Delivery.
 - [ ] Human: follow the PR test plan, leave feedback, and merge only after CI and actionable bot findings are resolved - merging closes the linked issue automatically
 - [ ] PR hygiene labels (`needs-rebase`, `ci-failed`, `has-feedback`, `preview-blocked`, `ready-for-human`) from `.github/workflows/pr-hygiene.yml` - see `docs/pr-pipelines.md` / `AGENTS.md`
 
-**Legacy ClickUp (existing ClickUp-tracked tickets only, see `AGENTS.md` § Legacy ClickUp workflow):**
+**Legacy ClickUp (existing ClickUp-tracked tickets only, see the "Legacy ClickUp workflow" section of `AGENTS.md`):**
 
 - [x] Agents use REST [`scripts/clickup.ps1`](scripts/clickup.ps1) + `CLICKUP_API_TOKEN` (not ClickUp MCP for routine ops)
 - [ ] Implementer: pick tickets in **READY FOR AI** -> claim via `scripts/clickup.ps1 claim` -> **IN PROGRESS** -> PR -> **PR hygiene** (CI + mergeable) -> **READY FOR REVIEW**

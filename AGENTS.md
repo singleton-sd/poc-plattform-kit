@@ -21,7 +21,7 @@ section further down describes the pre-migration workflow. It remains the
 operative mechanics **only** for existing ClickUp-tracked tickets (branches
 already named `feature/<clickup-task-id>-...` / `hotfix/<clickup-task-id>-...`)
 until the migration issues referenced in `docs/github-source-of-truth.md`
-§8–§9 (`#177`, `#178`) land. Do not start new work through it.
+sections 8–9 (`#177`, `#178`) land. Do not start new work through it.
 
 ## Repo
 
@@ -31,7 +31,7 @@ until the migration issues referenced in `docs/github-source-of-truth.md`
 ## GitHub-native engineering workflow (primary)
 
 This section implements [`docs/github-source-of-truth.md`](docs/github-source-of-truth.md)
-§3, §5, and §6 operationally. Read the policy document for the full rules;
+sections 3, 5, and 6 operationally. Read the policy document for the full rules;
 this is the "how" for day-to-day agent execution. Nothing here reads from or
 writes to ClickUp.
 
@@ -40,9 +40,9 @@ writes to ClickUp.
 1. Work is a **GitHub Issue** in `singleton-sd/poc-plattform-kit`. The issue
    number (`#N`) is the work's identity — do not invent a parallel id.
 2. An issue is **agent-ready** only when it meets every condition in
-   `docs/github-source-of-truth.md` §4 (clear goal, scope, acceptance
+   `docs/github-source-of-truth.md` section 4 (clear goal, scope, acceptance
    criteria, stated constraints, no unresolved open questions) **and** has no
-   unresolved `Depends on:` line (§5). An issue lacking any of that is
+   unresolved `Depends on:` line (section 5). An issue lacking any of that is
    discovery/refinement work, not implementation work — do not start coding
    from it.
 3. **Claiming is implicit and exclusive by construction:** an agent claims an
@@ -54,7 +54,7 @@ writes to ClickUp.
    implementation. If you must abandon claimed work, close your PR (or leave
    a comment saying so) so the issue reads as unclaimed again.
 4. Check `Depends on:` / `Blocks:` / `Parent:` lines on the issue (see
-   `docs/github-source-of-truth.md` §5):
+   `docs/github-source-of-truth.md` section 5):
    - An unresolved `Depends on: #N` (issue `#N` not yet closed) means **do
      not start** — the issue is not agent-ready yet.
    - Issues with no dependency relationship between them may be worked
@@ -138,7 +138,7 @@ git worktree prune
 
 ### Repository workflow (fetch, rebase, push, PR)
 
-Per `docs/github-source-of-truth.md` §6:
+Per `docs/github-source-of-truth.md` section 6:
 
 1. Never work directly on `main`.
 2. `git fetch origin` before starting.
@@ -190,7 +190,7 @@ migration — it was already tracker-neutral:
 
    This applies the `ready-for-human` label when the PR is truly mergeable,
    required CI is green, and there are no unresolved review threads (see
-   [`docs/pr-pipelines.md`](docs/pr-pipelines.md) § Enforced PR handoff
+the "Enforced PR handoff gate" section of [`docs/pr-pipelines.md`](docs/pr-pipelines.md)
    gate). It removes the label if any blocker reappears.
 5. Keep the Human Review Brief current: `node scripts/upsert-pr-review-brief.mjs --pr <n>`.
 6. Bot or human feedback that requires code changes: fetch the PR tip and
@@ -202,7 +202,7 @@ migration — it was already tracker-neutral:
 
 Merging the PR (with `Closes #N`) closes the linked issue automatically.
 There is no separate "mark complete" step and no ClickUp status write — see
-[`docs/pr-pipelines.md`](docs/pr-pipelines.md) § Issue closure
+the "Issue closure" section of [`docs/pr-pipelines.md`](docs/pr-pipelines.md)
 (GitHub-native).
 
 ## Legacy ClickUp workflow (existing ClickUp-tracked tickets only)
@@ -213,7 +213,7 @@ ClickUp Delivery (branches named `feature/<clickup-task-id>-...` /
 work — use **GitHub-native engineering workflow** above. This section is
 retired by [#177](https://github.com/singleton-sd/poc-plattform-kit/issues/177)
 / [#178](https://github.com/singleton-sd/poc-plattform-kit/issues/178) per
-`docs/github-source-of-truth.md` §8.
+`docs/github-source-of-truth.md` section 8.
 
 - **ClickUp ticket titles:** keep names concise, sentence case, action-first,
   and human-readable. Never append repository identifiers or routing
@@ -445,7 +445,9 @@ Ops tip: merge foundation/hub PRs (CI, hooks, skills sync, SETUP) before long-li
 
 ## Architecture
 
-Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**, **Permissions** (OpenFGA - see Architecture Doc), **Notifications**.
+Narrative overview, multitenancy model, and settled architecture decisions: [`docs/architecture/overview.md`](docs/architecture/overview.md), [`docs/architecture/engineering-principles.md`](docs/architecture/engineering-principles.md), [`docs/adr/`](docs/adr/). The summary below is the quick-reference version of the same material.
+
+Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, **Subscriptions**, **Contact**, **Support**, **Audit**, **Reporting**, **Permissions** (OpenFGA - see [`docs/adr/0002-openfga-fine-grained-authorization.md`](docs/adr/0002-openfga-fine-grained-authorization.md)), **Notifications**.
 
 - Messaging: Azure Service Bus (topics = events, queues = jobs)
 - Mutations: same transaction -> entity + **local Audit** + **Outbox** (when others must be notified)
@@ -463,7 +465,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - **CI/CD:** GitHub Actions **OIDC** -> Azure -> Key Vault / App Config (no deploy tokens or connection strings in GitHub Secrets)
 - **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App **B1** for custom-domain HTTPS, SWA Free x2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
 - **Public hostnames (locked):** `plattform-kit.poc.singletonsd.com` (marketing), `app.plattform-kit.poc.singletonsd.com` (web), `api.plattform-kit.poc.singletonsd.com` (API). DNS in AWS Route53 -> Azure CNAMEs.
-- **Telemetry:** Application Insights + Log Analytics - see [docs/telemetry.md](docs/telemetry.md) and ClickUp Architecture Doc (Telemetry / Observability)
+- **Telemetry:** Application Insights + Log Analytics - see [docs/telemetry.md](docs/telemetry.md)
 
 ## Secrets + configuration (locked)
 
@@ -495,14 +497,14 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 - **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
 - ACA auth: OIDC Variables only - `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
 - Local checks: pre-commit runs Prettier + ESLint on staged files only via `lint-staged` (never bypass with `--no-verify` for format/lint). Full-repo `pnpm format:check` / `pnpm lint` remain for humans/CI; also `pnpm test`, `pnpm build`. Manual staged check: `pnpm lint:staged`.
-- Humans only merge; agents open PRs linking their GitHub issue (`Closes #N`) and run `pnpm pr:gate -- --pr <n>` to apply the `ready-for-human` label once mergeable/CI-green/feedback-clear (legacy ClickUp-tracked tickets still hand off via `./scripts/clickup.sh handoff` — see AGENTS.md § Legacy ClickUp workflow). Review bots provide PR feedback; humans validate the test plan and decide when the work is ready to merge.
+- Humans only merge; agents open PRs linking their GitHub issue (`Closes #N`) and run `pnpm pr:gate -- --pr <n>` to apply the `ready-for-human` label once mergeable/CI-green/feedback-clear (legacy ClickUp-tracked tickets still hand off via `./scripts/clickup.sh handoff` — see the "Legacy ClickUp workflow" section of `AGENTS.md`). Review bots provide PR feedback; humans validate the test plan and decide when the work is ready to merge.
 - Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.
 
 ## Skills
 
 Read curated skills under `.cursor/skills/` before coding (backend, frontend, test-generation, code-review, git-conventions, task-driven-development, etc.).
 
-Discovery → delivery: `refine-idea` → `discover-requirements` → `idea-to-delivery` (multi-ticket) or `backlog-refinement` (one existing Delivery ticket). Do not file Delivery work while the idea or requirements are unresolved. These skills predate the GitHub Issues migration ([#170](https://github.com/singleton-sd/poc-plattform-kit/issues/170)/[#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173)); once crossing the engineering boundary per `docs/github-source-of-truth.md` §3, the output is a GitHub Issue, not a new ClickUp Delivery ticket.
+Discovery → delivery: `refine-idea` → `discover-requirements` → `idea-to-delivery` (multi-ticket) or `backlog-refinement` (one existing Delivery ticket). Do not file Delivery work while the idea or requirements are unresolved. These skills predate the GitHub Issues migration ([#170](https://github.com/singleton-sd/poc-plattform-kit/issues/170)/[#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173)); once crossing the engineering boundary per `docs/github-source-of-truth.md` section 3, the output is a GitHub Issue, not a new ClickUp Delivery ticket.
 
 ## TDD / quality
 
@@ -552,4 +554,4 @@ pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scri
 - **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
 - **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.
-- **Legacy ClickUp access** (existing ClickUp-tracked tickets only — see § Legacy ClickUp workflow): prefer [`scripts/clickup.ps1`](scripts/clickup.ps1) / [`scripts/clickup.sh`](scripts/clickup.sh) + `CLICKUP_API_TOKEN`. Raw REST also fine. Do **not** use ClickUp MCP for routine ops. On 429, stop. Don't assign/move/merge tickets unless claiming or handing off.
+- **Legacy ClickUp access** (existing ClickUp-tracked tickets only — see the "Legacy ClickUp workflow" section): prefer [`scripts/clickup.ps1`](scripts/clickup.ps1) / [`scripts/clickup.sh`](scripts/clickup.sh) + `CLICKUP_API_TOKEN`. Raw REST also fine. Do **not** use ClickUp MCP for routine ops. On 429, stop. Don't assign/move/merge tickets unless claiming or handing off.

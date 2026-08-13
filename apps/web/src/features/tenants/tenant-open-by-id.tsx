@@ -53,6 +53,8 @@ export function TenantOpenById({ onOpen }: TenantOpenByIdProps) {
         value={tenantId}
         onChange={(event) => setTenantId(event.target.value)}
         placeholder="Tenant ID"
+        required
+        aria-required="true"
         className="w-40 rounded border border-fg-subtle bg-bg px-2 py-1.5 text-sm text-fg placeholder:text-fg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
       />
       <button

@@ -2,12 +2,12 @@
 /**
  * Route `pnpm worktree:add` to the PowerShell or bash helper.
  *
- * GitHub-native flags (see AGENTS.md § GitHub-native engineering workflow), Windows-style and
+ * GitHub-native flags (see the "GitHub-native engineering workflow" section of AGENTS.md), Windows-style and
  * bash-style:
  *   -Issue <n> -Type <type> -Slug <kebab> [-SkipBootstrap] [-DryRun]
  *   --issue <n> --type <type> --slug <kebab> [--skip-bootstrap] [--dry-run]
  *
- * Legacy ClickUp-tracked ticket flags (kept until docs/github-source-of-truth.md §8-9 migration
+ * Legacy ClickUp-tracked ticket flags (kept until docs/github-source-of-truth.md sections 8-9 migration
  * issues land), Windows-style and bash-style:
  *   -TaskId <id> -Slug <kebab> [-Hotfix] [-SkipBootstrap] [-DryRun]
  *   --task-id <id> --slug <kebab> [--hotfix] [--skip-bootstrap] [--dry-run]

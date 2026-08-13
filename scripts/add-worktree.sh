@@ -5,11 +5,11 @@
 #   <parent>/repo/                          git clone, stays on main
 #   <parent>/worktrees/<id>-<slug>/         this script
 #
-# GitHub-native usage (default — see AGENTS.md § GitHub-native engineering workflow):
+# GitHub-native usage (default — see the "GitHub-native engineering workflow" section of AGENTS.md):
 #   ./scripts/add-worktree.sh --issue 174 --type docs --slug github-native-orchestration
 #   ./scripts/add-worktree.sh --issue 211 --type fix --slug login-redirect --skip-bootstrap
 #
-# Legacy ClickUp-tracked ticket usage (kept until docs/github-source-of-truth.md §8-9 migration
+# Legacy ClickUp-tracked ticket usage (kept until docs/github-source-of-truth.md sections 8-9 migration
 # issues land):
 #   ./scripts/add-worktree.sh --task-id 86d3zc5af --slug permission-gating
 #   ./scripts/add-worktree.sh --task-id 86d3zc5af --slug permission-gating --hotfix --skip-bootstrap
