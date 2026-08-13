@@ -7,8 +7,9 @@ body:
     attributes:
       value: |
         Read [`docs/github-source-of-truth.md`](../../docs/github-source-of-truth.md)
-        before filing — §4 defines when an issue is **agent-ready** and §5 defines
-        the `Depends on` / `Blocks` / `Parent` convention this form uses.
+        before filing — section 4 defines when an issue is **agent-ready** and
+        section 5 defines the `Depends on` / `Blocks` / `Parent` convention this
+        form uses.
 
   - type: textarea
     id: summary
@@ -61,8 +62,8 @@ body:
     attributes:
       label: Dependencies
       description: >
-        Greppable lines per docs/github-source-of-truth.md §5. Leave blank if this
-        issue has no dependencies.
+        Greppable lines per docs/github-source-of-truth.md, section 5. Leave blank if
+        this issue has no dependencies.
       placeholder: |
         Depends on: #123
         Blocks: #456
@@ -81,7 +82,7 @@ body:
   - type: checkboxes
     id: agent-ready-checklist
     attributes:
-      label: Agent-ready checklist (docs/github-source-of-truth.md §4)
+      label: Agent-ready checklist (docs/github-source-of-truth.md, section 4)
       options:
         - label: Reproduction steps are reliable
         - label: Expected vs. actual behavior is unambiguous

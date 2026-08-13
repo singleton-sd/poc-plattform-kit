@@ -20,7 +20,7 @@ unknown scenario name, or a scenario that fails to seed.
 ## Linked issue
 
 <!-- Required — use a GitHub closing keyword so merging auto-closes the issue.
-     See docs/github-source-of-truth.md §6 "PR linking". -->
+     See docs/github-source-of-truth.md, section 6 ("PR linking"). -->
 
 Closes #
 

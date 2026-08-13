@@ -26,10 +26,10 @@ should run.
 
 | Field | Type | Options / source | Notes |
 | --- | --- | --- | --- |
-| **Status** | built-in single select | `Backlog`, `Ready for Agent`, `In Progress`, `In Review`, `Done` | Every Projects v2 board ships a `Status` field; edit its options to this set instead of adding a second status field. `Ready for Agent` = agent-ready per [§4](./github-source-of-truth.md#4-agent-ready-definition) **and** no unresolved `Depends on`. |
+| **Status** | built-in single select | `Backlog`, `Ready for Agent`, `In Progress`, `In Review`, `Done` | Every Projects v2 board ships a `Status` field; edit its options to this set instead of adding a second status field. `Ready for Agent` = agent-ready per [section 4](./github-source-of-truth.md#4-agent-ready-definition) **and** no unresolved `Depends on`. |
 | **Priority** | single select | `Urgent`, `High`, `Medium`, `Low` | Reuse the organization-level `Priority` issue field (already defined org-wide — confirmed present via the GitHub API) instead of creating a duplicate project-only field. When added as a Project field backed by the org field, it stays in sync with the issue sidebar automatically. |
 | **Type** | single select (mirrors native GitHub Issue Type) | `Feature`, `Bug`, `Discovery`, `Task` | The organization already has native Issue Types `Task`, `Bug`, `Feature` configured (confirmed via the GitHub API). There is no `Discovery` type yet — see "Manual step: add a Discovery issue type" below. Prefer showing the built-in `Issue Type` system field on the Project instead of a second manually-maintained single select, once `Discovery` exists. |
-| **Area** | single select, project-scoped (new) | `Web`, `API`, `Marketing`, `Infra/CI`, `Docs`, `Cross-cutting` | New field — matches this repo's architecture split (see `AGENTS.md` § Architecture) without recreating ClickUp's Area/Pillar/Work Type fields one-for-one. This is intentionally the *only* wholly-new field; everything else reuses a GitHub-native equivalent. |
+| **Area** | single select, project-scoped (new) | `Web`, `API`, `Marketing`, `Infra/CI`, `Docs`, `Cross-cutting` | New field — matches this repo's architecture split (see the Architecture section of `AGENTS.md`) without recreating ClickUp's Area/Pillar/Work Type fields one-for-one. This is intentionally the *only* wholly-new field; everything else reuses a GitHub-native equivalent. |
 
 This is deliberately minimal — four fields total, three of them reusing
 something GitHub already tracks. Do not add ClickUp-equivalent fields like
@@ -98,13 +98,13 @@ No custom scripting needed — Projects v2 ships these as toggles:
   issues land on the board without a manual "add to project" step
 - **Item reopened** → set Status: `Backlog`
 - **Pull request merged** → set Status: `Done` (this is what closes the loop
-  with `Closes #N` — see [§6](./github-source-of-truth.md#6-issue--branch--worktree--pr-relationships))
+  with `Closes #N` — see [section 6](./github-source-of-truth.md#6-issue--branch--worktree--pr-relationships))
 - **Item closed** → set Status: `Done`
 - **Auto-archive items**: `Status = Done` for 2+ weeks (optional housekeeping,
   keeps the Done view from growing unbounded without deleting history)
 
-`Code review approved` is not applicable — per `AGENTS.md` § Solo-repo merge,
-this repository does not require approving reviews.
+`Code review approved` is not applicable — per the Solo-repo merge section of
+`AGENTS.md`, this repository does not require approving reviews.
 
 ## Manual step: add a Discovery issue type
 
@@ -135,8 +135,8 @@ on its own:
 
 | Label | Meaning | Set | Cleared |
 | --- | --- | --- | --- |
-| `agent-ready` | Issue meets every criterion in [§4](./github-source-of-truth.md#4-agent-ready-definition) | On triage, once the issue is well-specified and unblocked | If a criterion regresses (e.g. new unresolved question) |
-| `blocked` | Issue has an unresolved `Depends on:` line ([§5](./github-source-of-truth.md#5-issue-dependency-semantics-and-parallel-execution)) | When `Depends on` is added, or the referenced issue is still open | When every `Depends on` issue is closed |
+| `agent-ready` | Issue meets every criterion in [section 4](./github-source-of-truth.md#4-agent-ready-definition) | On triage, once the issue is well-specified and unblocked | If a criterion regresses (e.g. new unresolved question) |
+| `blocked` | Issue has an unresolved `Depends on:` line ([section 5](./github-source-of-truth.md#5-issue-dependency-semantics-and-parallel-execution)) | When `Depends on` is added, or the referenced issue is still open | When every `Depends on` issue is closed |
 | `needs-requirements` | Goal, scope, or acceptance criteria are not yet resolved — refinement work remains | Applied by default on `Discovery` issues; also usable to flag an under-specified Feature/Bug | Once goal/scope/acceptance criteria are filled in |
 
 `.github/workflows/bootstrap-issue-labels.yml` ensures these three labels
@@ -176,7 +176,7 @@ Issue-level relationships (`Depends on` / `Blocks` / `Parent`) are read
 directly from the issue body as greppable text, or via the sub-issue API
 (`sub_issue_write` / `GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues`)
 where a `Parent` relationship has also been recorded as a native sub-issue —
-see [§5](./github-source-of-truth.md#5-issue-dependency-semantics-and-parallel-execution)
+see [section 5](./github-source-of-truth.md#5-issue-dependency-semantics-and-parallel-execution)
 for the authoritative semantics.
 
 ## Relationship to issue templates and PR template
@@ -184,7 +184,7 @@ for the authoritative semantics.
 - `.github/ISSUE_TEMPLATE/feature.yml`, `bug.yml`, `discovery.yml` capture
   goal/scope/acceptance criteria, an explicit `Dependencies` field for the
   `Depends on` / `Blocks` / `Parent` lines, and an agent-ready checklist that
-  mirrors [§4](./github-source-of-truth.md#4-agent-ready-definition).
+  mirrors [section 4](./github-source-of-truth.md#4-agent-ready-definition).
 - `.github/pull_request_template.md`'s `Closes #` line is what the "Pull
   request merged → Status: Done" Project automation (and native GitHub issue
   auto-closing) both key off of.
@@ -193,5 +193,5 @@ for the authoritative semantics.
 
 This configuration is exercised end-to-end by the pilot issue
 ([#176](https://github.com/singleton-sd/poc-plattform-kit/issues/176)), per
-[§8](./github-source-of-truth.md#8-migration-scope-boundaries) of the source
-of truth document.
+[section 8](./github-source-of-truth.md#8-migration-scope-boundaries) of the
+source of truth document.
