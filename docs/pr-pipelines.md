@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
-| `preview-web.yml` | `apps/web/**`, `packages/**` (skips deploy when only generated api-client OpenAPI/Orval files change) | SWA **PR preview** (Free) via OIDC → Key Vault |
+| `preview-web.yml` | `apps/web/**`, `packages/**` (skips deploy when only generated api-client OpenAPI/Orval files change) | **Container Apps** ephemeral web preview (Consumption) |
 | `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook publish/capture (Actions); visual review is Chromatic **UI Tests** (pending until accept) via OIDC → Key Vault |
 | `playwright.yml` | `apps/web/**`, `packages/**` | Chromium public journeys against a local production-like static export; failure artifacts retained 7 days |
 | `preview-marketing.yml` | `apps/marketing/**` | Marketing SWA **PR preview** (Free) via OIDC → Key Vault (`apps/marketing/dist`) |
@@ -30,7 +30,7 @@ Branch naming is `<type>/<issue-number>-<kebab-title>` (e.g. `docs/174-github-na
 
 Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
 
-If OIDC Variables are missing, `preview-web.yml` / `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` **fails fast** with a clear error until Variables + RBAC are configured.
+If OIDC Variables are missing, `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` and `preview-web.yml` **fail fast** with a clear error until Variables + RBAC are configured.
 
 `deploy-api.yml` also needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (SWA production uses the KV deploy token only).
 
@@ -48,18 +48,19 @@ Secrets live in **Key Vault** `ssd-pocpk-kv-dev-ae`. Non-secret config + KV refs
 
 ## Preview strategy (locked)
 
-### FE — SWA Free PR previews
+### FE — web PR previews (Container Apps) + marketing SWA Free
 
-Azure Static Web Apps **Free** includes PR preview environments.
+**Web app (PR previews)**
 
-**Web app**
+Web **PR** previews run on **Azure Container Apps Consumption** (same Path B pattern as the API). Production web stays on SWA **Free**.
 
 - Workflow: `.github/workflows/preview-web.yml`
-- Action: `Azure/static-web-apps-deploy@v1`
-- App location: `apps/web/out` (Next.js static export; workflow builds first)
-- Token: Key Vault secret `swa-deployment-token` (populated from `az staticwebapp secrets list`; never committed; never a GitHub secret)
-- After deploy: `scripts/entra-spa-preview-redirect.sh add` registers the preview origin as an Entra **SPA** redirect URI (MSAL). On PR `closed`, the same script removes it before closing the SWA environment. Requires Graph `Application.ReadWrite.OwnedBy` + ownership on the Entra app (see `docs/sso.md`); missing rights soft-fail.
-- Generated-only OpenAPI/Orval diffs under `packages/api-client/openapi.json` and `packages/api-client/src/generated/**` skip the web SWA build/deploy (job succeeds with a notice) so Free SKU staging slots are not burned — see `scripts/should-run-web-preview.mjs`.
+- Image: `apps/web/Dockerfile` (Next static export + nginx) pushed to ACR `pocpk-web:pr-<n>`
+- App: `ssd-pocpk-aca-web-pr-<n>-ae` on `ssd-pocpk-cae-dev-ae` (do **not** reuse `ssd-pocpk-aca-pr-<n>-ae`)
+- Auth: OIDC → Key Vault `acr-admin-*` (never a GitHub secret; never the SWA deploy token)
+- After deploy: `scripts/entra-spa-preview-redirect.sh add --origin https://<fqdn>` registers the preview origin as an Entra **SPA** redirect URI (MSAL). On PR `closed`, ACA/ACR cleanup uses the per-PR `preview-web-*` concurrency group (cancels in-flight deploy). Entra URI removal is a **separate job** on the global `entra-spa-preview-redirects` group (same as registration and the orphan sweep) so overlapping read-modify-PATCH of `spa.redirectUris` cannot clobber each other. The close job captures the origin before deleting the app. Requires Graph `Application.ReadWrite.OwnedBy` + ownership on the Entra app (see `docs/sso.md`); missing rights soft-fail.
+- Generated-only OpenAPI/Orval diffs under `packages/api-client/openapi.json` and `packages/api-client/src/generated/**` skip the web ACA build/deploy (job succeeds with a notice) so preview apps are not created for generated-only PRs — see `scripts/should-run-web-preview.mjs`.
+- `NEXT_PUBLIC_API_BASE_URL` is this PR’s API preview `ssd-pocpk-aca-pr-<n>-ae` when that app exists, otherwise the production API.
 
 **Marketing**
 
@@ -87,9 +88,10 @@ runs daily (06:15 UTC) and on `workflow_dispatch` via
 | Target | Action when PR number is not open |
 | --- | --- |
 | ACA `ssd-pocpk-aca-pr-<n>-ae` | `az containerapp delete` |
+| ACA `ssd-pocpk-aca-web-pr-<n>-ae` | `az containerapp delete` |
 | SWA staging builds (web + marketing), except `default` | `az staticwebapp environment delete` |
-| ACR tags `pocpk-api:pr-<n>` / `pr-<n>-<sha>` | `az acr repository delete` |
-| Entra SPA redirect URIs matching SWA PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
+| ACR tags `pocpk-api:pr-<n>` / `pocpk-web:pr-<n>` (and `pr-<n>-<sha>`) | `az acr repository delete` |
+| Entra SPA redirect URIs matching SWA or ACA web PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
 
 Manual dry-run:
 

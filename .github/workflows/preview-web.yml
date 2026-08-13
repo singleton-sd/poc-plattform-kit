@@ -1,9 +1,16 @@
-# Azure Static Web Apps PR preview (Free SKU — no extra cost).
-# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
-# Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
-# If those Variables are missing, deploy steps SKIP (job succeeds) so CI is not blocked forever.
+# Web PR preview — Azure Container Apps Consumption (same Path B pattern as
+# preview-api.yml). Production web stays on SWA Free via deploy-web.yml.
+#
+# Per-PR ephemeral app: ssd-pocpk-aca-web-pr-<n>-ae (scale to zero).
+# Do not reuse ssd-pocpk-aca-pr-<n>-ae (API previews).
+#
+# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `acr-admin-*`.
+# Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID,
+# AZURE_SUBSCRIPTION_ID. Missing Variables fail this workflow (same as
+# preview-api.yml) so a skip cannot look like a successful preview.
+#
 # See SETUP.md / docs/pr-pipelines.md. Touching this file retriggers previews.
-name: Preview Web (SWA)
+name: Preview Web (Container Apps)
 
 on:
   pull_request:
@@ -17,17 +24,26 @@ on:
       - 'scripts/should-run-web-preview.mjs'
       - 'scripts/should-run-web-preview.test.mjs'
 
-concurrency:
-  group: preview-web-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+env:
+  AZURE_RESOURCE_GROUP: rg-poc-plattform-kit
+  ACA_ENV_NAME: ssd-pocpk-cae-dev-ae
+  ACR_NAME: ssdpocpkacrdevae
+  IMAGE_REPO: pocpk-web
+  TARGET_PORT: '80'
+  KEY_VAULT_NAME: ssd-pocpk-kv-dev-ae
 
 jobs:
   build_and_preview:
-    if: github.event.action != 'closed'
+    name: Build and deploy web ACA preview
+    # Require open state (not only action != closed) so a late synchronize
+    # cannot recreate the app after cleanup on a closed/merged PR.
+    if: github.event.pull_request.state == 'open'
+    concurrency:
+      group: preview-web-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
-    name: Build + SWA preview
     outputs:
-      preview_url: ${{ steps.deploy.outputs.static_web_app_url }}
+      preview_url: ${{ steps.deploy.outputs.url }}
       should_run: ${{ steps.filter.outputs.should_run }}
     permissions:
       contents: read
@@ -59,168 +75,274 @@ jobs:
       - name: Filter unit tests
         run: node --test scripts/should-run-web-preview.test.mjs
 
-      - name: Decide whether to run SWA preview
+      - name: Decide whether to run web preview
         id: filter
         run: |
           set -euo pipefail
           should_run=$(node scripts/should-run-web-preview.mjs --changed-files=changed-files.txt)
           echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
           if [ "$should_run" = "true" ]; then
-            echo "Web-preview-relevant non-generated changes detected — continuing SWA build/deploy."
+            echo "Web-preview-relevant non-generated changes detected — continuing ACA build/deploy."
           else
-            echo "Only generated api-client OpenAPI/Orval files (or no web-preview paths) changed — skipping SWA build/deploy."
+            echo "Only generated api-client OpenAPI/Orval files (or no web-preview paths) changed — skipping ACA build/deploy."
           fi
 
       - name: Skip notice (generated-only)
         if: steps.filter.outputs.should_run != 'true'
         run: |
-          echo "SWA preview skipped — changes are limited to packages/api-client/openapi.json and/or packages/api-client/src/generated/** (or no preview-web path matches). See scripts/should-run-web-preview.mjs."
+          echo "Web ACA preview skipped — changes are limited to packages/api-client/openapi.json and/or packages/api-client/src/generated/** (or no preview-web path matches). See scripts/should-run-web-preview.mjs."
 
-      - uses: pnpm/action-setup@v4
+      - name: Confirm PR still open
         if: steps.filter.outputs.should_run == 'true'
-        with:
-          version: 9.15.0
-
-      - uses: actions/setup-node@v4
-        if: steps.filter.outputs.should_run == 'true'
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install
-        if: steps.filter.outputs.should_run == 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Check OIDC Variables
-        id: oidc
-        if: steps.filter.outputs.should_run == 'true'
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "OIDC Variables not set (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) — skipping SWA deploy."
+          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
+          if [ "$state" = "open" ]; then
+            echo "open=true" >> "$GITHUB_OUTPUT"
           else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "open=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR is '$state' — skipping web ACA deploy to avoid orphaned preview after close."
+          fi
+
+      - name: Require Azure OIDC Variables
+        if: steps.filter.outputs.should_run == 'true' && steps.open.outputs.open == 'true'
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${AZURE_CLIENT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_CLIENT_ID. Web previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_TENANT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_TENANT_ID. Web previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_SUBSCRIPTION_ID. Web previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure federated OIDC for this repo and set Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            exit 1
           fi
 
       - name: Azure login (OIDC)
-        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true'
+        if: steps.filter.outputs.should_run == 'true' && steps.open.outputs.open == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Resolve ACR login server
+        if: steps.filter.outputs.should_run == 'true' && steps.open.outputs.open == 'true'
+        id: acr
+        run: |
+          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" -g "$AZURE_RESOURCE_GROUP" --query loginServer -o tsv)
+          echo "login_server=$LOGIN_SERVER" >> "$GITHUB_OUTPUT"
+          echo "image=$LOGIN_SERVER/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          APP_NAME="ssd-pocpk-aca-web-pr-${{ github.event.pull_request.number }}-ae"
+          if [ ${#APP_NAME} -gt 32 ]; then
+            echo "Container App name exceeds 32 chars: $APP_NAME" >&2
+            exit 1
+          fi
+          echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Resolve preview API base URL
         id: api_url
-        if: steps.filter.outputs.should_run == 'true'
+        if: steps.filter.outputs.should_run == 'true' && steps.open.outputs.open == 'true'
         env:
           FALLBACK_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
         run: |
           set -euo pipefail
-          APP_NAME="ssd-pocpk-aca-pr-${{ github.event.pull_request.number }}-ae"
-          FQDN=""
-          if [ "${{ steps.oidc.outputs.configured }}" = "true" ]; then
-            # This PR's own API preview (see preview-api.yml) may not exist yet
-            # (still deploying, or the PR doesn't touch apps/api|pillars) — that
-            # is not an error here, just fall back below.
-            FQDN=$(az containerapp show \
-              --name "$APP_NAME" \
-              --resource-group rg-poc-plattform-kit \
-              --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
-          fi
+          API_APP_NAME="ssd-pocpk-aca-pr-${{ github.event.pull_request.number }}-ae"
+          FQDN=$(az containerapp show \
+            --name "$API_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
           if [ -n "$FQDN" ]; then
             echo "Using this PR's own API preview: https://$FQDN"
             echo "base_url=https://$FQDN" >> "$GITHUB_OUTPUT"
           else
-            echo "No API preview found for $APP_NAME (or OIDC not configured) — falling back to $FALLBACK_API_BASE_URL"
+            echo "No API preview found for $API_APP_NAME — falling back to $FALLBACK_API_BASE_URL"
             echo "base_url=$FALLBACK_API_BASE_URL" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build web
-        if: steps.filter.outputs.should_run == 'true'
+      - name: Build and push image
+        if: steps.filter.outputs.should_run == 'true' && steps.open.outputs.open == 'true'
         env:
-          # Baked into the static export; SWA runtime cannot inject this later.
-          # Resolved above: this PR's own ACA API preview when available (see
-          # preview-api.yml), else the production API as a fallback — a static
-          # NEXT_PUBLIC_API_BASE_URL Variable can never be right per-PR since
-          # the ACA preview hostname is per-PR-number.
-          # Option B cookies on custom domains; MSAL Bearer on *.azurestaticapps.net.
-          # Rebuild after setting GitHub Variables NEXT_PUBLIC_AZURE_AD_* (MSAL).
           NEXT_PUBLIC_API_BASE_URL: ${{ steps.api_url.outputs.base_url }}
           NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
           NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
           NEXT_PUBLIC_AZURE_AD_API_SCOPE: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE }}
-        run: pnpm --filter @poc-plattform-kit/web... run build
-
-      - name: Read SWA deploy token from Key Vault
-        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
-          token=$(az keyvault secret show \
-            --vault-name ssd-pocpk-kv-dev-ae \
-            --name swa-deployment-token \
-            --query value -o tsv)
-          echo "::add-mask::$token"
-          echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
+          ACR_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-username --query value -o tsv)
+          ACR_PASS=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-password --query value -o tsv)
+          echo "::add-mask::$ACR_PASS"
+          echo "$ACR_PASS" | docker login "${{ steps.acr.outputs.login_server }}" -u "$ACR_USER" --password-stdin
+          docker build -f apps/web/Dockerfile \
+            --build-arg "NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL" \
+            --build-arg "NEXT_PUBLIC_AZURE_AD_CLIENT_ID=$NEXT_PUBLIC_AZURE_AD_CLIENT_ID" \
+            --build-arg "NEXT_PUBLIC_AZURE_AD_TENANT_ID=$NEXT_PUBLIC_AZURE_AD_TENANT_ID" \
+            --build-arg "NEXT_PUBLIC_AZURE_AD_API_SCOPE=$NEXT_PUBLIC_AZURE_AD_API_SCOPE" \
+            -t "${{ steps.acr.outputs.image }}" \
+            -t "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}" \
+            .
+          docker push "${{ steps.acr.outputs.image }}"
+          docker push "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}"
 
-      - name: Deploy SWA preview
+      - name: Deploy ephemeral Container App
+        if: steps.filter.outputs.should_run == 'true' && steps.open.outputs.open == 'true'
         id: deploy
-        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
-        uses: Azure/static-web-apps-deploy@v1
         env:
-          SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-        with:
-          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-          action: upload
-          # Next `output: 'export'` emits the runnable site under apps/web/out
-          # (public/ assets are copied there). Deploy the export, not public/.
-          app_location: apps/web/out
-          skip_app_build: true
+          APP_NAME: ${{ steps.acr.outputs.app_name }}
+          IMAGE: ${{ steps.acr.outputs.image }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
+          if [ "$state" != "open" ]; then
+            echo "::notice::PR is '$state' before ACA mutate — skipping deploy to avoid recreate-after-cleanup."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            echo "url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+          ACR_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-username --query value -o tsv)
+          ACR_PASS=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-password --query value -o tsv)
+          LOGIN_SERVER="${{ steps.acr.outputs.login_server }}"
 
-      - name: Add preview URL to PR body once
-        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
+          EXISTS=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query name -o tsv 2>/dev/null || true)
+          if [ -z "$EXISTS" ]; then
+            az containerapp create \
+              --name "$APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --environment "$ACA_ENV_NAME" \
+              --workload-profile-name Consumption \
+              --image "$IMAGE" \
+              --target-port "$TARGET_PORT" \
+              --ingress external \
+              --registry-server "$LOGIN_SERVER" \
+              --registry-username "$ACR_USER" \
+              --registry-password "$ACR_PASS" \
+              --cpu 0.25 --memory 0.5Gi \
+              --min-replicas 0 --max-replicas 1 \
+              --env-vars "PORT=$TARGET_PORT" \
+              --tags "project=poc-plattform-kit" "purpose=pr-preview-web" "pr=${{ github.event.pull_request.number }}"
+          else
+            az containerapp registry set \
+              --name "$APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --server "$LOGIN_SERVER" \
+              --username "$ACR_USER" \
+              --password "$ACR_PASS"
+            az containerapp update \
+              --name "$APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --image "$IMAGE" \
+              --min-replicas 0 --max-replicas 1
+          fi
+
+          FQDN=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "fqdn=$FQDN" >> "$GITHUB_OUTPUT"
+          echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke preview GET /
+        if: >
+          steps.filter.outputs.should_run == 'true' &&
+          steps.open.outputs.open == 'true' &&
+          steps.deploy.outcome == 'success' &&
+          steps.deploy.outputs.skipped != 'true'
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          APP_NAME: ${{ steps.acr.outputs.app_name }}
+        run: |
+          set -euo pipefail
+          # nginx static export; Consumption scale-from-zero + image pull can take several minutes.
+          for i in $(seq 1 36); do
+            code=$(curl -sS -o /tmp/web-preview-body.txt -w "%{http_code}" --max-time 25 \
+              "${PREVIEW_URL}/" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "Preview GET / OK (attempt $i)"
+              exit 0
+            fi
+            echo "attempt $i: HTTP $code — waiting for replica"
+            sleep 10
+          done
+          echo "::error::Preview ${PREVIEW_URL}/ did not return 200 within ~6m"
+          az containerapp logs show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" \
+            --type console --tail 80 || true
+          az containerapp replica list -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" -o json || true
+          exit 1
+
+      - name: Comment preview URL on PR
+        if: >
+          steps.filter.outputs.should_run == 'true' &&
+          steps.open.outputs.open == 'true' &&
+          steps.deploy.outcome == 'success' &&
+          steps.deploy.outputs.skipped != 'true'
         uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          APP_NAME: ${{ steps.acr.outputs.app_name }}
+          IMAGE_REF: ${{ steps.acr.outputs.image }}
         with:
           script: |
-            const marker = '<!-- swa-preview-web -->';
-            const deployUrl = '${{ steps.deploy.outputs.static_web_app_url }}';
-            const previewSection = [
+            const marker = '<!-- web-preview-aca -->';
+            const url = process.env.PREVIEW_URL;
+            const app = process.env.APP_NAME;
+            const image = process.env.IMAGE_REF;
+            const body = [
               marker,
-              '### Web preview (SWA Free)',
+              '### Web preview (Container Apps Consumption)',
               '',
-              'Static Web Apps created a **PR preview environment** for `apps/web`.',
+              `**Preview URL:** ${url}`,
               '',
-              deployUrl ? `- Preview URL: ${deployUrl}` : '- Preview URL was not returned by the deployment action.',
-              '- Production SWA: `pocpk-web-si5fhs6dvxiha` (Free) — PR previews are included.',
-              '- Deploy token loaded at runtime via **OIDC → Key Vault** (`swa-deployment-token`).',
-              '- Entra SPA redirect URI registered for MSAL (see `scripts/entra-spa-preview-redirect.sh`).',
+              `- App: \`${app}\` (scale-to-zero)`,
+              `- Image: \`${image}\``,
+              '- Path B: ephemeral ACA per PR — not SWA Free staging (3-slot cap)',
+              '- Production web remains SWA Free via `deploy-web.yml`',
+              '- Cleanup runs when this PR is closed',
               '',
-              '_API is not deployed here. See `preview-api.yml` / SETUP.md (Path B ACA)._',
+              'Auth on this host is MSAL Bearer (see `docs/sso.md`). Entra SPA redirect is registered after deploy.',
             ].join('\n');
 
-            const { data: pull } = await github.rest.pulls.get({
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number,
+              issue_number: context.issue.number,
             });
-            if (!pull.body?.includes(marker)) {
-              const body = [pull.body?.trim(), previewSection].filter(Boolean).join('\n\n');
-              await github.rest.pulls.update({
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: context.issue.number,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
                 body,
               });
             }
 
-      - name: Skip notice (OIDC not configured)
-        if: steps.filter.outputs.should_run == 'true' && steps.oidc.outputs.configured != 'true'
-        run: |
-          echo "SWA preview skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC IDs only; token stays in Key Vault)."
-
   register_entra_redirect:
-    if: github.event.action != 'closed' && needs.build_and_preview.result == 'success' && needs.build_and_preview.outputs.should_run == 'true'
+    if: >
+      github.event.pull_request.state == 'open' &&
+      needs.build_and_preview.result == 'success' &&
+      needs.build_and_preview.outputs.should_run == 'true' &&
+      needs.build_and_preview.outputs.preview_url != ''
     needs: build_and_preview
     concurrency:
       group: entra-spa-preview-redirects
@@ -230,6 +352,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      pull-requests: read
     steps:
       # Use only code from the trusted base on this credentialed runner.
       - name: Check out trusted redirect helper
@@ -256,17 +379,32 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Azure login (OIDC)
+      - name: Confirm PR still open
         if: steps.oidc.outputs.configured == 'true'
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
+          if [ "$state" = "open" ]; then
+            echo "open=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "open=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR is '$state' — skipping Entra redirect add so a queued register cannot restore a closed PR URI."
+          fi
+
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true' && steps.open.outputs.open == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # MSAL uses window.location.origin; Entra has no SWA host wildcards.
+      # MSAL uses window.location.origin; Entra has no ACA host wildcards.
       - name: Register Entra SPA redirect URI for preview
-        if: steps.oidc.outputs.configured == 'true'
+        if: steps.oidc.outputs.configured == 'true' && steps.open.outputs.open == 'true'
         env:
           ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
         run: |
@@ -286,14 +424,156 @@ jobs:
   close_preview:
     if: github.event.action == 'closed'
     concurrency:
+      group: preview-web-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    name: Delete web ACA preview
+    outputs:
+      preview_origin: ${{ steps.origin.outputs.origin }}
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Require Azure OIDC Variables
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${AZURE_CLIENT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_CLIENT_ID. Web previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_TENANT_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_TENANT_ID. Web previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Missing GitHub Variable AZURE_SUBSCRIPTION_ID. Web previews require OIDC only (AZURE_CREDENTIALS is not supported)."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure federated OIDC for this repo and set Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID. See docs/pr-pipelines.md."
+            exit 1
+          fi
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve preview origin
+        id: origin
+        env:
+          APP_NAME: ssd-pocpk-aca-web-pr-${{ github.event.pull_request.number }}-ae
+        run: |
+          set -euo pipefail
+          FQDN=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)
+          if [ -n "$FQDN" ]; then
+            echo "origin=https://$FQDN" >> "$GITHUB_OUTPUT"
+          else
+            echo "origin=" >> "$GITHUB_OUTPUT"
+            echo "No app $APP_NAME — Entra remove will skip (orphan sweep drops leftover URIs)"
+          fi
+
+      - name: Delete Container App
+        env:
+          APP_NAME: ssd-pocpk-aca-web-pr-${{ github.event.pull_request.number }}-ae
+        run: |
+          EXISTS=$(az containerapp show -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query name -o tsv 2>/dev/null || true)
+          if [ -n "$EXISTS" ]; then
+            az containerapp delete -n "$APP_NAME" -g "$AZURE_RESOURCE_GROUP" --yes
+            echo "Deleted $APP_NAME"
+          else
+            echo "No app $APP_NAME to delete"
+          fi
+
+      - name: Delete ACR tags
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mapfile -t TAGS < <(
+            az acr repository show-tags \
+              --name "$ACR_NAME" \
+              --repository "$IMAGE_REPO" \
+              -o tsv 2>/dev/null | tr -d '\r' || true
+          )
+          for tag in "${TAGS[@]:-}"; do
+            [ -n "$tag" ] || continue
+            case "$tag" in
+              "pr-${PR_NUMBER}"|"pr-${PR_NUMBER}"-*)
+                if az acr repository delete \
+                  --name "$ACR_NAME" \
+                  --image "${IMAGE_REPO}:${tag}" \
+                  --yes; then
+                  echo "Deleted ${IMAGE_REPO}:${tag}"
+                else
+                  echo "WARN failed to delete ${IMAGE_REPO}:${tag} (may already be gone)"
+                fi
+                ;;
+            esac
+          done
+
+      - name: Comment cleanup on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- web-preview-aca -->';
+            const app = `ssd-pocpk-aca-web-pr-${context.issue.number}-ae`;
+            const body = [
+              marker,
+              '### Web preview (Container Apps Consumption)',
+              '',
+              `Ephemeral app \`${app}\` was **deleted** on PR close.`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  unregister_entra_redirect:
+    # Capture origin in close_preview (per-PR group) first so in-flight deploy
+    # is cancelled immediately; Entra PATCH shares the global group with
+    # register_entra_redirect and the orphan sweep.
+    if: >
+      always() &&
+      github.event.action == 'closed' &&
+      needs.close_preview.outputs.preview_origin != ''
+    needs: close_preview
+    concurrency:
       group: entra-spa-preview-redirects
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    name: Close SWA preview
+    name: Remove Entra SPA redirect
     permissions:
       contents: read
       id-token: write
     steps:
+      # Use only code from the trusted base on this credentialed runner.
       - name: Check out trusted redirect helper
         uses: actions/checkout@v4
         with:
@@ -313,7 +593,7 @@ jobs:
           set -euo pipefail
           if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "OIDC Variables not set — skipping SWA preview close."
+            echo "OIDC Variables not set — skipping Entra redirect removal."
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -329,39 +609,15 @@ jobs:
       - name: Remove Entra SPA redirect URI for preview
         if: steps.oidc.outputs.configured == 'true'
         env:
-          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
           ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
+          ORIGIN: ${{ needs.close_preview.outputs.preview_origin }}
         run: |
           set -euo pipefail
           if [ ! -f scripts/entra-spa-preview-redirect.sh ]; then
-            echo "warning: trusted base does not contain the redirect helper yet; skipping"
+            echo "warning: trusted base does not contain the redirect helper yet; skipping Entra remove"
             exit 0
           fi
           chmod +x scripts/entra-spa-preview-redirect.sh
-          # Resolve hostname while the SWA environment still exists, then remove URI.
           scripts/entra-spa-preview-redirect.sh remove \
-            --pr "${{ github.event.pull_request.number }}"
-
-      - name: Read SWA deploy token from Key Vault
-        if: steps.oidc.outputs.configured == 'true'
-        run: |
-          set -euo pipefail
-          token=$(az keyvault secret show \
-            --vault-name ssd-pocpk-kv-dev-ae \
-            --name swa-deployment-token \
-            --query value -o tsv)
-          echo "::add-mask::$token"
-          echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
-
-      - name: Close Static Web App preview
-        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
-        uses: Azure/static-web-apps-deploy@v1
-        env:
-          SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-        with:
-          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-          action: close
-
-      - name: Skip notice (OIDC not configured)
-        if: steps.oidc.outputs.configured != 'true'
-        run: echo "SWA preview close skipped — OIDC Variables not configured."
+            --pr "${{ github.event.pull_request.number }}" \
+            --origin "$ORIGIN"

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Decides whether preview-web.yml should build/deploy a SWA PR preview.
+// Decides whether preview-web.yml should build/deploy a web PR preview.
 // Keep the workflow's on.pull_request.paths filter broad (GitHub cannot combine
 // paths + paths-ignore usefully), then skip when every matching change is
 // committed OpenAPI/Orval output — see PR #165 and docs/pr-pipelines.md.
@@ -21,7 +21,7 @@ export const WEB_PREVIEW_PATH_PREFIXES = [
   'scripts/entra-spa-preview-redirect.mjs',
 ];
 
-/** Generated OpenAPI + Orval output — alone these must not burn SWA staging slots. */
+/** Generated OpenAPI + Orval output — alone these must not create a web ACA preview. */
 export const GENERATED_ONLY_PATHS = [
   'packages/api-client/openapi.json',
   'packages/api-client/src/generated/',
@@ -48,7 +48,7 @@ export function isGeneratedOnly(filePath) {
 }
 
 /**
- * Returns true when SWA build/deploy should run.
+ * Returns true when web ACA build/deploy should run.
  * Among files that match the web-preview path globs, if every match is
  * generated-only (or there are no matches), returns false.
  */

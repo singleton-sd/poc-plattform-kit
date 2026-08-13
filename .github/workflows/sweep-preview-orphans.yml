@@ -1,10 +1,10 @@
 # Daily / on-demand cleanup of PR preview leftovers not linked to open PRs.
 #
 # Cleans:
-#   - Orphan ACA apps ssd-pocpk-aca-pr-<n>-ae
+#   - Orphan ACA apps ssd-pocpk-aca-pr-<n>-ae and ssd-pocpk-aca-web-pr-<n>-ae
 #   - Orphan SWA staging environments (web + marketing)
-#   - Orphan ACR tags pocpk-api:pr-<n>*
-#   - Orphan Entra SPA redirect URIs for closed SWA PR preview origins
+#   - Orphan ACR tags pocpk-api:pr-<n>* and pocpk-web:pr-<n>*
+#   - Orphan Entra SPA redirect URIs for closed SWA and ACA web PR preview origins
 #
 # Auth: OIDC → Azure (same Variables as preview/deploy). Schedule uses the
 # main-branch federated credential (ref:refs/heads/main / ID-form equivalent).

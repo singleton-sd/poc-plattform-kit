@@ -26,7 +26,7 @@ on:
     workflows:
       - CI Web
       - CI API
-      - Preview Web (SWA)
+      - Preview Web (Container Apps)
       - Preview Marketing (SWA)
       - Preview API (Container Apps)
       - Chromatic
@@ -213,7 +213,7 @@ jobs:
               "Lint / test / build (api)"|"Lint / format / build (web)") required_fail=1 ;;
             esac
             case "$job" in
-              "Build + SWA preview"|"Build + marketing SWA preview"|"Build and deploy ACA preview"|"Chromatic visual tests") preview_fail=1 ;;
+              "Build and deploy web ACA preview"|"Build + marketing SWA preview"|"Build and deploy ACA preview"|"Chromatic visual tests") preview_fail=1 ;;
             esac
           done <<< "$FAILING_NAMES"
 
@@ -225,7 +225,7 @@ jobs:
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ci-failed || true
               fi
               ;;
-            "Preview Web (SWA)"|"Preview Marketing (SWA)"|"Preview API (Container Apps)"|"Chromatic")
+            "Preview Web (Container Apps)"|"Preview Marketing (SWA)"|"Preview API (Container Apps)"|"Chromatic")
               if [ "$CONCLUSION" = "failure" ] || [ "$preview_fail" = 1 ]; then
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label preview-blocked || true
               elif [ "$preview_fail" = 0 ]; then

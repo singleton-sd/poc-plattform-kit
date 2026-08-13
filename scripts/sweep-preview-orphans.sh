@@ -2,10 +2,10 @@
 # Delete PR preview leftovers that are not tied to an open pull request.
 #
 # Targets:
-#   1. Ephemeral ACA apps ssd-pocpk-aca-pr-<n>-ae
+#   1. Ephemeral ACA apps ssd-pocpk-aca-pr-<n>-ae and ssd-pocpk-aca-web-pr-<n>-ae
 #   2. SWA staging environments (web + marketing) except "default"
-#   3. ACR tags pocpk-api:pr-<n> / pr-<n>-<sha> for closed PRs
-#   4. Entra SPA redirect URIs for closed SWA PR preview origins
+#   3. ACR tags pocpk-api:pr-<n> / pocpk-web:pr-<n> (and pr-<n>-<sha>) for closed PRs
+#   4. Entra SPA redirect URIs for closed SWA and ACA web PR preview origins
 #
 # Requires: az (logged in), gh, node (for Entra helper).
 # Usage:
@@ -21,9 +21,11 @@ DRY_RUN="${DRY_RUN:-0}"
 RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-rg-poc-plattform-kit}"
 ACR_NAME="${ACR_NAME:-ssdpocpkacrdevae}"
 IMAGE_REPO="${IMAGE_REPO:-pocpk-api}"
+WEB_IMAGE_REPO="${WEB_IMAGE_REPO:-pocpk-web}"
 WEB_SWA_NAME="${WEB_SWA_NAME:-pocpk-web-si5fhs6dvxiha}"
 MKT_SWA_NAME="${MKT_SWA_NAME:-ssd-pocpk-mkt-dev-ae}"
 ACA_PREFIX="${ACA_PREFIX:-ssd-pocpk-aca-pr-}"
+ACA_WEB_PREFIX="${ACA_WEB_PREFIX:-ssd-pocpk-aca-web-pr-}"
 ACA_SUFFIX="${ACA_SUFFIX:--ae}"
 REGION="${SWA_PREVIEW_REGION:-eastasia}"
 
@@ -93,16 +95,21 @@ trim() {
 
 extract_pr_from_aca() {
   local name="$1"
-  local rest="${name#"$ACA_PREFIX"}"
-  if [[ "$rest" == "$name" ]]; then
-    return 1
-  fi
-  local pr="${rest%"$ACA_SUFFIX"}"
-  if [[ "$pr" == "$rest" || ! "$pr" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
-  printf '%s\n' "$pr"
-  return 0
+  local prefix rest pr
+  # Try the web prefix first so ssd-pocpk-aca-web-pr-<n>-ae is not parsed as API.
+  for prefix in "$ACA_WEB_PREFIX" "$ACA_PREFIX"; do
+    rest="${name#"$prefix"}"
+    if [[ "$rest" == "$name" ]]; then
+      continue
+    fi
+    pr="${rest%"$ACA_SUFFIX"}"
+    if [[ "$pr" == "$rest" || ! "$pr" =~ ^[0-9]+$ ]]; then
+      continue
+    fi
+    printf '%s\n' "$pr"
+    return 0
+  done
+  return 1
 }
 
 extract_pr_from_acr_tag() {
@@ -120,7 +127,7 @@ log "=== ACA PR preview apps ==="
 mapfile -t ACA_APPS < <(
   az containerapp list \
     --resource-group "$RESOURCE_GROUP" \
-    --query "[?starts_with(name, '${ACA_PREFIX}')].name" \
+    --query "[?starts_with(name, '${ACA_PREFIX}') || starts_with(name, '${ACA_WEB_PREFIX}')].name" \
     -o tsv 2>/dev/null | tr -d '\r' || true
 )
 aca_deleted=0
@@ -186,56 +193,61 @@ sweep_swa "$WEB_SWA_NAME" "web"
 sweep_swa "$MKT_SWA_NAME" "marketing"
 
 # --- 3. ACR image tags -----------------------------------------------------
-log ""
-log "=== ACR tags ($ACR_NAME/$IMAGE_REPO) ==="
-acr_deleted=0
-acr_kept=0
-mapfile -t TAGS < <(
-  az acr repository show-tags \
-    --name "$ACR_NAME" \
-    --repository "$IMAGE_REPO" \
-    -o tsv 2>/dev/null | tr -d '\r' || true
-)
-for tag in "${TAGS[@]:-}"; do
-  tag="$(trim "$tag")"
-  [[ -z "$tag" ]] && continue
-  pr="$(extract_pr_from_acr_tag "$tag" || true)"
-  if [[ -z "$pr" ]]; then
-    continue
-  fi
-  if is_open "$pr"; then
-    acr_kept=$((acr_kept + 1))
-  else
-    log "DELETE ${IMAGE_REPO}:${tag} (PR #$pr not open)"
-    if [[ "$DRY_RUN" == "1" ]]; then
-      run az acr repository delete \
-        --name "$ACR_NAME" \
-        --image "${IMAGE_REPO}:${tag}" \
-        --yes
-      acr_deleted=$((acr_deleted + 1))
+sweep_acr_repo() {
+  local repo="$1"
+  log ""
+  log "=== ACR tags ($ACR_NAME/$repo) ==="
+  local acr_deleted=0 acr_kept=0 tag pr err
+  mapfile -t TAGS < <(
+    az acr repository show-tags \
+      --name "$ACR_NAME" \
+      --repository "$repo" \
+      -o tsv 2>/dev/null | tr -d '\r' || true
+  )
+  for tag in "${TAGS[@]:-}"; do
+    tag="$(trim "$tag")"
+    [[ -z "$tag" ]] && continue
+    pr="$(extract_pr_from_acr_tag "$tag" || true)"
+    if [[ -z "$pr" ]]; then
+      continue
+    fi
+    if is_open "$pr"; then
+      acr_kept=$((acr_kept + 1))
     else
-      # Deleting one tag can remove sibling tags that share the same
-      # manifest; treat "tag does not exist" as success.
-      if az acr repository delete \
-        --name "$ACR_NAME" \
-        --image "${IMAGE_REPO}:${tag}" \
-        --yes 2>"${TMPDIR:-/tmp}/acr-del.err"; then
+      log "DELETE ${repo}:${tag} (PR #$pr not open)"
+      if [[ "$DRY_RUN" == "1" ]]; then
+        run az acr repository delete \
+          --name "$ACR_NAME" \
+          --image "${repo}:${tag}" \
+          --yes
         acr_deleted=$((acr_deleted + 1))
       else
-        err="$(tr '\n' ' ' <"${TMPDIR:-/tmp}/acr-del.err" 2>/dev/null || true)"
-        if echo "$err" | grep -qi 'does not exist\|not found'; then
-          log "  already gone (${IMAGE_REPO}:${tag})"
+        # Deleting one tag can remove sibling tags that share the same
+        # manifest; treat "tag does not exist" as success.
+        if az acr repository delete \
+          --name "$ACR_NAME" \
+          --image "${repo}:${tag}" \
+          --yes 2>"${TMPDIR:-/tmp}/acr-del.err"; then
           acr_deleted=$((acr_deleted + 1))
         else
-          log "  WARN failed to delete ${IMAGE_REPO}:${tag}: $err"
+          err="$(tr '\n' ' ' <"${TMPDIR:-/tmp}/acr-del.err" 2>/dev/null || true)"
+          if echo "$err" | grep -qi 'does not exist\|not found'; then
+            log "  already gone (${repo}:${tag})"
+            acr_deleted=$((acr_deleted + 1))
+          else
+            log "  WARN failed to delete ${repo}:${tag}: $err"
+          fi
         fi
       fi
     fi
-  fi
-done
-log "ACR summary: deleted=$acr_deleted kept_open_pr_tags=$acr_kept"
+  done
+  log "ACR $repo summary: deleted=$acr_deleted kept_open_pr_tags=$acr_kept"
+}
 
-# --- 4. Entra SPA redirect URIs (SWA PR preview origins) -------------------
+sweep_acr_repo "$IMAGE_REPO"
+sweep_acr_repo "$WEB_IMAGE_REPO"
+
+# --- 4. Entra SPA redirect URIs (SWA + ACA web PR preview origins) ---------
 log ""
 log "=== Entra SPA PR preview redirect URIs ==="
 ENTRA_MJS="${SCRIPT_DIR}/entra-spa-preview-redirect.mjs"
@@ -272,7 +284,7 @@ else
       if [[ "$plan_rc" -ne 0 ]]; then
         log "SKIP  Entra sweep (failed to compute plan: $(tr '\n' ' ' <"${tmp_dir}/err.txt"))"
       elif [[ "$plan" == "UNCHANGED" ]]; then
-        log "KEEP  no orphan SWA preview redirect URIs"
+        log "KEEP  no orphan SWA/ACA web preview redirect URIs"
       else
         remove_count="$(node -e "const p=JSON.parse(process.argv[1]); console.log((p.remove||[]).length)" "$plan")"
         keep_count="$(node -e "const p=JSON.parse(process.argv[1]); console.log((p.keep||[]).length)" "$plan")"

@@ -164,12 +164,12 @@ export function parseSwaPrPreviewOrigin(origin) {
 }
 
 /**
- * Drop SPA redirect URIs that look like SWA PR previews for closed PRs.
- * Non-preview URIs (localhost, production default host, etc.) are kept.
+ * Drop SPA redirect URIs that look like SWA or ACA web PR previews for closed
+ * PRs. Non-preview URIs (localhost, production default host, etc.) are kept.
  *
  * @param {string[]} uris
  * @param {Iterable<string|number>} openPrNumbers
- * @param {string} [expectedRegion] when set, only URIs in this region are treated as PR previews
+ * @param {string} [expectedRegion] when set, only SWA URIs in this region are treated as PR previews (ACA web URIs are always considered)
  * @returns {{ next: string[], remove: string[], keep: string[] }}
  */
 export function sweepSpaPrPreviewRedirects(uris, openPrNumbers, expectedRegion = '') {
@@ -188,6 +188,16 @@ export function sweepSpaPrPreviewRedirects(uris, openPrNumbers, expectedRegion =
   const keep = [];
 
   for (const uri of list) {
+    const parsedAca = parseAcaWebPrPreviewOrigin(uri);
+    if (parsedAca) {
+      if (open.has(parsedAca.pr)) {
+        next.push(uri);
+        keep.push(uri);
+      } else {
+        remove.push(normalizeOrigin(uri));
+      }
+      continue;
+    }
     const parsed = parseSwaPrPreviewOrigin(uri);
     if (!parsed) {
       next.push(uri);

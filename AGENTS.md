@@ -489,12 +489,12 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 
 | Change set | CI | Preview (PR) | Production (`main`) |
 | --- | --- | --- | --- |
-| `apps/web/**` | `ci-web.yml`; also `chromatic.yml` + `playwright.yml` when web/packages paths hit | SWA PR preview (`preview-web.yml`, Free) via OIDC -> KV | `deploy-web.yml` -> SWA production |
+| `apps/web/**` | `ci-web.yml`; also `chromatic.yml` + `playwright.yml` when web/packages paths hit | Path B ACA (`preview-web.yml`) via OIDC -> KV (`ssd-pocpk-aca-web-pr-<n>-ae`) | `deploy-web.yml` -> SWA production |
 | `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC -> KV | `deploy-api.yml` -> App Service B1 |
 | `apps/marketing/**` | `ci-web.yml` (marketing filter) | SWA PR preview (`preview-marketing.yml`, Free) via OIDC -> KV | `deploy-marketing.yml` -> marketing SWA (`apps/marketing/dist`) |
 | `packages/**` | both CI workflows; Chromatic + Playwright when web deps change | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 
-- **Path B locked:** per-PR API previews on Container Apps Consumption (`ssd-pocpk-aca-pr-<n>-ae`, scale to zero). Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host.
+- **Path B locked:** per-PR API previews (`ssd-pocpk-aca-pr-<n>-ae`) and web PR previews (`ssd-pocpk-aca-web-pr-<n>-ae`) on Container Apps Consumption, scale to zero. Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host. Production web stays SWA Free.
 - ACA auth: OIDC Variables only - `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
 - Local checks: pre-commit runs Prettier + ESLint on staged files only via `lint-staged` (never bypass with `--no-verify` for format/lint). Full-repo `pnpm format:check` / `pnpm lint` remain for humans/CI; also `pnpm test`, `pnpm build`. Manual staged check: `pnpm lint:staged`.
 - Humans only merge; agents open PRs linking their GitHub issue (`Closes #N`) and run `pnpm pr:gate -- --pr <n>` to apply the `ready-for-human` label once mergeable/CI-green/feedback-clear (legacy ClickUp-tracked tickets still hand off via `./scripts/clickup.sh handoff` — see the "Legacy ClickUp workflow" section of `AGENTS.md`). Review bots provide PR feedback; humans validate the test plan and decide when the work is ready to merge.

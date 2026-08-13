@@ -106,7 +106,7 @@ Do not file new engineering work in ClickUp Delivery.
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work - SQL **Basic**, App Service **B1** (custom-domain HTTPS + Nest always-on), SWA **Free** x2 (app + marketing), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API PR previews + OpenFGA).
+- **Cost:** cheapest SKUs that still work - SQL **Basic**, App Service **B1** (custom-domain HTTPS + Nest always-on), SWA **Free** x2 (app + marketing production), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API + web PR previews + OpenFGA).
 - **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` -> e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`, `ssd-pocpk-mkt-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
 
@@ -120,7 +120,7 @@ Public hostnames under `singletonsd.com` (DNS stays in **AWS**; Azure only gets 
 | `app.plattform-kit.poc.singletonsd.com` | Web app (PWA/SPA) | SWA `pocpk-web-si5fhs6dvxiha` (Free) |
 | `api.plattform-kit.poc.singletonsd.com` | Nest API | App Service `pocpk-api-si5fhs6dvxiha` (**B1**) |
 
-PR / preview URLs stay on Azure defaults (`*.azurestaticapps.net`, ACA preview hostnames) - no custom preview domains. API CORS / Auth.js redirects allow this repo's SWA instance prefixes (`https://kind-rock-0f409fe00*.azurestaticapps.net`, marketing SWA likewise) via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Entra Auth.js callback stays on the API host; MSAL SPA redirect URIs need exact preview origins (no Entra wildcard).
+PR / preview URLs stay on Azure defaults (`*.azurestaticapps.net` for marketing SWA and production web, `*.azurecontainerapps.io` for API and web PR previews) - no custom preview domains. API CORS / Auth.js redirects allow this repo's SWA instance prefixes (`https://kind-rock-0f409fe00*.azurestaticapps.net`, marketing SWA likewise) plus ACA web preview hosts (`ssd-pocpk-aca-web-pr-<n>-ae`) via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Entra Auth.js callback stays on the API host; MSAL SPA redirect URIs need exact preview origins (no Entra wildcard).
 
 #### Route53 checklist (zone `singletonsd.com` or delegated `poc.singletonsd.com`)
 
@@ -156,10 +156,11 @@ Copy the JSON config to onboard another domain later (see `docs/dns-route53.md`)
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | https://ssd-pocpk-appcs-dev-ae.azconfig.io | Free |
-| Container Apps Env | `ssd-pocpk-cae-dev-ae` | API **PR previews** | Consumption |
+| Container Apps Env | `ssd-pocpk-cae-dev-ae` | API + web **PR previews** | Consumption |
 | Log Analytics | `ssd-pocpk-law-dev-ae` | Required by CAE | PerGB2018 |
 | ACR | `ssdpocpkacrdevae` | `ssdpocpkacrdevae.azurecr.io` | Basic |
 | Ephemeral ACA | `ssd-pocpk-aca-pr-<n>-ae` | created/deleted by `preview-api.yml` | Consumption |
+| Ephemeral ACA (web) | `ssd-pocpk-aca-web-pr-<n>-ae` | created/deleted by `preview-web.yml` | Consumption |
 
 Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscriptions.events`, `contact.events`, `support.events`, `audit.events`, `reporting.events`, `notifications.events`. Consumers `audit` / `reporting` / `support` / `notifications` on publishing topics; trail consumers `audit` / `reporting` / `support` on `notifications.events`. Queue: `notifications.send` (explicit send commands).
 
@@ -194,7 +195,7 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (SWA preview), **Contributor** on RG (ACA preview deploy), **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (`deploy-api.yml`), **Key Vault Secrets User**, **App Configuration Data Reader**. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (marketing SWA preview), **Contributor** on RG (ACA API + web preview deploy), **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (`deploy-api.yml`), **Key Vault Secrets User**, **App Configuration Data Reader**. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 
