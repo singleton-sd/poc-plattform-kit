@@ -35,6 +35,8 @@ export type DomainEventType =
   | 'user.name_changed'
   | 'permission.denied'
   | 'permission.granted'
+  | 'permission.role_assigned'
+  | 'permission.role_revoked'
   | 'permission.access_requested'
   | 'permission.access_approved'
   | 'permission.access_denied'
@@ -126,6 +128,8 @@ const domainEventTypeSet: Record<DomainEventType, true> = {
   'user.name_changed': true,
   'permission.denied': true,
   'permission.granted': true,
+  'permission.role_assigned': true,
+  'permission.role_revoked': true,
   'permission.access_requested': true,
   'permission.access_approved': true,
   'permission.access_denied': true,

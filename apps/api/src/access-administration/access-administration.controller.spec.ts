@@ -2,6 +2,7 @@ import { PATH_METADATA } from '@nestjs/common/constants';
 import { Test } from '@nestjs/testing';
 import { AccessAdministrationController } from './access-administration.controller';
 import { AccessAdministrationService } from './access-administration.service';
+import { RoleAssignmentService } from './role-assignment.service';
 
 describe('AccessAdministrationController', () => {
   it('uses the tenant-scoped access administration route', () => {
@@ -26,7 +27,10 @@ describe('AccessAdministrationController', () => {
     list.mockResolvedValue(result);
     const module = await Test.createTestingModule({
       controllers: [AccessAdministrationController],
-      providers: [{ provide: AccessAdministrationService, useValue: { list } }],
+      providers: [
+        { provide: AccessAdministrationService, useValue: { list } },
+        { provide: RoleAssignmentService, useValue: { execute: jest.fn() } },
+      ],
     }).compile();
     const controller = module.get(AccessAdministrationController);
     const actor = {

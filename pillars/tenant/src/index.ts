@@ -23,6 +23,7 @@ export type {
   TenantGroupRecord,
   TenantGroupMembershipRecord,
   TenantGroupPermissionsPort,
+  TenantGroupAccessProjection,
 } from './tenant-group.service';
 export { TenantInvitationService } from './tenant-invitation.service';
 export type { TenantInvitationRecord } from './tenant-invitation.service';

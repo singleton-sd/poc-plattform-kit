@@ -32,6 +32,7 @@ export * from './denyAccessRequestDto';
 export * from './healthResponseDto';
 export * from './meResponseDto';
 export * from './permissionsHealthResponseDto';
+export * from './roleAssignmentCommandResponseDto';
 export * from './tenantAccessUserDto';
 export * from './tenantControllerFindAllParams';
 export * from './tenantGroupMembershipResponseDto';

@@ -4,15 +4,18 @@
  * Platform Kit API
  * poc-plattform-kit API
  */
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
@@ -20,6 +23,7 @@ import type {
 import type {
   AccessAdministrationControllerListParams,
   AccessAdministrationResponseDto,
+  RoleAssignmentCommandResponseDto,
 } from '.././models';
 
 import { customFetch } from '../../custom-fetch';
@@ -219,3 +223,588 @@ export function useAccessAdministrationControllerList<
 
   return query;
 }
+
+export type accessAdministrationControllerAssignUserResponse200 = {
+  data: RoleAssignmentCommandResponseDto;
+  status: 200;
+};
+
+export type accessAdministrationControllerAssignUserResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessAdministrationControllerAssignUserResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessAdministrationControllerAssignUserResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessAdministrationControllerAssignUserResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessAdministrationControllerAssignUserResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessAdministrationControllerAssignUserResponse412 = {
+  data: void;
+  status: 412;
+};
+
+export type accessAdministrationControllerAssignUserResponse503 = {
+  data: void;
+  status: 503;
+};
+
+export type accessAdministrationControllerAssignUserResponseSuccess =
+  accessAdministrationControllerAssignUserResponse200 & {
+    headers: Headers;
+  };
+export type accessAdministrationControllerAssignUserResponseError = (
+  | accessAdministrationControllerAssignUserResponse400
+  | accessAdministrationControllerAssignUserResponse401
+  | accessAdministrationControllerAssignUserResponse403
+  | accessAdministrationControllerAssignUserResponse404
+  | accessAdministrationControllerAssignUserResponse409
+  | accessAdministrationControllerAssignUserResponse412
+  | accessAdministrationControllerAssignUserResponse503
+) & {
+  headers: Headers;
+};
+
+export type accessAdministrationControllerAssignUserResponse =
+  | accessAdministrationControllerAssignUserResponseSuccess
+  | accessAdministrationControllerAssignUserResponseError;
+
+export const getAccessAdministrationControllerAssignUserUrl = (
+  tenantId: string,
+  userId: string,
+  roleId: string,
+) => {
+  return `/tenants/${tenantId}/access-administration/users/${userId}/roles/${roleId}`;
+};
+
+export const accessAdministrationControllerAssignUser = async (
+  tenantId: string,
+  userId: string,
+  roleId: string,
+  options?: RequestInit,
+): Promise<accessAdministrationControllerAssignUserResponse> => {
+  return customFetch<accessAdministrationControllerAssignUserResponse>(
+    getAccessAdministrationControllerAssignUserUrl(tenantId, userId, roleId),
+    {
+      ...options,
+      method: 'PUT',
+    },
+  );
+};
+
+export const getAccessAdministrationControllerAssignUserMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof accessAdministrationControllerAssignUser>>,
+    TError,
+    { tenantId: string; userId: string; roleId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof accessAdministrationControllerAssignUser>>,
+  TError,
+  { tenantId: string; userId: string; roleId: string },
+  TContext
+> => {
+  const mutationKey = ['accessAdministrationControllerAssignUser'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof accessAdministrationControllerAssignUser>>,
+    { tenantId: string; userId: string; roleId: string }
+  > = (props) => {
+    const { tenantId, userId, roleId } = props ?? {};
+
+    return accessAdministrationControllerAssignUser(tenantId, userId, roleId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AccessAdministrationControllerAssignUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof accessAdministrationControllerAssignUser>>
+>;
+
+export type AccessAdministrationControllerAssignUserMutationError = void;
+
+export const useAccessAdministrationControllerAssignUser = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof accessAdministrationControllerAssignUser>>,
+      TError,
+      { tenantId: string; userId: string; roleId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof accessAdministrationControllerAssignUser>>,
+  TError,
+  { tenantId: string; userId: string; roleId: string },
+  TContext
+> => {
+  const mutationOptions = getAccessAdministrationControllerAssignUserMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+export type accessAdministrationControllerRevokeUserResponse200 = {
+  data: RoleAssignmentCommandResponseDto;
+  status: 200;
+};
+
+export type accessAdministrationControllerRevokeUserResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessAdministrationControllerRevokeUserResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessAdministrationControllerRevokeUserResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessAdministrationControllerRevokeUserResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessAdministrationControllerRevokeUserResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessAdministrationControllerRevokeUserResponse412 = {
+  data: void;
+  status: 412;
+};
+
+export type accessAdministrationControllerRevokeUserResponse503 = {
+  data: void;
+  status: 503;
+};
+
+export type accessAdministrationControllerRevokeUserResponseSuccess =
+  accessAdministrationControllerRevokeUserResponse200 & {
+    headers: Headers;
+  };
+export type accessAdministrationControllerRevokeUserResponseError = (
+  | accessAdministrationControllerRevokeUserResponse400
+  | accessAdministrationControllerRevokeUserResponse401
+  | accessAdministrationControllerRevokeUserResponse403
+  | accessAdministrationControllerRevokeUserResponse404
+  | accessAdministrationControllerRevokeUserResponse409
+  | accessAdministrationControllerRevokeUserResponse412
+  | accessAdministrationControllerRevokeUserResponse503
+) & {
+  headers: Headers;
+};
+
+export type accessAdministrationControllerRevokeUserResponse =
+  | accessAdministrationControllerRevokeUserResponseSuccess
+  | accessAdministrationControllerRevokeUserResponseError;
+
+export const getAccessAdministrationControllerRevokeUserUrl = (
+  tenantId: string,
+  userId: string,
+  roleId: string,
+) => {
+  return `/tenants/${tenantId}/access-administration/users/${userId}/roles/${roleId}`;
+};
+
+export const accessAdministrationControllerRevokeUser = async (
+  tenantId: string,
+  userId: string,
+  roleId: string,
+  options?: RequestInit,
+): Promise<accessAdministrationControllerRevokeUserResponse> => {
+  return customFetch<accessAdministrationControllerRevokeUserResponse>(
+    getAccessAdministrationControllerRevokeUserUrl(tenantId, userId, roleId),
+    {
+      ...options,
+      method: 'DELETE',
+    },
+  );
+};
+
+export const getAccessAdministrationControllerRevokeUserMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof accessAdministrationControllerRevokeUser>>,
+    TError,
+    { tenantId: string; userId: string; roleId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof accessAdministrationControllerRevokeUser>>,
+  TError,
+  { tenantId: string; userId: string; roleId: string },
+  TContext
+> => {
+  const mutationKey = ['accessAdministrationControllerRevokeUser'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof accessAdministrationControllerRevokeUser>>,
+    { tenantId: string; userId: string; roleId: string }
+  > = (props) => {
+    const { tenantId, userId, roleId } = props ?? {};
+
+    return accessAdministrationControllerRevokeUser(tenantId, userId, roleId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AccessAdministrationControllerRevokeUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof accessAdministrationControllerRevokeUser>>
+>;
+
+export type AccessAdministrationControllerRevokeUserMutationError = void;
+
+export const useAccessAdministrationControllerRevokeUser = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof accessAdministrationControllerRevokeUser>>,
+      TError,
+      { tenantId: string; userId: string; roleId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof accessAdministrationControllerRevokeUser>>,
+  TError,
+  { tenantId: string; userId: string; roleId: string },
+  TContext
+> => {
+  const mutationOptions = getAccessAdministrationControllerRevokeUserMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+export type accessAdministrationControllerAssignGroupResponse200 = {
+  data: RoleAssignmentCommandResponseDto;
+  status: 200;
+};
+
+export type accessAdministrationControllerAssignGroupResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessAdministrationControllerAssignGroupResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessAdministrationControllerAssignGroupResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessAdministrationControllerAssignGroupResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessAdministrationControllerAssignGroupResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessAdministrationControllerAssignGroupResponse412 = {
+  data: void;
+  status: 412;
+};
+
+export type accessAdministrationControllerAssignGroupResponse503 = {
+  data: void;
+  status: 503;
+};
+
+export type accessAdministrationControllerAssignGroupResponseSuccess =
+  accessAdministrationControllerAssignGroupResponse200 & {
+    headers: Headers;
+  };
+export type accessAdministrationControllerAssignGroupResponseError = (
+  | accessAdministrationControllerAssignGroupResponse400
+  | accessAdministrationControllerAssignGroupResponse401
+  | accessAdministrationControllerAssignGroupResponse403
+  | accessAdministrationControllerAssignGroupResponse404
+  | accessAdministrationControllerAssignGroupResponse409
+  | accessAdministrationControllerAssignGroupResponse412
+  | accessAdministrationControllerAssignGroupResponse503
+) & {
+  headers: Headers;
+};
+
+export type accessAdministrationControllerAssignGroupResponse =
+  | accessAdministrationControllerAssignGroupResponseSuccess
+  | accessAdministrationControllerAssignGroupResponseError;
+
+export const getAccessAdministrationControllerAssignGroupUrl = (
+  tenantId: string,
+  groupId: string,
+  roleId: string,
+) => {
+  return `/tenants/${tenantId}/access-administration/groups/${groupId}/roles/${roleId}`;
+};
+
+export const accessAdministrationControllerAssignGroup = async (
+  tenantId: string,
+  groupId: string,
+  roleId: string,
+  options?: RequestInit,
+): Promise<accessAdministrationControllerAssignGroupResponse> => {
+  return customFetch<accessAdministrationControllerAssignGroupResponse>(
+    getAccessAdministrationControllerAssignGroupUrl(tenantId, groupId, roleId),
+    {
+      ...options,
+      method: 'PUT',
+    },
+  );
+};
+
+export const getAccessAdministrationControllerAssignGroupMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof accessAdministrationControllerAssignGroup>>,
+    TError,
+    { tenantId: string; groupId: string; roleId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof accessAdministrationControllerAssignGroup>>,
+  TError,
+  { tenantId: string; groupId: string; roleId: string },
+  TContext
+> => {
+  const mutationKey = ['accessAdministrationControllerAssignGroup'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof accessAdministrationControllerAssignGroup>>,
+    { tenantId: string; groupId: string; roleId: string }
+  > = (props) => {
+    const { tenantId, groupId, roleId } = props ?? {};
+
+    return accessAdministrationControllerAssignGroup(tenantId, groupId, roleId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AccessAdministrationControllerAssignGroupMutationResult = NonNullable<
+  Awaited<ReturnType<typeof accessAdministrationControllerAssignGroup>>
+>;
+
+export type AccessAdministrationControllerAssignGroupMutationError = void;
+
+export const useAccessAdministrationControllerAssignGroup = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof accessAdministrationControllerAssignGroup>>,
+      TError,
+      { tenantId: string; groupId: string; roleId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof accessAdministrationControllerAssignGroup>>,
+  TError,
+  { tenantId: string; groupId: string; roleId: string },
+  TContext
+> => {
+  const mutationOptions = getAccessAdministrationControllerAssignGroupMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+export type accessAdministrationControllerRevokeGroupResponse200 = {
+  data: RoleAssignmentCommandResponseDto;
+  status: 200;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse403 = {
+  data: void;
+  status: 403;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse412 = {
+  data: void;
+  status: 412;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse503 = {
+  data: void;
+  status: 503;
+};
+
+export type accessAdministrationControllerRevokeGroupResponseSuccess =
+  accessAdministrationControllerRevokeGroupResponse200 & {
+    headers: Headers;
+  };
+export type accessAdministrationControllerRevokeGroupResponseError = (
+  | accessAdministrationControllerRevokeGroupResponse400
+  | accessAdministrationControllerRevokeGroupResponse401
+  | accessAdministrationControllerRevokeGroupResponse403
+  | accessAdministrationControllerRevokeGroupResponse404
+  | accessAdministrationControllerRevokeGroupResponse409
+  | accessAdministrationControllerRevokeGroupResponse412
+  | accessAdministrationControllerRevokeGroupResponse503
+) & {
+  headers: Headers;
+};
+
+export type accessAdministrationControllerRevokeGroupResponse =
+  | accessAdministrationControllerRevokeGroupResponseSuccess
+  | accessAdministrationControllerRevokeGroupResponseError;
+
+export const getAccessAdministrationControllerRevokeGroupUrl = (
+  tenantId: string,
+  groupId: string,
+  roleId: string,
+) => {
+  return `/tenants/${tenantId}/access-administration/groups/${groupId}/roles/${roleId}`;
+};
+
+export const accessAdministrationControllerRevokeGroup = async (
+  tenantId: string,
+  groupId: string,
+  roleId: string,
+  options?: RequestInit,
+): Promise<accessAdministrationControllerRevokeGroupResponse> => {
+  return customFetch<accessAdministrationControllerRevokeGroupResponse>(
+    getAccessAdministrationControllerRevokeGroupUrl(tenantId, groupId, roleId),
+    {
+      ...options,
+      method: 'DELETE',
+    },
+  );
+};
+
+export const getAccessAdministrationControllerRevokeGroupMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof accessAdministrationControllerRevokeGroup>>,
+    TError,
+    { tenantId: string; groupId: string; roleId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof accessAdministrationControllerRevokeGroup>>,
+  TError,
+  { tenantId: string; groupId: string; roleId: string },
+  TContext
+> => {
+  const mutationKey = ['accessAdministrationControllerRevokeGroup'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof accessAdministrationControllerRevokeGroup>>,
+    { tenantId: string; groupId: string; roleId: string }
+  > = (props) => {
+    const { tenantId, groupId, roleId } = props ?? {};
+
+    return accessAdministrationControllerRevokeGroup(tenantId, groupId, roleId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AccessAdministrationControllerRevokeGroupMutationResult = NonNullable<
+  Awaited<ReturnType<typeof accessAdministrationControllerRevokeGroup>>
+>;
+
+export type AccessAdministrationControllerRevokeGroupMutationError = void;
+
+export const useAccessAdministrationControllerRevokeGroup = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof accessAdministrationControllerRevokeGroup>>,
+      TError,
+      { tenantId: string; groupId: string; roleId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof accessAdministrationControllerRevokeGroup>>,
+  TError,
+  { tenantId: string; groupId: string; roleId: string },
+  TContext
+> => {
+  const mutationOptions = getAccessAdministrationControllerRevokeGroupMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};

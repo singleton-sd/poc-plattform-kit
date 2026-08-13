@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { PermissionsService } from '@poc-plattform-kit/pillar-permissions';
+import type { RoleAssignmentCommandService } from '@poc-plattform-kit/pillar-permissions';
 import type { UserIdentityService } from '@poc-plattform-kit/pillar-single-sign-on';
 import type { TenancyContext, TenantService } from '@poc-plattform-kit/pillar-tenant';
 import { AccessAdministrationService } from './access-administration.service';
@@ -10,12 +11,17 @@ describe('AccessAdministrationService', () => {
     check: jest.fn(),
     listResourceTuples: jest.fn(),
   } as unknown as PermissionsService;
+  const roleAssignments = {
+    listAssignments: jest.fn(),
+    currentVersion: jest.fn(),
+  } as unknown as RoleAssignmentCommandService;
   const tenants = { listMemberships: jest.fn() } as unknown as TenantService;
   const identities = { findDisplayRecords: jest.fn() } as unknown as UserIdentityService;
   const groups = { listMemberships: jest.fn() } as unknown as TenantGroupAccessReader;
   const tenancy = { getTenantId: jest.fn() } as unknown as TenancyContext;
   const service = new AccessAdministrationService(
     permissions,
+    roleAssignments,
     tenants,
     identities,
     groups,
@@ -33,6 +39,8 @@ describe('AccessAdministrationService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     (tenancy.getTenantId as jest.Mock).mockReturnValue('tenant-1');
+    (roleAssignments.listAssignments as jest.Mock).mockResolvedValue([]);
+    (roleAssignments.currentVersion as jest.Mock).mockResolvedValue('roles:0');
   });
 
   it('fails closed before tenant data is read when the caller is not an admin', async () => {
@@ -88,7 +96,7 @@ describe('AccessAdministrationService', () => {
 
     const result = await service.list('tenant-1', actor, { limit: 1, cursor: 'user-a' });
 
-    expect(result.consistencyVersion).toBe('permissions:model-7;groups:groups-3');
+    expect(result.consistencyVersion).toBe('roles:0');
     expect(result.users).toEqual([
       {
         id: 'user-b',

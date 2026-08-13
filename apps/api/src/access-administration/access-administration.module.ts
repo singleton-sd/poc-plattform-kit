@@ -5,10 +5,11 @@ import { SingleSignOnModule } from '../single-sign-on/single-sign-on.module';
 import { AccessAdministrationController } from './access-administration.controller';
 import { AccessAdministrationService } from './access-administration.service';
 import { TenantGroupAccessReader } from './tenant-group-access.reader';
+import { RoleAssignmentService } from './role-assignment.service';
 
 @Module({
   imports: [PermissionsModule, TenantModule, SingleSignOnModule],
   controllers: [AccessAdministrationController],
-  providers: [AccessAdministrationService, TenantGroupAccessReader],
+  providers: [AccessAdministrationService, TenantGroupAccessReader, RoleAssignmentService],
 })
 export class AccessAdministrationModule {}

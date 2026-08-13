@@ -129,6 +129,30 @@ export class PermissionsService {
     }
   }
 
+  async checkTenantRole(subject: string, roleId: string, tenantId: string): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    try {
+      return await this.openFgaCheck(subject, roleId, `tenant:${tenantId}`);
+    } catch {
+      return false;
+    }
+  }
+
+  async setTenantRole(
+    subject: string,
+    roleId: string,
+    tenantId: string,
+    assigned: boolean,
+  ): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    const tuple = { user: subject, relation: roleId, object: `tenant:${tenantId}` };
+    try {
+      return await this.openFgaWrite(assigned ? { writes: [tuple] } : { deletes: [tuple] });
+    } catch {
+      return false;
+    }
+  }
+
   async grant(request: GrantPermissionDto): Promise<GrantPermissionResponseDto> {
     if (!this.isConfigured()) {
       return { granted: false, grantType: request.grantType };

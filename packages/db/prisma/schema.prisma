@@ -319,6 +319,49 @@ model PermissionsAudit {
   @@map("permissions_audit")
 }
 
+model PermissionsRoleRevision {
+  tenantId  String   @id
+  revision  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("permissions_role_revisions")
+}
+
+model PermissionsRoleAssignment {
+  id            String    @id @default(cuid())
+  tenantId      String
+  principalType String
+  principalId   String
+  roleId        String
+  assigned      Boolean
+  syncStatus    String    @default("pending")
+  syncError     String?
+  syncedAt      DateTime?
+  revision      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([tenantId, principalType, principalId, roleId])
+  @@index([tenantId, assigned, syncStatus])
+  @@map("permissions_role_assignments")
+}
+
+model PermissionsRoleCommand {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  idempotencyKey     String
+  commandHash        String
+  assignmentId       String
+  consistencyVersion String
+  changed            Boolean
+  assigned           Boolean
+  createdAt          DateTime @default(now())
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt])
+  @@map("permissions_role_commands")
+}
+
 // --- Notifications ---
 
 model NotificationsOutbox {
