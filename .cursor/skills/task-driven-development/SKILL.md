@@ -1,153 +1,138 @@
 ---
 name: Task-Driven Development
-description: Work through project-management tasks one at a time with status updates, scoped staging, and review-ready commit messages. Use when the user asks to work on tasks from ClickUp, a todo list, backlog folder, workflow document, or project-management board.
-tags: [operations, tasks, workflow, clickup, git]
+description: Work through GitHub issues one at a time with dependency checks, scoped staging, and review-ready commit messages. Use when the user asks to work on issues from GitHub, a todo list, backlog folder, or workflow document.
+tags: [operations, tasks, workflow, github, git]
 audience: [engineers, tech-leads, all]
 status: stable
 ---
 
 # Task-Driven Development
 
-Use this skill when implementing work from a project-management list or workflow document.
+Use this skill when implementing work from GitHub Issues or a workflow document. Follow
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) — the authoritative
+policy for how engineering work is identified, sequenced, and executed. This skill applies that
+policy to the per-issue implementation loop; it does not restate the policy.
 
-## Ticket and chat titles
+## Issue and chat titles
 
-- When talking about tickets (chat, plans, PR/ClickUp comments, summaries), use the **ticket title**, not the raw ClickUp id as the primary label.
-- Ids are fine in URLs, branch names (`feature/<id>-<kebab-title>`), and as a secondary reference after the title.
-- When picking up a ticket, set the Cursor **chat title** to that ticket’s title.
+- When talking about issues (chat, plans, PR/issue comments, summaries), use the **issue title**, not the raw issue number, as the primary label.
+- Numbers are fine in URLs, branch names (`<type>/<issue-number>-<kebab-title>`), and as a secondary reference after the title.
+- When picking up an issue, set the Cursor **chat title** to that issue's title.
 
-## Out of scope → backlog tickets
+## Out of scope → follow-up issues
 
-When planning a ticket, every **Out of scope** item that is real follow-up work must have a ClickUp task. Emit a **Pending / out-of-scope backlog** table (Title, Depends on, Token Estimate, Notes), then file each missing row:
+When planning an issue, every **Out of scope** item that is real follow-up work must have a GitHub issue. Emit a **Pending / out-of-scope backlog** table (Title, Depends on, Notes), then file each missing row:
 
-1. Search the ops list (`list_id=901616287298`) by **title** / intent — do not invent duplicates.
-2. Create missing tasks in **TO DO** with acceptance criteria.
-3. Set **Token Estimate** on create (`custom_fields` id `ab22f8d4-df04-435e-849a-9ca6c23489be`, value as a number string). Leave Token Spent, Claim token, and Preview URL empty.
-4. Wire dependency: `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` (resolve titles to ids at file time).
-5. Leave backlog tickets **unassigned**; do **not** set Claim Token (browse/create ≠ claim).
-6. Mention new titles on the parent ticket description / plan (avoid extra ClickUp comment spam when possible).
+1. Search existing issues by title/intent first (`gh issue list --search "<keywords>"`) — do not invent duplicates.
+2. Create missing issues with acceptance criteria: `gh issue create --title "..." --body "..."`.
+3. Wire dependency by adding a `Depends on: #<parent>` (and, on the parent, `Blocks: #<new>`) line to the issue body — see `docs/github-source-of-truth.md` §5.
+4. Leave new backlog issues **unassigned**; do not self-assign an issue you are not about to implement (browse/file ≠ claim).
+5. Mention new issue numbers on the parent issue/PR description (a comment is fine, but prefer linking rather than a comment dump).
 
-Token Estimate scale when only a sizing hint exists: XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000. See also `backlog-refinement`.
+See also `backlog-refinement`.
 
 ## Core rules
 
 1. Gather context first:
    - Read the workflow or reference document.
-   - List the relevant tasks and their statuses.
-   - Read the selected task details before editing files.
+   - List the relevant issues and their state (open/closed, labels, `Depends on`).
+   - Read the selected issue's full body and comments before editing files.
    - Inspect repo conventions and existing implementation patterns.
-   - Create the ticket worktree with `pnpm worktree:add` (see `AGENTS.md`).
+   - Create the issue worktree with `pnpm worktree:add` (see `AGENTS.md` / `agent-orchestration`).
 
-2. Work one task at a time:
-   - Keep each implementation scoped to one ticket.
-   - Do not mix files for different tickets in the same staged set.
-   - Do not start the next task until the current task is staged and summarized.
+2. Work one issue at a time:
+   - Keep each implementation scoped to one issue.
+   - Do not mix files for different issues in the same staged set.
+   - Do not start the next issue until the current one is staged and summarized.
 
-3. Status transitions and exclusive claim (Claim Token):
-   - Agents often share one ClickUp identity, so **assignee alone is not a
-     lock**. Follow `AGENTS.md` § **Exclusive claim protocol**.
-   - **ClickUp transport:** use `scripts/clickup.ps1` (Windows) or
-     `scripts/clickup.sh` (Linux/Cloud) with `CLICKUP_API_TOKEN` — **not**
-     ClickUp MCP (MCP rate-limits easily). Custom fields via field endpoints.
-   - **Claim Token** field id (ops list): `50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`
-     (also listed in `AGENTS.md` with Preview URL / Token Estimate / Token Spent).
-   - **Browse ≠ claim.** Listing or reading tickets must not set Claim Token,
-     assignee, or status.
-   - **Claim before plan/implement** (including Plan mode when asked to
-     pick up a task):
-     1. `scripts/clickup.ps1 list -Status "READY FOR AI"`.
-     2. `claimToken` = chat/session id or `agent-<uuid>`.
-     3. `scripts/clickup.ps1 claim -TaskId <id> -ClaimToken <claimToken>
-        -Status "IN PROGRESS"` (implementers; Claim Token only by default —
-        add `-AssignMe` only when an owner must show).
-     4. On claim race error, abort and pick another ticket.
-     5. Only then read details and implement.
-   - **Handoff:** `scripts/clickup.ps1 status -TaskId <id> -Status "…"
-     -ClearClaim`. Prefer `preview -Url <pr>` over a comment when the only
-     payload is the PR link. Set Token Spent via `field` when finishing.
-   - **Implementer:** claim → implement → PR → watch required CI → upsert
-     the Human Review Brief (`node scripts/upsert-pr-review-brief.mjs --pr <n>`)
-     → `clickup.sh handoff` → **READY FOR REVIEW**. Do not post hygiene/status
-     comments.
-   - **Automated review:** Cursor Bugbot, ChatGPT Codex Connector, and similar
-     GitHub bots review the PR after handoff. Agents must not pick up
-     **READY FOR REVIEW** tickets to review another agent's work. Agents may
-     address bot or human feedback only after the ticket returns to
-     **READY FOR AI**.
-   - **Steward:** When asked to check open PRs after READY FOR HUMAN, re-poll
-     mergeable / CI / new comments; bounce to READY FOR AI (clear Claim
-     Token) when agent-fixable. May clear a Claim Token older than ~4h with
-     no PR comment; agents must not clear another session’s token unless the
-     user asks.
-   - Labels to watch: `needs-rebase`, `ci-failed`, `has-feedback` (code).
-     `preview-blocked` is infra only — document it on the brief, do not bounce
-     ClickUp (see `docs/pr-pipelines.md` / `AGENTS.md` § PR hygiene).
-   - **Dirty PR / `needs-rebase`:** follow `AGENTS.md` § **Shared hub files /
-     conflict playbook**. Prefer `git merge origin/main`, then
-     `pnpm resolve:conflicts`. Do not hand-merge `pnpm-lock.yaml` or
-     `infra/main.json`. Hand-fix only paths the script lists
-     (`infra/main.bicep`, Nest `main.ts` / `app.module.ts`, workflows).
-     After fixing `main.bicep`, rebuild JSON with
-     `az bicep build -f infra/main.bicep --outfile infra/main.json`.
+3. Readiness and claiming:
+   - An issue is **agent-ready** only when it meets `docs/github-source-of-truth.md` §4 (clear
+     goal, scope, testable acceptance criteria, stated constraints, and — critically — **no
+     unresolved `Depends on`**, §5). Verify readiness from the issue body alone; do not guess.
+   - **Claim before plan/implement** (including Plan mode when asked to pick up an issue):
+     1. `gh issue view <n> --json assignees,state,body,labels` — confirm it is open, agent-ready,
+        and has no unresolved `Depends on`.
+     2. Check nobody else already owns it: no existing assignee actively working it, and no open
+        PR already declares `Closes #<n>` (`gh pr list --search "linked:<n>"` or
+        `gh pr list --search "in:body #<n>"`). If one exists, do not start a second PR — see
+        `pr-agent-wake` instead.
+     3. Self-assign as the claim signal: `gh issue edit <n> --add-assignee @me` (or the
+        equivalent for the current agent identity).
+     4. Only then create the branch/worktree from `origin/main` and implement.
+   - There is no separate "in progress" status field to set — the self-assignment plus the
+     branch/PR *is* the claim. If a claimed issue shows no branch/PR activity for an
+     unreasonably long time, a human or orchestrator may unassign it and treat it as available
+     again; agents must not unassign another session's issue unless the user asks.
+   - **Handoff:** open (or update) the PR with `Closes #<n>` in the body. That is the entire
+     handoff — merging the PR closes the issue automatically. There is no separate status
+     transition to perform.
+   - **Automated review:** Cursor Bugbot, ChatGPT Codex Connector, and similar GitHub bots review
+     the PR once it's open. Agents must not pick up another agent's open PR to review it — that is
+     the bots' and humans' job. Agents may address bot or human feedback on their own PR directly
+     (see `fix-bugbot` for someone else waking you to fix a specific finding).
+   - **Steward:** when asked to check open PRs, re-poll mergeable state / required CI / new
+     comments for each. Push a fix or reply directly on the PR when actionable; there is no
+     ClickUp-side bounce to perform.
+   - Labels to watch (if the repository defines them via its GitHub Actions/PR hygiene setup):
+     `needs-rebase`, `ci-failed`, `has-feedback`. Infra-only preview failures are not code defects
+     — note them on the PR, do not treat them as blocking.
+   - **Dirty PR / `needs-rebase`:** follow `AGENTS.md` § **Shared hub files / conflict playbook**.
+     Prefer `git merge origin/main`, then `pnpm resolve:conflicts`. Do not hand-merge
+     `pnpm-lock.yaml` or `infra/main.json`. Hand-fix only paths the script lists
+     (`infra/main.bicep`, Nest `main.ts` / `app.module.ts`, workflows). After fixing
+     `main.bicep`, rebuild JSON with `az bicep build -f infra/main.bicep --outfile infra/main.json`.
    - **Hub ownership:** do not edit `.cursor/skills/**`, root `package.json`,
-     `AGENTS.md` / `SETUP.md` / `docs/pr-pipelines.md`, or workflows unless
-     the ticket requires it. Skills sync = dedicated chore PR only.
-   - When the task implementation is finished, do **not** mark it complete yet.
-   - Mark a finished task complete only when the user explicitly asks, or when the user says to move to the next task.
-   - If a requested status is rejected, inspect valid task/list statuses and use the closest valid equivalent.
-   - If a task is duplicate or already delivered by another task, use the
-     list's `cancelled` status when it exists. In ClickUp this may be a
-     terminal/done status rather than an open status.
-   - For duplicate or covered work, prefer the native `Delivered by` custom
-     field over a generic task link when that field exists. Verify with
-     `scripts/clickup.ps1 get -TaskId <id>` that the field value points to
-     the delivering task.
+     `AGENTS.md` / `SETUP.md` / `docs/pr-pipelines.md`, or workflows unless the issue requires it.
+     Skills sync = dedicated chore PR only.
+   - When the implementation is finished, do **not** close the issue yourself. Opening the PR
+     with `Closes #<n>` and letting a human merge is what closes it.
+   - If an issue is a duplicate or already delivered by another issue, say so in a comment and
+     link the delivering issue/PR; let a human close it (or close it with `state_reason:
+     "not_planned"` only when the user explicitly asks you to).
 
 4. Staging and commits:
-   - Stage only files changed for the current task.
+   - Stage only files changed for the current issue.
    - Do not commit unless the user explicitly asks.
    - Provide a review-ready commit message after staging.
-   - Use one ticket per commit message.
-   - Format/lint gate is **staged files only**: rely on the husky pre-commit
-     hook (`lint-staged`), or run `pnpm lint:staged` manually before commit.
-     Do not default to full-repo `pnpm format:check` / `pnpm lint` as the
-     agent gate, and never bypass hooks with `--no-verify` for format/lint.
+   - Use one issue per commit message.
+   - Format/lint gate is **staged files only**: rely on the husky pre-commit hook
+     (`lint-staged`), or run `pnpm lint:staged` manually before commit. Do not default to
+     full-repo `pnpm format:check` / `pnpm lint` as the agent gate, and never bypass hooks with
+     `--no-verify` for format/lint.
 
 5. Human test plan:
-   - Every PR must include a **Test plan** written for a human, not just a list
-     of automated commands.
-   - Explain what changed, where the new or changed behavior can be found,
-     any setup or test data required, numbered steps to exercise it, and the
-     expected result for each step.
-   - Include preview URLs and the exact page, route, API endpoint, or workflow
-     to inspect when available.
-   - Add a **Feedback focus** section that tells the human where comments are
-     most useful. State explicitly when a change has no user-facing behavior.
+   - Every PR must include a **Test plan** written for a human, not just a list of automated
+     commands.
+   - Explain what changed, where the new or changed behavior can be found, any setup or test
+     data required, numbered steps to exercise it, and the expected result for each step.
+   - Include preview URLs and the exact page, route, API endpoint, or workflow to inspect when
+     available.
+   - Add a **Feedback focus** section that tells the human where comments are most useful. State
+     explicitly when a change has no user-facing behavior.
 
 6. Commit type selection:
    - Use `feat` for new user-facing behavior, scripts, workflows, or capabilities.
    - Use `fix` for bug fixes.
    - Use `chore` for maintenance, scaffolding, config-only setup, or repository housekeeping.
    - Use `docs` for documentation-only changes.
-   - Follow the repository's commit message format and length rules.
+   - Follow the repository's commit message format and length rules (`git-conventions`).
 
 7. Requirement drift and inconsistencies:
-   - If task text conflicts with user clarification, repo conventions, or
-     existing config names, ask the user before expanding scope.
-   - Do not implement future-ticket behavior just because a ticket example
-     implies it. Keep the current ticket scoped to the clarified work.
-   - When the clarified scope differs from the project-management task,
-     update the task description to reflect the actual work before final
-     handoff.
-   - Call out known mismatches, such as example path names that do not exist
-     in config, in the final summary or as a question for the user.
+   - If issue text conflicts with user clarification, repo conventions, or existing config names,
+     ask the user before expanding scope.
+   - Do not implement future-issue behavior just because an issue example implies it. Keep the
+     current issue scoped to the clarified work.
+   - When the clarified scope differs from the GitHub issue, update the issue body/comment to
+     reflect the actual work before final handoff.
+   - Call out known mismatches, such as example path names that do not exist in config, in the
+     final summary or as a question for the user.
 
 ## End-of-task response
 
-When a task is implemented and staged, report:
+When an issue is implemented and staged, report:
 
 ```text
-Completed [TICKET-ID]: [task name]
+Completed #<issue-number>: [issue title]
 
 Staged files:
 - path/to/file
@@ -164,21 +149,21 @@ Feedback focus:
 - area where human comments are most useful
 
 Proposed commit message:
-type: Summary TICKET-ID
+type: #<issue-number> Summary
 
 Status:
-Task is ready for review and still in progress.
+PR is open with `Closes #<issue-number>`; ready for review.
 ```
 
-Only say the task is complete if the project-management status was actually updated to a completed/closed status.
+Only say the issue is complete when the PR has actually merged (which closes it).
 
 ## Moving to the next task
 
 When the user says "next", "next task", or similar:
 
-1. Mark the previous staged task complete if it was finished and the user is moving on.
-2. Clear Claim Token on the previous task if handoff status requires it.
-3. Run the exclusive claim protocol on the next **READY FOR AI** task (Claim
-   Token + assignee + **IN PROGRESS**, then re-fetch verify).
+1. If the previous issue's PR is open and ready, leave it open — do not close it yourself.
+2. Verify the next issue is agent-ready and has no unresolved `Depends on` (§4–§5).
+3. Claim it (self-assign, confirm no existing PR/assignee owns it), then create its worktree from
+   `origin/main`.
 4. Only after a successful claim, read details, implement, verify, and stage.
-5. Leave the task in progress until the user asks to complete it or move on again.
+5. Leave the issue's PR open until the user asks to merge or move on again.

@@ -1,129 +1,133 @@
 ---
 name: Task Management
-description: Create and manage tasks in a project management tool through a defined status workflow
-tags: [operations, tasks, project-management, workflow, ticketing]
+description: Create and manage engineering tasks through a defined status workflow, using GitHub Issues as the default engineering tracker
+tags: [operations, tasks, project-management, workflow, github]
 audience: [engineers, product-managers, designers, all]
 status: stable
 ---
 
 # Task Management
 
-You are a project management assistant helping to create, organise, and move tasks through the team's status workflow. For `poc-plattform-kit`, use REST via `scripts/clickup.ps1` / `scripts/clickup.sh` + `CLICKUP_API_TOKEN` (not ClickUp MCP). Apply these rules when creating tasks, updating statuses, or managing lists.
+You are a project management assistant helping to create, organise, and move engineering work
+through its lifecycle. For `poc-plattform-kit`, **GitHub Issues is the engineering tracker** —
+see [`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md) for the
+authoritative policy (system ownership, lifecycle, agent-ready definition, dependency semantics).
+This skill does not duplicate that policy; it gives the everyday create/move/reference workflow
+on top of it. Use `gh issue` (or the equivalent GitHub API/MCP tool) — not a third-party tracker
+— for engineering task state.
 
 ---
 
 ## Status workflow
 
-Tasks move through the following statuses in order:
+Engineering work has no separate custom status field to maintain. State lives entirely in GitHub:
 
-```
-backlog → scoping → ready for development → in design → in development → in review → testing → shipped
-```
+| State | What it means |
+|-------|----------------|
+| Open, no `Depends on` unresolved, agent-ready (§4) | Ready to be claimed and implemented |
+| Open, unresolved `Depends on` (§5) | Blocked — not agent-ready until the dependency closes |
+| Open, missing goal/scope/acceptance criteria | Needs refinement (`backlog-refinement` /
+  `discover-requirements`) before it is agent-ready |
+| Open, assigned, branch/PR exists | Actively being worked |
+| Open, PR open referencing `Closes #N` | In review |
+| Closed (merged PR) | Done |
+| Closed (`not_planned`) | Abandoned/duplicate — always with a comment explaining why |
 
-`cancelled` is available at any point and terminates the task.
-
-| Status | When to use |
-|--------|-------------|
-| `backlog` | Idea captured, not yet sized or scheduled |
-| `scoping` | Being defined — requirements, scope, and acceptance criteria being written |
-| `ready for development` | Scoped and approved — ready to be picked up |
-| `in design` | UI/UX design work in progress |
-| `in development` | Engineering implementation in progress |
-| `in review` | PR open or work submitted for peer review |
-| `testing` | QA or acceptance testing in progress |
-| `shipped` | Deployed and complete — use this, not `complete` (that status does not exist) |
-| `cancelled` | Abandoned — leave a comment explaining why before closing |
+Do not invent a parallel status field (a label, a comment marker, an external board) as the
+source of truth for these states unless the repository's GitHub Project (see #172-style project
+configuration, when present) already provides one — in that case the Project view is prioritisation/visibility on top of the issue, not a replacement for it (`docs/github-source-of-truth.md` §1).
 
 ---
 
 ## Creating tasks
 
-When creating a task:
+When creating a GitHub issue:
 
-1. **Name** — use sentence case, action-first: `Add dark mode toggle`, `Fix null pointer in token parser`. Keep it concise and human-readable. Never append repository identifiers, agent-routing metadata, or custom-field encodings to the task name. This is a single-repo workspace, so tickets don't need a repository marker anywhere — not in the name, and not in the description either.
-2. **Description** — include: what needs to be done, why it matters, and any acceptance criteria
-3. **List placement** — ask which list/milestone/sprint to place it in if not specified
-4. **Status** — default to backlog / not started: on poc-plattform-kit ops list that is **TO DO** (use a list’s literal `BACKLOG` status when it exists)
+1. **Title** — use sentence case, action-first: `Add dark mode toggle`, `Fix null pointer in
+   token parser`. Keep it concise and human-readable.
+2. **Body** — include: goal, context, scope, acceptance criteria, relevant constraints, and any
+   `Depends on:` / `Blocks:` / `Parent:` lines (`docs/github-source-of-truth.md` §5).
+3. **Labels / milestone** — apply whatever labels the repository's issue templates define (owned
+   by the repository's GitHub Project setup); do not invent ad hoc label taxonomies.
+4. Do not mark an issue agent-ready (i.e., do not hand it to an implementer) until it satisfies
+   the agent-ready definition in `docs/github-source-of-truth.md` §4.
 
-### Referring to tickets
+### Referring to issues
 
-When talking about tickets (chat, plans, comments), use the **ticket title**, not the raw id as the primary label. Set the Cursor **chat title** to the ticket title when working that ticket. Ids belong in links and `feature/<id>-<kebab-title>` branches.
+When talking about issues (chat, plans, comments), use the **issue title**, not the raw number,
+as the primary label. Set the Cursor **chat title** to the issue title when working that issue.
+Numbers belong in links and `<type>/<issue-number>-<kebab-title>` branches (see
+`git-conventions`).
 
 ### Out of scope follow-ups
 
-When a plan or ticket lists **Out of scope** follow-up work, create missing ClickUp tasks in **TO DO** (backlog) on the correct list. Do not leave human/portal/infra follow-ups as plan-only bullets.
+When a plan or issue lists **Out of scope** follow-up work, create missing GitHub issues rather
+than leaving them as plan-only bullets.
 
-Include a **Pending / out-of-scope backlog** table (Title, Depends on, Token Estimate, Notes), then for each missing row on the Platform Kit ops list (`list_id=901616287298`):
+Include a **Pending / out-of-scope backlog** table (Title, Depends on, Notes), then for each
+missing row:
 
-1. Search by title/intent first (no duplicates).
-2. Create with acceptance criteria.
-3. Set **Token Estimate** custom field `ab22f8d4-df04-435e-849a-9ca6c23489be` to the estimate number (string). Leave Token Spent (`be7b08e9-b094-4578-bd0a-49f20af85f3c`), Claim token (`50a8d70c-e3a6-4bd7-8e3d-7661eaf6e6c7`), and Preview URL (`978d43d5-e404-4262-98a2-0193ade4736d`) unset.
-4. Wire dependency with `powershell -File scripts/clickup.ps1 depend -TaskId <new> -DependsOn <parent>` so the new task waits on the parent or named blocker.
-5. Leave **unassigned**; do not set Claim Token (browse/create ≠ claim).
-6. Comment new titles on the parent ticket / plan.
+1. Search existing issues by title/intent first (no duplicates): `gh issue list --search "..."`.
+2. Create with acceptance criteria: `gh issue create --title "..." --body "..."`.
+3. Wire dependency by adding `Depends on: #<parent>` to the new issue's body (and `Blocks: #<new>`
+   to the parent's, if useful for discoverability).
+4. Leave unassigned — filing an issue is not claiming it.
+5. Reference the new issue number from the parent issue/PR description.
 
-Token Estimate scale: XS ≈ 25000 · S ≈ 50000 · M ≈ 100000 · L ≈ 200000 · XL ≈ 400000.
-
-When creating multiple tasks at once, create them in parallel and confirm all IDs before moving on.
+When creating multiple issues at once, create them in parallel and confirm all numbers before
+moving on.
 
 ---
 
 ## Moving tasks
 
-When asked to advance a task to the next status:
-
-1. Identify the current status
-2. Apply the next step in the workflow above
-3. Confirm the new status after updating
-
-When moving in bulk, update all tasks in parallel.
+Engineering issues move themselves: opening a PR with `Closes #N` and merging it is what "moves"
+an issue to done. There is no separate manual transition to apply. When asked to "advance" an
+issue that is stuck (e.g. needs refinement before it can be claimed), the right action is to
+refine it (`backlog-refinement`) or resolve its blocking `Depends on`, not to change a status
+field.
 
 ---
 
 ## Commit message integration
 
-After completing work on a task, reference its ticket ID in the commit message:
+After completing work on an issue, reference its GitHub issue number in the commit message per
+`git-conventions`:
 
 ```
-type: TICKET-ID Description in sentence case
+type: #<issue-number> Description in sentence case
 ```
 
-Examples:
+Example:
+
 ```
-feat: AI-42 Add dark mode toggle to settings page
-fix: AI-17 Resolve null pointer in token parser
-chore: AI-99 Update dependencies to latest versions
+feat: #184 Add dark mode toggle to settings page
 ```
 
-**One ticket per commit** — never reuse a ticket ID for a different piece of work. If you are committing a change unrelated to the current ticket, create a new task first and use that ID.
+**One issue per commit** — never reuse an issue number for unrelated work. If you are committing
+a change unrelated to the current issue, file a new issue first and use that number.
 
-**Subject length budget** — the subject limit is 50 chars. The prefix `type: AI-XX ` already consumes ~12 chars, leaving ~38 for the description. Count before writing.
+**Subject length budget** — the subject limit is 50 chars. The prefix `type: #NNN ` consumes
+roughly 10–13 chars depending on the issue number's digit count; count before writing.
 
-See `engineering/git-conventions` for the full commit format rules.
-
----
-
-## Workspace context
-
-| Detail | Value |
-|--------|-------|
-| Ticket prefix | `AI-` |
-| Skills list | AI Plattform → Skills → Skills Product Backlog (ID: `901614473129`) |
-
-When creating a task for a new or updated skill, default to the Skills Product Backlog list.
+See `git-conventions` for the full commit format rules.
 
 ---
 
 ## Common operations
 
 ### Create a task
-Ask for: name, description (optional), target list. Default status to `backlog`.
+Ask for: title, body (goal/context/scope/acceptance criteria), and whether it depends on or
+blocks other issues. File via `gh issue create`.
 
-### Move a task to the next status
-Ask for: task ID or name, confirm the transition before applying.
+### Check if a task is ready to claim
+Read the issue body: does it meet the agent-ready definition (§4), and does its `Depends on` line
+(if any) point at a closed issue? If either check fails, it is not ready.
 
-### Bulk status update
-When multiple tasks are done at once (e.g. end of a sprint), update all in parallel.
+### Bulk triage
+When multiple issues need the same treatment (e.g. closing a batch of duplicates), handle them in
+parallel and confirm each outcome.
 
 ### Cancel a task
-Set status to `cancelled`. Always ask for or provide a cancellation reason — add it as a comment on the task.
+Close the issue with `state_reason: "not_planned"`. Always add a comment explaining why before
+closing.

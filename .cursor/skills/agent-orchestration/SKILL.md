@@ -1,42 +1,43 @@
 ---
 name: Agent Orchestration
-description: Coordinate multiple coding agents safely across ClickUp tickets, git worktrees, dependency-aware execution, rebases, CI, and PR handoff. Use when planning or running parallel implementation work across two or more tickets or agents.
-tags: [operations, agents, orchestration, git, worktrees, clickup, github]
+description: Coordinate multiple coding agents safely across GitHub issues, git worktrees, dependency-aware execution, rebases, CI, and PR handoff. Use when planning or running parallel implementation work across two or more issues or agents.
+tags: [operations, agents, orchestration, git, worktrees, github]
 audience: [engineers, tech-leads, all]
 status: stable
 ---
 
 # Agent Orchestration
 
-Use this skill when work spans multiple tickets or multiple coding agents and the main risk is coordination: stale branches, overlapping files, dependency ordering, or PRs becoming unmergeable as `main` moves.
+Use this skill when work spans multiple GitHub issues or multiple coding agents and the main risk is coordination: stale branches, overlapping files, dependency ordering, or PRs becoming unmergeable as `main` moves.
 
-This skill coordinates work. It does not replace `task-driven-development`; each implementing agent still follows that skill for claiming, implementation, testing, PR hygiene, and ClickUp handoff.
+This skill coordinates work. It does not replace `task-driven-development`; each implementing agent still follows that skill for claiming, implementation, testing, and PR handoff. Both skills follow
+[`docs/github-source-of-truth.md`](../../../docs/github-source-of-truth.md), the authoritative policy for how engineering work is identified, sequenced, and executed — this skill applies that policy to *multi-agent* coordination specifically and does not restate it.
 
 ## Goals
 
 - Maximise safe parallelism.
 - Keep every agent isolated in its own git worktree and branch.
 - Keep feature branches current with `origin/main`.
-- Prevent agents from building on unmerged feature branches; wait for prerequisites to merge to `main` before starting dependent tickets.
+- Prevent agents from building on unmerged feature branches; wait for prerequisites to merge to `main` before starting dependent issues.
 - Start dependent work from the merged result on `main`, not from another agent's branch.
 - Keep CI and mergeability authoritative before handoff.
 - Remove stale worktrees after work is merged or abandoned.
 
 ## Repository workflow
 
-Every implementing agent must follow this baseline:
+Every implementing agent must follow this baseline (`docs/github-source-of-truth.md` §6):
 
 1. Never work directly on `main`.
 2. Fetch `origin` before starting.
 3. Create the agent branch and worktree from current `origin/main`.
-4. Do not incorporate another agent's branch unless the ticket explicitly declares that dependency and the orchestrator has approved the exception.
+4. Do not incorporate another agent's branch unless the issue explicitly declares that dependency (`Depends on: #N`) and that issue is closed.
 5. Before pushing a completed implementation or updating a PR:
    - `git fetch origin main`
    - Refresh your branch from `origin/main` following `AGENTS.md` (prefer `git merge origin/main` when the repo conflict playbook applies; rebase only when appropriate)
    - resolve conflicts using the repository conflict playbook
    - run the full relevant test suite
 6. If you refreshed via rebase on a previously-pushed branch, push with `git push --force-with-lease`.
-7. Open or update the PR and wait for required CI.
+7. Open or update the PR (`Closes #N`) and wait for required CI.
 8. If `origin/main` changes while CI is running and branch protection or mergeability requires freshness, rebase again, rerun relevant tests, push with `--force-with-lease`, and rerun CI.
 
 Never use plain `--force`.
@@ -45,33 +46,32 @@ If `AGENTS.md` defines a repository-specific conflict playbook for special hub f
 
 ## Worktree isolation
 
-Each agent gets exactly one worktree for the ticket it owns.
+Each agent gets exactly one worktree for the issue it owns.
 
-Branch naming must follow `AGENTS.md`, normally:
+Branch naming must follow `docs/github-source-of-truth.md` §6:
 
 ```text
-feature/<clickup-task-id>-<kebab-title>
-hotfix/<clickup-task-id>-<kebab-title>
+<type>/<issue-number>-<kebab-title>
 ```
 
-Typical setup (parent workspace: `repo/` + `worktrees/<id>-<slug>/`):
+Typical setup (parent workspace: `repo/` + `worktrees/<issue-number>-<slug>/`):
 
 ```powershell
-pnpm worktree:add -- -TaskId <clickup-task-id> -Slug <kebab-title>
+pnpm worktree:add -- -TaskId <issue-number> -Slug <kebab-title>
 ```
 
-Linux / Cloud: `./scripts/add-worktree.sh --task-id <clickup-task-id> --slug <kebab-title>`
+Linux / Cloud: `./scripts/add-worktree.sh --task-id <issue-number> --slug <kebab-title>`
 
 Rules:
 
 - The canonical `main` checkout is read-only for agents.
 - Never let two agents share a worktree.
-- Never reuse a dirty worktree for a different ticket.
+- Never reuse a dirty worktree for a different issue.
 - Keep dependency caches shared where safe, but source trees isolated.
 - Remove the worktree after merge or abandonment:
 
 ```bash
-git worktree remove ../worktrees/<clickup-task-id>-<kebab-title>
+git worktree remove ../worktrees/<issue-number>-<kebab-title>
 git worktree prune
 ```
 
@@ -79,12 +79,14 @@ Delete the local feature branch after the PR is merged if normal repository clea
 
 ## Build a dependency DAG before launching agents
 
-Before starting multiple tickets, classify each ticket as one of:
+Before starting multiple issues, read each candidate issue's body for its
+`Depends on:` / `Blocks:` / `Parent:` lines (`docs/github-source-of-truth.md`
+§5) and classify each as one of:
 
-- **Independent**: can start immediately from `origin/main`.
-- **Depends on**: must wait for one or more tickets to merge.
-- **Potential conflict**: logically independent but likely to touch the same hub or high-churn files.
-- **Human/infra gate**: blocked on credentials, external provisioning, review, or another manual action.
+- **Independent**: no unresolved `Depends on` — can start immediately from `origin/main`.
+- **Depends on**: `Depends on: #N` names an issue that is not yet closed — must wait.
+- **Potential conflict**: no declared dependency, but logically likely to touch the same hub or high-churn files as another in-flight issue.
+- **Human/infra gate**: blocked on credentials, external provisioning, review, or another manual action — not expressible as a `Depends on` line, so verify by reading the issue body/comments.
 
 Represent the work as a DAG, for example:
 
@@ -96,25 +98,29 @@ B ─────┘
 C ───────── E
 ```
 
-Here `A`, `B`, and `C` can start in parallel. `D` starts only after both `A` and `B` are merged to `main`. `E` starts after `C` is merged.
+Here `A`, `B`, and `C` can start in parallel. `D` starts only after both `A` and `B` are merged (their issues closed) on `main`. `E` starts after `C` is merged.
 
-Do not start a downstream ticket early just to keep an agent busy. Starting from stale or unmerged dependencies creates avoidable conflict chains.
+A GitHub Issue with an unresolved `Depends on` is **never agent-ready**
+(`docs/github-source-of-truth.md` §4), regardless of how well-specified it
+is. Do not start a downstream issue early just to keep an agent busy.
+Starting from stale or unmerged dependencies creates avoidable conflict
+chains.
 
 ## Parallelisation rules
 
 Safe to run in parallel when all are true:
 
-- No declared dependency exists between the tickets.
+- No `Depends on` relationship exists between the issues (check both issue bodies).
 - The expected file sets do not substantially overlap.
 - They do not require incompatible schema, API contract, or infrastructure changes.
 - They can each be tested independently.
 
 Prefer sequencing when any are true:
 
-- One ticket introduces a contract consumed by another.
+- One issue introduces a contract consumed by another.
 - Both modify a high-churn hub such as root workspace files, shared workflows, central app wiring, generated infrastructure, or shared skills.
-- One ticket is a foundation or migration that changes the shape of later implementation.
-- The second ticket would otherwise need to cherry-pick or merge the first agent's branch.
+- One issue is a foundation or migration that changes the shape of later implementation.
+- The second issue would otherwise need to cherry-pick or merge the first agent's branch.
 
 When sequencing, merge the foundation PR first, then create the downstream agent worktree from the new `origin/main`.
 
@@ -126,7 +132,7 @@ When another PR merges:
 
 - Independent agents may continue working, but must rebase before their next completed push/handoff.
 - Agents whose code overlaps the merged PR should rebase as soon as practical, before doing substantial additional work.
-- Agents blocked by that PR start only after the merge and fetch the new `origin/main`.
+- Agents blocked by that PR (via `Depends on`) start only after the merge closes the prerequisite issue and fetch the new `origin/main`.
 
 Do not keep a long-lived chain like:
 
@@ -142,7 +148,7 @@ main -> B -> rebase -> merge
 main -> C -> rebase -> merge
 ```
 
-Dependent work starts from the updated `main` after its prerequisites merge.
+Dependent work starts from the updated `main` after its prerequisite issues close.
 
 ## Rebase conflict rules
 
@@ -150,13 +156,13 @@ For normal source conflicts:
 
 1. `git fetch origin`
 2. `git rebase origin/main`
-3. Resolve only conflicts relevant to the ticket.
+3. Resolve only conflicts relevant to the issue.
 4. Continue with `git rebase --continue`.
 5. Run relevant tests.
 6. Push with `git push --force-with-lease`.
 7. Recheck PR mergeability and CI.
 
-Abort the rebase if conflict resolution would require guessing another ticket's intended behaviour. Surface the dependency or conflict to the orchestrator instead of silently combining unrelated changes.
+Abort the rebase if conflict resolution would require guessing another issue's intended behaviour. Surface the dependency or conflict to the orchestrator instead of silently combining unrelated changes.
 
 For repository-defined hub/generated-file conflicts, follow `AGENTS.md` and repository scripts. The repository conflict playbook takes precedence over generic manual conflict resolution.
 
@@ -170,7 +176,7 @@ Before an agent hands work off:
 - Required CI is green.
 - GitHub reports the PR as mergeable / not dirty.
 - Actionable review feedback is resolved.
-- ClickUp handoff follows `task-driven-development` and `AGENTS.md`.
+- The PR body links its issue with a closing keyword (`Closes #N`) — merging the PR is what closes the issue; no separate status transition is needed.
 
 If `main` changes after CI completes but before merge, do not blindly rebuild every PR. Refresh only when branch protection, mergeability, dependency changes, or meaningful overlap makes it necessary.
 
@@ -180,27 +186,26 @@ The orchestrator coordinates; it does not steal implementation ownership from ag
 
 Before launch:
 
-1. Read candidate ticket details and declared dependencies.
+1. Read candidate issue bodies and their declared `Depends on` / `Blocks` / `Parent` lines.
 2. Build the dependency DAG.
 3. Identify shared-file collision risk.
 4. Group work into parallel waves.
-5. Ensure each implementation ticket is claimable under the repository's Claim Token protocol.
-6. Launch only the tickets whose prerequisites are satisfied.
+5. Confirm each issue meets the agent-ready definition (`docs/github-source-of-truth.md` §4) — clear goal, scope, acceptance criteria, no unresolved blocking `Depends on`.
+6. Launch only the issues whose prerequisites are satisfied (closed).
 
 During execution:
 
-1. Track which ticket owns each worktree and branch.
+1. Track which issue owns each worktree and branch.
 2. Track PR state: open, CI, mergeable, feedback, merged.
 3. When `main` moves, identify agents that need an early refresh versus agents that can wait until handoff.
-4. Do not resolve code conflicts on behalf of an agent unless explicitly taking over that ticket.
+4. Do not resolve code conflicts on behalf of an agent unless explicitly taking over that issue.
 5. Do not merge PRs; human merge policy remains authoritative.
 
 After merge:
 
-1. Mark downstream dependencies as unblocked.
-2. Start newly-ready tickets from the latest `origin/main`.
-3. Remove merged ticket worktrees and prune stale worktree metadata.
-4. Keep ClickUp status/Claim Token transitions aligned with `AGENTS.md`.
+1. Mark downstream `Depends on` relationships unblocked (the prerequisite issue is now closed).
+2. Start newly-ready issues from the latest `origin/main`.
+3. Remove merged issue worktrees and prune stale worktree metadata.
 
 ## Execution plan format
 
@@ -208,21 +213,21 @@ When the user asks to spin up several agents, return a concise execution plan li
 
 ```text
 Wave 1 — parallel
-- Ticket A — independent
-- Ticket B — independent
-- Ticket C — independent, low overlap
+- #201 Backend — independent
+- #202 Frontend — independent
+- #203 Infra — independent, low overlap
 
-Wave 2 — after A + B merge
-- Ticket D — depends on A and B
+Wave 2 — after #201 + #202 merge
+- #205 Integration — depends on #201, #202
 
-Wave 3 — after C merge
-- Ticket E — depends on C
+Wave 3 — after #203 merges
+- #206 Follow-up — depends on #203
 ```
 
 For each wave, include:
 
-- Ticket title and id.
-- Dependencies.
+- Issue title and number.
+- `Depends on` relationships.
 - Expected shared/hub files.
 - Branch/worktree name.
 - Whether it can run in parallel.
@@ -237,26 +242,31 @@ Repository workflow
 
 1. Never work directly on main.
 2. Fetch origin before starting.
-3. Create your branch/worktree from origin/main with `pnpm worktree:add` (parent `worktrees/<id>-<slug>`).
-4. Do not incorporate another agent's branch unless the ticket explicitly declares a dependency.
+3. Create your branch/worktree from origin/main with `pnpm worktree:add`
+   (parent `worktrees/<issue-number>-<slug>`).
+4. Do not incorporate another agent's branch unless the issue explicitly
+   declares a `Depends on` dependency on a now-closed issue.
 5. Before pushing completed work:
    - git fetch origin
    - git rebase origin/main
    - resolve conflicts using repository conflict rules
    - run the full relevant test suite
 6. Push with --force-with-lease after a rebase.
-7. Open/update the PR and complete PR hygiene.
-8. If origin/main changes while CI is running, refresh again only when required by branch protection, mergeability, dependency changes, or meaningful overlap.
+7. Open/update the PR with `Closes #<issue-number>` and complete PR hygiene.
+8. If origin/main changes while CI is running, refresh again only when
+   required by branch protection, mergeability, dependency changes, or
+   meaningful overlap.
 9. Never merge your own PR.
-10. Remove the worktree when the run is finished or the PR has merged, according to orchestrator cleanup policy.
+10. Remove the worktree when the run is finished or the PR has merged,
+    according to orchestrator cleanup policy.
 ```
 
-Also include the ticket-specific dependencies and explicitly state which prerequisite PRs must already be merged before the agent starts.
+Also include the issue-specific `Depends on` relationships and explicitly state which prerequisite issues/PRs must already be closed/merged before the agent starts.
 
 ## Relationship to other skills
 
-- `task-driven-development`: per-ticket claim, implementation, testing, PR hygiene, and ClickUp handoff.
-- `backlog-refinement`: sizing, decomposition, acceptance criteria, and dependency discovery before execution.
-- Repository-specific implementation/testing skills: apply inside each ticket after orchestration decides when the agent can start.
+- `task-driven-development`: per-issue claim, implementation, testing, and GitHub PR handoff.
+- `backlog-refinement` / `idea-to-delivery`: sizing, decomposition, acceptance criteria, and dependency discovery before execution.
+- Repository-specific implementation/testing skills: apply inside each issue after orchestration decides when the agent can start.
 
-When rules conflict, repository-level `AGENTS.md` and locked project policies take precedence.
+When rules conflict, `docs/github-source-of-truth.md` and repository-level `AGENTS.md` locked policies take precedence.
