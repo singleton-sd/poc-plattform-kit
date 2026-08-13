@@ -5,9 +5,15 @@
  * poc-plattform-kit API
  */
 
+export * from './accessAdministrationControllerListParams';
+export * from './accessAdministrationResponseDto';
+export * from './accessAssignmentProvenanceDto';
+export * from './accessAssignmentProvenanceDtoSource';
+export * from './accessPermissionCatalogItemDto';
 export * from './accessRequestControllerListMineParams';
 export * from './accessRequestListResponseDto';
 export * from './accessRequestResponseDto';
+export * from './accessRoleCatalogItemDto';
 export * from './approveAccessRequestDto';
 export * from './approveAccessRequestDtoGrantType';
 export * from './changelogChangeDto';
@@ -24,6 +30,7 @@ export * from './denyAccessRequestDto';
 export * from './healthResponseDto';
 export * from './meResponseDto';
 export * from './permissionsHealthResponseDto';
+export * from './tenantAccessUserDto';
 export * from './tenantControllerFindAllParams';
 export * from './tenantInvitationResponseDto';
 export * from './tenantInvitationResponseDtoStatus';

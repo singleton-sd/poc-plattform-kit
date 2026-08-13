@@ -10,6 +10,7 @@ import { buildThrottleConfig } from './http-hardening';
 import { MessagingModule } from './messaging/messaging.module';
 import { PermissionsAuthorizationModule } from './permissions/permissions-authorization.module';
 import { SingleSignOnModule } from './single-sign-on/single-sign-on.module';
+import { AccessAdministrationModule } from './access-administration/access-administration.module';
 
 const usePrettyTransport =
   process.env.LOG_PRETTY === 'true' || process.env.NODE_ENV === 'development';
@@ -48,6 +49,7 @@ const usePrettyTransport =
     TenantModule,
     SingleSignOnModule,
     PermissionsAuthorizationModule,
+    AccessAdministrationModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

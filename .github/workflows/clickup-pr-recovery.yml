@@ -1,3 +1,11 @@
+# Legacy — ClickUp-tracked tickets only (docs/github-source-of-truth.md section 9).
+# GitHub-native issues have no ClickUp status to recover: scripts/recover-clickup-pr.sh
+# no-ops for branches that aren't `feature/<clickup-id>-...` / `hotfix/<clickup-id>-...`.
+# For GitHub-native PRs the equivalent "recovery" is already handled reactively by
+# pr-hygiene.yml, which keeps needs-rebase/ci-failed/has-feedback/ready-for-human in
+# sync with PR state on every relevant event — no separate recovery job is needed.
+# This workflow stays only to finish out ClickUp Delivery tickets in flight until
+# docs/github-source-of-truth.md section 8 issues #177/#178 land.
 name: Recover ClickUp PR handoffs
 
 on:

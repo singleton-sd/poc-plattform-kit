@@ -4,11 +4,16 @@
 # Label lifecycle:
 # - needs-rebase: set when mergeable_state=dirty; cleared only when state is known and not dirty
 # - ci-failed: set when a required CI job fails (CI Web / CI API lint-test-build)
-# - preview-blocked: set when SWA/ACA/Chromatic infra fails; does not bounce ClickUp
+# - preview-blocked: set when SWA/ACA/Chromatic infra fails; not a code bounce
 # - has-feedback: set on Bugbot/Copilot/human comments; cleared on PR synchronize.
 #   Skipped for reviewers that report they did not review (usage limit, quota,
 #   Bugbot not enabled) and for the PR fixer's own comments — those carry no
 #   finding and must not wake the fixer.
+# - ready-for-human: the GitHub-native "ready for human merge" signal (mergeable +
+#   required CI green + no open feedback). Removed here whenever needs-rebase,
+#   ci-failed, or has-feedback is (re-)added; added by `pnpm pr:gate -- --pr <n>`
+#   (scripts/pr-handoff-gate.mjs) once none of those blockers remain. See
+#   the "Enforced PR handoff gate" section of docs/pr-pipelines.md.
 
 name: PR hygiene
 
@@ -63,6 +68,7 @@ jobs:
           ensure "ci-failed" "b60205" "Required CI (lint/test/build) failed"
           ensure "has-feedback" "0e8a16" "Bugbot, Copilot, or human feedback on the PR"
           ensure "preview-blocked" "fbca04" "Preview or Chromatic infra failed; not a code bounce"
+          ensure "ready-for-human" "0e8a16" "Mergeable, required CI green, no open feedback — ready for human merge"
 
   conflict-on-pr:
     needs: ensure-labels
@@ -85,7 +91,7 @@ jobs:
           done
           echo "mergeable_state=${STATE}"
           if [ "$STATE" = "dirty" ]; then
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-rebase || true
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-rebase --remove-label ready-for-human || true
           elif [ "$STATE" = "unknown" ] || [ "$STATE" = "null" ] || [ -z "$STATE" ]; then
             echo "Mergeability still unknown; leave needs-rebase unchanged"
           else
@@ -141,7 +147,7 @@ jobs:
           gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number' | while read -r PR; do
             STATE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.mergeable_state')
             if [ "$STATE" = "dirty" ]; then
-              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-rebase || true
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-rebase --remove-label ready-for-human || true
             fi
           done
 
@@ -167,6 +173,7 @@ jobs:
           ensure "preview-blocked" "fbca04" "Preview or Chromatic infra failed; not a code bounce"
           ensure "needs-rebase" "d93f0b" "PR has merge conflicts with base"
           ensure "has-feedback" "0e8a16" "Bugbot, Copilot, or human feedback on the PR"
+          ensure "ready-for-human" "0e8a16" "Mergeable, required CI green, no open feedback — ready for human merge"
 
       - name: Sync ci-failed and preview-blocked
         env:
@@ -213,7 +220,7 @@ jobs:
           case "$NAME" in
             "CI Web"|"CI API")
               if [ "$CONCLUSION" = "failure" ] && [ "$required_fail" = 1 ]; then
-                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ci-failed || true
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ci-failed --remove-label ready-for-human || true
               elif [ "$required_fail" = 0 ]; then
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ci-failed || true
               fi
@@ -313,4 +320,4 @@ jobs:
           if ! gh label list --repo "$GITHUB_REPOSITORY" --search "has-feedback" --json name --jq '.[].name' | grep -Fxq "has-feedback"; then
             gh label create "has-feedback" --repo "$GITHUB_REPOSITORY" --color "0e8a16" --description "Bugbot, Copilot, or human feedback on the PR" || true
           fi
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label has-feedback || true
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label has-feedback --remove-label ready-for-human || true

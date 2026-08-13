@@ -18,7 +18,8 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@poc-plattform-kit/pillar-single-sign-on": ["../../pillars/single-sign-on/src/index.ts"],
-      "@poc-plattform-kit/pillar-permissions": ["../../pillars/permissions/src/index.ts"]
+      "@poc-plattform-kit/pillar-permissions": ["../../pillars/permissions/src/index.ts"],
+      "@poc-plattform-kit/pillar-tenant": ["../../pillars/tenant/src/index.ts"]
     }
   }
 }

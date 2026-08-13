@@ -116,6 +116,75 @@ describe('PermissionsService', () => {
     ).resolves.toEqual({ allowed: false });
   });
 
+  it('reads all direct tuples for a resource across OpenFGA pages', async () => {
+    configureOpenFga();
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tuples: [
+            {
+              key: { user: 'user:alice', relation: 'admin', object: 'tenant:one' },
+              timestamp: '2026-08-13T00:00:00.000Z',
+            },
+          ],
+          continuation_token: 'next-page',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tuples: [
+            {
+              key: {
+                user: 'group:engineering#member',
+                relation: 'viewer',
+                object: 'tenant:one',
+              },
+              timestamp: '2026-08-13T00:01:00.000Z',
+            },
+          ],
+        }),
+      });
+
+    await expect(new PermissionsService().listResourceTuples('tenant:one')).resolves.toEqual({
+      consistencyVersion: 'model-1',
+      tuples: [
+        {
+          subject: 'group:engineering#member',
+          relation: 'viewer',
+          resource: 'tenant:one',
+          condition: null,
+          createdAt: '2026-08-13T00:01:00.000Z',
+        },
+        {
+          subject: 'user:alice',
+          relation: 'admin',
+          resource: 'tenant:one',
+          condition: null,
+          createdAt: '2026-08-13T00:00:00.000Z',
+        },
+      ],
+    });
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://openfga.example.test/stores/store-1/read',
+      expect.objectContaining({
+        body: expect.stringContaining('"continuation_token":"next-page"'),
+      }),
+    );
+  });
+
+  it('fails closed when resource tuples cannot be read', async () => {
+    configureOpenFga();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 503 });
+
+    await expect(new PermissionsService().listResourceTuples('tenant:one')).resolves.toEqual({
+      consistencyVersion: 'model-1',
+      tuples: [],
+    });
+  });
+
   it('grants a permanent tuple via OpenFGA write', async () => {
     configureOpenFga();
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
