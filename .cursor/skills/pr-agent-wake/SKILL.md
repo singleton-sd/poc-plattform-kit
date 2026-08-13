@@ -81,6 +81,8 @@ Required CI is lint/test/build only. After Wave 1 is on `main`, the
 canonical names live in `scripts/upsert-pr-review-brief.mjs` (`requiredCi`)
 and `scripts/pr-handoff-gate.mjs` (`expectedChecks`) — do not treat this
 skill as a second copy. Preview/Chromatic red is not a fixer wake signal.
+Unaccepted Chromatic visual diffs (pending UI Tests) are human-only; do
+not auto-fix pixel changes.
 
 ## Concurrent-fixer rule
 
