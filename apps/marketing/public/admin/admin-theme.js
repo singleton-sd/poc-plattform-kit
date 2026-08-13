@@ -50,21 +50,21 @@
     const cs = getComputedStyle(root);
     const get = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
     return {
-      accent: get('--pk-accent', 'var(--colors-yellow-light-400)'),
-      accentBg: get('--pk-accent-bg', 'var(--colors-yellow-light-900)'),
-      bg: get('--pk-bg', 'var(--colors-gray-900)'),
-      surface: get('--pk-surface', 'var(--colors-gray-800)'),
-      surfaceRaised: get('--pk-surface-raised', 'var(--colors-gray-700)'),
-      fg: get('--pk-fg', 'var(--colors-gray-100)'),
-      muted: get('--pk-muted', 'var(--colors-gray-400)'),
-      border: get('--pk-border', 'var(--colors-gray-700)'),
-      danger: get('--pk-danger', 'var(--colors-red-400)'),
-      dangerBg: get('--pk-danger-bg', 'var(--colors-red-900)'),
-      success: get('--pk-success', 'var(--colors-green-400)'),
-      successBg: get('--pk-success-bg', 'var(--colors-green-900)'),
-      warn: get('--pk-warn', 'var(--colors-yellow-light-300)'),
-      warnBg: get('--pk-warn-bg', 'var(--colors-yellow-light-900)'),
-      info: get('--pk-info', 'var(--colors-yellow-light-400)'),
+      accent: get('--pk-accent', 'var(--ssd-color-yellow-light-400)'),
+      accentBg: get('--pk-accent-bg', 'var(--ssd-color-yellow-light-900)'),
+      bg: get('--pk-bg', 'var(--ssd-color-gray-900)'),
+      surface: get('--pk-surface', 'var(--ssd-color-gray-800)'),
+      surfaceRaised: get('--pk-surface-raised', 'var(--ssd-color-gray-700)'),
+      fg: get('--pk-fg', 'var(--ssd-color-gray-100)'),
+      muted: get('--pk-muted', 'var(--ssd-color-gray-400)'),
+      border: get('--pk-border', 'var(--ssd-color-gray-700)'),
+      danger: get('--pk-danger', 'var(--ssd-color-red-400)'),
+      dangerBg: get('--pk-danger-bg', 'var(--ssd-color-red-900)'),
+      success: get('--pk-success', 'var(--ssd-color-green-400)'),
+      successBg: get('--pk-success-bg', 'var(--ssd-color-green-900)'),
+      warn: get('--pk-warn', 'var(--ssd-color-yellow-light-300)'),
+      warnBg: get('--pk-warn-bg', 'var(--ssd-color-yellow-light-900)'),
+      info: get('--pk-info', 'var(--ssd-color-yellow-light-400)'),
     };
   }
 

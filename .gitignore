@@ -25,6 +25,9 @@ api-deploy.zip
 api-deploy.tar
 .pnpm-store/
 
+# Copied from @singleton-sd/tokens when Astro loads (static Decap admin).
+apps/marketing/public/admin/tokens/
+
 # Generated SQLite preview schema/client/database (packages/db) — build-time
 # only, derived from prisma/schema.prisma. Never commit preview databases.
 packages/db/prisma/schema.preview.prisma
