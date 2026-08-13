@@ -3,9 +3,15 @@ import { withJsonFormsControlProps } from '@jsonforms/react';
 import { cn } from '../cn';
 
 export function TextControlRenderer(props: ControlProps) {
-  const { data, handleChange, path, label, required, errors, enabled, id, description } = props;
+  const { data, handleChange, path, label, required, errors, enabled, id, description, schema } =
+    props;
   const inputId = id || path;
   const invalid = Boolean(errors);
+  const maxLength = schema?.maxLength;
+  const describedBy =
+    [invalid ? `${inputId}-error` : null, maxLength ? `${inputId}-count` : null]
+      .filter(Boolean)
+      .join(' ') || undefined;
 
   return (
     <div className="flex flex-col gap-1">
@@ -21,12 +27,18 @@ export function TextControlRenderer(props: ControlProps) {
           invalid ? 'border-fg' : 'border-fg-subtle',
         )}
         value={data ?? ''}
+        maxLength={maxLength}
         disabled={!enabled}
         aria-required={required || undefined}
         aria-invalid={invalid}
-        aria-describedby={invalid ? `${inputId}-error` : undefined}
+        aria-describedby={describedBy}
         onChange={(event) => handleChange(path, event.target.value)}
       />
+      {maxLength ? (
+        <p id={`${inputId}-count`} className="text-xs text-fg-muted">
+          {String(data ?? '').length}/{maxLength}
+        </p>
+      ) : null}
       {invalid ? (
         <p id={`${inputId}-error`} className="text-sm text-fg" role="alert">
           {errors}

@@ -21,3 +21,17 @@ export function findByType(node: ReactNode, type: string): ElementWithProps | un
   }
   return undefined;
 }
+
+/** Depth-first search for the first rendered element with a matching `id` prop. */
+export function findById(node: ReactNode, id: string): ElementWithProps | undefined {
+  if (!isReactElement(node)) return undefined;
+  if (node.props.id === id) return node;
+
+  const children = node.props.children;
+  const candidates = Array.isArray(children) ? children : [children];
+  for (const child of candidates) {
+    const match = findById(child as ReactNode, id);
+    if (match) return match;
+  }
+  return undefined;
+}
