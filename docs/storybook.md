@@ -104,9 +104,10 @@ Reusable gating under `Features/Permissions/PermissionGate`. Compose
 
 Production call site under `Features/Tenants/Details drawer Save gate`. Reuse
 `tenantsFindOneHandlers` plus the PermissionGate MSW handlers above (always with
-`meSignedInHandlers`). Chromatic pins the fixed drawer in normal document flow,
-hides the form body, and uses a 375 viewport so snapshots are header + Save gate
-footer (fixed/sticky footers are otherwise clipped).
+`meSignedInHandlers`). Chromatic pins the fixed drawer in normal document flow
+and uses a 375 viewport. Footer stories hide the form body so the Save gate is
+the snapshot. `RequestDialogOpen` keeps the body and a 720px frame so the
+Request Access overlay is fully visible on the drawer (not clipped).
 
 | State | Story | Notes |
 | --- | --- | --- |

@@ -14,10 +14,14 @@ import { TenantDetailsDrawer } from './tenant-details-drawer';
 /**
  * Chromatic cannot reliably snapshot `position: fixed` drawers (or sticky
  * footers inside them): `#storybook-root` gets no natural size, so the Save
- * gate is clipped or missing. These stories only need the production footer
- * PermissionGate — pin the shell in normal flow and hide the form body.
+ * gate is clipped or missing. Pin the shell in normal flow. `transform` on the
+ * frame contains the Request Access dialog (`position: fixed`) so it paints
+ * inside the snapshot instead of overflowing the footer.
  */
 const DRAWER_FRAME_STYLES = `
+  [data-chromatic-drawer-frame] {
+    transform: translate(0);
+  }
   [data-chromatic-drawer-frame] [data-testid="tenant-details-drawer"],
   [data-chromatic-drawer-frame] [data-testid="tenant-details-drawer"] > [role="dialog"] {
     position: relative !important;
@@ -29,25 +33,25 @@ const DRAWER_FRAME_STYLES = `
   [data-chromatic-drawer-frame] [data-testid="drawer-backdrop"] {
     display: none !important;
   }
-  [data-chromatic-drawer-frame] [data-testid="tenant-details-drawer-body"] {
+  [data-chromatic-drawer-frame]:not([data-chromatic-overlay]) [data-testid="tenant-details-drawer-body"] {
     display: none !important;
   }
   [data-chromatic-drawer-frame] [data-testid="tenant-details-drawer-footer"] {
     position: relative !important;
     bottom: auto !important;
   }
-  [data-chromatic-drawer-frame] [data-testid="request-access-dialog"] {
-    position: absolute !important;
-    inset: 0 !important;
-  }
 `;
 
-function TenantDetailsDrawerHarness() {
+function TenantDetailsDrawerHarness({ overlay = false }: { overlay?: boolean }) {
   return (
     <div
       data-chromatic-drawer-frame
-      className="relative w-[375px] bg-bg"
-      style={{ minHeight: 420 }}
+      {...(overlay ? { 'data-chromatic-overlay': '' } : {})}
+      className={
+        overlay
+          ? 'relative w-[375px] min-h-[720px] bg-bg'
+          : 'relative w-[375px] min-h-[280px] bg-bg'
+      }
     >
       <style>{DRAWER_FRAME_STYLES}</style>
       <TenantDetailsDrawer
@@ -77,9 +81,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     chromatic: {
-      // Match the in-flow 375px frame; avoid cropToViewport (clips sticky/fixed footers).
       viewports: [375],
-      // Give MSW + PermissionGate queries time before capture (avoids CDN resource flakes).
       delay: 400,
     },
   },
@@ -139,11 +141,14 @@ export const CheckError: Story = {
 
 /** Drawer stays open with Request Access dialog overlayed (play opens it). */
 export const RequestDialogOpen: Story = {
+  args: { overlay: true },
   parameters: drawerHandlers(permissionsDeniedEmptyHandlers),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByTestId('permission-gate-request-cta'));
-    await expect(await canvas.findByTestId('request-access-dialog')).toBeVisible();
+    const dialog = await canvas.findByTestId('request-access-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(canvas.getByRole('heading', { name: 'Request access' })).toBeVisible();
     await expect(canvas.getByTestId('tenant-details-drawer')).toBeVisible();
   },
 };
