@@ -9,7 +9,7 @@
 # Auth: OIDC → Azure (same Variables as preview/deploy). Schedule uses the
 # main-branch federated credential (ref:refs/heads/main / ID-form equivalent).
 #
-# See docs/pr-pipelines.md § Preview orphan sweep.
+# See docs/pr-pipelines.md's "Preview orphan sweep" section.
 name: Sweep preview orphans
 
 on:
