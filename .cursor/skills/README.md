@@ -23,6 +23,7 @@ These are authored and committed here; they are **not** in the `pnpm sync:skills
 | [`pr-agent-wake`](pr-agent-wake/SKILL.md) | Fix an existing PR after `ci-failed` / `has-feedback` |
 | [`register-permissions`](register-permissions/SKILL.md) | Register OpenFGA catalog entries for new models/routes |
 | [`agent-orchestration`](agent-orchestration/SKILL.md) | Multi-agent / worktree orchestration helpers |
+| [`discover-public-apis`](discover-public-apis/SKILL.md) | Brainstorm externally-enabled product capabilities and validate public API/provider options |
 
 **Bugbot does not load these skills.** PR review rules live in `.cursor/BUGBOT.md` (and nested `**/BUGBOT.md`). Distill review-critical checks there; do not point Bugbot at `ai-plattform-skills`.
 

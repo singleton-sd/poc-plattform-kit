@@ -47,6 +47,21 @@ Typical sequence:
 
 Do not force all steps when the idea is already clear.
 
+## External capability brainstorming
+
+When the idea could plausibly benefit from external data, validation, enrichment, automation, or third-party services, use `discover-public-apis` during refinement.
+
+The purpose is **product brainstorming**, not vendor selection. Use public API catalogs such as `public-apis/public-apis` to surface capabilities that may:
+
+- make the MVP materially cheaper or faster to validate;
+- improve the user's outcome with data or functionality that would be expensive to build;
+- reveal useful adjacent features the user may not have considered;
+- provide a simpler integrate-versus-build alternative.
+
+Bring only material candidates back into the Refined Idea Brief. Classify them as MVP, later/optional, or rejected distraction. Explain the user value before naming specific providers.
+
+Do not add features simply because an API exists. Provider choice, pricing, privacy, rate limits, reliability, licensing, and other implementation suitability must be verified through `discover-public-apis` and official provider sources before becoming delivery decisions.
+
 ## What to challenge
 
 When relevant, test the idea against:
@@ -176,8 +191,11 @@ When READY FOR REQUIREMENTS, hand the Refined Idea Brief to `discover-requiremen
 
 `discover-requirements` may send the work back here if it uncovers a fundamental product ambiguity such as an unclear target user, unresolved value proposition, or multiple incompatible product directions.
 
+Use `discover-public-apis` as a supporting discovery skill when external APIs or public data may materially change the MVP, alternatives, or value proposition. It does not replace product refinement or requirements discovery.
+
 Do not duplicate the responsibilities of:
 
+- `discover-public-apis` — external capability brainstorming and provider discovery/validation;
 - `discover-requirements` — detailed behavior, rules, actors, scenarios, NFRs, data/integration requirements;
 - `backlog-refinement` — making an existing backlog item decision-complete and agent-ready;
 - `idea-to-delivery` — parent/tracking issues, delivery-slice issues, dependencies, and parallel lanes.
