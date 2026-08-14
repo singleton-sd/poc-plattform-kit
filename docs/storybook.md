@@ -2,7 +2,9 @@
 
 Storybook isolates component and page states for `apps/web`. Jest covers unit
 logic, MSW supplies deterministic HTTP fixtures, Chromatic reviews visuals, and
-Azure SWA remains the assembled-app preview for human testing.
+Azure SWA remains the assembled-app preview for human testing. Agents writing or
+debugging snapshots should also read [`.cursor/skills/storybook`](../.cursor/skills/storybook/SKILL.md)
+(fixed drawers, sticky footers, overlays, and Chromatic crop pitfalls).
 
 ## When a story is required
 

@@ -203,3 +203,17 @@ src/
 - Prefer Server Components by default in Next.js; only add `'use client'` when you need interactivity or browser APIs
 - Keep components small — if a component file exceeds ~150 lines, extract
 - One component per file, filename matches the component name (PascalCase)
+
+---
+
+## Storybook / Chromatic (this kit)
+
+When adding or debugging `*.stories.tsx` or Chromatic snapshots in
+`poc-plattform-kit`, read and apply the kit-local **storybook** skill
+(`.cursor/skills/storybook`). Catalogue and Definition of Done:
+[`docs/storybook.md`](../../../docs/storybook.md).
+
+A passing `play` function is not proof Chromatic captured the subject.
+Fixed drawers, sticky footers, and nested overlays need an in-flow harness
+with an explicit frame — see that skill before iterating on viewports or
+`cropToViewport`.

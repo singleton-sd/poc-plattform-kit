@@ -24,6 +24,7 @@ These are authored and committed here; they are **not** in the `pnpm sync:skills
 | [`register-permissions`](register-permissions/SKILL.md) | Register OpenFGA catalog entries for new models/routes |
 | [`agent-orchestration`](agent-orchestration/SKILL.md) | Multi-agent / worktree orchestration helpers |
 | [`discover-public-apis`](discover-public-apis/SKILL.md) | Brainstorm externally-enabled product capabilities and validate public API/provider options |
+| [`storybook`](storybook/SKILL.md) | Storybook stories and Chromatic snapshot capture |
 
 **Bugbot does not load these skills.** PR review rules live in `.cursor/BUGBOT.md` (and nested `**/BUGBOT.md`). Distill review-critical checks there; do not point Bugbot at `ai-plattform-skills`.
 
@@ -42,3 +43,6 @@ mechanism itself; re-running `pnpm sync:skills` still refreshes the base
 skill files from the source repo above, so re-apply the GitHub-native
 routing sections in this repo's copies after a sync if the upstream source
 skill still describes ClickUp routing.
+
+The kit-local **storybook** pointer at the end of the synced `frontend`
+skill is also a local customization — re-apply it after `pnpm sync:skills`.
