@@ -104,7 +104,9 @@ Reusable gating under `Features/Permissions/PermissionGate`. Compose
 
 Production call site under `Features/Tenants/Details drawer Save gate`. Reuse
 `tenantsFindOneHandlers` plus the PermissionGate MSW handlers above (always with
-`meSignedInHandlers`).
+`meSignedInHandlers`). Chromatic uses a 375 viewport (full-width footer; 1280
+buries the Save gate in a 420px rail), `cropToViewport`, and ignores the drawer
+body so visual diffs are the footer.
 
 | State | Story | Notes |
 | --- | --- | --- |

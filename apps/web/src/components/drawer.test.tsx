@@ -51,4 +51,20 @@ describe('Drawer', () => {
     );
     expect(screen.getByRole('button', { name: 'First' })).toHaveFocus();
   });
+
+  it('exposes body and footer test ids when testId is set', () => {
+    render(
+      <Drawer
+        open
+        title="Tenant"
+        testId="story-drawer"
+        footer={<span>Save</span>}
+        onClose={jest.fn()}
+      >
+        content
+      </Drawer>,
+    );
+    expect(screen.getByTestId('story-drawer-body')).toHaveTextContent('content');
+    expect(screen.getByTestId('story-drawer-footer')).toHaveTextContent('Save');
+  });
 });

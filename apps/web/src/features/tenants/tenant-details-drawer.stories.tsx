@@ -11,9 +11,15 @@ import {
 import { DETAILS_DRAWER_TENANT_ID, tenantsFindOneHandlers } from '@/testing/handlers/tenants';
 import { TenantDetailsDrawer } from './tenant-details-drawer';
 
+/**
+ * Chromatic captures `#storybook-root`. `position: fixed` drawers do not give
+ * that root a natural size, so a 1280-wide snapshot buries the Save footer in a
+ * 420px rail (or clips it). Pin the panel in a 375×100vh frame and ignore the
+ * form body so visual diffs are the footer gate.
+ */
 function TenantDetailsDrawerHarness() {
   return (
-    <div className="relative min-h-screen bg-bg">
+    <div className="relative h-screen w-full overflow-hidden bg-bg [&_[data-testid=tenant-details-drawer]]:!absolute [&_[data-testid=tenant-details-drawer]]:inset-0 [&_[data-testid=tenant-details-drawer]>[role=dialog]]:!absolute [&_[data-testid=tenant-details-drawer]>[role=dialog]]:inset-y-0 [&_[data-testid=tenant-details-drawer]>[role=dialog]]:right-0 [&_[data-testid=tenant-details-drawer]>[role=dialog]]:!w-full">
       <TenantDetailsDrawer
         tenantId={DETAILS_DRAWER_TENANT_ID}
         onClose={() => undefined}
@@ -35,11 +41,25 @@ function drawerHandlers(permissions: readonly RequestHandler[]) {
   };
 }
 
+async function waitForSaveFooter(
+  canvasElement: HTMLElement,
+  assert: (canvas: ReturnType<typeof within>) => Promise<void>,
+) {
+  const canvas = within(canvasElement);
+  await assert(canvas);
+  canvas.getByTestId('tenant-details-drawer-footer').scrollIntoView({ block: 'end' });
+}
+
 const meta = {
   title: 'Features/Tenants/Details drawer Save gate',
   component: TenantDetailsDrawerHarness,
   parameters: {
     layout: 'fullscreen',
+    chromatic: {
+      viewports: [375],
+      cropToViewport: true,
+      ignoreSelectors: ['[data-testid="tenant-details-drawer-body"]'],
+    },
   },
 } satisfies Meta<typeof TenantDetailsDrawerHarness>;
 
@@ -50,11 +70,12 @@ type Story = StoryObj<typeof meta>;
 export const AllowedSave: Story = {
   parameters: drawerHandlers(permissionsAllowedHandlers),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const save = await canvas.findByTestId('tenant-update-submit');
-    await expect(save).toBeEnabled();
-    await expect(canvas.queryByTestId('permission-gate-request-cta')).not.toBeInTheDocument();
-    await expect(canvas.queryByTestId('permission-gate-loading')).not.toBeInTheDocument();
+    await waitForSaveFooter(canvasElement, async (canvas) => {
+      const save = await canvas.findByTestId('tenant-update-submit');
+      await expect(save).toBeEnabled();
+      await expect(canvas.queryByTestId('permission-gate-request-cta')).not.toBeInTheDocument();
+      await expect(canvas.queryByTestId('permission-gate-loading')).not.toBeInTheDocument();
+    });
   },
 };
 
@@ -62,12 +83,13 @@ export const AllowedSave: Story = {
 export const DeniedWithCta: Story = {
   parameters: drawerHandlers(permissionsDeniedEmptyHandlers),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(await canvas.findByTestId('permission-gate-request-cta')).toBeVisible();
-    await expect(canvas.getByTestId('tenant-update-submit')).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
+    await waitForSaveFooter(canvasElement, async (canvas) => {
+      await expect(await canvas.findByTestId('permission-gate-request-cta')).toBeVisible();
+      await expect(canvas.getByTestId('tenant-update-submit')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+    });
   },
 };
 
@@ -75,9 +97,12 @@ export const DeniedWithCta: Story = {
 export const Pending: Story = {
   parameters: drawerHandlers(permissionsPendingHandlers),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(await canvas.findByTestId('permission-gate-status')).toHaveTextContent(/pending/i);
-    await expect(canvas.queryByTestId('permission-gate-request-cta')).not.toBeInTheDocument();
+    await waitForSaveFooter(canvasElement, async (canvas) => {
+      await expect(await canvas.findByTestId('permission-gate-status')).toHaveTextContent(
+        /pending/i,
+      );
+      await expect(canvas.queryByTestId('permission-gate-request-cta')).not.toBeInTheDocument();
+    });
   },
 };
 
@@ -85,9 +110,10 @@ export const Pending: Story = {
 export const CheckError: Story = {
   parameters: drawerHandlers(permissionsCheckErrorHandlers),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(await canvas.findByTestId('permission-gate-retry')).toBeVisible();
-    await expect(canvas.getByRole('alert')).toHaveTextContent('OpenFGA unavailable');
+    await waitForSaveFooter(canvasElement, async (canvas) => {
+      await expect(await canvas.findByTestId('permission-gate-retry')).toBeVisible();
+      await expect(canvas.getByRole('alert')).toHaveTextContent('OpenFGA unavailable');
+    });
   },
 };
 
@@ -95,9 +121,10 @@ export const CheckError: Story = {
 export const RequestDialogOpen: Story = {
   parameters: drawerHandlers(permissionsDeniedEmptyHandlers),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByTestId('permission-gate-request-cta'));
-    await expect(await canvas.findByTestId('request-access-dialog')).toBeVisible();
-    await expect(canvas.getByTestId('tenant-details-drawer')).toBeVisible();
+    await waitForSaveFooter(canvasElement, async (canvas) => {
+      await userEvent.click(await canvas.findByTestId('permission-gate-request-cta'));
+      await expect(await canvas.findByTestId('request-access-dialog')).toBeVisible();
+      await expect(canvas.getByTestId('tenant-details-drawer')).toBeVisible();
+    });
   },
 };
