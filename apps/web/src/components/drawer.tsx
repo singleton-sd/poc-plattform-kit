@@ -124,11 +124,18 @@ export function Drawer({
             <CloseIcon className="h-5 w-5" />
           </button>
         </header>
-        <div ref={contentRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        <div
+          ref={contentRef}
+          className="flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+          data-testid={testId ? `${testId}-body` : undefined}
+        >
           {children}
         </div>
         {footer ? (
-          <footer className="sticky bottom-0 flex flex-col gap-2 border-t border-fg-subtle/30 bg-bg px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+          <footer
+            className="sticky bottom-0 flex flex-col gap-2 border-t border-fg-subtle/30 bg-bg px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6"
+            data-testid={testId ? `${testId}-footer` : undefined}
+          >
             {footer}
           </footer>
         ) : null}

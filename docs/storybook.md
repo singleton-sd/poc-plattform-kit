@@ -100,6 +100,23 @@ Reusable gating under `Features/Permissions/PermissionGate`. Compose
 | Check error | `CheckError` | Nest `OpenFGA unavailable` + Retry |
 | Dialog | `DialogOpen`, `DialogTemporaryExpiry`, `DialogSubmitError` | play open / Temporary / 400 |
 
+## Tenant details Save gate
+
+Production call site under `Features/Tenants/Details drawer Save gate`. Reuse
+`tenantsFindOneHandlers` plus the PermissionGate MSW handlers above (always with
+`meSignedInHandlers`). Chromatic pins the fixed drawer in normal document flow
+and uses a 375 viewport. Footer stories hide the form body so the Save gate is
+the snapshot. `RequestDialogOpen` keeps the body and a 720px frame so the
+Request Access overlay is fully visible on the drawer (not clipped).
+
+| State | Story | Notes |
+| --- | --- | --- |
+| Allowed Save | `AllowedSave` | Enabled footer Save next to Cancel |
+| Denied + CTA | `DeniedWithCta` | Custom `deniedControl` + Request access |
+| Pending | `Pending` | Footer status; no CTA |
+| Check error | `CheckError` | Footer Retry |
+| Dialog overlay | `RequestDialogOpen` | play opens Request Access over the drawer |
+
 ## Interaction and accessibility
 
 - Use `play` + `expect` for validation messages, dialogs, empty recovery, and

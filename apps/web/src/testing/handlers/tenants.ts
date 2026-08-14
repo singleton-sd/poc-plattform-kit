@@ -1,12 +1,36 @@
-import type { TenantListResponseDto } from '@poc-plattform-kit/api-client';
+import type { TenantListResponseDto, TenantResponseDto } from '@poc-plattform-kit/api-client';
 import { delay, http, HttpResponse } from 'msw';
-import { createTenantFixtures, NO_RESULTS_QUERY } from '../fixtures/tenants';
+import { createTenantFixtures, NO_RESULTS_QUERY, tenantFixtures } from '../fixtures/tenants';
 
 const tenantsPath = '*/tenants';
+const tenantByIdPath = '*/tenants/:id';
 
 function listResponse(items = createTenantFixtures()) {
   return HttpResponse.json<TenantListResponseDto>({ items, nextCursor: null });
 }
+
+function findOneResponse(tenant: TenantResponseDto) {
+  return HttpResponse.json(tenant);
+}
+
+/**
+ * Find-one for TenantDetailsDrawer stories.
+ * Returns the fixture matching `:id`, or 404 when unknown.
+ */
+export const tenantsFindOneHandlers = [
+  http.get(tenantByIdPath, ({ params }) => {
+    const rawId = params.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+    const tenant = createTenantFixtures().find((entry) => entry.id === id);
+    if (!tenant) {
+      return HttpResponse.json({ message: 'Tenant not found' }, { status: 404 });
+    }
+    return findOneResponse(tenant);
+  }),
+];
+
+/** Stable id for drawer stories that open Example North. */
+export const DETAILS_DRAWER_TENANT_ID = tenantFixtures[0].id;
 
 export const tenantsPopulatedHandlers = [
   http.get(tenantsPath, ({ request }) => {
