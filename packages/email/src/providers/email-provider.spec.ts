@@ -42,13 +42,14 @@ describe('loadEmailRuntimeConfig', () => {
   it('honours EMAIL_PROVIDER=forward-email', () => {
     const config = loadEmailRuntimeConfig({
       EMAIL_PROVIDER: 'forward-email',
-      EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+      EMAIL_FROM_ADDRESS: 'noreply@mail.example.test',
+      EMAIL_SENDING_DOMAIN: 'mail.example.test',
       EMAIL_FROM_NAME: 'Plattform Kit',
-      CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
+      CONTACT_INBOX_ADDRESS: 'hello@example.test',
     });
     assert.equal(config.provider, 'forward-email');
-    assert.equal(config.fromAddress, 'noreply@mail.plattform-kit.poc.singletonsd.com');
-    assert.equal(config.contactInboxAddress, 'hello@singletonsd.com');
+    assert.equal(config.fromAddress, 'noreply@mail.example.test');
+    assert.equal(config.contactInboxAddress, 'hello@example.test');
   });
 });
 

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { loadContactEmailProfile, validateContactEmailProfile } from './contact-email-profile';
 import { loadEmailRuntimeConfig } from '../providers/create-email-provider';
 import type { EmailProvider, EmailSendRequest, EmailSendResult } from '../providers/email-types';
 import { EmailProviderError, sanitizeHeaderValue } from '../providers/email-types';
@@ -110,6 +111,14 @@ export async function sendContactInquiryEmail(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<{ id: string; status: 'sent'; result: EmailSendResult }> {
   const config = loadEmailRuntimeConfig(env);
+  const profileErrors = validateContactEmailProfile(loadContactEmailProfile(env));
+  if (profileErrors.length > 0) {
+    throw new EmailProviderError({
+      message: `Contact email profile is not valid: ${profileErrors.join('; ')}`,
+      kind: 'configuration',
+      provider: email.name,
+    });
+  }
   if (!config.contactInboxAddress || !config.fromAddress) {
     throw new EmailProviderError({
       message: 'Contact email addresses are not configured',

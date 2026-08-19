@@ -41,6 +41,14 @@
   Overwrite an existing DMARC TXT on the exact Forward Email DMARC name even
   when it differs from the API value.
 
+.PARAMETER DmarcPolicy
+  DMARC enforcement policy to write (`none`, `quarantine`, `reject`).
+  Default: quarantine.
+
+.PARAMETER DmarcAggregateReportAddress
+  Optional aggregate report mailbox URI (example: mailto:dmarc-reports@example.com).
+  Added as rua= when provided.
+
 .PARAMETER MaxVerifyAttempts
   Max verify-records / verify-smtp attempts. Default: 6
 
@@ -64,6 +72,8 @@ param(
   [switch]$SkipDns,
   [switch]$SkipVerify,
   [switch]$ForceDmarc,
+  [ValidateSet('none', 'quarantine', 'reject')][string]$DmarcPolicy = 'quarantine',
+  [string]$DmarcAggregateReportAddress = '',
   [int]$MaxVerifyAttempts = 6,
   [int]$VerifyDelaySeconds = 20
 )
@@ -166,6 +176,25 @@ function Merge-SpfInclude {
     return ($trimmed -replace '\s(-all|~all|\?all|\+all)\s*$', " $include `$1")
   }
   return "$trimmed $include -all"
+}
+
+function Build-DmarcRecord {
+  param(
+    [Parameter(Mandatory)][string]$Policy,
+    [string]$AggregateReportAddress = ''
+  )
+
+  $parts = @(
+    'v=DMARC1'
+    "p=$Policy"
+    'adkim=s'
+    'aspf=s'
+    'pct=100'
+  )
+  if (-not [string]::IsNullOrWhiteSpace($AggregateReportAddress)) {
+    $parts += "rua=$($AggregateReportAddress.Trim())"
+  }
+  return ($parts -join '; ') + ';'
 }
 
 function Format-VerificationTxt {
@@ -492,10 +521,10 @@ Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
   }
 
   # DMARC TXT — skip overwrite on organisational conflict unless -ForceDmarc
-  if ($smtpDns -and $smtpDns.dmarc -and $smtpDns.dmarc.name -and $smtpDns.dmarc.value) {
+  if ($smtpDns -and $smtpDns.dmarc -and $smtpDns.dmarc.name) {
     $dmarcRel = Get-RelativeName -FqdnOrRelative ([string]$smtpDns.dmarc.name) -Zone $ZoneDomain
     $dmarcFqdn = Get-Fqdn -Relative $dmarcRel -Zone $ZoneDomain
-    $dmarcValue = ([string]$smtpDns.dmarc.value).Trim().Trim('"')
+    $dmarcValue = Build-DmarcRecord -Policy $DmarcPolicy -AggregateReportAddress $DmarcAggregateReportAddress
     $existingDmarcSets = @(Get-Route53RecordsForName -ZoneId $HostedZoneId -Fqdn $dmarcFqdn -Type TXT)
     $existingDmarc = if ($existingDmarcSets.Count -gt 0) { $existingDmarcSets[0] } else { $null }
     $existingDmarcValues = @(Get-TxtValues -ResourceRecordSet $existingDmarc)

@@ -1,4 +1,5 @@
 import { DevelopmentEmailProvider } from './development-email.provider';
+import { loadContactEmailProfile } from '../contact/contact-email-profile';
 import type { EmailProvider, EmailProviderName } from './email-types';
 import { ForwardEmailProvider } from './forward-email.provider';
 
@@ -15,6 +16,7 @@ export interface EmailRuntimeConfig {
  * Prefer EMAIL_* / CONTACT_INBOX_ADDRESS; accept legacy CONTACT_* aliases.
  */
 export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): EmailRuntimeConfig {
+  const profile = loadContactEmailProfile(env);
   const explicit = (env.EMAIL_PROVIDER ?? '').trim().toLowerCase();
   let provider: EmailProviderName;
   if (explicit === 'forward-email' || explicit === 'forwardemail') {
@@ -29,13 +31,10 @@ export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Em
     provider = 'development';
   }
 
-  const fromAddress =
-    env.EMAIL_FROM_ADDRESS?.trim() ||
-    env.CONTACT_FROM_EMAIL?.trim() ||
-    'noreply@mail.plattform-kit.poc.singletonsd.com';
-  const fromName = env.EMAIL_FROM_NAME?.trim() || 'Plattform Kit';
+  const fromAddress = profile.fromAddress;
+  const fromName = profile.fromName;
   const contactInboxAddress =
-    env.CONTACT_INBOX_ADDRESS?.trim() || env.CONTACT_INBOX_EMAIL?.trim() || 'hello@singletonsd.com';
+    env.CONTACT_INBOX_ADDRESS?.trim() || env.CONTACT_INBOX_EMAIL?.trim() || '';
 
   const forwardEmailTokenConfigured = Boolean(
     env.FORWARD_EMAIL_TOKEN?.trim() || env.FORWARDEMAIL_API_KEY?.trim(),
