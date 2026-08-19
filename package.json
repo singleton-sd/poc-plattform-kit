@@ -13,6 +13,7 @@
     "dev:web": "pnpm --filter @poc-plattform-kit/web dev",
     "dev:api": "pnpm --filter @poc-plattform-kit/api start:dev",
     "dev:marketing": "pnpm --filter @poc-plattform-kit/marketing dev",
+    "validate:email-domain-branding": "pnpm --filter @poc-plattform-kit/email validate:domain-branding",
     "openapi:export": "pnpm --filter @poc-plattform-kit/api openapi:export",
     "openapi:generate": "pnpm --filter @poc-plattform-kit/api-client generate",
     "openapi:check": "pnpm openapi:export && pnpm openapi:generate && git diff --exit-code -- packages/api-client/openapi.json packages/api-client/src/generated || (echo \"OpenAPI client drift — run: pnpm openapi:export && pnpm openapi:generate\" && exit 1)",

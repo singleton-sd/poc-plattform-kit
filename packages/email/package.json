@@ -13,7 +13,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"lint:email — covered by root eslint on staged files\"",
-    "test": "node --import tsx --test src/**/*.spec.ts"
+    "test": "node --import tsx --test src/**/*.spec.ts",
+    "validate:domain-branding": "tsx src/provisioning/email-domain-branding-validator.cli.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.9",

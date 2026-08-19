@@ -43,3 +43,15 @@ export {
   getRequiredDnsRecords,
   mergeSpfInclude,
 } from './provisioning/forward-email-management';
+
+export type {
+  EmailDomainBrandingValidationCheck,
+  EmailDomainBrandingValidationConfig,
+  EmailDomainBrandingValidationDependencies,
+  EmailDomainBrandingValidationReport,
+  ValidationStatus,
+} from './provisioning/email-domain-branding-validator';
+export {
+  validateBimiSvgStructure,
+  validateEmailDomainBranding,
+} from './provisioning/email-domain-branding-validator';
