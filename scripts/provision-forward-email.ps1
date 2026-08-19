@@ -59,6 +59,14 @@ param(
   [string]$ZoneDomain = 'singletonsd.com',
   [string]$Alias = 'noreply',
   [string]$AliasRecipient = 'hello@singletonsd.com',
+  # BIMI (Brand Indicators for Message Identification)
+  # Publish `<BimiSelector>._bimi.<BimiSendingDomain>` as a TXT record.
+  # When BimiLogoUrl is empty, BIMI publishing is skipped.
+  [string]$BimiSelector = 'default',
+  [string]$BimiLogoUrl = '',
+  [string]$BimiBrandName = '',
+  [string]$BimiSendingDomain = '',
+  [string]$BimiEvidenceUrl = '',
   [string]$HostedZoneId = '',
   [switch]$DryRun,
   [switch]$SkipDns,
@@ -526,6 +534,44 @@ Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
   }
   else {
     Write-Host 'Info: smtp_dns_records.dmarc missing; no DMARC upsert.'
+  }
+
+  # --- BIMI TXT (optional) ---
+  if (-not [string]::IsNullOrWhiteSpace($BimiLogoUrl)) {
+    $effectiveBimiSendingDomain = if ([string]::IsNullOrWhiteSpace($BimiSendingDomain)) { $Domain } else { $BimiSendingDomain }
+
+    if (-not $effectiveBimiSendingDomain.EndsWith(".$ZoneDomain") -and $effectiveBimiSendingDomain -ne $ZoneDomain) {
+      throw "BimiSendingDomain '$effectiveBimiSendingDomain' is not under zone '$ZoneDomain'."
+    }
+
+    $sendingRel = Get-RelativeName -FqdnOrRelative $effectiveBimiSendingDomain -Zone $ZoneDomain
+    $bimiRelName = if ([string]::IsNullOrWhiteSpace($sendingRel)) { "$BimiSelector._bimi" } else { "$BimiSelector._bimi.$sendingRel" }
+    $bimiFqdn = Get-Fqdn -Relative $bimiRelName -Zone $ZoneDomain
+
+    $evidence = $BimiEvidenceUrl
+    if ($null -eq $evidence -or [string]::IsNullOrWhiteSpace($evidence)) { $evidence = '' }
+
+    $bimiValue = "v=BIMI1; l=$($BimiLogoUrl.Trim()); a=$($evidence.Trim())"
+
+    $existingBimiSets = @(Get-Route53RecordsForName -ZoneId $HostedZoneId -Fqdn $bimiFqdn -Type TXT)
+    $existingBimi = if ($existingBimiSets.Count -gt 0) { $existingBimiSets[0] } else { $null }
+    $existingValues = @(Get-TxtValues -ResourceRecordSet $existingBimi)
+
+    $desiredValues = New-Object System.Collections.Generic.List[string]
+    foreach ($tv in $existingValues) {
+      if ($tv.ToLowerInvariant().StartsWith('v=bimi1')) { continue }
+      $desiredValues.Add($tv) | Out-Null
+    }
+    $desiredValues.Add($bimiValue) | Out-Null
+
+    $bimiRr = @()
+    foreach ($v in ($desiredValues | Select-Object -Unique)) {
+      $bimiRr += @{ Value = (Format-Route53TxtValue -Value $v) }
+    }
+    $changes += New-Change -Name $bimiFqdn -Type TXT -ResourceRecords $bimiRr
+    Write-Host "BIMI TXT queued: $bimiFqdn"
+  } else {
+    Write-Host 'Info: BimiLogoUrl missing; skipping BIMI TXT upsert.'
   }
 
   $batch = @{

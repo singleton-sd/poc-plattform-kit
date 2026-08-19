@@ -50,19 +50,19 @@ describe('buildContactEmailRequest / sendContactInquiryEmail', () => {
     };
     const built = buildContactEmailRequest(dto, {
       inbox: 'hello@singletonsd.com',
-      from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+      from: 'noreply@mail.example.com',
       fromName: 'Plattform Kit',
       correlationId: 'corr-1',
     });
     assert.equal(built.to, 'hello@singletonsd.com');
-    assert.equal(built.from, 'noreply@mail.plattform-kit.poc.singletonsd.com');
+    assert.equal(built.from, 'noreply@mail.example.com');
     assert.equal(built.replyTo, 'jane@acme.com');
     assert.equal(built.subject, '[Plattform Kit] Sales / demo request');
     assert.notEqual(built.from, dto.email);
 
     const sent = await sendContactInquiryEmail(dto, provider, {
       EMAIL_PROVIDER: 'development',
-      EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+      EMAIL_FROM_ADDRESS: 'noreply@mail.example.com',
       EMAIL_FROM_NAME: 'Plattform Kit',
       CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
     });

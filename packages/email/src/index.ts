@@ -32,6 +32,15 @@ export {
   validateContactInquiry,
 } from './contact/contact-email';
 
+export { BIMI_LOGO_SVG } from './bimi/bimi-logo';
+export {
+  assertValidBimiSelector,
+  buildBimiDnsRecordName,
+  buildBimiSelectorHeaderValue,
+  buildBimiTxtValue,
+  type BimiDnsSettings,
+} from './bimi/bimi-dns';
+
 export type {
   ForwardEmailAliasSummary,
   ForwardEmailDnsRecord,

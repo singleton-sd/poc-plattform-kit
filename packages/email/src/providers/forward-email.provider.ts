@@ -6,6 +6,7 @@ import {
   type EmailSendRequest,
   type EmailSendResult,
 } from './email-types';
+import { buildBimiSelectorHeaderValue } from '../bimi/bimi-dns';
 
 type FetchLike = typeof fetch;
 
@@ -17,6 +18,13 @@ export interface ForwardEmailProviderOptions {
   timeoutMs?: number;
   maxRetries?: number;
   logger?: Pick<Console, 'info' | 'warn' | 'error'>;
+  /**
+   * BIMI selector to stamp into outbound messages.
+   *
+   * When unset or set to `default`, the sender can rely on
+   * `default._bimi.<fromDomain>` without a custom header.
+   */
+  bimiSelector?: string;
 }
 
 function resolveApiToken(explicit?: string): string | undefined {
@@ -63,6 +71,7 @@ export class ForwardEmailProvider implements EmailProvider {
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
   private readonly logger: Pick<Console, 'info' | 'warn' | 'error'>;
+  private readonly bimiSelector?: string;
 
   constructor(options: ForwardEmailProviderOptions = {}) {
     this.apiToken = resolveApiToken(options.apiToken);
@@ -76,6 +85,7 @@ export class ForwardEmailProvider implements EmailProvider {
     this.timeoutMs = options.timeoutMs ?? 15_000;
     this.maxRetries = options.maxRetries ?? 2;
     this.logger = options.logger ?? console;
+    this.bimiSelector = options.bimiSelector?.trim() || undefined;
   }
 
   isConfigured(): boolean {
@@ -101,13 +111,36 @@ export class ForwardEmailProvider implements EmailProvider {
     const replyTo = request.replyTo ? assertSafeEmailHeader(request.replyTo, 'replyTo') : undefined;
     const fromHeader = formatFromHeader(from, request.fromName);
 
+    const wantsBimiHeader = Boolean(
+      this.bimiSelector && this.bimiSelector.toLowerCase() !== 'default',
+    );
+
     const body = new URLSearchParams();
-    body.set('from', fromHeader);
-    body.set('to', toList.join(','));
-    body.set('subject', subject);
-    if (request.text) body.set('text', request.text);
-    if (request.html) body.set('html', request.html);
-    if (replyTo) body.set('replyTo', replyTo);
+    if (wantsBimiHeader) {
+      const bimiValue = buildBimiSelectorHeaderValue(this.bimiSelector as string);
+      // Forward Email accepts a full RFC5322 message when passed as `raw=`.
+      // This is the most reliable way to ensure the custom BIMI header is
+      // present before DKIM signing.
+      body.set(
+        'raw',
+        buildRawEmailMessage({
+          toList,
+          fromHeader,
+          subject,
+          replyTo,
+          text: request.text,
+          html: request.html,
+          bimiSelectorHeaderValue: bimiValue,
+        }),
+      );
+    } else {
+      body.set('from', fromHeader);
+      body.set('to', toList.join(','));
+      body.set('subject', subject);
+      if (request.text) body.set('text', request.text);
+      if (request.html) body.set('html', request.html);
+      if (replyTo) body.set('replyTo', replyTo);
+    }
 
     const authorization = `Basic ${Buffer.from(`${apiToken}:`, 'utf8').toString('base64')}`;
     let attempt = 0;
@@ -239,4 +272,59 @@ export class ForwardEmailProvider implements EmailProvider {
       })
     );
   }
+}
+
+function normalizeToCrlf(value: string): string {
+  // Keep body content intact; only normalize line endings.
+  return value.replace(/\r?\n/g, '\r\n');
+}
+
+function buildRawEmailMessage(options: {
+  toList: string[];
+  fromHeader: string;
+  subject: string;
+  replyTo?: string;
+  text?: string;
+  html?: string;
+  bimiSelectorHeaderValue: string;
+}): string {
+  const boundary = `bimi-${Math.random().toString(16).slice(2)}-${Date.now()}`;
+  const lines: string[] = [];
+
+  lines.push(`From: ${options.fromHeader}`);
+  lines.push(`To: ${options.toList.join(', ')}`);
+  lines.push(`Subject: ${options.subject}`);
+  if (options.replyTo) lines.push(`Reply-To: ${options.replyTo}`);
+  lines.push(`BIMI-Selector: ${options.bimiSelectorHeaderValue}`);
+  lines.push('MIME-Version: 1.0');
+
+  const textPart = options.text ?? '';
+  const htmlPart = options.html;
+
+  if (htmlPart) {
+    lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+    lines.push('');
+    lines.push(`--${boundary}`);
+    lines.push('Content-Type: text/plain; charset=utf-8');
+    lines.push('Content-Transfer-Encoding: 7bit');
+    lines.push('');
+    lines.push(normalizeToCrlf(textPart));
+
+    lines.push(`--${boundary}`);
+    lines.push('Content-Type: text/html; charset=utf-8');
+    lines.push('Content-Transfer-Encoding: 7bit');
+    lines.push('');
+    lines.push(normalizeToCrlf(htmlPart));
+
+    lines.push(`--${boundary}--`);
+    lines.push('');
+    return lines.join('\r\n');
+  }
+
+  lines.push('Content-Type: text/plain; charset=utf-8');
+  lines.push('Content-Transfer-Encoding: 7bit');
+  lines.push('');
+  lines.push(normalizeToCrlf(textPart));
+  lines.push('');
+  return lines.join('\r\n');
 }

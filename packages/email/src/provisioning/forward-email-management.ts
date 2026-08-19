@@ -3,13 +3,15 @@
  * Runtime senders must not import Route53 helpers from here.
  */
 
+import { buildBimiTxtValue } from '../bimi/bimi-dns';
+
 export interface ForwardEmailDnsRecord {
   type: 'MX' | 'TXT' | 'CNAME';
   /** Relative name under the parent hosted zone (e.g. plattform-kit.poc). */
   name: string;
   value: string;
   priority?: number;
-  purpose: 'verification' | 'mx' | 'spf' | 'dkim' | 'dmarc' | 'return-path';
+  purpose: 'verification' | 'mx' | 'spf' | 'dkim' | 'dmarc' | 'return-path' | 'bimi';
   source: 'static' | 'api';
 }
 
@@ -351,6 +353,41 @@ export function getRequiredDnsRecords(options: {
   }
 
   return records;
+}
+
+/**
+ * BIMI TXT record (for mailbox providers that support BIMI).
+ *
+ * DNS record name: `<selector>._bimi.<sendingDomain>` (relative to Route53 zone).
+ */
+export function getRequiredBimiDnsRecords(options: {
+  selector: string;
+  sendingDomain: string;
+  zoneDomain: string;
+  logoUrl: string;
+  evidenceUrl?: string;
+}): ForwardEmailDnsRecord[] {
+  const { selector, sendingDomain, zoneDomain, logoUrl, evidenceUrl } = options;
+
+  if (!sendingDomain.endsWith(`.${zoneDomain}`)) {
+    throw new Error(`Sending domain ${sendingDomain} is not under zone ${zoneDomain}`);
+  }
+
+  const relative = sendingDomain.slice(0, -(zoneDomain.length + 1));
+  return [
+    {
+      type: 'TXT',
+      name: `${selector}._bimi.${relative}`,
+      value: buildBimiTxtValue({
+        selector,
+        sendingDomain,
+        logoUrl,
+        evidenceUrl,
+      }),
+      purpose: 'bimi',
+      source: 'static',
+    },
+  ];
 }
 
 export function mergeSpfInclude(

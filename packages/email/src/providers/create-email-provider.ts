@@ -8,6 +8,22 @@ export interface EmailRuntimeConfig {
   fromName: string;
   contactInboxAddress: string;
   forwardEmailTokenConfigured: boolean;
+  /**
+   * BIMI selector used by mailbox providers to fetch `<selector>._bimi.<domain>`
+   * (unless `selector` is `default` and the header is omitted).
+   */
+  bimiSelector: string;
+  /** HTTPS URL served publicly as the BIMI indicator (SVG Tiny-PS). */
+  bimiLogoUrl?: string;
+  /** Optional BIMI brand name (used for ops/docs/config display only). */
+  bimiBrandName?: string;
+  /**
+   * Domain used for BIMI DNS lookup and for the RFC5322 `From:` domain
+   * (usually derived from `fromAddress`).
+   */
+  bimiSendingDomain: string;
+  /** Optional BIMI evidence / certificate PEM URL. */
+  bimiEvidenceUrl?: string;
 }
 
 /**
@@ -29,13 +45,25 @@ export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Em
     provider = 'development';
   }
 
-  const fromAddress =
-    env.EMAIL_FROM_ADDRESS?.trim() ||
-    env.CONTACT_FROM_EMAIL?.trim() ||
-    'noreply@mail.plattform-kit.poc.singletonsd.com';
+  const fromAddressRaw =
+    env.EMAIL_FROM_ADDRESS?.trim() || env.CONTACT_FROM_EMAIL?.trim() || 'noreply@example.invalid';
   const fromName = env.EMAIL_FROM_NAME?.trim() || 'Plattform Kit';
   const contactInboxAddress =
     env.CONTACT_INBOX_ADDRESS?.trim() || env.CONTACT_INBOX_EMAIL?.trim() || 'hello@singletonsd.com';
+
+  const bimiSelector = (env.EMAIL_BIMI_SELECTOR?.trim() || 'default').toLowerCase();
+  const bimiLogoUrl = env.EMAIL_LOGO_URL?.trim() || undefined;
+  const bimiBrandName = env.EMAIL_BRAND_NAME?.trim() || fromName;
+  const derivedSendingDomain = fromAddressRaw.split('@')[1] ?? '';
+  const bimiSendingDomain = env.EMAIL_SENDING_DOMAIN?.trim() || derivedSendingDomain;
+  const bimiEvidenceUrl = env.EMAIL_BIMI_EVIDENCE_URL?.trim() || undefined;
+
+  // BIMI providers fetch `<selector>._bimi.<FromDomain>` — so ensure the
+  // runtime `From:` domain matches EMAIL_SENDING_DOMAIN when it is set.
+  const fromAddress =
+    bimiSendingDomain && fromAddressRaw.includes('@')
+      ? `${fromAddressRaw.split('@')[0]}@${bimiSendingDomain}`
+      : fromAddressRaw;
 
   const forwardEmailTokenConfigured = Boolean(
     env.FORWARD_EMAIL_TOKEN?.trim() || env.FORWARDEMAIL_API_KEY?.trim(),
@@ -47,6 +75,11 @@ export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Em
     fromName,
     contactInboxAddress,
     forwardEmailTokenConfigured,
+    bimiSelector,
+    bimiLogoUrl,
+    bimiBrandName,
+    bimiSendingDomain,
+    bimiEvidenceUrl,
   };
 }
 
@@ -56,6 +89,7 @@ export function createEmailProvider(env: NodeJS.ProcessEnv = process.env): Email
     return new ForwardEmailProvider({
       apiToken: env.FORWARD_EMAIL_TOKEN ?? env.FORWARDEMAIL_API_KEY,
       baseUrl: env.FORWARD_EMAIL_BASE_URL ?? env.FORWARDEMAIL_BASE_URL,
+      bimiSelector: config.bimiSelector,
     });
   }
   return new DevelopmentEmailProvider();

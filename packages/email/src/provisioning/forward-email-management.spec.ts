@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   ForwardEmailManagementClient,
   getRequiredDnsRecords,
+  getRequiredBimiDnsRecords,
   mergeSpfInclude,
 } from './forward-email-management';
 
@@ -30,20 +31,20 @@ describe('mergeSpfInclude', () => {
 describe('getRequiredDnsRecords', () => {
   it('uses API-provided DKIM/DMARC/Return-Path values', () => {
     const records = getRequiredDnsRecords({
-      domain: 'mail.plattform-kit.poc.singletonsd.com',
-      zoneDomain: 'singletonsd.com',
+      domain: 'mail.example.com',
+      zoneDomain: 'example.com',
       verificationToken: 'abc123',
       smtpDnsRecords: {
         dkim: {
-          name: 'fe-test._domainkey.plattform-kit.poc',
+          name: 'fe-test._domainkey.mail.example',
           value: 'v=DKIM1; k=rsa; p=AAA',
         },
         return_path: {
-          name: 'fe-bounces.plattform-kit.poc',
+          name: 'fe-bounces.mail.example',
           value: 'forwardemail.net',
         },
         dmarc: {
-          name: '_dmarc.plattform-kit.poc',
+          name: '_dmarc.mail.example',
           value: 'v=DMARC1; p=reject; pct=100;',
         },
       },
@@ -53,6 +54,23 @@ describe('getRequiredDnsRecords', () => {
     assert.ok(records.some((r) => r.purpose === 'return-path' && r.type === 'CNAME'));
     assert.ok(records.some((r) => r.purpose === 'dmarc'));
     assert.equal(records.filter((r) => r.purpose === 'mx').length, 2);
+  });
+});
+
+describe('getRequiredBimiDnsRecords', () => {
+  it('creates a BIMI TXT record name under the Route53 hosted zone', () => {
+    const records = getRequiredBimiDnsRecords({
+      selector: 'default',
+      sendingDomain: 'mail.example.com',
+      zoneDomain: 'example.com',
+      logoUrl: 'https://cdn.example.com/logo.svg',
+    });
+
+    assert.equal(records.length, 1);
+    assert.equal(records[0]?.purpose, 'bimi');
+    assert.equal(records[0]?.type, 'TXT');
+    assert.equal(records[0]?.name, 'default._bimi.mail');
+    assert.equal(records[0]?.value, 'v=BIMI1; l=https://cdn.example.com/logo.svg; a=');
   });
 });
 

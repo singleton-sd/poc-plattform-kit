@@ -29,6 +29,11 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:notifications:emailFromAddress': 'EMAIL_FROM_ADDRESS',
   'app:notifications:emailFromName': 'EMAIL_FROM_NAME',
   'app:notifications:contactInboxAddress': 'CONTACT_INBOX_ADDRESS',
+  'app:notifications:emailBrandName': 'EMAIL_BRAND_NAME',
+  'app:notifications:emailLogoUrl': 'EMAIL_LOGO_URL',
+  'app:notifications:bimiSelector': 'EMAIL_BIMI_SELECTOR',
+  'app:notifications:sendingDomain': 'EMAIL_SENDING_DOMAIN',
+  'app:notifications:bimiEvidenceUrl': 'EMAIL_BIMI_EVIDENCE_URL',
   'app:notifications:emailProvider': 'EMAIL_PROVIDER',
   'app:notifications:emailAllowProductionSend': 'EMAIL_ALLOW_PRODUCTION_SEND',
 };
