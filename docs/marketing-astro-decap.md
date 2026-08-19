@@ -84,7 +84,9 @@ Astro Contact form posts to `{PUBLIC_MARKETING_API_BASE_URL}/contact` (not Nest)
 **opener hostnames** (no scheme). Include the marketing SWA instance prefix so
 default + PR preview hosts can complete the Decap `postMessage` handshake:
 
-`plattform-kit.poc.singletonsd.com,purple-field-05048bf00*.azurestaticapps.net,localhost:4321`
+`*.poc.singletonsd.com,purple-field-05048bf00*.azurestaticapps.net,localhost:4321`
+
+`*.poc.singletonsd.com` covers all org-controlled PoC marketing sites (e.g. `plattform-kit.poc.singletonsd.com`, `inkads.poc.singletonsd.com`) without per-site additions. Do not widen to `*.singletonsd.com`.
 
 Do **not** use open `*.azurestaticapps.net` (any Azure customer’s Static Web App).
 
