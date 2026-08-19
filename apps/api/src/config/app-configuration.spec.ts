@@ -28,6 +28,10 @@ describe('loadAppConfiguration', () => {
         setting('app:cors:origins', 'https://app.example.com'),
         setting('app:throttle:limit', '25'),
         setting('app:throttle:ttlMs', '30000'),
+        setting(
+          'app:notifications:contactEmailProfilesByHost',
+          '{"inkads.poc.singletonsd.com":{"fromAddress":"noreply@mail.inkads.poc.singletonsd.com"}}',
+        ),
         setting('app:azureAd:clientId', 'entra-client-id'),
         setting('app:azureAd:tenantId', 'entra-tenant-id'),
         setting('app:azureAd:apiAudience', 'api://platform-kit'),
@@ -74,6 +78,9 @@ describe('loadAppConfiguration', () => {
     expect(process.env.CORS_ORIGINS).toBe('https://app.example.com');
     expect(process.env.API_THROTTLE_LIMIT).toBe('25');
     expect(process.env.API_THROTTLE_TTL_MS).toBe('30000');
+    expect(process.env.CONTACT_EMAIL_PROFILES_BY_HOST).toBe(
+      '{"inkads.poc.singletonsd.com":{"fromAddress":"noreply@mail.inkads.poc.singletonsd.com"}}',
+    );
     expect(process.env.AZURE_AD_CLIENT_ID).toBe('entra-client-id');
     expect(process.env.AZURE_AD_TENANT_ID).toBe('entra-tenant-id');
     expect(process.env.AZURE_AD_API_AUDIENCE).toBe('api://platform-kit');

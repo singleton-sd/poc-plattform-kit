@@ -54,7 +54,9 @@ export async function submitContactInquiry(
 
   const env = options.env ?? process.env;
   const email = options.email ?? resolveContactEmailProvider(options.requestOrigin ?? null, env);
-  const result = await sendContactInquiryEmail(validated.value, email, env);
+  const result = await sendContactInquiryEmail(validated.value, email, env, {
+    requestOrigin: options.requestOrigin ?? null,
+  });
   return { id: result.id, status: result.status };
 }
 

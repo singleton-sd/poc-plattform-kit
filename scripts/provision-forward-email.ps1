@@ -52,6 +52,14 @@
 
 .EXAMPLE
   powershell -File ./scripts/provision-forward-email.ps1 -DryRun -SkipVerify
+
+.EXAMPLE
+  # Provision a second PoC mail domain + alias
+  powershell -File ./scripts/provision-forward-email.ps1 `
+    -Domain mail.inkads.poc.singletonsd.com `
+    -ZoneDomain singletonsd.com `
+    -Alias noreply `
+    -AliasRecipient inkads-support@singletonsd.com
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(

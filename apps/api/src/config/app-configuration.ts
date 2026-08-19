@@ -29,6 +29,7 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:notifications:emailFromAddress': 'EMAIL_FROM_ADDRESS',
   'app:notifications:emailFromName': 'EMAIL_FROM_NAME',
   'app:notifications:contactInboxAddress': 'CONTACT_INBOX_ADDRESS',
+  'app:notifications:contactEmailProfilesByHost': 'CONTACT_EMAIL_PROFILES_BY_HOST',
   'app:notifications:emailProvider': 'EMAIL_PROVIDER',
   'app:notifications:emailAllowProductionSend': 'EMAIL_ALLOW_PRODUCTION_SEND',
 };

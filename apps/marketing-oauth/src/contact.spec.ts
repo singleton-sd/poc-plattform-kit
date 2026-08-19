@@ -100,6 +100,37 @@ describe('marketing-oauth contact send', () => {
     assert.equal(email.sent[0]?.subject, '[Plattform Kit] Sales / demo request');
   });
 
+  it('applies host-based sender profile override when configured', async () => {
+    const email = new DevelopmentEmailProvider({ logMetadata: false });
+    const result = await submitContactInquiry(
+      {
+        name: 'Jane Doe',
+        email: 'jane@acme.com',
+        subject: 'support',
+        message: 'Please help with setup details for this PoC.',
+      },
+      {
+        requestOrigin: 'https://inkads.poc.singletonsd.com',
+        email,
+        env: {
+          EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+          EMAIL_FROM_NAME: 'Plattform Kit',
+          CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
+          CONTACT_EMAIL_PROFILES_BY_HOST: JSON.stringify({
+            'inkads.poc.singletonsd.com': {
+              fromAddress: 'noreply@mail.inkads.poc.singletonsd.com',
+              fromName: 'InkAds',
+              contactInboxAddress: 'inkads-support@singletonsd.com',
+            },
+          }),
+        },
+      },
+    );
+    assert.equal(result.status, 'sent');
+    assert.equal(email.sent[0]?.to, 'inkads-support@singletonsd.com');
+    assert.match(String(email.sent[0]?.from), /noreply@mail\.inkads\.poc\.singletonsd\.com/);
+  });
+
   it('builds reply-to and fixed subject labels (no free-text name)', () => {
     const req = buildContactEmailRequest(
       {
