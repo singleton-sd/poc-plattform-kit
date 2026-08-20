@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  clearHostProfileMapCache,
+  getHostProfileMap,
   resolveContactEmailProfile,
   resolveTenantEmailProfileOverride,
 } from './contact-email-profile';
@@ -20,6 +22,43 @@ describe('resolveTenantEmailProfileOverride', () => {
       fromName: 'InkAds',
       contactInboxAddress: 'inkads-support@singletonsd.com',
     });
+  });
+
+  it('returns undefined when email settings are empty', () => {
+    assert.equal(resolveTenantEmailProfileOverride({}), undefined);
+    assert.equal(resolveTenantEmailProfileOverride({ email: {} }), undefined);
+  });
+});
+
+describe('getHostProfileMap', () => {
+  it('memoizes the parsed map for the same raw JSON', () => {
+    clearHostProfileMapCache();
+    const raw = JSON.stringify({
+      'inkads.poc.singletonsd.com': {
+        fromAddress: 'noreply@mail.inkads.poc.singletonsd.com',
+      },
+    });
+    const first = getHostProfileMap(raw, 'development');
+    const second = getHostProfileMap(raw, 'development');
+    assert.equal(first, second);
+  });
+
+  it('invalidates the cache when the raw JSON changes', () => {
+    clearHostProfileMapCache();
+    const first = getHostProfileMap(
+      JSON.stringify({
+        'a.example.com': { fromName: 'A' },
+      }),
+      'development',
+    );
+    const second = getHostProfileMap(
+      JSON.stringify({
+        'b.example.com': { fromName: 'B' },
+      }),
+      'development',
+    );
+    assert.notEqual(first, second);
+    assert.equal(second['b.example.com']?.fromName, 'B');
   });
 });
 
@@ -59,6 +98,7 @@ describe('resolveContactEmailProfile', () => {
   });
 
   it('applies host override after tenant override', () => {
+    clearHostProfileMapCache();
     const profile = resolveContactEmailProfile({
       env: {
         ...baseEnv,
@@ -86,6 +126,7 @@ describe('resolveContactEmailProfile', () => {
   });
 
   it('rejects malformed host profile JSON', () => {
+    clearHostProfileMapCache();
     assert.throws(
       () =>
         resolveContactEmailProfile({

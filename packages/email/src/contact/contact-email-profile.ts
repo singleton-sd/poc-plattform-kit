@@ -7,7 +7,21 @@ export type ContactEmailProfile = {
   contactInboxAddress: string;
 };
 
+/** Optional sender fields from tenant/PoC `settings.email`. */
+export type TenantEmailProfileOverride = Partial<ContactEmailProfile>;
+
 const EMAIL_RE = /^[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+$/;
+
+type HostProfileMap = Record<string, TenantEmailProfileOverride>;
+
+type HostProfileCacheEntry = {
+  raw: string;
+  providerName: 'forward-email' | 'development';
+  value: HostProfileMap;
+};
+
+/** Module-level cache: same env JSON is not re-parsed on every contact submit. */
+let hostProfileCache: HostProfileCacheEntry | null = null;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -33,7 +47,7 @@ function assertEmail(value: string, field: string): string {
 function parseHostProfileMap(
   raw: string | undefined,
   providerName: 'forward-email' | 'development',
-): Record<string, Partial<ContactEmailProfile>> {
+): HostProfileMap {
   if (!raw?.trim()) return {};
   let parsed: unknown;
   try {
@@ -53,7 +67,7 @@ function parseHostProfileMap(
     });
   }
 
-  const out: Record<string, Partial<ContactEmailProfile>> = {};
+  const out: HostProfileMap = {};
   for (const [host, profile] of Object.entries(parsed)) {
     if (!isRecord(profile)) continue;
     out[host.toLowerCase()] = {
@@ -65,16 +79,45 @@ function parseHostProfileMap(
   return out;
 }
 
+/** Cached parse of `CONTACT_EMAIL_PROFILES_BY_HOST` (keyed by raw JSON + provider). */
+export function getHostProfileMap(
+  raw: string | undefined,
+  providerName: 'forward-email' | 'development',
+): HostProfileMap {
+  const cacheKey = raw ?? '';
+  if (
+    hostProfileCache &&
+    hostProfileCache.raw === cacheKey &&
+    hostProfileCache.providerName === providerName
+  ) {
+    return hostProfileCache.value;
+  }
+  const value = parseHostProfileMap(raw, providerName);
+  hostProfileCache = { raw: cacheKey, providerName, value };
+  return value;
+}
+
+/** Test/helper: drop the memoized host map (e.g. after mutating process.env in tests). */
+export function clearHostProfileMapCache(): void {
+  hostProfileCache = null;
+}
+
+/**
+ * Shared parser for tenant/PoC `settings.email` sender overrides.
+ * Returns `undefined` when no usable email fields are present.
+ */
 export function resolveTenantEmailProfileOverride(
   settings: Record<string, unknown> | null | undefined,
-): Partial<ContactEmailProfile> | undefined {
+): TenantEmailProfileOverride | undefined {
   if (!settings || !isRecord(settings.email)) return undefined;
   const email = settings.email;
-  return {
-    fromAddress: cleanString(email.fromAddress),
-    fromName: cleanString(email.fromName),
-    contactInboxAddress: cleanString(email.contactInboxAddress),
-  };
+  const fromAddress = cleanString(email.fromAddress);
+  const fromName = cleanString(email.fromName);
+  const contactInboxAddress = cleanString(email.contactInboxAddress);
+
+  if (!fromAddress && !fromName && !contactInboxAddress) return undefined;
+
+  return { fromAddress, fromName, contactInboxAddress };
 }
 
 export function resolveContactEmailProfile(
@@ -110,7 +153,7 @@ export function resolveContactEmailProfile(
       // Invalid Origin input should not block fallback profile resolution.
     }
     if (host) {
-      const hostProfiles = parseHostProfileMap(env.CONTACT_EMAIL_PROFILES_BY_HOST, providerName);
+      const hostProfiles = getHostProfileMap(env.CONTACT_EMAIL_PROFILES_BY_HOST, providerName);
       const hostOverride = hostProfiles[host];
       if (hostOverride?.fromAddress) resolved.fromAddress = hostOverride.fromAddress;
       if (hostOverride?.fromName) resolved.fromName = hostOverride.fromName;

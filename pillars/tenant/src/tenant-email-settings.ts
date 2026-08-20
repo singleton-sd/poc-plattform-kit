@@ -1,31 +1,17 @@
-export type TenantEmailSettings = {
-  fromAddress?: string;
-  fromName?: string;
-  contactInboxAddress?: string;
-};
+import {
+  resolveTenantEmailProfileOverride,
+  type TenantEmailProfileOverride,
+} from '@poc-plattform-kit/email';
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
-}
+/** Alias for tenant `settings.email` sender fields (shared with `@poc-plattform-kit/email`). */
+export type TenantEmailSettings = TenantEmailProfileOverride;
 
-function asNonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
+/**
+ * Resolve tenant/PoC email sender overrides from `settings.email`.
+ * Delegates to the shared parser in `@poc-plattform-kit/email`.
+ */
 export function resolveTenantEmailSettings(
   tenantSettings: Record<string, unknown> | null | undefined,
 ): TenantEmailSettings | null {
-  const settings = asRecord(tenantSettings);
-  const email = asRecord(settings?.email);
-  if (!email) return null;
-
-  const fromAddress = asNonEmptyString(email.fromAddress);
-  const fromName = asNonEmptyString(email.fromName);
-  const contactInboxAddress = asNonEmptyString(email.contactInboxAddress);
-
-  if (!fromAddress && !fromName && !contactInboxAddress) return null;
-
-  return { fromAddress, fromName, contactInboxAddress };
+  return resolveTenantEmailProfileOverride(tenantSettings) ?? null;
 }
