@@ -159,6 +159,22 @@ describe('validateEmailDomainBranding', () => {
     assert.ok(report.errors.some((error) => error.includes('Multiple SPF TXT records')));
   });
 
+  it('fails when SPF record ends with +all', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsResolveTxt: resolver(
+          validDnsRecords({
+            'mail.example.com': ['v=spf1 include:spf.forwardemail.net +all'],
+          }),
+        ),
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('ends with +all')));
+  });
+
   it('fails when DMARC pct=0 disables full enforcement', async () => {
     const report = await validateEmailDomainBranding(
       config,

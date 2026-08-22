@@ -98,12 +98,19 @@ export async function validateEmailDomainBranding(
         'spf',
         `Multiple SPF TXT records found on ${domain} (${spfMatches.length}). SPF permits exactly one record.`,
       );
-    } else if (!/\s(?:-all|~all|\+all|\?all)\s*$/i.test(spfMatches[0])) {
+    } else if (/\s\+all\s*$/i.test(spfMatches[0])) {
+      pushFail(
+        checks,
+        errors,
+        'spf',
+        `SPF record on ${domain} ends with +all, which authorizes every sender: ${spfMatches[0]}`,
+      );
+    } else if (!/\s(?:-all|~all|\?all)\s*$/i.test(spfMatches[0])) {
       pushWarn(
         checks,
         warnings,
         'spf',
-        `SPF record on ${domain} does not end with an explicit all-mechanism (-all/~all/?all/+all): ${spfMatches[0]}`,
+        `SPF record on ${domain} does not end with an explicit all-mechanism (-all/~all/?all): ${spfMatches[0]}`,
       );
     } else {
       pushPass(checks, 'spf', `SPF TXT record found on ${domain}.`);
