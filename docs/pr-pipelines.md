@@ -4,7 +4,7 @@
 
 | Workflow | Triggers when paths change | Checks |
 | --- | --- | --- |
-| `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + Decap OAuth + packages) |
+| `ci-web.yml` | `apps/web/**`, `apps/marketing/**`, `apps/marketing-oauth/**`, `packages/**` | prettier check, lint, build, test (web + marketing + marketing-edge Contact Function + packages) |
 | `ci-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | prettier check, lint, test, build (api + pillars + packages) |
 | `preview-web.yml` | `apps/web/**`, `packages/**` (skips deploy when only generated api-client OpenAPI/Orval files change) | **Container Apps** ephemeral web preview (Consumption) |
 | `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook publish/capture (Actions); visual review is Chromatic **UI Tests** (pending until accept) via OIDC → Key Vault |
@@ -13,7 +13,7 @@
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `@poc-plattform-kit/web@*` tag push (also manual `workflow_dispatch`) | SWA **production** via OIDC → Key Vault |
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** (content); `@poc-plattform-kit/marketing@*` tag (versioned release) | Marketing SWA **production** via OIDC → Key Vault (`apps/marketing/dist` after Astro build) |
-| `deploy-decap-oauth.yml` | `apps/marketing-oauth/**`, `infra/decap-oauth.bicep` on **`main`** (also `workflow_dispatch`) | Decap GitHub OAuth Function App via OIDC → KV |
+| `deploy-decap-oauth.yml` | `apps/marketing-oauth/**`, `infra/decap-oauth.bicep` on **`main`** (also `workflow_dispatch`) | Marketing-edge Contact Function App via OIDC → KV (filename kept; Decap OAuth is `cms-oauth-kit`) |
 | `deploy-api.yml` | `@poc-plattform-kit/api@*` tag push (also manual `workflow_dispatch`) | Nest zip → App Service **B1** via OIDC |
 | `release.yml` | push to **`main`** (skipped for release-bot / `[skip ci]` / `chore: Release` commits) | Path-aware bumps; `[skip ci]` commit + tags on `main`; `gh release create` per tag |
 

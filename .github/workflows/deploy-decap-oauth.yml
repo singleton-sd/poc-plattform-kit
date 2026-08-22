@@ -1,10 +1,12 @@
-# Decap GitHub OAuth proxy — Azure Functions on existing Linux B1 (pocpk-plan).
+# Marketing-edge Function App — Contact + health on existing Linux B1 (pocpk-plan).
+# Decap GitHub OAuth is the shared org service cms-oauth-kit (https://auth.singletonsd.com).
+# Filename / Function App name kept as decap-oauth (rename follow-up).
 # Y1 Consumption is blocked in this RG (LinuxDynamicWorkersNotAllowedInResourceGroup).
-# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `github-decap-oauth-client-secret`.
-# Non-secret client id: repo Variable `DECAP_OAUTH_CLIENT_ID` (GitHub OAuth App).
+# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `forwardemail-api-key`.
+# Do not require GitHub Variable `DECAP_OAUTH_CLIENT_ID` or KV `github-decap-oauth-client-secret`.
 # Required Variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
-# If OIDC or DECAP_OAUTH_CLIENT_ID missing, deploy steps SKIP (job succeeds).
-name: Deploy Decap OAuth (Function)
+# If OIDC Variables are missing, deploy steps SKIP (job succeeds).
+name: Deploy marketing-edge (Function)
 
 on:
   push:
@@ -28,14 +30,12 @@ env:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    name: Build + Decap OAuth Function
+    name: Build + marketing-edge Function
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
         with:
@@ -52,16 +52,13 @@ jobs:
       - name: Test marketing-oauth
         run: pnpm --filter @poc-plattform-kit/marketing-oauth run test
 
-      - name: Check OIDC + client id
+      - name: Check OIDC
         id: cfg
         run: |
           set -euo pipefail
           if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "OIDC Variables not set — skipping Decap OAuth deploy."
-          elif [ -z "${{ vars.DECAP_OAUTH_CLIENT_ID }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "DECAP_OAUTH_CLIENT_ID Variable not set — create GitHub OAuth App, then set Variable + KV secret."
+            echo "OIDC Variables not set — skipping marketing-edge Function deploy."
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -74,17 +71,17 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Assert KV secret exists
+      - name: Assert KV email secret exists
         if: steps.cfg.outputs.configured == 'true'
         run: |
           set -euo pipefail
           az keyvault secret show \
             --vault-name ssd-pocpk-kv-dev-ae \
-            --name github-decap-oauth-client-secret \
+            --name forwardemail-api-key \
             --query name -o tsv >/dev/null
 
       # Bicep before zip so Contact FORWARD_EMAIL_TOKEN / EMAIL_* / CONTACT_* settings
-      # exist before the new /contact handler is live (otherwise 503 until reapply).
+      # exist before the /contact handler is live (otherwise 503 until reapply).
       - name: Deploy Function App infra
         if: steps.cfg.outputs.configured == 'true'
         run: |
@@ -92,7 +89,6 @@ jobs:
           az deployment group create \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --template-file infra/decap-oauth.bicep \
-            --parameters oauthClientId="${{ vars.DECAP_OAUTH_CLIENT_ID }}" \
             --name "decap-oauth-${GITHUB_RUN_ID}"
 
       - name: Stage zip

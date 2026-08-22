@@ -13,7 +13,9 @@
 
 **Do not** attach marketing Contact (or similar brochure endpoints) to the Nest product API (`apps/api` / `api.plattform-kit.poc.singletonsd.com`) as the long-term surface. Nest remains the authenticated product API.
 
-When marketing HTTP outgrows this host (many routes, heavier auth, noisy deploy coupling with Decap OAuth), migrate behind the same public contract to a dedicated marketing API — do not rewrite the Astro clients ad hoc.
+When marketing HTTP outgrows this host (many routes, heavier auth, noisy deploy coupling), migrate behind the same public contract to a dedicated marketing API — do not rewrite the Astro clients ad hoc.
+
+Decap GitHub OAuth is **not** on this Function. `/admin` login uses the shared org service [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit) (`https://auth.singletonsd.com`). Do **not** point `PUBLIC_MARKETING_API_BASE_URL` at that origin.
 
 ## Guardrails
 
@@ -22,9 +24,9 @@ When marketing HTTP outgrows this host (many routes, heavier auth, noisy deploy 
 | Anonymous marketing HTTP only (contact, waitlist, demo request) | Product / tenant / SSO APIs |
 | Validate → Forward Email via `@poc-plattform-kit/email` (and/or enqueue `notifications.send` later) | Depend on Nest or the Notifications pillar runtime; write product Azure SQL / CRM Contact pillar tables from the edge |
 | Load secrets from Key Vault via App Config + managed identity | Bake provider keys into SWA or GitHub Secrets |
-| Expose a stable `PUBLIC_MARKETING_API_BASE_URL` to Astro | Point marketing forms at Nest `PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` |
+| Expose a stable `PUBLIC_MARKETING_API_BASE_URL` to Astro | Point marketing forms at Nest, or at `https://auth.singletonsd.com` |
 
-Decap GitHub OAuth routes already live on this Function App; Contact and OAuth share a **host**, not a domain model. Prefer clear route prefixes (e.g. `/contact` vs `/auth`, `/callback`).
+This Function serves `/contact` and `/health` only. Shared Decap OAuth (`/auth`, `/callback`) lives on `https://auth.singletonsd.com`.
 
 Marketing-oauth depends on **`@poc-plattform-kit/email`** (workspace library). It does **not** depend on `@poc-plattform-kit/pillar-notifications`. Function zip deploy vendors the built email package (see `scripts/deploy-decap-oauth.ps1`). App Config keys may still use the `app:notifications:*` prefix — those are shared email runtime settings, not a Nest coupling.
 
@@ -34,7 +36,7 @@ Marketing-oauth depends on **`@poc-plattform-kit/email`** (workspace library). I
 | --- | --- |
 | `PUBLIC_MARKETING_API_BASE_URL` | Origin of `ssd-pocpk-decap-oauth-dev-ae` (default `https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net`) |
 
-Contact form posts to `{PUBLIC_MARKETING_API_BASE_URL}/contact`. Do **not** use Nest `PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` for brochure Contact.
+Contact form posts to `{PUBLIC_MARKETING_API_BASE_URL}/contact`. Do **not** use Nest `PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` for brochure Contact. Do **not** use `https://auth.singletonsd.com`.
 
 ## Forward Email + contact delivery config
 
