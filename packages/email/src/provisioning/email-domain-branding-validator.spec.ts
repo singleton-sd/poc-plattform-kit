@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { ReadableStream } from 'node:stream/web';
 import { describe, it } from 'node:test';
+import { fetch as undiciFetch } from 'undici';
 import {
+  createPinnedBimiLogoLookup,
   validateBimiSvgStructure,
   validateEmailDomainBranding,
 } from './email-domain-branding-validator';
@@ -50,7 +52,7 @@ describe('validateEmailDomainBranding', () => {
     overrides: {
       dnsResolveTxt?: (hostname: string) => Promise<string[]>;
       dnsLookupHost?: (hostname: string) => Promise<string[]>;
-      fetchImpl?: typeof fetch;
+      fetchImpl?: typeof undiciFetch;
     } = {},
   ) {
     return {
@@ -208,6 +210,45 @@ describe('validateEmailDomainBranding', () => {
 
     assert.equal(report.ok, false);
     assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
+  it('fails when BIMI logo URL resolves to fe80::/10 link-local IPv6', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: async () => ['fe90::1'],
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
+  it('fails when BIMI logo URL resolves to IPv4-mapped loopback', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: async () => ['::ffff:127.0.0.1'],
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
+  it('pins validated public address for BIMI logo fetch', () => {
+    const lookup = createPinnedBimiLogoLookup('93.184.216.34');
+    let resolvedAddress: string | undefined;
+    let resolvedFamily: number | undefined;
+
+    lookup('assets.example.com', {}, (error, address, family) => {
+      assert.equal(error, null);
+      resolvedAddress = address;
+      resolvedFamily = family;
+    });
+
+    assert.equal(resolvedAddress, '93.184.216.34');
+    assert.equal(resolvedFamily, 4);
   });
 
   it('fails when BIMI logo fetch times out', async () => {

@@ -16,6 +16,9 @@
     "test": "node --import tsx --test src/**/*.spec.ts",
     "validate:domain-branding": "tsx src/provisioning/email-domain-branding-validator.cli.ts"
   },
+  "dependencies": {
+    "undici": "^7.10.0"
+  },
   "devDependencies": {
     "@types/node": "^20.17.9",
     "tsx": "^4.19.2",

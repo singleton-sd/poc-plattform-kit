@@ -1,5 +1,6 @@
 import { lookup, resolveTxt } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import { Agent, fetch as undiciFetch } from 'undici';
 
 import type { DmarcPolicy } from '../contact/transactional-email-auth-profile';
 
@@ -31,12 +32,24 @@ export interface EmailDomainBrandingValidationConfig {
 export interface EmailDomainBrandingValidationDependencies {
   dnsResolveTxt?: (hostname: string) => Promise<string[]>;
   dnsLookupHost?: (hostname: string) => Promise<string[]>;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: typeof undiciFetch;
 }
 
 interface ParsedBimiRecord {
   locationUrl: string | null;
 }
+
+export interface SafeBimiLogoTarget {
+  hostname: string;
+  port: number;
+  pinnedAddress: string;
+}
+
+type DnsLookupCallback = (
+  err: NodeJS.ErrnoException | null,
+  address: string,
+  family: number,
+) => void;
 
 const DEFAULT_BIMI_SELECTOR = 'default';
 const BIMI_LOGO_FETCH_TIMEOUT_MS = 10_000;
@@ -51,7 +64,7 @@ export async function validateEmailDomainBranding(
   const warnings: string[] = [];
   const dns = deps.dnsResolveTxt ?? resolveTxtFlat;
   const dnsLookupHost = deps.dnsLookupHost ?? lookupHostAddresses;
-  const fetchImpl = deps.fetchImpl ?? fetch;
+  const fetchImpl = deps.fetchImpl ?? undiciFetch;
 
   const configError = validateConfig(config);
   if (configError) {
@@ -301,15 +314,16 @@ function parseDmarcPct(dmarc: string): number | null | 'invalid' {
 
 async function fetchBimiLogoSvg(
   bimiLogoUrl: string,
-  fetchImpl: typeof fetch,
+  fetchImpl: typeof undiciFetch,
   dnsLookupHost: (hostname: string) => Promise<string[]>,
 ): Promise<string> {
-  await assertSafeBimiLogoUrl(bimiLogoUrl, dnsLookupHost);
+  const target = await assertSafeBimiLogoUrl(bimiLogoUrl, dnsLookupHost);
 
   const response = await fetchImpl(bimiLogoUrl, {
     method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(BIMI_LOGO_FETCH_TIMEOUT_MS),
+    dispatcher: createPinnedBimiLogoFetchDispatcher(target),
   });
   if (!response.ok) {
     throw new Error(
@@ -317,13 +331,13 @@ async function fetchBimiLogoSvg(
     );
   }
 
-  return readResponseTextWithLimit(response, BIMI_LOGO_MAX_BYTES);
+  return readResponseTextWithLimit(response as Response, BIMI_LOGO_MAX_BYTES);
 }
 
 async function assertSafeBimiLogoUrl(
   bimiLogoUrl: string,
   dnsLookupHost: (hostname: string) => Promise<string[]>,
-): Promise<void> {
+): Promise<SafeBimiLogoTarget> {
   let parsed: URL;
   try {
     parsed = new URL(bimiLogoUrl);
@@ -350,6 +364,34 @@ async function assertSafeBimiLogoUrl(
       throw new Error(`BIMI logo URL resolves to a private address: ${address}`);
     }
   }
+
+  return {
+    hostname,
+    port: parsed.port ? Number(parsed.port) : 443,
+    pinnedAddress: addresses[0],
+  };
+}
+
+export function createPinnedBimiLogoLookup(
+  pinnedAddress: string,
+): (hostname: string, options: unknown, callback: DnsLookupCallback) => void {
+  const ipVersion = isIP(pinnedAddress);
+  if (ipVersion === 0) {
+    throw new Error(`Pinned BIMI logo address is not a valid IP: ${pinnedAddress}`);
+  }
+
+  return (_hostname, _options, callback) => {
+    callback(null, pinnedAddress, ipVersion === 6 ? 6 : 4);
+  };
+}
+
+export function createPinnedBimiLogoFetchDispatcher(target: SafeBimiLogoTarget): Agent {
+  return new Agent({
+    connect: {
+      servername: target.hostname,
+      lookup: createPinnedBimiLogoLookup(target.pinnedAddress),
+    },
+  });
 }
 
 async function readResponseTextWithLimit(response: Response, maxBytes: number): Promise<string> {
@@ -410,6 +452,11 @@ function isUnsafeHostname(hostname: string): boolean {
 }
 
 function isPrivateAddress(address: string): boolean {
+  const mappedIpv4 = unwrapIPv4MappedAddress(address);
+  if (mappedIpv4 !== null) {
+    return isPrivateAddress(mappedIpv4);
+  }
+
   const ipVersion = isIP(address);
   if (ipVersion === 4) {
     const octets = address.split('.').map(Number);
@@ -426,10 +473,54 @@ function isPrivateAddress(address: string): boolean {
     const normalized = address.toLowerCase();
     if (normalized === '::1') return true;
     if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
-    if (normalized.startsWith('fe80')) return true;
+    if (isLinkLocalIPv6(normalized)) return true;
   }
 
   return false;
+}
+
+function unwrapIPv4MappedAddress(address: string): string | null {
+  if (isIP(address) !== 6) return null;
+
+  const lower = address.toLowerCase();
+  const dottedMatch = lower.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dottedMatch && isIP(dottedMatch[1]) === 4) {
+    return dottedMatch[1];
+  }
+
+  const hexMatch = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hexMatch) {
+    const hi = parseInt(hexMatch[1], 16);
+    const lo = parseInt(hexMatch[2], 16);
+    const mapped = `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+    if (isIP(mapped) === 4) {
+      return mapped;
+    }
+  }
+
+  return null;
+}
+
+function isLinkLocalIPv6(address: string): boolean {
+  const firstHextet = parseIPv6FirstHextet(address);
+  return firstHextet !== null && firstHextet >= 0xfe80 && firstHextet <= 0xfebf;
+}
+
+function parseIPv6FirstHextet(address: string): number | null {
+  if (isIP(address) !== 6) return null;
+
+  const lower = address.toLowerCase();
+  if (lower.includes('::')) {
+    const [head] = lower.split('::');
+    const headPart = head.split(':')[0];
+    if (headPart) {
+      return parseInt(headPart, 16);
+    }
+    return 0;
+  }
+
+  const [firstPart] = lower.split(':');
+  return parseInt(firstPart, 16);
 }
 
 function validateConfig(config: EmailDomainBrandingValidationConfig): string | null {
