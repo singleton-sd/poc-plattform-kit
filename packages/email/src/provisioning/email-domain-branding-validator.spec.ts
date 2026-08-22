@@ -171,15 +171,18 @@ describe('validateEmailDomainBranding', () => {
   });
 
   it('fails when BIMI logo fetch is redirected', async () => {
+    let capturedInit: RequestInit | undefined;
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        fetchImpl: async () => {
+        fetchImpl: async (_url, init) => {
+          capturedInit = init as RequestInit;
           throw new TypeError('redirect mode is set to error');
         },
       }),
     );
 
+    assert.equal(capturedInit?.redirect, 'error');
     assert.equal(report.ok, false);
     assert.ok(report.errors.some((error) => error.includes('redirect mode is set to error')));
   });
@@ -236,6 +239,30 @@ describe('validateEmailDomainBranding', () => {
     assert.ok(report.errors.some((error) => error.includes('private address')));
   });
 
+  it('fails when BIMI logo URL resolves to unspecified IPv6', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: async () => ['::'],
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
+  it('fails when BIMI logo URL resolves to multicast IPv6', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: async () => ['ff02::1'],
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
   it('pins validated public address for BIMI logo fetch', () => {
     const lookup = createPinnedBimiLogoLookup('93.184.216.34');
     let resolvedAddress: string | undefined;
@@ -252,10 +279,12 @@ describe('validateEmailDomainBranding', () => {
   });
 
   it('fails when BIMI logo fetch times out', async () => {
+    let capturedInit: RequestInit | undefined;
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        fetchImpl: async () => {
+        fetchImpl: async (_url, init) => {
+          capturedInit = init as RequestInit;
           const error = new Error('The operation was aborted');
           error.name = 'TimeoutError';
           throw error;
@@ -263,6 +292,7 @@ describe('validateEmailDomainBranding', () => {
       }),
     );
 
+    assert.ok(capturedInit?.signal);
     assert.equal(report.ok, false);
     assert.ok(report.errors.some((error) => error.includes('aborted')));
   });

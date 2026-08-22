@@ -318,20 +318,25 @@ async function fetchBimiLogoSvg(
   dnsLookupHost: (hostname: string) => Promise<string[]>,
 ): Promise<string> {
   const target = await assertSafeBimiLogoUrl(bimiLogoUrl, dnsLookupHost);
+  const dispatcher = createPinnedBimiLogoFetchDispatcher(target);
 
-  const response = await fetchImpl(bimiLogoUrl, {
-    method: 'GET',
-    redirect: 'error',
-    signal: AbortSignal.timeout(BIMI_LOGO_FETCH_TIMEOUT_MS),
-    dispatcher: createPinnedBimiLogoFetchDispatcher(target),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `BIMI logo URL returned HTTP ${response.status} ${response.statusText}. URL: ${bimiLogoUrl}`,
-    );
+  try {
+    const response = await fetchImpl(bimiLogoUrl, {
+      method: 'GET',
+      redirect: 'error',
+      signal: AbortSignal.timeout(BIMI_LOGO_FETCH_TIMEOUT_MS),
+      dispatcher,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `BIMI logo URL returned HTTP ${response.status} ${response.statusText}. URL: ${bimiLogoUrl}`,
+      );
+    }
+
+    return readResponseTextWithLimit(response as Response, BIMI_LOGO_MAX_BYTES);
+  } finally {
+    dispatcher.destroy();
   }
-
-  return readResponseTextWithLimit(response as Response, BIMI_LOGO_MAX_BYTES);
 }
 
 async function assertSafeBimiLogoUrl(
@@ -471,9 +476,10 @@ function isPrivateAddress(address: string): boolean {
 
   if (ipVersion === 6) {
     const normalized = address.toLowerCase();
-    if (normalized === '::1') return true;
+    if (normalized === '::' || normalized === '::1') return true;
     if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
     if (isLinkLocalIPv6(normalized)) return true;
+    if (isMulticastIPv6(normalized)) return true;
   }
 
   return false;
@@ -504,6 +510,11 @@ function unwrapIPv4MappedAddress(address: string): string | null {
 function isLinkLocalIPv6(address: string): boolean {
   const firstHextet = parseIPv6FirstHextet(address);
   return firstHextet !== null && firstHextet >= 0xfe80 && firstHextet <= 0xfebf;
+}
+
+function isMulticastIPv6(address: string): boolean {
+  const firstHextet = parseIPv6FirstHextet(address);
+  return firstHextet !== null && (firstHextet & 0xff00) === 0xff00;
 }
 
 function parseIPv6FirstHextet(address: string): number | null {
