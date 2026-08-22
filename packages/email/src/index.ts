@@ -42,6 +42,15 @@ export {
   resolveTenantEmailProfileOverride,
 } from './contact/contact-email-profile';
 
+export { BIMI_LOGO_SVG } from './bimi/bimi-logo';
+export {
+  assertValidBimiSelector,
+  buildBimiDnsRecordName,
+  buildBimiSelectorHeaderValue,
+  buildBimiTxtValue,
+  type BimiDnsSettings,
+} from './bimi/bimi-dns';
+
 export type {
   ForwardEmailAliasSummary,
   ForwardEmailDnsRecord,
@@ -50,6 +59,8 @@ export type {
 } from './provisioning/forward-email-management';
 export {
   ForwardEmailManagementClient,
+  getRequiredBimiDnsRecords,
   getRequiredDnsRecords,
   mergeSpfInclude,
+  resolveBimiRoute53Record,
 } from './provisioning/forward-email-management';

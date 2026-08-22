@@ -67,6 +67,14 @@ param(
   [string]$ZoneDomain = 'singletonsd.com',
   [string]$Alias = 'noreply',
   [string]$AliasRecipient = 'hello@singletonsd.com',
+  # BIMI (Brand Indicators for Message Identification)
+  # Publish `<BimiSelector>._bimi.<BimiSendingDomain>` as a TXT record.
+  # When BimiLogoUrl is empty, BIMI publishing is skipped.
+  [string]$BimiSelector = 'default',
+  [string]$BimiLogoUrl = '',
+  [string]$BimiBrandName = '',
+  [string]$BimiSendingDomain = '',
+  [string]$BimiEvidenceUrl = '',
   [string]$HostedZoneId = '',
   [switch]$DryRun,
   [switch]$SkipDns,
@@ -211,6 +219,46 @@ function Get-Fqdn {
     return $cleaned
   }
   return "$cleaned.$Zone"
+}
+
+function Get-BimiDnsRecordFromSharedBuilder {
+  param(
+    [Parameter(Mandatory)][string]$Selector,
+    [Parameter(Mandatory)][string]$SendingDomain,
+    [Parameter(Mandatory)][string]$ZoneDomain,
+    [Parameter(Mandatory)][string]$LogoUrl,
+    [string]$EvidenceUrl = ''
+  )
+
+  $repoRoot = Split-Path -Parent $PSScriptRoot
+  $emailDist = Join-Path $repoRoot 'packages\email\dist\index.js'
+  if (-not (Test-Path $emailDist)) {
+    Push-Location $repoRoot
+    try {
+      pnpm --filter @poc-plattform-kit/email run build | Out-Null
+    }
+    finally {
+      Pop-Location
+    }
+  }
+
+  $scriptPath = Join-Path $repoRoot 'scripts\build-bimi-dns-record.mjs'
+  $argList = @(
+    $scriptPath,
+    '--selector', $Selector,
+    '--sending-domain', $SendingDomain,
+    '--zone-domain', $ZoneDomain,
+    '--logo-url', $LogoUrl
+  )
+  if (-not [string]::IsNullOrWhiteSpace($EvidenceUrl)) {
+    $argList += @('--evidence-url', $EvidenceUrl)
+  }
+
+  $json = node @argList 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw "build-bimi-dns-record failed: $json"
+  }
+  return $json | ConvertFrom-Json
 }
 
 function Write-Utf8NoBomJson {
@@ -534,6 +582,42 @@ Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
   }
   else {
     Write-Host 'Info: smtp_dns_records.dmarc missing; no DMARC upsert.'
+  }
+
+  # --- BIMI TXT (optional) ---
+  if (-not [string]::IsNullOrWhiteSpace($BimiLogoUrl)) {
+    $effectiveBimiSendingDomain = if ([string]::IsNullOrWhiteSpace($BimiSendingDomain)) { $Domain } else { $BimiSendingDomain }
+
+    $bimiRecord = Get-BimiDnsRecordFromSharedBuilder `
+      -Selector $BimiSelector `
+      -SendingDomain $effectiveBimiSendingDomain `
+      -ZoneDomain $ZoneDomain `
+      -LogoUrl $BimiLogoUrl `
+      -EvidenceUrl $BimiEvidenceUrl
+
+    $bimiRelName = $bimiRecord.relativeName
+    $bimiFqdn = Get-Fqdn -Relative $bimiRelName -Zone $ZoneDomain
+    $bimiValue = $bimiRecord.txtValue
+
+    $existingBimiSets = @(Get-Route53RecordsForName -ZoneId $HostedZoneId -Fqdn $bimiFqdn -Type TXT)
+    $existingBimi = if ($existingBimiSets.Count -gt 0) { $existingBimiSets[0] } else { $null }
+    $existingValues = @(Get-TxtValues -ResourceRecordSet $existingBimi)
+
+    $desiredValues = New-Object System.Collections.Generic.List[string]
+    foreach ($tv in $existingValues) {
+      if ($tv.ToLowerInvariant().StartsWith('v=bimi1')) { continue }
+      $desiredValues.Add($tv) | Out-Null
+    }
+    $desiredValues.Add($bimiValue) | Out-Null
+
+    $bimiRr = @()
+    foreach ($v in ($desiredValues | Select-Object -Unique)) {
+      $bimiRr += @{ Value = (Format-Route53TxtValue -Value $v) }
+    }
+    $changes += New-Change -Name $bimiFqdn -Type TXT -ResourceRecords $bimiRr
+    Write-Host "BIMI TXT queued: $bimiFqdn"
+  } else {
+    Write-Host 'Info: BimiLogoUrl missing; skipping BIMI TXT upsert.'
   }
 
   $batch = @{

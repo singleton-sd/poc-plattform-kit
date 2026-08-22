@@ -156,6 +156,79 @@ Marketing stays on **`plattform-kit.poc.singletonsd.com`** (CNAME → Azure SWA)
 | CNAME Return-Path (from API `smtp_dns_records.return_path`) | Bounce path |
 | TXT DMARC (from API `smtp_dns_records.dmarc`) | Only if no conflicting organisational DMARC on that exact name |
 
+## BIMI (Brand Indicators for Message Identification)
+
+Platform Kit can stamp BIMI selectors (and serve a compatible public logo) so
+mailbox providers that support BIMI can display your configured brand mark on
+transactional messages.
+
+### Required DNS TXT record
+
+Mailbox providers look for a BIMI assertion record in DNS at:
+
+`<BIMI_SELECTOR>._bimi.<SENDING_DOMAIN>` (default selector: `default`).
+
+`<SENDING_DOMAIN>` defaults to the domain part of `EMAIL_FROM_ADDRESS`.
+If you set `EMAIL_SENDING_DOMAIN`, Platform Kit will use that domain in the
+outgoing RFC5322 `From:` header so BIMI lookups match your DNS record.
+
+The TXT record value must start with `v=BIMI1` and use this format:
+
+`v=BIMI1; l=<EMAIL_LOGO_URL>; a=<EMAIL_BIMI_EVIDENCE_URL or empty>`
+
+Where:
+
+- `l=` points to a public HTTPS URL hosting your SVG indicator (Tiny-PS /
+  Portable-Secure).
+- `a=` is optional evidence (VMC / CMC PEM). When provided, it must also be a
+  public HTTPS URL. When empty, the record is still syntactically valid, but
+  some providers (notably Gmail) may not render.
+
+For the current PoC deployment, with the defaults from `.env.example`:
+
+- DNS name: `default._bimi.mail.plattform-kit.poc.singletonsd.com`
+- TXT value: `v=BIMI1; l=https://api.plattform-kit.poc.singletonsd.com/bimi/logo.svg; a=`
+
+### Selector header behavior
+
+If you keep `EMAIL_BIMI_SELECTOR=default`, no per-message header is needed
+because receivers always consult `default._bimi.<fromDomain>`.
+
+If you set `EMAIL_BIMI_SELECTOR` to a non-`default` label, Platform Kit will
+stamp the outgoing messages with:
+
+`BIMI-Selector: v=BIMI1; s=<EMAIL_BIMI_SELECTOR>`
+
+Receivers then fetch the record at `<EMAIL_BIMI_SELECTOR>._bimi.<fromDomain>`.
+
+### Deployment guidance
+
+1. Ensure transactional email authentication is in place (SPF + DKIM + aligned
+   DMARC). BIMI presentation is only considered when providers deem the
+   message authenticated; DMARC must be at least `p=quarantine`/`p=reject`
+   with `pct=100`.
+2. Ensure the BIMI indicator is publicly reachable over HTTPS:
+   `GET /bimi/logo.svg` returns the SVG Tiny-PS asset.
+3. Publish the BIMI TXT record with the correct selector and sending domain.
+4. Wait for DNS propagation (can be up to ~48h). Then send a test message and
+   verify in at least one BIMI-capable mailbox provider.
+
+### Provider support caveats
+
+- Gmail: expects a valid VMC/CMC certificate referenced in the BIMI `a=` tag.
+  Without it, Gmail may ignore the BIMI record and will not display the logo.
+- Outlook / Exchange: logo rendering is not guaranteed and may not be
+  supported even when the BIMI record and headers are correct. This repo does
+  not implement provider-specific workarounds/hacks.
+- Other providers: behavior varies; some clients may show the SVG even
+  without the certificate, but the only consistent guarantee is that receiver
+  behavior controls rendering.
+
+### Optional follow-up: VMC / CMC
+
+Purchasing a VMC / CMC certificate and setting `EMAIL_BIMI_EVIDENCE_URL`
+unlocks “verified” BIMI behavior in more providers (especially Gmail).
+
 General product CNAMEs remain in [`infra/custom-domains.pocpk.json`](../infra/custom-domains.pocpk.json) / [`scripts/apply-route53-dns.ps1`](../scripts/apply-route53-dns.ps1). Forward Email DNS is **not** hand-merged into that JSON; use the provisioning script so SPF/TXT merges stay safe.
 
 See also [dns-route53.md](./dns-route53.md).
@@ -192,6 +265,11 @@ powershell -File ./scripts/provision-forward-email.ps1 `
 | `WhatIf` | off | Print change batch; no Route53 UPSERT |
 | `SkipDns` / `SkipVerify` | off | Skip Route53 or verify API calls |
 | `ForceDmarc` | off | Overwrite conflicting DMARC on the exact API name |
+| `BimiSelector` | `default` | BIMI selector label (`<selector>._bimi.<domain>`) |
+| `BimiLogoUrl` | (empty) | When set, upserts the BIMI TXT record |
+| `BimiSendingDomain` | `Domain` | `<SENDING_DOMAIN>` part for the BIMI DNS name |
+| `BimiEvidenceUrl` | (empty) | Optional PEM URL for the `a=` BIMI tag |
+| `BimiBrandName` | (empty) | Informational / docs only (not used by DNS) |
 | `MaxVerifyAttempts` / `VerifyDelaySeconds` | `6` / `20` | verify-records + verify-smtp retries |
 
 Behaviour highlights:

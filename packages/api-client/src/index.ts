@@ -9,6 +9,7 @@ export { customFetch } from './custom-fetch';
 export type { ApiFetchError } from './custom-fetch';
 
 export * from './generated/health/health';
+export * from './generated/bimi/bimi';
 export * from './generated/tenants/tenants';
 export * from './generated/single-sign-on/single-sign-on';
 export * from './generated/permissions/permissions';

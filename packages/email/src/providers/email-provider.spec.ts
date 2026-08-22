@@ -58,12 +58,12 @@ describe('loadEmailRuntimeConfig', () => {
     const config = loadEmailRuntimeConfig({
       EMAIL_PROVIDER: 'forward-email',
       EMAIL_ALLOW_PRODUCTION_SEND: 'true',
-      EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+      EMAIL_FROM_ADDRESS: 'noreply@mail.example.com',
       EMAIL_FROM_NAME: 'Plattform Kit',
       CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
     });
     assert.equal(config.provider, 'forward-email');
-    assert.equal(config.fromAddress, 'noreply@mail.plattform-kit.poc.singletonsd.com');
+    assert.equal(config.fromAddress, 'noreply@mail.example.com');
     assert.equal(config.contactInboxAddress, 'hello@singletonsd.com');
   });
 });
@@ -80,7 +80,7 @@ describe('ForwardEmailProvider', () => {
       () =>
         provider.send({
           to: 'hello@singletonsd.com',
-          from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+          from: 'noreply@mail.example.com',
           subject: 'x',
           text: 'y',
         }),
@@ -105,7 +105,7 @@ describe('ForwardEmailProvider', () => {
 
     const result = await provider.send({
       to: 'hello@singletonsd.com',
-      from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+      from: 'noreply@mail.example.com',
       fromName: 'Plattform Kit',
       replyTo: 'jane@acme.com',
       subject: 'Hello',
@@ -141,7 +141,7 @@ describe('ForwardEmailProvider', () => {
       () =>
         provider.send({
           to: 'hello@singletonsd.com',
-          from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+          from: 'noreply@mail.example.com',
           replyTo: 'evil@x.com\nBcc: leak@x.com',
           subject: 'Hi',
           text: 'x',
@@ -165,7 +165,7 @@ describe('ForwardEmailProvider', () => {
       () =>
         provider.send({
           to: 'hello@singletonsd.com',
-          from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+          from: 'noreply@mail.example.com',
           subject: 'Hi',
           text: 'x',
         }),
@@ -192,7 +192,7 @@ describe('ForwardEmailProvider', () => {
       () =>
         provider.send({
           to: 'hello@singletonsd.com',
-          from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+          from: 'noreply@mail.example.com',
           subject: 'Hi',
           text: 'x',
         }),
@@ -214,7 +214,7 @@ describe('ForwardEmailProvider', () => {
         provider.send(
           {
             to: 'hello@singletonsd.com',
-            from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+            from: 'noreply@mail.example.com',
             subject: 'Hi',
             text: 'x',
           },
@@ -223,6 +223,95 @@ describe('ForwardEmailProvider', () => {
       (error: unknown) => error instanceof EmailProviderError && error.kind === 'cancelled',
     );
   });
+
+  it('stamps BIMI-Selector header when bimiSelector is non-default', async () => {
+    const calls: Array<{ init: RequestInit }> = [];
+    const provider = new ForwardEmailProvider({
+      apiToken: 'test-token',
+      baseUrl: 'https://api.example.test',
+      maxRetries: 0,
+      bimiSelector: 'altLogo',
+      fetchImpl: async (_input, init) => {
+        calls.push({ init: init ?? {} });
+        return new Response(JSON.stringify({ id: 'fe-123' }), { status: 200 });
+      },
+    });
+
+    await provider.send({
+      to: 'hello@singletonsd.com',
+      from: 'noreply@mail.example.com',
+      fromName: 'Plattform Kit',
+      subject: 'Hello',
+      text: 'Body',
+    });
+
+    assert.equal(calls.length, 1);
+    const body = String(calls[0]?.init.body ?? '');
+    const params = new URLSearchParams(body);
+    const raw = params.get('raw') ?? '';
+    assert.match(raw, /BIMI-Selector: v=BIMI1; s=altLogo/);
+    assert.match(raw, /From: "Plattform Kit" <noreply@mail\.example\.com>/);
+  });
+
+  it('uses quoted-printable for non-ASCII raw MIME body parts', async () => {
+    const calls: Array<{ init: RequestInit }> = [];
+    const provider = new ForwardEmailProvider({
+      apiToken: 'test-token',
+      baseUrl: 'https://api.example.test',
+      maxRetries: 0,
+      bimiSelector: 'altLogo',
+      fetchImpl: async (_input, init) => {
+        calls.push({ init: init ?? {} });
+        return new Response(JSON.stringify({ id: 'fe-123' }), { status: 200 });
+      },
+    });
+
+    await provider.send({
+      to: 'hello@singletonsd.com',
+      from: 'noreply@mail.example.com',
+      subject: 'Hello',
+      text: 'Grácias por contactarnos',
+      html: '<p>Grácias por contactarnos</p>',
+    });
+
+    const body = String(calls[0]?.init.body ?? '');
+    const raw = new URLSearchParams(body).get('raw') ?? '';
+    assert.match(raw, /Content-Transfer-Encoding: quoted-printable/);
+    assert.match(raw, /=C3=A1/);
+  });
+
+  it('encodes emoji and wraps quoted-printable lines without splitting escape tokens', async () => {
+    const calls: Array<{ init: RequestInit }> = [];
+    const provider = new ForwardEmailProvider({
+      apiToken: 'test-token',
+      baseUrl: 'https://api.example.test',
+      maxRetries: 0,
+      bimiSelector: 'altLogo',
+      fetchImpl: async (_input, init) => {
+        calls.push({ init: init ?? {} });
+        return new Response(JSON.stringify({ id: 'fe-123' }), { status: 200 });
+      },
+    });
+
+    const longPrefix = 'x'.repeat(70);
+    await provider.send({
+      to: 'hello@singletonsd.com',
+      from: 'noreply@mail.example.com',
+      subject: 'Hello',
+      text: `${longPrefix}😀`,
+    });
+
+    const raw = new URLSearchParams(String(calls[0]?.init.body ?? '')).get('raw') ?? '';
+    const body = raw.split('\r\n\r\n').slice(1).join('\r\n\r\n');
+    const unfolded = body.replace(/=\r\n/g, '');
+    assert.match(unfolded, /=F0=9F=98=80/);
+    for (const physicalLine of body.split('\r\n')) {
+      if (physicalLine.endsWith('=')) {
+        assert.ok(physicalLine.length <= 76);
+      }
+      assert.doesNotMatch(physicalLine, /=[0-9A-F]$/i);
+    }
+  });
 });
 
 describe('DevelopmentEmailProvider', () => {
@@ -230,7 +319,7 @@ describe('DevelopmentEmailProvider', () => {
     const provider = new DevelopmentEmailProvider({ logMetadata: false });
     const result = await provider.send({
       to: 'hello@singletonsd.com',
-      from: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+      from: 'noreply@mail.example.com',
       fromName: 'Plattform Kit',
       replyTo: 'customer@example.com',
       subject: 'Hi',
