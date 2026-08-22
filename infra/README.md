@@ -68,7 +68,7 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
 | `swa-deployment-token` | (from `az staticwebapp secrets list` — app SWA) |
 | `swa-marketing-deployment-token` | (from marketing SWA `ssd-pocpk-mkt-dev-ae`) |
-| `github-decap-oauth-client-secret` | GitHub OAuth App secret for Decap `/admin` login |
+| `github-decap-oauth-client-secret` | Leftover from the old PK Decap OAuth proxy. Not required for marketing-edge Function deploy. Do not delete until no PK resource reads it. Shared Decap OAuth is [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit). |
 | `acr-admin-username` | (from `az acr credential show`) |
 | `acr-admin-password` | (from `az acr credential show`) |
 | `acr-login-server` | e.g. `ssdpocpkacrdevae.azurecr.io` |
