@@ -1,8 +1,6 @@
-# NestJS → App Service — production deploy via workflow_dispatch from
-# release.yml after version bumps (also manual dispatch). Push + `chore: Release`
-# remains a fallback; GITHUB_TOKEN release pushes alone do not start this workflow.
-# Version bumps land via release.yml first so Swagger reads the bumped
-# apps/api package.json version.
+# NestJS → App Service — production deploy on package tag push (also manual
+# workflow_dispatch). Version bumps land via release.yml; tag push checks out the
+# tagged release commit (Swagger reads the bumped apps/api package.json version).
 # Auth: OIDC Variables only (no publish profile / AZURE_CREDENTIALS in GitHub Secrets).
 # SP needs Website Contributor on pocpk-api-si5fhs6dvxiha (plus Key Vault Secrets User for other jobs).
 # If OIDC Variables are missing, deploy SKIP (job succeeds). See SETUP.md / docs/pr-pipelines.md.
@@ -15,19 +13,12 @@ name: Deploy API (App Service)
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'apps/api/**'
-      - 'pillars/**'
-      - 'packages/**'
-      - '.github/workflows/deploy-api.yml'
-      - 'scripts/stage-api-deploy.sh'
-      - 'scripts/stage-api-deploy-docker.sh'
-      - 'scripts/verify-api-appservice.sh'
+    tags:
+      - '@poc-plattform-kit/api@*'
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Commit SHA to deploy (from release.yml dispatch)
+        description: Commit SHA to deploy (manual dispatch)
         required: false
         type: string
 
@@ -41,8 +32,6 @@ env:
 
 jobs:
   build_and_deploy:
-    # Production ships from release commits (version bumps) or manual dispatch.
-    if: "${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore: Release') }}"
     runs-on: ubuntu-latest
     name: Build + App Service deploy
     permissions:
