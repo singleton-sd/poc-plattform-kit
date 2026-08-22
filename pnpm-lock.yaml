@@ -611,6 +611,9 @@ importers:
       '@poc-plattform-kit/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@poc-plattform-kit/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@poc-plattform-kit/events':
         specifier: workspace:*
         version: link:../../packages/events

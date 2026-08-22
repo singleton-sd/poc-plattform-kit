@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { loadEmailRuntimeConfig } from '../providers/create-email-provider';
 import type { EmailProvider, EmailSendRequest, EmailSendResult } from '../providers/email-types';
 import { EmailProviderError, sanitizeHeaderValue } from '../providers/email-types';
+import { resolveContactEmailProfile, type ContactEmailProfile } from './contact-email-profile';
 
 export const CONTACT_SUBJECTS = ['general', 'sales', 'support', 'partnership'] as const;
 export type ContactSubject = (typeof CONTACT_SUBJECTS)[number];
@@ -108,9 +108,21 @@ export async function sendContactInquiryEmail(
   dto: ContactInquiryInput,
   email: EmailProvider,
   env: NodeJS.ProcessEnv = process.env,
+  options: {
+    tenantSettings?: Record<string, unknown> | null;
+    /** Pre-validated host from an allowlist (never raw client Origin). */
+    trustedRequestHost?: string | null;
+    profileOverride?: Partial<ContactEmailProfile>;
+  } = {},
 ): Promise<{ id: string; status: 'sent'; result: EmailSendResult }> {
-  const config = loadEmailRuntimeConfig(env);
-  if (!config.contactInboxAddress || !config.fromAddress) {
+  const profile = resolveContactEmailProfile({
+    env,
+    tenantSettings: options.tenantSettings,
+    trustedRequestHost: options.trustedRequestHost,
+    profileOverride: options.profileOverride,
+  });
+
+  if (!profile.contactInboxAddress || !profile.fromAddress) {
     throw new EmailProviderError({
       message: 'Contact email addresses are not configured',
       kind: 'configuration',
@@ -130,9 +142,9 @@ export async function sendContactInquiryEmail(
 
   const id = randomUUID();
   const request = buildContactEmailRequest(dto, {
-    inbox: config.contactInboxAddress,
-    from: config.fromAddress,
-    fromName: config.fromName,
+    inbox: profile.contactInboxAddress,
+    from: profile.fromAddress,
+    fromName: profile.fromName,
     correlationId: id,
   });
   const result = await email.send(request);

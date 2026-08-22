@@ -14,17 +14,22 @@ export interface EmailRuntimeConfig {
  * Resolve non-secret email configuration.
  * Prefer EMAIL_* / CONTACT_INBOX_ADDRESS; accept legacy CONTACT_* aliases.
  */
+/** Whether live Forward Email sends are permitted for the current environment. */
+function isProductionSendAllowed(env: NodeJS.ProcessEnv): boolean {
+  return env.EMAIL_ALLOW_PRODUCTION_SEND === 'true';
+}
+
 export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): EmailRuntimeConfig {
   const explicit = (env.EMAIL_PROVIDER ?? '').trim().toLowerCase();
   let provider: EmailProviderName;
   if (explicit === 'forward-email' || explicit === 'forwardemail') {
-    provider = 'forward-email';
+    provider = isProductionSendAllowed(env) ? 'forward-email' : 'development';
   } else if (explicit === 'development' || explicit === 'dev') {
     provider = 'development';
   } else if (env.NODE_ENV === 'production') {
     // Production must opt into Forward Email explicitly via EMAIL_PROVIDER or
     // by having a token *and* not running a PR preview marker.
-    provider = env.EMAIL_ALLOW_PRODUCTION_SEND === 'true' ? 'forward-email' : 'development';
+    provider = isProductionSendAllowed(env) ? 'forward-email' : 'development';
   } else {
     provider = 'development';
   }

@@ -24,6 +24,10 @@ export type {
   ContactSubject,
   ContactValidationResult,
 } from './contact/contact-email';
+export type {
+  ContactEmailProfile,
+  TenantEmailProfileOverride,
+} from './contact/contact-email-profile';
 export {
   CONTACT_SUBJECTS,
   buildContactEmailRequest,
@@ -31,6 +35,12 @@ export {
   sendContactInquiryEmail,
   validateContactInquiry,
 } from './contact/contact-email';
+export {
+  clearHostProfileMapCache,
+  getHostProfileMap,
+  resolveContactEmailProfile,
+  resolveTenantEmailProfileOverride,
+} from './contact/contact-email-profile';
 
 export type {
   ForwardEmailAliasSummary,
