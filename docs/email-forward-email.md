@@ -292,6 +292,44 @@ Behaviour highlights:
 
 TypeScript helpers used by tests / tooling live in `packages/email/src/provisioning/forward-email-management.ts` (`getRequiredDnsRecords`, `mergeSpfInclude`). Prefer the PowerShell script for live Route53 writes.
 
+## Automated domain branding validation
+
+Use the reusable validator to fail fast when SPF, DKIM, DMARC, BIMI, or BIMI logo/SVG setup is incomplete for a deployment domain:
+
+```powershell
+pnpm validate:email-domain-branding -- --domain mail.plattform-kit.poc.singletonsd.com --dkimSelector fe-test --expectedDmarcPolicy reject --bimiSelector default --expectedBimiLogoUrl https://plattform-kit.poc.singletonsd.com/brand/bimi-logo.svg
+```
+
+The command checks:
+
+- SPF TXT exists on `--domain` and is syntactically recognizable (`v=spf1 ...`).
+- DKIM TXT exists on `<selector>._domainkey.<domain>` and includes `v=DKIM1`.
+- DMARC TXT exists on `_dmarc.<domain>` and matches `--expectedDmarcPolicy`.
+- BIMI TXT exists on `<selector>._bimi.<domain>` and includes `v=BIMI1; l=...`.
+- BIMI logo URL resolves over HTTPS with a successful HTTP status.
+- BIMI SVG has key structural requirements (`<svg>`, `baseProfile="tiny-ps"`, `version="1.2"`, no `<script>`, no external HTTP(S) refs).
+
+Configuration can be supplied by arguments or deployment env vars:
+
+- `EMAIL_VALIDATION_DOMAIN` (required unless `--domain` is passed)
+- `EMAIL_VALIDATION_DKIM_SELECTOR` (default `fe`, or `EMAIL_DKIM_SELECTOR`)
+- `EMAIL_VALIDATION_DMARC_POLICY` (default `quarantine`, or `EMAIL_DMARC_POLICY`; must be `quarantine` or `reject`)
+- `EMAIL_VALIDATION_BIMI_SELECTOR` (default `default`)
+- `EMAIL_VALIDATION_BIMI_LOGO_URL` (optional strict match for BIMI `l=` URL)
+- `EMAIL_VALIDATION_REQUIRE_BIMI_SVG` (default `true`; set `false` to downgrade SVG issues to warnings)
+
+CI/deployment usage:
+
+1. Run DNS provisioning first (`scripts/provision-forward-email.ps1`) for the target domain.
+2. Run `pnpm validate:email-domain-branding` from the same environment that has deployment config.
+3. Treat non-zero exit as a deployment gate failure; fix DNS/config and rerun.
+
+Known limitations:
+
+- DNS checks depend on external resolvers and can fail transiently during propagation windows.
+- Mailbox-provider rendering behavior (logo display, DMARC/BIMI trust scoring, VMC/certificate policy) cannot be guaranteed by static DNS/SVG checks alone.
+- The SVG validator enforces practical structural requirements only; it does not replace provider-side BIMI compliance decisions.
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Action |
