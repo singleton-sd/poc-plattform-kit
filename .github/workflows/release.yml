@@ -35,6 +35,11 @@ jobs:
       id-token: write
       actions: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Require Azure OIDC Variables
         run: |
           set -euo pipefail
@@ -60,7 +65,7 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Read platform automation PAT from devtools Key Vault
+      - name: Stage platform automation PAT from devtools Key Vault
         id: automation_pat
         run: |
           set -euo pipefail
@@ -74,29 +79,14 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$pat"
-          echo "GITHUB_AUTOMATION_TOKEN=$pat" >> "$GITHUB_ENV"
-          user_json=$(curl -sf \
-            -H "Authorization: bearer $pat" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/user)
-          login=$(echo "$user_json" | jq -r '.login')
-          user_id=$(echo "$user_json" | jq -r '.id')
-          if [ -z "$login" ] || [ "$login" = null ] || [ -z "$user_id" ] || [ "$user_id" = null ]; then
-            echo "::error::Could not resolve platform automation user from PAT (check token Metadata + Contents permissions)."
-            exit 1
-          fi
-          echo "GITHUB_AUTOMATION_USER_NAME=$login" >> "$GITHUB_ENV"
-          echo "GITHUB_AUTOMATION_USER_EMAIL=${user_id}+${login}@users.noreply.github.com" >> "$GITHUB_ENV"
+          pat_file="$RUNNER_TEMP/github-automation-pat"
+          printf '%s' "$pat" > "$pat_file"
+          chmod 600 "$pat_file"
+          echo "pat_file=$pat_file" >> "$GITHUB_OUTPUT"
         env:
           SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: ${{ env.SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID }}
           SSD_OPS_KEY_VAULT_NAME: ${{ env.SSD_OPS_KEY_VAULT_NAME }}
           SSD_GITHUB_AUTOMATION_PAT_SECRET: ${{ env.SSD_GITHUB_AUTOMATION_PAT_SECRET }}
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ env.GITHUB_AUTOMATION_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -110,19 +100,32 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Configure git identity
-        run: |
-          set -euo pipefail
-          git config user.name "$GITHUB_AUTOMATION_USER_NAME"
-          git config user.email "$GITHUB_AUTOMATION_USER_EMAIL"
-        env:
-          GITHUB_AUTOMATION_USER_NAME: ${{ env.GITHUB_AUTOMATION_USER_NAME }}
-          GITHUB_AUTOMATION_USER_EMAIL: ${{ env.GITHUB_AUTOMATION_USER_EMAIL }}
-
       - name: Release changed packages
         id: release
         run: |
           set -euo pipefail
+          pat_file="${{ steps.automation_pat.outputs.pat_file }}"
+          pat=$(cat "$pat_file")
+          user_json=$(curl -sf \
+            -H "Authorization: bearer $pat" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/user)
+          login=$(echo "$user_json" | jq -r '.login')
+          user_id=$(echo "$user_json" | jq -r '.id')
+          if [ -z "$login" ] || [ "$login" = null ] || [ -z "$user_id" ] || [ "$user_id" = null ]; then
+            echo "::error::Could not resolve platform automation user from PAT (check token Metadata + Contents permissions)."
+            exit 1
+          fi
+          git config user.name "$login"
+          git config user.email "${user_id}+${login}@users.noreply.github.com"
+          origin_url="https://github.com/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${pat}@github.com/${{ github.repository }}.git"
+          cleanup() {
+            git remote set-url origin "$origin_url"
+            rm -f "$pat_file"
+          }
+          trap cleanup EXIT
           tmp=$(mktemp)
           set +e
           pnpm release:ci 2>&1 | tee "$tmp"
@@ -148,9 +151,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # release:ci committed + pushed to origin/main from this working tree.
-          # gh workflow run --ref must be a branch or tag name (not a raw SHA).
-          git fetch origin main
+          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
           HEAD_SHA=$(git rev-parse HEAD)
           MAIN_SHA=$(git rev-parse origin/main)
           if [ "$HEAD_SHA" != "$MAIN_SHA" ]; then
