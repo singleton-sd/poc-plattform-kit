@@ -21,8 +21,11 @@ import { customFetch } from '../../custom-fetch';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+/**
+ * @summary Serve the public BIMI SVG logo
+ */
 export type bimiLogoControllerLogoResponse200 = {
-  data: void;
+  data: string;
   status: 200;
 };
 
@@ -128,6 +131,9 @@ export function useBimiLogoControllerLogo<
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Serve the public BIMI SVG logo
+ */
 
 export function useBimiLogoControllerLogo<
   TData = Awaited<ReturnType<typeof bimiLogoControllerLogo>>,

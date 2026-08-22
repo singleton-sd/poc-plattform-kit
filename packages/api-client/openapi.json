@@ -1670,10 +1670,18 @@
     "/bimi/logo.svg": {
       "get": {
         "operationId": "BimiLogoController_logo",
+        "summary": "Serve the public BIMI SVG logo",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Returns the BIMI SVG logo.",
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "tags": [
