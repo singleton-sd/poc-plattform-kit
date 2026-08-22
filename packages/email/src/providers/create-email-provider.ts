@@ -1,4 +1,5 @@
 import { DevelopmentEmailProvider } from './development-email.provider';
+import { loadTransactionalEmailAuthProfile } from '../contact/transactional-email-auth-profile';
 import type { EmailProvider, EmailProviderName } from './email-types';
 import { ForwardEmailProvider } from './forward-email.provider';
 
@@ -36,6 +37,7 @@ function isProductionSendAllowed(env: NodeJS.ProcessEnv): boolean {
 }
 
 export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): EmailRuntimeConfig {
+  const authProfile = loadTransactionalEmailAuthProfile(env);
   const explicit = (env.EMAIL_PROVIDER ?? '').trim().toLowerCase();
   let provider: EmailProviderName;
   if (explicit === 'forward-email' || explicit === 'forwardemail') {
@@ -51,8 +53,11 @@ export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Em
   }
 
   const fromAddressRaw =
-    env.EMAIL_FROM_ADDRESS?.trim() || env.CONTACT_FROM_EMAIL?.trim() || 'noreply@example.invalid';
-  const fromName = env.EMAIL_FROM_NAME?.trim() || 'Plattform Kit';
+    authProfile.fromAddress ||
+    env.EMAIL_FROM_ADDRESS?.trim() ||
+    env.CONTACT_FROM_EMAIL?.trim() ||
+    'noreply@example.invalid';
+  const fromName = authProfile.fromName || env.EMAIL_FROM_NAME?.trim() || 'Plattform Kit';
   const contactInboxAddress =
     env.CONTACT_INBOX_ADDRESS?.trim() || env.CONTACT_INBOX_EMAIL?.trim() || 'hello@singletonsd.com';
 
@@ -60,7 +65,8 @@ export function loadEmailRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Em
   const bimiLogoUrl = env.EMAIL_LOGO_URL?.trim() || undefined;
   const bimiBrandName = env.EMAIL_BRAND_NAME?.trim() || fromName;
   const derivedSendingDomain = fromAddressRaw.split('@')[1] ?? '';
-  const bimiSendingDomain = env.EMAIL_SENDING_DOMAIN?.trim() || derivedSendingDomain;
+  const bimiSendingDomain =
+    authProfile.sendingDomain || env.EMAIL_SENDING_DOMAIN?.trim() || derivedSendingDomain;
   const bimiEvidenceUrl = env.EMAIL_BIMI_EVIDENCE_URL?.trim() || undefined;
 
   // BIMI providers fetch `<selector>._bimi.<FromDomain>` — so ensure the

@@ -41,6 +41,14 @@
   Overwrite an existing DMARC TXT on the exact Forward Email DMARC name even
   when it differs from the API value.
 
+.PARAMETER DmarcPolicy
+  DMARC enforcement policy to write (`quarantine` or `reject`).
+  Default: quarantine.
+
+.PARAMETER DmarcAggregateReportAddress
+  Optional aggregate report mailbox URI (example: mailto:dmarc-reports@example.com).
+  Added as rua= when provided.
+
 .PARAMETER MaxVerifyAttempts
   Max verify-records / verify-smtp attempts. Default: 6
 
@@ -80,6 +88,8 @@ param(
   [switch]$SkipDns,
   [switch]$SkipVerify,
   [switch]$ForceDmarc,
+  [ValidateSet('quarantine', 'reject')][string]$DmarcPolicy = 'quarantine',
+  [string]$DmarcAggregateReportAddress = '',
   [int]$MaxVerifyAttempts = 6,
   [int]$VerifyDelaySeconds = 20
 )
@@ -182,6 +192,52 @@ function Merge-SpfInclude {
     return ($trimmed -replace '\s(-all|~all|\?all|\+all)\s*$', " $include `$1")
   }
   return "$trimmed $include -all"
+}
+
+function Assert-DmarcAggregateReportAddress {
+  param([string]$Address)
+
+  if ([string]::IsNullOrWhiteSpace($Address)) {
+    return $null
+  }
+
+  $entries = New-Object System.Collections.Generic.List[string]
+  foreach ($entry in ($Address -split ',')) {
+    $trimmed = $entry.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+      throw 'DmarcAggregateReportAddress must not contain empty comma-separated entries'
+    }
+    if (-not $trimmed.StartsWith('mailto:', [StringComparison]::OrdinalIgnoreCase)) {
+      throw "DmarcAggregateReportAddress must start with mailto: (invalid entry: $trimmed)"
+    }
+    $recipient = $trimmed.Substring(7).Trim()
+    if ([string]::IsNullOrWhiteSpace($recipient) -or $recipient -notmatch '@') {
+      throw "DmarcAggregateReportAddress mailto URI must include a recipient (invalid entry: $trimmed)"
+    }
+    [void]$entries.Add($trimmed)
+  }
+
+  return ($entries -join ',')
+}
+
+function Build-DmarcRecord {
+  param(
+    [Parameter(Mandatory)][string]$Policy,
+    [string]$AggregateReportAddress = ''
+  )
+
+  $parts = @(
+    'v=DMARC1'
+    "p=$Policy"
+    'adkim=s'
+    'aspf=s'
+    'pct=100'
+  )
+  $normalizedRua = Assert-DmarcAggregateReportAddress -Address $AggregateReportAddress
+  if (-not [string]::IsNullOrWhiteSpace($normalizedRua)) {
+    $parts += "rua=$normalizedRua"
+  }
+  return ($parts -join '; ') + ';'
 }
 
 function Format-VerificationTxt {
@@ -384,6 +440,8 @@ $authHeader = Get-BasicAuthHeaderValue -Token $token
 # Drop locals that are only needed for auth construction later reuse is via $authHeader.
 Remove-Variable token -ErrorAction SilentlyContinue
 
+Assert-DmarcAggregateReportAddress -Address $DmarcAggregateReportAddress | Out-Null
+
 if (-not $Domain.EndsWith(".$ZoneDomain") -and $Domain -ne $ZoneDomain) {
   throw "Domain '$Domain' is not under zone '$ZoneDomain'."
 }
@@ -548,10 +606,10 @@ Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
   }
 
   # DMARC TXT — skip overwrite on organisational conflict unless -ForceDmarc
-  if ($smtpDns -and $smtpDns.dmarc -and $smtpDns.dmarc.name -and $smtpDns.dmarc.value) {
+  if ($smtpDns -and $smtpDns.dmarc -and $smtpDns.dmarc.name) {
     $dmarcRel = Get-RelativeName -FqdnOrRelative ([string]$smtpDns.dmarc.name) -Zone $ZoneDomain
     $dmarcFqdn = Get-Fqdn -Relative $dmarcRel -Zone $ZoneDomain
-    $dmarcValue = ([string]$smtpDns.dmarc.value).Trim().Trim('"')
+    $dmarcValue = Build-DmarcRecord -Policy $DmarcPolicy -AggregateReportAddress $DmarcAggregateReportAddress
     $existingDmarcSets = @(Get-Route53RecordsForName -ZoneId $HostedZoneId -Fqdn $dmarcFqdn -Type TXT)
     $existingDmarc = if ($existingDmarcSets.Count -gt 0) { $existingDmarcSets[0] } else { $null }
     $existingDmarcValues = @(Get-TxtValues -ResourceRecordSet $existingDmarc)

@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 import type { EmailProvider, EmailSendRequest, EmailSendResult } from '../providers/email-types';
 import { EmailProviderError, sanitizeHeaderValue } from '../providers/email-types';
 import { resolveContactEmailProfile, type ContactEmailProfile } from './contact-email-profile';
+import {
+  loadTransactionalEmailAuthProfile,
+  validateResolvedSenderDomainAlignment,
+  validateTransactionalEmailAuthProfile,
+} from './transactional-email-auth-profile';
 
 export const CONTACT_SUBJECTS = ['general', 'sales', 'support', 'partnership'] as const;
 export type ContactSubject = (typeof CONTACT_SUBJECTS)[number];
@@ -115,12 +120,33 @@ export async function sendContactInquiryEmail(
     profileOverride?: Partial<ContactEmailProfile>;
   } = {},
 ): Promise<{ id: string; status: 'sent'; result: EmailSendResult }> {
+  const profileErrors = validateTransactionalEmailAuthProfile(
+    loadTransactionalEmailAuthProfile(env),
+    env,
+  );
+  if (profileErrors.length > 0) {
+    throw new EmailProviderError({
+      message: `Contact email profile is not valid: ${profileErrors.join('; ')}`,
+      kind: 'configuration',
+      provider: email.name,
+    });
+  }
+
   const profile = resolveContactEmailProfile({
     env,
     tenantSettings: options.tenantSettings,
     trustedRequestHost: options.trustedRequestHost,
     profileOverride: options.profileOverride,
   });
+
+  const resolvedErrors = validateResolvedSenderDomainAlignment(profile.fromAddress, env);
+  if (resolvedErrors.length > 0) {
+    throw new EmailProviderError({
+      message: `Contact email profile is not valid: ${resolvedErrors.join('; ')}`,
+      kind: 'configuration',
+      provider: email.name,
+    });
+  }
 
   if (!profile.contactInboxAddress || !profile.fromAddress) {
     throw new EmailProviderError({

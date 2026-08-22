@@ -28,6 +28,10 @@ export type {
   ContactEmailProfile,
   TenantEmailProfileOverride,
 } from './contact/contact-email-profile';
+export type {
+  DmarcPolicy,
+  TransactionalEmailAuthProfile,
+} from './contact/transactional-email-auth-profile';
 export {
   CONTACT_SUBJECTS,
   buildContactEmailRequest,
@@ -41,6 +45,12 @@ export {
   resolveContactEmailProfile,
   resolveTenantEmailProfileOverride,
 } from './contact/contact-email-profile';
+export {
+  extractEmailDomain,
+  loadTransactionalEmailAuthProfile,
+  validateResolvedSenderDomainAlignment,
+  validateTransactionalEmailAuthProfile,
+} from './contact/transactional-email-auth-profile';
 
 export { BIMI_LOGO_SVG } from './bimi/bimi-logo';
 export {
@@ -53,8 +63,8 @@ export {
 
 export type {
   ForwardEmailAliasSummary,
-  ForwardEmailDnsRecord,
   ForwardEmailDomainSummary,
+  ForwardEmailDnsRecord,
   ForwardEmailManagementClientOptions,
 } from './provisioning/forward-email-management';
 export {

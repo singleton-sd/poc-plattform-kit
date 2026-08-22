@@ -59,12 +59,13 @@ describe('loadEmailRuntimeConfig', () => {
       EMAIL_PROVIDER: 'forward-email',
       EMAIL_ALLOW_PRODUCTION_SEND: 'true',
       EMAIL_FROM_ADDRESS: 'noreply@mail.example.com',
+      EMAIL_SENDING_DOMAIN: 'mail.example.com',
       EMAIL_FROM_NAME: 'Plattform Kit',
-      CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
+      CONTACT_INBOX_ADDRESS: 'hello@example.test',
     });
     assert.equal(config.provider, 'forward-email');
     assert.equal(config.fromAddress, 'noreply@mail.example.com');
-    assert.equal(config.contactInboxAddress, 'hello@singletonsd.com');
+    assert.equal(config.contactInboxAddress, 'hello@example.test');
   });
 });
 

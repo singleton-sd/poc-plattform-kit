@@ -6,6 +6,7 @@ import {
   validateContactInquiry,
 } from './contact-email';
 import { DevelopmentEmailProvider } from '../providers/development-email.provider';
+import { EmailProviderError } from '../providers/email-types';
 
 describe('validateContactInquiry', () => {
   it('accepts a valid payload', () => {
@@ -63,12 +64,37 @@ describe('buildContactEmailRequest / sendContactInquiryEmail', () => {
     const sent = await sendContactInquiryEmail(dto, provider, {
       EMAIL_PROVIDER: 'development',
       EMAIL_FROM_ADDRESS: 'noreply@mail.example.com',
+      EMAIL_SENDING_DOMAIN: 'mail.example.com',
       EMAIL_FROM_NAME: 'Plattform Kit',
-      CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
+      CONTACT_INBOX_ADDRESS: 'hello@example.test',
     });
     assert.equal(sent.status, 'sent');
     assert.equal(provider.sent[0]?.replyTo, 'jane@acme.com');
-    assert.equal(provider.sent[0]?.to, 'hello@singletonsd.com');
+    assert.equal(provider.sent[0]?.to, 'hello@example.test');
+  });
+
+  it('rejects non-aligned sender domain profile', async () => {
+    const provider = new DevelopmentEmailProvider({ logMetadata: false });
+    const dto = {
+      name: 'Jane Doe',
+      email: 'jane@acme.com',
+      subject: 'sales',
+      message: 'Please contact me about Plattform Kit.',
+    };
+
+    await assert.rejects(
+      () =>
+        sendContactInquiryEmail(dto, provider, {
+          EMAIL_PROVIDER: 'development',
+          EMAIL_FROM_ADDRESS: 'noreply@other-domain.test',
+          EMAIL_SENDING_DOMAIN: 'mail.example.test',
+          CONTACT_INBOX_ADDRESS: 'hello@example.test',
+        }),
+      (error: unknown) =>
+        error instanceof EmailProviderError &&
+        error.kind === 'configuration' &&
+        error.message.includes('must align'),
+    );
   });
 
   it('uses tenant email settings overrides when provided', async () => {
@@ -86,6 +112,7 @@ describe('buildContactEmailRequest / sendContactInquiryEmail', () => {
       {
         EMAIL_PROVIDER: 'development',
         EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+        EMAIL_SENDING_DOMAIN: 'singletonsd.com',
         EMAIL_FROM_NAME: 'Plattform Kit',
         CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
       },

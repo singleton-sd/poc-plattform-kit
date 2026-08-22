@@ -80,6 +80,10 @@ Never print or commit the token. Prefer User/Process env locally; production loa
 | `EMAIL_PROVIDER` | `app:notifications:emailProvider` | `development` (safe default) or `forward-email` |
 | `EMAIL_FROM_ADDRESS` | `app:notifications:emailFromAddress` | e.g. `noreply@mail.plattform-kit.poc.singletonsd.com` |
 | `EMAIL_FROM_NAME` | `app:notifications:emailFromName` | e.g. `Plattform Kit` |
+| `EMAIL_SENDING_DOMAIN` | `app:notifications:emailSendingDomain` | Domain used for SPF/DKIM/DMARC alignment (e.g. `mail.example.com`) |
+| `EMAIL_DKIM_SELECTOR` | `app:notifications:emailDkimSelector` | Selector label for deployment docs / checks (e.g. `fe`) |
+| `EMAIL_DMARC_POLICY` | `app:notifications:emailDmarcPolicy` | `quarantine` or `reject` for enforced DMARC |
+| `EMAIL_DMARC_RUA` | `app:notifications:emailDmarcRua` | Aggregate report mailbox URI (`mailto:dmarc-reports@example.com`) |
 | `CONTACT_INBOX_ADDRESS` | `app:notifications:contactInboxAddress` | e.g. `hello@singletonsd.com` |
 | `CONTACT_EMAIL_PROFILES_BY_HOST` | `app:notifications:contactEmailProfilesByHost` | Optional JSON map for host-specific PoC sender profiles |
 | `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` whenever `EMAIL_PROVIDER=forward-email` (including explicit provider selection) |
@@ -87,6 +91,8 @@ Never print or commit the token. Prefer User/Process env locally; production loa
 See root [`.env.example`](../.env.example) for local placeholders (empty values only).
 
 Legacy contact env aliases (`CONTACT_FROM_EMAIL`, `CONTACT_INBOX_EMAIL`, `FORWARDEMAIL_*`) may still be read by the client for compatibility; prefer the `EMAIL_*` / `FORWARD_EMAIL_*` names above.
+
+Runtime validation checks sender-domain alignment: `EMAIL_FROM_ADDRESS` (and any resolved tenant/host override) must align with `EMAIL_SENDING_DOMAIN` (exact or subdomain), and `EMAIL_DMARC_RUA` must be a `mailto:` URI when present.
 
 ## Multi-PoC sender profiles
 
@@ -154,7 +160,7 @@ Marketing stays on **`plattform-kit.poc.singletonsd.com`** (CNAME → Azure SWA)
 | TXT SPF `include:spf.forwardemail.net` | Merge into existing SPF; preserve other includes / unrelated TXT |
 | TXT DKIM (name/value from API `smtp_dns_records.dkim`) | Outbound auth |
 | CNAME Return-Path (from API `smtp_dns_records.return_path`) | Bounce path |
-| TXT DMARC (from API `smtp_dns_records.dmarc`) | Only if no conflicting organisational DMARC on that exact name |
+| TXT DMARC (`_dmarc.<sending-domain>`) | Enforced policy (`quarantine`/`reject`) with strict alignment + optional aggregate reporting (`rua`) |
 
 ## BIMI (Brand Indicators for Message Identification)
 
@@ -265,6 +271,8 @@ powershell -File ./scripts/provision-forward-email.ps1 `
 | `WhatIf` | off | Print change batch; no Route53 UPSERT |
 | `SkipDns` / `SkipVerify` | off | Skip Route53 or verify API calls |
 | `ForceDmarc` | off | Overwrite conflicting DMARC on the exact API name |
+| `DmarcPolicy` | `quarantine` | Enforced DMARC policy to write (`quarantine` or `reject`) |
+| `DmarcAggregateReportAddress` | (empty) | Optional `mailto:` aggregate reporting URI added as `rua=` |
 | `BimiSelector` | `default` | BIMI selector label (`<selector>._bimi.<domain>`) |
 | `BimiLogoUrl` | (empty) | When set, upserts the BIMI TXT record |
 | `BimiSendingDomain` | `Domain` | `<SENDING_DOMAIN>` part for the BIMI DNS name |
@@ -276,7 +284,7 @@ Behaviour highlights:
 
 1. GET domain → POST if missing.
 2. Read `verification_record` + `smtp_dns_records`.
-3. List existing Route53 TXT/MX/CNAME for relative names; merge SPF; UPSERT MX; verification TXT; DKIM; Return-Path; DMARC only without organisational conflict (unless `-ForceDmarc`).
+3. List existing Route53 TXT/MX/CNAME for relative names; merge SPF; UPSERT MX; verification TXT; DKIM; Return-Path; and an enforced DMARC value from `-DmarcPolicy` + optional `-DmarcAggregateReportAddress` (unless blocked by conflict and `-ForceDmarc` is not set).
 4. Multiple TXT on the same name: GET current set, merge values, UPSERT the full set.
 5. verify-records / verify-smtp with limited retries; **exit 0** if still pending (clear message — re-run later).
 6. Ensure alias after listing existing aliases.
@@ -292,6 +300,13 @@ TypeScript helpers used by tests / tooling live in `packages/email/src/provision
 | verify-records fails after UPSERT | DNS TTL / propagation | Wait; re-run script (exit 0 pending is expected) |
 | SPF “missing include” | Unrelated TXT overwrite elsewhere | Re-run provisioner (merges SPF; does not drop other TXT) |
 | DMARC skipped warning | Existing `v=DMARC1` differs | Confirm org policy; only then `-ForceDmarc` |
+## DMARC aggregate reporting guidance
+
+- Use a dedicated reporting mailbox (example `dmarc-reports@<your-domain>`) and set `EMAIL_DMARC_RUA=mailto:dmarc-reports@<your-domain>`.
+- Keep reports aggregate-only (`rua`), not forensic (`ruf`), to avoid accidental payload of sensitive message fragments.
+- Start with `EMAIL_DMARC_POLICY=quarantine` when onboarding a new domain, monitor aggregate reports, then move to `reject` once legitimate traffic is consistently aligned.
+- Route report analysis to your ops mailbox/SIEM so SPF/DKIM regressions surface quickly after DNS or provider changes.
+
 | 401 from API | Wrong/rotated token | Update KV `forwardemail-api-key` + local env |
 | Sends captured locally only | `EMAIL_PROVIDER=development` | Expected for previews; set production keys only on prod hosts |
 | AWS CLI missing | No `aws` / `awscli` | Install or use `-SkipDns` after manual DNS |
