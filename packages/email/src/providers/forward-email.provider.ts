@@ -6,6 +6,7 @@ import {
   type EmailSendRequest,
   type EmailSendResult,
 } from './email-types';
+import { buildBimiSelectorHeaderValue } from '../bimi/bimi-dns';
 
 type FetchLike = typeof fetch;
 
@@ -17,6 +18,13 @@ export interface ForwardEmailProviderOptions {
   timeoutMs?: number;
   maxRetries?: number;
   logger?: Pick<Console, 'info' | 'warn' | 'error'>;
+  /**
+   * BIMI selector to stamp into outbound messages.
+   *
+   * When unset or set to `default`, the sender can rely on
+   * `default._bimi.<fromDomain>` without a custom header.
+   */
+  bimiSelector?: string;
 }
 
 function resolveApiToken(explicit?: string): string | undefined {
@@ -63,6 +71,7 @@ export class ForwardEmailProvider implements EmailProvider {
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
   private readonly logger: Pick<Console, 'info' | 'warn' | 'error'>;
+  private readonly bimiSelector?: string;
 
   constructor(options: ForwardEmailProviderOptions = {}) {
     this.apiToken = resolveApiToken(options.apiToken);
@@ -76,6 +85,7 @@ export class ForwardEmailProvider implements EmailProvider {
     this.timeoutMs = options.timeoutMs ?? 15_000;
     this.maxRetries = options.maxRetries ?? 2;
     this.logger = options.logger ?? console;
+    this.bimiSelector = options.bimiSelector?.trim() || undefined;
   }
 
   isConfigured(): boolean {
@@ -101,13 +111,36 @@ export class ForwardEmailProvider implements EmailProvider {
     const replyTo = request.replyTo ? assertSafeEmailHeader(request.replyTo, 'replyTo') : undefined;
     const fromHeader = formatFromHeader(from, request.fromName);
 
+    const wantsBimiHeader = Boolean(
+      this.bimiSelector && this.bimiSelector.toLowerCase() !== 'default',
+    );
+
     const body = new URLSearchParams();
-    body.set('from', fromHeader);
-    body.set('to', toList.join(','));
-    body.set('subject', subject);
-    if (request.text) body.set('text', request.text);
-    if (request.html) body.set('html', request.html);
-    if (replyTo) body.set('replyTo', replyTo);
+    if (wantsBimiHeader) {
+      const bimiValue = buildBimiSelectorHeaderValue(this.bimiSelector as string);
+      // Forward Email accepts a full RFC5322 message when passed as `raw=`.
+      // This is the most reliable way to ensure the custom BIMI header is
+      // present before DKIM signing.
+      body.set(
+        'raw',
+        buildRawEmailMessage({
+          toList,
+          fromHeader,
+          subject,
+          replyTo,
+          text: request.text,
+          html: request.html,
+          bimiSelectorHeaderValue: bimiValue,
+        }),
+      );
+    } else {
+      body.set('from', fromHeader);
+      body.set('to', toList.join(','));
+      body.set('subject', subject);
+      if (request.text) body.set('text', request.text);
+      if (request.html) body.set('html', request.html);
+      if (replyTo) body.set('replyTo', replyTo);
+    }
 
     const authorization = `Basic ${Buffer.from(`${apiToken}:`, 'utf8').toString('base64')}`;
     let attempt = 0;
@@ -239,4 +272,150 @@ export class ForwardEmailProvider implements EmailProvider {
       })
     );
   }
+}
+
+function normalizeToCrlf(value: string): string {
+  // Keep body content intact; only normalize line endings.
+  return value.replace(/\r?\n/g, '\r\n');
+}
+
+/** Printable ASCII (tab + CR/LF + 0x20-0x7E) is safe for `charset=utf-8` + `7bit`. */
+const ASCII_7BIT_BODY = /^[\t\r\n\x20-\x7E]*$/;
+
+function isAscii7BitBody(content: string): boolean {
+  return ASCII_7BIT_BODY.test(content);
+}
+
+function encodeQuotedPrintableLine(line: string): string {
+  let encoded = '';
+  const codePoints = [...line];
+  for (let i = 0; i < codePoints.length; i += 1) {
+    const char = codePoints[i]!;
+    const code = char.charCodeAt(0);
+    const isTrailingWhitespace = (code === 32 || code === 9) && i === codePoints.length - 1;
+    const mustEncode = char === '=' || code < 32 || code > 126 || isTrailingWhitespace;
+    if (mustEncode) {
+      for (const byte of Buffer.from(char, 'utf8')) {
+        encoded += `=${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+      }
+    } else {
+      encoded += char;
+    }
+  }
+  return wrapQuotedPrintableLine(encoded);
+}
+
+const QUOTED_PRINTABLE_MAX_LINE = 75;
+
+function tokenizeQuotedPrintable(encoded: string): string[] {
+  const tokens: string[] = [];
+  for (let i = 0; i < encoded.length;) {
+    if (
+      encoded[i] === '=' &&
+      i + 2 < encoded.length &&
+      /^[0-9A-F]{2}$/i.test(encoded.slice(i + 1, i + 3))
+    ) {
+      tokens.push(encoded.slice(i, i + 3));
+      i += 3;
+      continue;
+    }
+    tokens.push(encoded[i]!);
+    i += 1;
+  }
+  return tokens;
+}
+
+function wrapQuotedPrintableLine(line: string): string {
+  if (line.length <= QUOTED_PRINTABLE_MAX_LINE) return line;
+
+  const tokens = tokenizeQuotedPrintable(line);
+  const parts: string[] = [];
+  let current = '';
+
+  for (const token of tokens) {
+    if (current.length + token.length > QUOTED_PRINTABLE_MAX_LINE) {
+      parts.push(`${current}=`);
+      current = token;
+      continue;
+    }
+    current += token;
+  }
+
+  if (current) parts.push(current);
+  return parts.join('\r\n');
+}
+
+function encodeQuotedPrintable(content: string): string {
+  const normalized = normalizeToCrlf(content);
+  return normalized
+    .split('\r\n')
+    .map((line) => encodeQuotedPrintableLine(line))
+    .join('\r\n');
+}
+
+function encodeMimeBodyPart(content: string): {
+  transferEncoding: '7bit' | 'quoted-printable';
+  body: string;
+} {
+  const normalized = normalizeToCrlf(content);
+  if (isAscii7BitBody(normalized)) {
+    return { transferEncoding: '7bit', body: normalized };
+  }
+  return {
+    transferEncoding: 'quoted-printable',
+    body: encodeQuotedPrintable(normalized),
+  };
+}
+
+function appendMimeBodyPart(
+  lines: string[],
+  contentType: 'text/plain' | 'text/html',
+  content: string,
+): void {
+  const { transferEncoding, body } = encodeMimeBodyPart(content);
+  lines.push(`Content-Type: ${contentType}; charset=utf-8`);
+  lines.push(`Content-Transfer-Encoding: ${transferEncoding}`);
+  lines.push('');
+  lines.push(body);
+}
+
+function buildRawEmailMessage(options: {
+  toList: string[];
+  fromHeader: string;
+  subject: string;
+  replyTo?: string;
+  text?: string;
+  html?: string;
+  bimiSelectorHeaderValue: string;
+}): string {
+  const boundary = `bimi-${Math.random().toString(16).slice(2)}-${Date.now()}`;
+  const lines: string[] = [];
+
+  lines.push(`From: ${options.fromHeader}`);
+  lines.push(`To: ${options.toList.join(', ')}`);
+  lines.push(`Subject: ${options.subject}`);
+  if (options.replyTo) lines.push(`Reply-To: ${options.replyTo}`);
+  lines.push(`BIMI-Selector: ${options.bimiSelectorHeaderValue}`);
+  lines.push('MIME-Version: 1.0');
+
+  const textPart = options.text ?? '';
+  const htmlPart = options.html;
+
+  if (htmlPart) {
+    lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+    lines.push('');
+    lines.push(`--${boundary}`);
+    appendMimeBodyPart(lines, 'text/plain', textPart);
+
+    lines.push(`--${boundary}`);
+    appendMimeBodyPart(lines, 'text/html', htmlPart);
+
+    lines.push(`--${boundary}--`);
+    lines.push('');
+    return lines.join('\r\n');
+  }
+
+  appendMimeBodyPart(lines, 'text/plain', textPart);
+  lines.push('');
+  return lines.join('\r\n');
 }

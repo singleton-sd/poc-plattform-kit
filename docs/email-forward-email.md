@@ -80,12 +80,54 @@ Never print or commit the token. Prefer User/Process env locally; production loa
 | `EMAIL_PROVIDER` | `app:notifications:emailProvider` | `development` (safe default) or `forward-email` |
 | `EMAIL_FROM_ADDRESS` | `app:notifications:emailFromAddress` | e.g. `noreply@mail.plattform-kit.poc.singletonsd.com` |
 | `EMAIL_FROM_NAME` | `app:notifications:emailFromName` | e.g. `Plattform Kit` |
+| `EMAIL_SENDING_DOMAIN` | `app:notifications:emailSendingDomain` | Domain used for SPF/DKIM/DMARC alignment (e.g. `mail.example.com`) |
+| `EMAIL_DKIM_SELECTOR` | `app:notifications:emailDkimSelector` | Selector label for deployment docs / checks (e.g. `fe`) |
+| `EMAIL_DMARC_POLICY` | `app:notifications:emailDmarcPolicy` | `quarantine` or `reject` for enforced DMARC |
+| `EMAIL_DMARC_RUA` | `app:notifications:emailDmarcRua` | Aggregate report mailbox URI (`mailto:dmarc-reports@example.com`) |
 | `CONTACT_INBOX_ADDRESS` | `app:notifications:contactInboxAddress` | e.g. `hello@singletonsd.com` |
-| `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` for live send in production hosts |
+| `CONTACT_EMAIL_PROFILES_BY_HOST` | `app:notifications:contactEmailProfilesByHost` | Optional JSON map for host-specific PoC sender profiles |
+| `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` whenever `EMAIL_PROVIDER=forward-email` (including explicit provider selection) |
 
 See root [`.env.example`](../.env.example) for local placeholders (empty values only).
 
 Legacy contact env aliases (`CONTACT_FROM_EMAIL`, `CONTACT_INBOX_EMAIL`, `FORWARDEMAIL_*`) may still be read by the client for compatibility; prefer the `EMAIL_*` / `FORWARD_EMAIL_*` names above.
+
+Runtime validation checks sender-domain alignment: `EMAIL_FROM_ADDRESS` (and any resolved tenant/host override) must align with `EMAIL_SENDING_DOMAIN` (exact or subdomain), and `EMAIL_DMARC_RUA` must be a `mailto:` URI when present.
+
+## Multi-PoC sender profiles
+
+Forward Email remains the only outbound provider; per-PoC variation is sender profile data:
+
+- `fromAddress`
+- `fromName`
+- `contactInboxAddress`
+
+Resolution order for contact email:
+
+1. Global defaults (`EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `CONTACT_INBOX_ADDRESS`)
+2. Tenant override from tenant settings `settings.email` (API/runtime callers that pass tenant settings)
+3. Host override from `CONTACT_EMAIL_PROFILES_BY_HOST` when the marketing-edge caller passes a **trusted** request host derived from an allowlisted `Origin` (`ORIGINS` env)
+
+Untrusted or unlisted `Origin` values are ignored for host-profile selection so a client cannot forge another PoC's sender or inbox.
+
+`CONTACT_EMAIL_PROFILES_BY_HOST` example:
+
+```json
+{
+  "inkads.poc.singletonsd.com": {
+    "fromAddress": "noreply@mail.inkads.poc.singletonsd.com",
+    "fromName": "InkAds",
+    "contactInboxAddress": "inkads-support@singletonsd.com"
+  },
+  "plattform-kit.poc.singletonsd.com": {
+    "fromAddress": "noreply@mail.plattform-kit.poc.singletonsd.com",
+    "fromName": "Plattform Kit",
+    "contactInboxAddress": "hello@singletonsd.com"
+  }
+}
+```
+
+Validation is fail-fast: malformed profile objects/fields, invalid email values, or malformed JSON raise configuration errors before sending.
 
 ## Preview safety (locked)
 
@@ -118,7 +160,80 @@ Marketing stays on **`plattform-kit.poc.singletonsd.com`** (CNAME → Azure SWA)
 | TXT SPF `include:spf.forwardemail.net` | Merge into existing SPF; preserve other includes / unrelated TXT |
 | TXT DKIM (name/value from API `smtp_dns_records.dkim`) | Outbound auth |
 | CNAME Return-Path (from API `smtp_dns_records.return_path`) | Bounce path |
-| TXT DMARC (from API `smtp_dns_records.dmarc`) | Only if no conflicting organisational DMARC on that exact name |
+| TXT DMARC (`_dmarc.<sending-domain>`) | Enforced policy (`quarantine`/`reject`) with strict alignment + optional aggregate reporting (`rua`) |
+
+## BIMI (Brand Indicators for Message Identification)
+
+Platform Kit can stamp BIMI selectors (and serve a compatible public logo) so
+mailbox providers that support BIMI can display your configured brand mark on
+transactional messages.
+
+### Required DNS TXT record
+
+Mailbox providers look for a BIMI assertion record in DNS at:
+
+`<BIMI_SELECTOR>._bimi.<SENDING_DOMAIN>` (default selector: `default`).
+
+`<SENDING_DOMAIN>` defaults to the domain part of `EMAIL_FROM_ADDRESS`.
+If you set `EMAIL_SENDING_DOMAIN`, Platform Kit will use that domain in the
+outgoing RFC5322 `From:` header so BIMI lookups match your DNS record.
+
+The TXT record value must start with `v=BIMI1` and use this format:
+
+`v=BIMI1; l=<EMAIL_LOGO_URL>; a=<EMAIL_BIMI_EVIDENCE_URL or empty>`
+
+Where:
+
+- `l=` points to a public HTTPS URL hosting your SVG indicator (Tiny-PS /
+  Portable-Secure).
+- `a=` is optional evidence (VMC / CMC PEM). When provided, it must also be a
+  public HTTPS URL. When empty, the record is still syntactically valid, but
+  some providers (notably Gmail) may not render.
+
+For the current PoC deployment, with the defaults from `.env.example`:
+
+- DNS name: `default._bimi.mail.plattform-kit.poc.singletonsd.com`
+- TXT value: `v=BIMI1; l=https://api.plattform-kit.poc.singletonsd.com/bimi/logo.svg; a=`
+
+### Selector header behavior
+
+If you keep `EMAIL_BIMI_SELECTOR=default`, no per-message header is needed
+because receivers always consult `default._bimi.<fromDomain>`.
+
+If you set `EMAIL_BIMI_SELECTOR` to a non-`default` label, Platform Kit will
+stamp the outgoing messages with:
+
+`BIMI-Selector: v=BIMI1; s=<EMAIL_BIMI_SELECTOR>`
+
+Receivers then fetch the record at `<EMAIL_BIMI_SELECTOR>._bimi.<fromDomain>`.
+
+### Deployment guidance
+
+1. Ensure transactional email authentication is in place (SPF + DKIM + aligned
+   DMARC). BIMI presentation is only considered when providers deem the
+   message authenticated; DMARC must be at least `p=quarantine`/`p=reject`
+   with `pct=100`.
+2. Ensure the BIMI indicator is publicly reachable over HTTPS:
+   `GET /bimi/logo.svg` returns the SVG Tiny-PS asset.
+3. Publish the BIMI TXT record with the correct selector and sending domain.
+4. Wait for DNS propagation (can be up to ~48h). Then send a test message and
+   verify in at least one BIMI-capable mailbox provider.
+
+### Provider support caveats
+
+- Gmail: expects a valid VMC/CMC certificate referenced in the BIMI `a=` tag.
+  Without it, Gmail may ignore the BIMI record and will not display the logo.
+- Outlook / Exchange: logo rendering is not guaranteed and may not be
+  supported even when the BIMI record and headers are correct. This repo does
+  not implement provider-specific workarounds/hacks.
+- Other providers: behavior varies; some clients may show the SVG even
+  without the certificate, but the only consistent guarantee is that receiver
+  behavior controls rendering.
+
+### Optional follow-up: VMC / CMC
+
+Purchasing a VMC / CMC certificate and setting `EMAIL_BIMI_EVIDENCE_URL`
+unlocks “verified” BIMI behavior in more providers (especially Gmail).
 
 General product CNAMEs remain in [`infra/custom-domains.pocpk.json`](../infra/custom-domains.pocpk.json) / [`scripts/apply-route53-dns.ps1`](../scripts/apply-route53-dns.ps1). Forward Email DNS is **not** hand-merged into that JSON; use the provisioning script so SPF/TXT merges stay safe.
 
@@ -156,13 +271,20 @@ powershell -File ./scripts/provision-forward-email.ps1 `
 | `WhatIf` | off | Print change batch; no Route53 UPSERT |
 | `SkipDns` / `SkipVerify` | off | Skip Route53 or verify API calls |
 | `ForceDmarc` | off | Overwrite conflicting DMARC on the exact API name |
+| `DmarcPolicy` | `quarantine` | Enforced DMARC policy to write (`quarantine` or `reject`) |
+| `DmarcAggregateReportAddress` | (empty) | Optional `mailto:` aggregate reporting URI added as `rua=` |
+| `BimiSelector` | `default` | BIMI selector label (`<selector>._bimi.<domain>`) |
+| `BimiLogoUrl` | (empty) | When set, upserts the BIMI TXT record |
+| `BimiSendingDomain` | `Domain` | `<SENDING_DOMAIN>` part for the BIMI DNS name |
+| `BimiEvidenceUrl` | (empty) | Optional PEM URL for the `a=` BIMI tag |
+| `BimiBrandName` | (empty) | Informational / docs only (not used by DNS) |
 | `MaxVerifyAttempts` / `VerifyDelaySeconds` | `6` / `20` | verify-records + verify-smtp retries |
 
 Behaviour highlights:
 
 1. GET domain → POST if missing.
 2. Read `verification_record` + `smtp_dns_records`.
-3. List existing Route53 TXT/MX/CNAME for relative names; merge SPF; UPSERT MX; verification TXT; DKIM; Return-Path; DMARC only without organisational conflict (unless `-ForceDmarc`).
+3. List existing Route53 TXT/MX/CNAME for relative names; merge SPF; UPSERT MX; verification TXT; DKIM; Return-Path; and an enforced DMARC value from `-DmarcPolicy` + optional `-DmarcAggregateReportAddress` (unless blocked by conflict and `-ForceDmarc` is not set).
 4. Multiple TXT on the same name: GET current set, merge values, UPSERT the full set.
 5. verify-records / verify-smtp with limited retries; **exit 0** if still pending (clear message — re-run later).
 6. Ensure alias after listing existing aliases.
@@ -190,8 +312,8 @@ The command checks:
 Configuration can be supplied by arguments or deployment env vars:
 
 - `EMAIL_VALIDATION_DOMAIN` (required unless `--domain` is passed)
-- `EMAIL_VALIDATION_DKIM_SELECTOR` (default `default`)
-- `EMAIL_VALIDATION_DMARC_POLICY` (default `reject`)
+- `EMAIL_VALIDATION_DKIM_SELECTOR` (default `fe`, or `EMAIL_DKIM_SELECTOR`)
+- `EMAIL_VALIDATION_DMARC_POLICY` (default `quarantine`, or `EMAIL_DMARC_POLICY`; must be `quarantine` or `reject`)
 - `EMAIL_VALIDATION_BIMI_SELECTOR` (default `default`)
 - `EMAIL_VALIDATION_BIMI_LOGO_URL` (optional strict match for BIMI `l=` URL)
 - `EMAIL_VALIDATION_REQUIRE_BIMI_SVG` (default `true`; set `false` to downgrade SVG issues to warnings)
@@ -216,6 +338,13 @@ Known limitations:
 | verify-records fails after UPSERT | DNS TTL / propagation | Wait; re-run script (exit 0 pending is expected) |
 | SPF “missing include” | Unrelated TXT overwrite elsewhere | Re-run provisioner (merges SPF; does not drop other TXT) |
 | DMARC skipped warning | Existing `v=DMARC1` differs | Confirm org policy; only then `-ForceDmarc` |
+## DMARC aggregate reporting guidance
+
+- Use a dedicated reporting mailbox (example `dmarc-reports@<your-domain>`) and set `EMAIL_DMARC_RUA=mailto:dmarc-reports@<your-domain>`.
+- Keep reports aggregate-only (`rua`), not forensic (`ruf`), to avoid accidental payload of sensitive message fragments.
+- Start with `EMAIL_DMARC_POLICY=quarantine` when onboarding a new domain, monitor aggregate reports, then move to `reject` once legitimate traffic is consistently aligned.
+- Route report analysis to your ops mailbox/SIEM so SPF/DKIM regressions surface quickly after DNS or provider changes.
+
 | 401 from API | Wrong/rotated token | Update KV `forwardemail-api-key` + local env |
 | Sends captured locally only | `EMAIL_PROVIDER=development` | Expected for previews; set production keys only on prod hosts |
 | AWS CLI missing | No `aws` / `awscli` | Install or use `-SkipDns` after manual DNS |

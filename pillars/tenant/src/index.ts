@@ -30,3 +30,5 @@ export type { TenantInvitationRecord } from './tenant-invitation.service';
 export { TenantModule } from './tenant.module';
 export { TenantService } from './tenant.service';
 export type { TenantRecord, TenantMembershipRecord } from './tenant.service';
+export { resolveTenantEmailSettings } from './tenant-email-settings';
+export type { TenantEmailSettings } from './tenant-email-settings';

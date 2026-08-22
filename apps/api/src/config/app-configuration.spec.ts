@@ -28,6 +28,10 @@ describe('loadAppConfiguration', () => {
         setting('app:cors:origins', 'https://app.example.com'),
         setting('app:throttle:limit', '25'),
         setting('app:throttle:ttlMs', '30000'),
+        setting(
+          'app:notifications:contactEmailProfilesByHost',
+          '{"inkads.poc.singletonsd.com":{"fromAddress":"noreply@mail.inkads.poc.singletonsd.com"}}',
+        ),
         setting('app:azureAd:clientId', 'entra-client-id'),
         setting('app:azureAd:tenantId', 'entra-tenant-id'),
         setting('app:azureAd:apiAudience', 'api://platform-kit'),
@@ -36,6 +40,10 @@ describe('loadAppConfiguration', () => {
         setting('app:openfga:authorizationModelId', 'model-1'),
         setting('app:openfga:audience', 'api://ssd-pocpk-openfga'),
         setting('app:azureAd:swaggerScope', 'entra-client-id/.default'),
+        setting('app:notifications:emailSendingDomain', 'mail.example.test'),
+        setting('app:notifications:emailDkimSelector', 'fe'),
+        setting('app:notifications:emailDmarcPolicy', 'reject'),
+        setting('app:notifications:emailDmarcRua', 'mailto:dmarc@example.test'),
         setting(
           'secret:database-url',
           JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/database-url' }),
@@ -74,6 +82,9 @@ describe('loadAppConfiguration', () => {
     expect(process.env.CORS_ORIGINS).toBe('https://app.example.com');
     expect(process.env.API_THROTTLE_LIMIT).toBe('25');
     expect(process.env.API_THROTTLE_TTL_MS).toBe('30000');
+    expect(process.env.CONTACT_EMAIL_PROFILES_BY_HOST).toBe(
+      '{"inkads.poc.singletonsd.com":{"fromAddress":"noreply@mail.inkads.poc.singletonsd.com"}}',
+    );
     expect(process.env.AZURE_AD_CLIENT_ID).toBe('entra-client-id');
     expect(process.env.AZURE_AD_TENANT_ID).toBe('entra-tenant-id');
     expect(process.env.AZURE_AD_API_AUDIENCE).toBe('api://platform-kit');
@@ -82,6 +93,10 @@ describe('loadAppConfiguration', () => {
     expect(process.env.OPENFGA_AUTHORIZATION_MODEL_ID).toBe('model-1');
     expect(process.env.OPENFGA_AUDIENCE).toBe('api://ssd-pocpk-openfga');
     expect(process.env.AZURE_AD_SWAGGER_SCOPE).toBe('entra-client-id/.default');
+    expect(process.env.EMAIL_SENDING_DOMAIN).toBe('mail.example.test');
+    expect(process.env.EMAIL_DKIM_SELECTOR).toBe('fe');
+    expect(process.env.EMAIL_DMARC_POLICY).toBe('reject');
+    expect(process.env.EMAIL_DMARC_RUA).toBe('mailto:dmarc@example.test');
     expect(process.env.AUTH_SECRET).toBe('auth-js-secret');
     expect(process.env.AZURE_AD_CLIENT_SECRET).toBe('entra-client-secret');
     expect(process.env.DATABASE_URL).toBe('sqlserver://secret');

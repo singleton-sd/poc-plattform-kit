@@ -1,5 +1,7 @@
 import { resolveTxt } from 'node:dns/promises';
 
+import type { DmarcPolicy } from '../contact/transactional-email-auth-profile';
+
 export type ValidationStatus = 'pass' | 'fail' | 'warn' | 'skip';
 
 export interface EmailDomainBrandingValidationCheck {
@@ -19,7 +21,7 @@ export interface EmailDomainBrandingValidationReport {
 export interface EmailDomainBrandingValidationConfig {
   domain: string;
   dkimSelector: string;
-  expectedDmarcPolicy: 'none' | 'quarantine' | 'reject';
+  expectedDmarcPolicy: DmarcPolicy;
   bimiSelector?: string;
   expectedBimiLogoUrl?: string;
   requireBimiSvg?: boolean;
@@ -264,8 +266,8 @@ function validateConfig(config: EmailDomainBrandingValidationConfig): string | n
   if (!/^[a-z0-9.-]+$/i.test(config.domain)) {
     return `Invalid domain value "${config.domain}".`;
   }
-  if (!['none', 'quarantine', 'reject'].includes(config.expectedDmarcPolicy)) {
-    return 'expectedDmarcPolicy must be one of: none, quarantine, reject.';
+  if (!['quarantine', 'reject'].includes(config.expectedDmarcPolicy)) {
+    return 'expectedDmarcPolicy must be one of: quarantine, reject.';
   }
   if (config.expectedBimiLogoUrl && !/^https?:\/\//i.test(config.expectedBimiLogoUrl)) {
     return `expectedBimiLogoUrl must be absolute (http/https), got "${config.expectedBimiLogoUrl}".`;

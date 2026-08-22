@@ -17,6 +17,31 @@ export {
 } from '@poc-plattform-kit/email';
 
 /**
+ * Resolve a trusted marketing-site host from Origin using the ORIGINS allowlist.
+ * Untrusted or missing Origin values return null so host-profile overrides are skipped.
+ */
+export function resolveTrustedContactHost(
+  requestOrigin: string | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  if (!requestOrigin) return null;
+
+  let allowlist: string[];
+  try {
+    allowlist = parseOrigins(env.ORIGINS);
+  } catch {
+    return null;
+  }
+
+  try {
+    const host = new URL(requestOrigin).host;
+    return isAllowedOauthHostname(host, allowlist) ? host.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Preview SWA hosts must not trigger real outbound email against the shared
  * Function App unless EMAIL_ALLOW_PREVIEW_SEND=true.
  */
@@ -54,7 +79,9 @@ export async function submitContactInquiry(
 
   const env = options.env ?? process.env;
   const email = options.email ?? resolveContactEmailProvider(options.requestOrigin ?? null, env);
-  const result = await sendContactInquiryEmail(validated.value, email, env);
+  const result = await sendContactInquiryEmail(validated.value, email, env, {
+    trustedRequestHost: resolveTrustedContactHost(options.requestOrigin ?? null, env),
+  });
   return { id: result.id, status: result.status };
 }
 

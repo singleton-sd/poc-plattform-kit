@@ -60,11 +60,12 @@ function buildConfigFromEnvAndArgs(
   const dkimSelector =
     args.dkimSelector ??
     process.env.EMAIL_VALIDATION_DKIM_SELECTOR ??
-    process.env.FORWARD_EMAIL_DKIM_SELECTOR ??
-    'default';
+    process.env.EMAIL_DKIM_SELECTOR ??
+    'fe';
   const expectedDmarcPolicy = (args.expectedDmarcPolicy ??
     process.env.EMAIL_VALIDATION_DMARC_POLICY ??
-    'reject') as EmailDomainBrandingValidationConfig['expectedDmarcPolicy'];
+    process.env.EMAIL_DMARC_POLICY ??
+    'quarantine') as EmailDomainBrandingValidationConfig['expectedDmarcPolicy'];
   const bimiSelector = args.bimiSelector ?? process.env.EMAIL_VALIDATION_BIMI_SELECTOR ?? 'default';
   const expectedBimiLogoUrl =
     args.expectedBimiLogoUrl ?? process.env.EMAIL_VALIDATION_BIMI_LOGO_URL;

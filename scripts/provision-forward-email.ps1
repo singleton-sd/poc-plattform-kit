@@ -41,6 +41,14 @@
   Overwrite an existing DMARC TXT on the exact Forward Email DMARC name even
   when it differs from the API value.
 
+.PARAMETER DmarcPolicy
+  DMARC enforcement policy to write (`quarantine` or `reject`).
+  Default: quarantine.
+
+.PARAMETER DmarcAggregateReportAddress
+  Optional aggregate report mailbox URI (example: mailto:dmarc-reports@example.com).
+  Added as rua= when provided.
+
 .PARAMETER MaxVerifyAttempts
   Max verify-records / verify-smtp attempts. Default: 6
 
@@ -52,6 +60,14 @@
 
 .EXAMPLE
   powershell -File ./scripts/provision-forward-email.ps1 -DryRun -SkipVerify
+
+.EXAMPLE
+  # Provision a second PoC mail domain + alias
+  powershell -File ./scripts/provision-forward-email.ps1 `
+    -Domain mail.inkads.poc.singletonsd.com `
+    -ZoneDomain singletonsd.com `
+    -Alias noreply `
+    -AliasRecipient inkads-support@singletonsd.com
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
@@ -59,11 +75,21 @@ param(
   [string]$ZoneDomain = 'singletonsd.com',
   [string]$Alias = 'noreply',
   [string]$AliasRecipient = 'hello@singletonsd.com',
+  # BIMI (Brand Indicators for Message Identification)
+  # Publish `<BimiSelector>._bimi.<BimiSendingDomain>` as a TXT record.
+  # When BimiLogoUrl is empty, BIMI publishing is skipped.
+  [string]$BimiSelector = 'default',
+  [string]$BimiLogoUrl = '',
+  [string]$BimiBrandName = '',
+  [string]$BimiSendingDomain = '',
+  [string]$BimiEvidenceUrl = '',
   [string]$HostedZoneId = '',
   [switch]$DryRun,
   [switch]$SkipDns,
   [switch]$SkipVerify,
   [switch]$ForceDmarc,
+  [ValidateSet('quarantine', 'reject')][string]$DmarcPolicy = 'quarantine',
+  [string]$DmarcAggregateReportAddress = '',
   [int]$MaxVerifyAttempts = 6,
   [int]$VerifyDelaySeconds = 20
 )
@@ -168,6 +194,52 @@ function Merge-SpfInclude {
   return "$trimmed $include -all"
 }
 
+function Assert-DmarcAggregateReportAddress {
+  param([string]$Address)
+
+  if ([string]::IsNullOrWhiteSpace($Address)) {
+    return $null
+  }
+
+  $entries = New-Object System.Collections.Generic.List[string]
+  foreach ($entry in ($Address -split ',')) {
+    $trimmed = $entry.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+      throw 'DmarcAggregateReportAddress must not contain empty comma-separated entries'
+    }
+    if (-not $trimmed.StartsWith('mailto:', [StringComparison]::OrdinalIgnoreCase)) {
+      throw "DmarcAggregateReportAddress must start with mailto: (invalid entry: $trimmed)"
+    }
+    $recipient = $trimmed.Substring(7).Trim()
+    if ([string]::IsNullOrWhiteSpace($recipient) -or $recipient -notmatch '@') {
+      throw "DmarcAggregateReportAddress mailto URI must include a recipient (invalid entry: $trimmed)"
+    }
+    [void]$entries.Add($trimmed)
+  }
+
+  return ($entries -join ',')
+}
+
+function Build-DmarcRecord {
+  param(
+    [Parameter(Mandatory)][string]$Policy,
+    [string]$AggregateReportAddress = ''
+  )
+
+  $parts = @(
+    'v=DMARC1'
+    "p=$Policy"
+    'adkim=s'
+    'aspf=s'
+    'pct=100'
+  )
+  $normalizedRua = Assert-DmarcAggregateReportAddress -Address $AggregateReportAddress
+  if (-not [string]::IsNullOrWhiteSpace($normalizedRua)) {
+    $parts += "rua=$normalizedRua"
+  }
+  return ($parts -join '; ') + ';'
+}
+
 function Format-VerificationTxt {
   param([Parameter(Mandatory)][string]$VerificationRecord)
   $v = $VerificationRecord.Trim().Trim('"')
@@ -203,6 +275,46 @@ function Get-Fqdn {
     return $cleaned
   }
   return "$cleaned.$Zone"
+}
+
+function Get-BimiDnsRecordFromSharedBuilder {
+  param(
+    [Parameter(Mandatory)][string]$Selector,
+    [Parameter(Mandatory)][string]$SendingDomain,
+    [Parameter(Mandatory)][string]$ZoneDomain,
+    [Parameter(Mandatory)][string]$LogoUrl,
+    [string]$EvidenceUrl = ''
+  )
+
+  $repoRoot = Split-Path -Parent $PSScriptRoot
+  $emailDist = Join-Path $repoRoot 'packages\email\dist\index.js'
+  if (-not (Test-Path $emailDist)) {
+    Push-Location $repoRoot
+    try {
+      pnpm --filter @poc-plattform-kit/email run build | Out-Null
+    }
+    finally {
+      Pop-Location
+    }
+  }
+
+  $scriptPath = Join-Path $repoRoot 'scripts\build-bimi-dns-record.mjs'
+  $argList = @(
+    $scriptPath,
+    '--selector', $Selector,
+    '--sending-domain', $SendingDomain,
+    '--zone-domain', $ZoneDomain,
+    '--logo-url', $LogoUrl
+  )
+  if (-not [string]::IsNullOrWhiteSpace($EvidenceUrl)) {
+    $argList += @('--evidence-url', $EvidenceUrl)
+  }
+
+  $json = node @argList 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw "build-bimi-dns-record failed: $json"
+  }
+  return $json | ConvertFrom-Json
 }
 
 function Write-Utf8NoBomJson {
@@ -327,6 +439,8 @@ $token = Get-ForwardEmailToken
 $authHeader = Get-BasicAuthHeaderValue -Token $token
 # Drop locals that are only needed for auth construction later reuse is via $authHeader.
 Remove-Variable token -ErrorAction SilentlyContinue
+
+Assert-DmarcAggregateReportAddress -Address $DmarcAggregateReportAddress | Out-Null
 
 if (-not $Domain.EndsWith(".$ZoneDomain") -and $Domain -ne $ZoneDomain) {
   throw "Domain '$Domain' is not under zone '$ZoneDomain'."
@@ -492,10 +606,10 @@ Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
   }
 
   # DMARC TXT — skip overwrite on organisational conflict unless -ForceDmarc
-  if ($smtpDns -and $smtpDns.dmarc -and $smtpDns.dmarc.name -and $smtpDns.dmarc.value) {
+  if ($smtpDns -and $smtpDns.dmarc -and $smtpDns.dmarc.name) {
     $dmarcRel = Get-RelativeName -FqdnOrRelative ([string]$smtpDns.dmarc.name) -Zone $ZoneDomain
     $dmarcFqdn = Get-Fqdn -Relative $dmarcRel -Zone $ZoneDomain
-    $dmarcValue = ([string]$smtpDns.dmarc.value).Trim().Trim('"')
+    $dmarcValue = Build-DmarcRecord -Policy $DmarcPolicy -AggregateReportAddress $DmarcAggregateReportAddress
     $existingDmarcSets = @(Get-Route53RecordsForName -ZoneId $HostedZoneId -Fqdn $dmarcFqdn -Type TXT)
     $existingDmarc = if ($existingDmarcSets.Count -gt 0) { $existingDmarcSets[0] } else { $null }
     $existingDmarcValues = @(Get-TxtValues -ResourceRecordSet $existingDmarc)
@@ -526,6 +640,42 @@ Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
   }
   else {
     Write-Host 'Info: smtp_dns_records.dmarc missing; no DMARC upsert.'
+  }
+
+  # --- BIMI TXT (optional) ---
+  if (-not [string]::IsNullOrWhiteSpace($BimiLogoUrl)) {
+    $effectiveBimiSendingDomain = if ([string]::IsNullOrWhiteSpace($BimiSendingDomain)) { $Domain } else { $BimiSendingDomain }
+
+    $bimiRecord = Get-BimiDnsRecordFromSharedBuilder `
+      -Selector $BimiSelector `
+      -SendingDomain $effectiveBimiSendingDomain `
+      -ZoneDomain $ZoneDomain `
+      -LogoUrl $BimiLogoUrl `
+      -EvidenceUrl $BimiEvidenceUrl
+
+    $bimiRelName = $bimiRecord.relativeName
+    $bimiFqdn = Get-Fqdn -Relative $bimiRelName -Zone $ZoneDomain
+    $bimiValue = $bimiRecord.txtValue
+
+    $existingBimiSets = @(Get-Route53RecordsForName -ZoneId $HostedZoneId -Fqdn $bimiFqdn -Type TXT)
+    $existingBimi = if ($existingBimiSets.Count -gt 0) { $existingBimiSets[0] } else { $null }
+    $existingValues = @(Get-TxtValues -ResourceRecordSet $existingBimi)
+
+    $desiredValues = New-Object System.Collections.Generic.List[string]
+    foreach ($tv in $existingValues) {
+      if ($tv.ToLowerInvariant().StartsWith('v=bimi1')) { continue }
+      $desiredValues.Add($tv) | Out-Null
+    }
+    $desiredValues.Add($bimiValue) | Out-Null
+
+    $bimiRr = @()
+    foreach ($v in ($desiredValues | Select-Object -Unique)) {
+      $bimiRr += @{ Value = (Format-Route53TxtValue -Value $v) }
+    }
+    $changes += New-Change -Name $bimiFqdn -Type TXT -ResourceRecords $bimiRr
+    Write-Host "BIMI TXT queued: $bimiFqdn"
+  } else {
+    Write-Host 'Info: BimiLogoUrl missing; skipping BIMI TXT upsert.'
   }
 
   $batch = @{
