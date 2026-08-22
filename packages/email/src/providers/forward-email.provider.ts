@@ -288,10 +288,11 @@ function isAscii7BitBody(content: string): boolean {
 
 function encodeQuotedPrintableLine(line: string): string {
   let encoded = '';
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i]!;
+  const codePoints = [...line];
+  for (let i = 0; i < codePoints.length; i += 1) {
+    const char = codePoints[i]!;
     const code = char.charCodeAt(0);
-    const isTrailingWhitespace = (code === 32 || code === 9) && i === line.length - 1;
+    const isTrailingWhitespace = (code === 32 || code === 9) && i === codePoints.length - 1;
     const mustEncode = char === '=' || code < 32 || code > 126 || isTrailingWhitespace;
     if (mustEncode) {
       for (const byte of Buffer.from(char, 'utf8')) {
@@ -304,19 +305,43 @@ function encodeQuotedPrintableLine(line: string): string {
   return wrapQuotedPrintableLine(encoded);
 }
 
-function wrapQuotedPrintableLine(line: string): string {
-  if (line.length <= 76) return line;
+const QUOTED_PRINTABLE_MAX_LINE = 75;
 
-  const parts: string[] = [];
-  let pos = 0;
-  while (pos < line.length) {
-    let chunkLen = Math.min(76, line.length - pos);
-    while (chunkLen > 0 && pos + chunkLen < line.length && line[pos + chunkLen - 1] === '=') {
-      chunkLen -= 1;
+function tokenizeQuotedPrintable(encoded: string): string[] {
+  const tokens: string[] = [];
+  for (let i = 0; i < encoded.length;) {
+    if (
+      encoded[i] === '=' &&
+      i + 2 < encoded.length &&
+      /^[0-9A-F]{2}$/i.test(encoded.slice(i + 1, i + 3))
+    ) {
+      tokens.push(encoded.slice(i, i + 3));
+      i += 3;
+      continue;
     }
-    parts.push(`${line.slice(pos, pos + chunkLen)}=`);
-    pos += chunkLen;
+    tokens.push(encoded[i]!);
+    i += 1;
   }
+  return tokens;
+}
+
+function wrapQuotedPrintableLine(line: string): string {
+  if (line.length <= QUOTED_PRINTABLE_MAX_LINE) return line;
+
+  const tokens = tokenizeQuotedPrintable(line);
+  const parts: string[] = [];
+  let current = '';
+
+  for (const token of tokens) {
+    if (current.length + token.length > QUOTED_PRINTABLE_MAX_LINE) {
+      parts.push(`${current}=`);
+      current = token;
+      continue;
+    }
+    current += token;
+  }
+
+  if (current) parts.push(current);
   return parts.join('\r\n');
 }
 

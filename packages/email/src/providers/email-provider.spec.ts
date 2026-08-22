@@ -263,6 +263,39 @@ describe('ForwardEmailProvider', () => {
     assert.match(raw, /Content-Transfer-Encoding: quoted-printable/);
     assert.match(raw, /=C3=A1/);
   });
+
+  it('encodes emoji and wraps quoted-printable lines without splitting escape tokens', async () => {
+    const calls: Array<{ init: RequestInit }> = [];
+    const provider = new ForwardEmailProvider({
+      apiToken: 'test-token',
+      baseUrl: 'https://api.example.test',
+      maxRetries: 0,
+      bimiSelector: 'altLogo',
+      fetchImpl: async (_input, init) => {
+        calls.push({ init: init ?? {} });
+        return new Response(JSON.stringify({ id: 'fe-123' }), { status: 200 });
+      },
+    });
+
+    const longPrefix = 'x'.repeat(70);
+    await provider.send({
+      to: 'hello@singletonsd.com',
+      from: 'noreply@mail.example.com',
+      subject: 'Hello',
+      text: `${longPrefix}😀`,
+    });
+
+    const raw = new URLSearchParams(String(calls[0]?.init.body ?? '')).get('raw') ?? '';
+    const body = raw.split('\r\n\r\n').slice(1).join('\r\n\r\n');
+    const unfolded = body.replace(/=\r\n/g, '');
+    assert.match(unfolded, /=F0=9F=98=80/);
+    for (const physicalLine of body.split('\r\n')) {
+      if (physicalLine.endsWith('=')) {
+        assert.ok(physicalLine.length <= 76);
+      }
+      assert.doesNotMatch(physicalLine, /=[0-9A-F]$/i);
+    }
+  });
 });
 
 describe('DevelopmentEmailProvider', () => {

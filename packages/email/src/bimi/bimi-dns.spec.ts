@@ -15,15 +15,19 @@ describe('assertValidBimiSelector', () => {
   it('accepts common DNS-safe selectors', () => {
     assert.equal(assertValidBimiSelector('brand1'), 'brand1');
     assert.equal(assertValidBimiSelector('alt.logo'), 'alt.logo');
-    assert.equal(assertValidBimiSelector('acme_brand'), 'acme_brand');
+    assert.equal(assertValidBimiSelector('alt-logo'), 'alt-logo');
   });
 
   it('rejects empty/whitespace', () => {
     assert.throws(() => assertValidBimiSelector('   '), /required/i);
   });
 
-  it('rejects invalid characters', () => {
+  it('rejects invalid characters and malformed labels', () => {
     assert.throws(() => assertValidBimiSelector('bad!/x'), /Invalid BIMI selector/i);
+    assert.throws(() => assertValidBimiSelector('acme_brand'), /Invalid BIMI selector/i);
+    assert.throws(() => assertValidBimiSelector('brand.'), /Invalid BIMI selector/i);
+    assert.throws(() => assertValidBimiSelector('brand..alt'), /Invalid BIMI selector/i);
+    assert.throws(() => assertValidBimiSelector('-brand'), /Invalid BIMI selector/i);
   });
 });
 
@@ -69,6 +73,19 @@ describe('buildBimiDnsRecordName / buildBimiTxtValue', () => {
         sendingDomain: 'mail.example.com',
         logoUrl: 'http://cdn.example.com/logo.svg',
       }),
+    );
+  });
+
+  it('rejects non-HTTPS evidence URLs', () => {
+    assert.throws(
+      () =>
+        buildBimiTxtValue({
+          selector: 'default',
+          sendingDomain: 'mail.example.com',
+          logoUrl: 'https://cdn.example.com/logo.svg',
+          evidenceUrl: 'http://cdn.example.com/bimi/vmc.pem',
+        }),
+      /BIMI evidenceUrl must use HTTPS/i,
     );
   });
 });

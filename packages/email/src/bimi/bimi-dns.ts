@@ -18,24 +18,37 @@ export interface BimiDnsSettings {
 export function assertValidBimiSelector(selector: string): string {
   const trimmed = selector.trim();
   if (!trimmed) throw new Error('BIMI selector is required');
-  // Conservative subset: ASCII letters/digits and DNS-safe separators.
-  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(trimmed)) {
+  if (trimmed.endsWith('.')) {
     throw new Error(`Invalid BIMI selector: ${trimmed}`);
   }
+
+  const labels = trimmed.split('.');
+  for (const label of labels) {
+    if (!isValidBimiSelectorLabel(label)) {
+      throw new Error(`Invalid BIMI selector: ${trimmed}`);
+    }
+  }
+
   return trimmed;
 }
 
-function assertHttpsUrl(url: string): string {
+function isValidBimiSelectorLabel(label: string): boolean {
+  if (label.length === 0 || label.length > 63) return false;
+  if (label.includes('_')) return false;
+  return /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label);
+}
+
+function assertHttpsUrl(url: string, fieldName = 'BIMI URL'): string {
   const trimmed = url.trim();
-  if (!trimmed) throw new Error('BIMI logoUrl is required');
+  if (!trimmed) throw new Error(`${fieldName} is required`);
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
   } catch {
-    throw new Error(`Invalid BIMI URL: ${trimmed}`);
+    throw new Error(`Invalid ${fieldName}: ${trimmed}`);
   }
   if (parsed.protocol !== 'https:') {
-    throw new Error(`BIMI URL must use HTTPS: ${trimmed}`);
+    throw new Error(`${fieldName} must use HTTPS: ${trimmed}`);
   }
   return trimmed;
 }
@@ -54,12 +67,12 @@ export function buildBimiDnsRecordName(settings: BimiDnsSettings): string {
  */
 export function buildBimiTxtValue(settings: BimiDnsSettings): string {
   const selector = assertValidBimiSelector(settings.selector);
-  const logoUrl = assertHttpsUrl(settings.logoUrl);
+  const logoUrl = assertHttpsUrl(settings.logoUrl, 'BIMI logoUrl');
   // `selector` is only needed for validation; BIMI TXT format does not include it.
   void selector;
 
   const evidence = settings.evidenceUrl?.trim();
-  const evidencePart = evidence ? `a=${evidence}` : 'a=';
+  const evidencePart = evidence ? `a=${assertHttpsUrl(evidence, 'BIMI evidenceUrl')}` : 'a=';
   return `v=BIMI1; l=${logoUrl}; ${evidencePart}`;
 }
 

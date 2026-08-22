@@ -144,8 +144,9 @@ Where:
 
 - `l=` points to a public HTTPS URL hosting your SVG indicator (Tiny-PS /
   Portable-Secure).
-- `a=` is optional evidence (VMC / CMC PEM). When empty, the record is still
-  syntactically valid, but some providers (notably Gmail) may not render.
+- `a=` is optional evidence (VMC / CMC PEM). When provided, it must also be a
+  public HTTPS URL. When empty, the record is still syntactically valid, but
+  some providers (notably Gmail) may not render.
 
 For the current PoC deployment, with the defaults from `.env.example`:
 
