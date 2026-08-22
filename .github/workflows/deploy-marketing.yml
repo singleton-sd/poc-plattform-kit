@@ -1,5 +1,5 @@
 # Azure Static Web Apps — marketing production deploy on merge to main
-# (also manual workflow_dispatch).
+# (content changes) or on marketing package tag push (versioned release).
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-marketing-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
 # If those Variables are missing, deploy steps SKIP (job succeeds) so main CI is not blocked.
@@ -13,10 +13,12 @@ on:
       - 'apps/marketing/**'
       - 'scripts/validate-staticwebapp-config.mjs'
       - '.github/workflows/deploy-marketing.yml'
+    tags:
+      - '@poc-plattform-kit/marketing@*'
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Commit SHA to deploy (from release.yml dispatch)
+        description: Commit SHA to deploy (manual dispatch)
         required: false
         type: string
 
@@ -26,6 +28,12 @@ concurrency:
 
 jobs:
   build_and_deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/@poc-plattform-kit/marketing@') ||
+      (github.event_name == 'push' &&
+       !contains(github.event.head_commit.message, '[skip ci]') &&
+       !startsWith(github.event.head_commit.message, 'chore: Release'))
     runs-on: ubuntu-latest
     name: Build + marketing SWA production
     permissions:

@@ -61,6 +61,11 @@ concurrency:
 jobs:
   api:
     name: Lint / test / build (api)
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' &&
+       !contains(github.event.head_commit.message, '[skip ci]') &&
+       !startsWith(github.event.head_commit.message, 'chore: Release'))
     runs-on: ubuntu-latest
     env:
       # prisma validate/generate read schema url; no live DB in CI

@@ -26,7 +26,7 @@ import { CLIENT_CHANGELOG_TARGETS, updateClientChangelogs } from './client-chang
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
-const RELEASE_SUBJECT = 'chore: Release package versions';
+const RELEASE_SUBJECT = 'chore: Release package versions [skip ci]';
 const API_PACKAGE = '@poc-plattform-kit/api';
 /** Paths refreshed when the API package version bumps (Swagger reads package.json). */
 const OPENAPI_CLIENT_PATHS = [
@@ -476,7 +476,9 @@ function main() {
   // Commit first, then tag. Tagging before a rebase-on-push-failure leaves
   // tags pointing at a rewritten commit SHA.
   pushReleaseCommit();
-  createAndPushTags(releases.map((r) => r.tag));
+  const tags = releases.map((r) => r.tag);
+  createAndPushTags(tags);
+  console.log(`RELEASE_TAGS=${tags.join(',')}`);
   console.log('Release commit and tags pushed.');
 }
 

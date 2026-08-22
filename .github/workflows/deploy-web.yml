@@ -1,7 +1,5 @@
-# Azure Static Web Apps — production deploy via workflow_dispatch from
-# release.yml after version bumps (also manual dispatch). Push + `chore: Release`
-# remains a fallback; GITHUB_TOKEN release pushes alone do not start this workflow.
-# Version bumps land via release.yml first so the SWA build embeds
+# Azure Static Web Apps — production deploy on package tag push (also manual
+# workflow_dispatch). Version bumps land via release.yml so the SWA build embeds
 # apps/web package.json version in the footer.
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
@@ -11,15 +9,12 @@ name: Deploy Web (SWA production)
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'apps/web/**'
-      - 'packages/**'
-      - '.github/workflows/deploy-web.yml'
+    tags:
+      - '@poc-plattform-kit/web@*'
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Commit SHA to deploy (from release.yml dispatch)
+        description: Commit SHA to deploy (manual dispatch)
         required: false
         type: string
 
@@ -29,8 +24,6 @@ concurrency:
 
 jobs:
   build_and_deploy:
-    # Production ships from release commits (version bumps) or manual dispatch.
-    if: "${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore: Release') }}"
     runs-on: ubuntu-latest
     name: Build + SWA production
     permissions:

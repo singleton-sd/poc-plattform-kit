@@ -1,16 +1,17 @@
-# Path-aware release-it: bump workspace package versions on main.
-# Skips when the push is already a release commit (avoids loops).
+# Path-aware release: bump workspace package versions on main merge.
+# Skips release-bot pushes (InkAds-style actor guard + [skip ci] release commits).
 # Git push uses the org-wide platform automation PAT from devtools Key Vault
 # (OIDC). Vault: ssd-devtools-kv-prod-ae / secret github-automation-pat.
 # Same vault + secret name across all singleton-sd repos — see SETUP.md.
 # PAT owner must be on the main ruleset bypass list (User, Always bypass).
-# After a bump, explicitly dispatch the affected production deploy workflows —
-# GITHUB_TOKEN pushes do not trigger other workflows (GitHub recursion guard).
+# Production deploys run on package tag push (deploy-*.yml); GitHub Releases are
+# published here after tags land.
 name: Release
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: release-main
@@ -24,16 +25,20 @@ env:
 
 jobs:
   release:
-    if: "${{ !startsWith(github.event.head_commit.message, 'chore: Release') }}"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       github.actor != 'github-actions[bot]' &&
+       !contains(github.event.head_commit.message, '[skip ci]') &&
+       !startsWith(github.event.head_commit.message, 'chore: Release'))
     runs-on: ubuntu-latest
     name: Bump package versions
     # Placeholder URL for Prisma generate during openapi:export (no live DB).
     env:
       DATABASE_URL: 'sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true'
     permissions:
-      contents: read
+      contents: write
       id-token: write
-      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -156,50 +161,36 @@ jobs:
           fi
           if grep -q 'Release commit and tags pushed' "$tmp"; then
             echo "released=true" >> "$GITHUB_OUTPUT"
-            echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            tags=$(grep '^RELEASE_TAGS=' "$tmp" | tail -1 | cut -d= -f2-)
+            if [ -z "$tags" ]; then
+              echo "::error::Release succeeded but RELEASE_TAGS line was missing from release:ci output."
+              exit 1
+            fi
+            echo "release_tags=$tags" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "::error::Unexpected release:ci output (no release push and not empty)."
           exit 1
 
-      - name: Dispatch production deploys
+      - name: Publish GitHub releases
         if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+          RELEASE_TAGS: ${{ steps.release.outputs.release_tags }}
         run: |
           set -euo pipefail
-          if [ -z "$RELEASE_SHA" ]; then
-            echo "::error::Missing release_sha output from release step."
-            exit 1
-          fi
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
-          MAIN_SHA=$(git rev-parse origin/main)
-          if [ "$RELEASE_SHA" != "$MAIN_SHA" ]; then
-            echo "::error::Release SHA ($RELEASE_SHA) does not match origin/main ($MAIN_SHA) after release push."
-            exit 1
-          fi
-          mapfile -t files < <(git show --name-only --pretty=format: "$RELEASE_SHA")
-          echo "Release commit $RELEASE_SHA on main — files:"
-          printf '%s\n' "${files[@]}"
-          dispatch=false
-          for f in "${files[@]}"; do
-            if [ "$f" = 'apps/api/package.json' ]; then
-              echo "Dispatching deploy-api.yml @ $RELEASE_SHA"
-              gh workflow run deploy-api.yml --ref main -f release_sha="$RELEASE_SHA"
-              dispatch=true
+          IFS=',' read -r -a tags <<< "$RELEASE_TAGS"
+          for tag in "${tags[@]}"; do
+            tag="${tag#"${tag%%[![:space:]]*}"}"
+            tag="${tag%"${tag##*[![:space:]]}"}"
+            [ -n "$tag" ] || continue
+            echo "Publishing GitHub release for $tag"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release $tag already exists — skipping."
+              continue
             fi
-            if [ "$f" = 'apps/web/package.json' ]; then
-              echo "Dispatching deploy-web.yml @ $RELEASE_SHA"
-              gh workflow run deploy-web.yml --ref main -f release_sha="$RELEASE_SHA"
-              dispatch=true
-            fi
-            if [ "$f" = 'apps/marketing/package.json' ]; then
-              echo "Dispatching deploy-marketing.yml @ $RELEASE_SHA"
-              gh workflow run deploy-marketing.yml --ref main -f release_sha="$RELEASE_SHA"
-              dispatch=true
-            fi
+            gh release create "$tag" \
+              --verify-tag \
+              --generate-notes \
+              --title "$tag"
           done
-          if [ "$dispatch" = false ]; then
-            echo "No deployable app package.json in release commit — skipping deploys."
-          fi
