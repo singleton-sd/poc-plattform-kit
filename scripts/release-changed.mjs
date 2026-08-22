@@ -343,9 +343,11 @@ function syncToOriginMain() {
 }
 
 /**
- * Push the release commit to main. Requires the main ruleset to bypass the
- * GitHub Actions integration (actor_id 15368, bypass_mode always) — see
- * SETUP.md. Retries after rebase when concurrent main updates cause rejection.
+ * Push the release commit to main. Requires checkout credentials from the
+ * platform automation fine-grained PAT (devtools Key Vault
+ * `ssd-devtools-kv-prod-ae` / `github-automation-pat`; PAT owner on the
+ * main ruleset bypass list — see SETUP.md). Retries after rebase when
+ * concurrent main updates cause rejection.
  */
 function pushReleaseCommit() {
   const maxAttempts = 3;

@@ -1,7 +1,9 @@
 # Path-aware release-it: bump workspace package versions on main.
 # Skips when the push is already a release commit (avoids loops).
-# Requires GitHub Actions (integration 15368) on the main ruleset bypass list
-# with bypass_mode always — see SETUP.md. Then release:ci pushes main directly.
+# Git push uses the org-wide platform automation PAT from devtools Key Vault
+# (OIDC). Vault: ssd-devtools-kv-prod-ae / secret github-automation-pat.
+# Same vault + secret name across all singleton-sd repos — see SETUP.md.
+# PAT owner must be on the main ruleset bypass list (User, Always bypass).
 # After a bump, explicitly dispatch the affected production deploy workflows —
 # GITHUB_TOKEN pushes do not trigger other workflows (GitHub recursion guard).
 name: Release
@@ -14,6 +16,12 @@ concurrency:
   group: release-main
   cancel-in-progress: false
 
+env:
+  # Org-locked singleton-sd constants — copy release.yml unchanged into other repos.
+  SSD_OPS_KEY_VAULT_NAME: ssd-devtools-kv-prod-ae
+  SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: 01c0bb8b-3770-4765-979a-cb13ae7e3dd2
+  SSD_GITHUB_AUTOMATION_PAT_SECRET: github-automation-pat
+
 jobs:
   release:
     if: "${{ !startsWith(github.event.head_commit.message, 'chore: Release') }}"
@@ -23,13 +31,72 @@ jobs:
     env:
       DATABASE_URL: 'sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true'
     permissions:
-      contents: write
+      contents: read
+      id-token: write
       actions: write
     steps:
+      - name: Require Azure OIDC Variables
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Variable $name. Release requires OIDC — see SETUP.md."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read platform automation PAT from devtools Key Vault
+        id: automation_pat
+        run: |
+          set -euo pipefail
+          pat=$(az keyvault secret show \
+            --subscription "$SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID" \
+            --vault-name "$SSD_OPS_KEY_VAULT_NAME" \
+            --name "$SSD_GITHUB_AUTOMATION_PAT_SECRET" \
+            --query value -o tsv)
+          if [ -z "$pat" ]; then
+            echo "::error::Key Vault secret $SSD_GITHUB_AUTOMATION_PAT_SECRET in $SSD_OPS_KEY_VAULT_NAME is empty. Follow SETUP.md."
+            exit 1
+          fi
+          echo "::add-mask::$pat"
+          echo "GITHUB_AUTOMATION_TOKEN=$pat" >> "$GITHUB_ENV"
+          user_json=$(curl -sf \
+            -H "Authorization: bearer $pat" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/user)
+          login=$(echo "$user_json" | jq -r '.login')
+          user_id=$(echo "$user_json" | jq -r '.id')
+          if [ -z "$login" ] || [ "$login" = null ] || [ -z "$user_id" ] || [ "$user_id" = null ]; then
+            echo "::error::Could not resolve platform automation user from PAT (check token Metadata + Contents permissions)."
+            exit 1
+          fi
+          echo "GITHUB_AUTOMATION_USER_NAME=$login" >> "$GITHUB_ENV"
+          echo "GITHUB_AUTOMATION_USER_EMAIL=${user_id}+${login}@users.noreply.github.com" >> "$GITHUB_ENV"
+        env:
+          SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: ${{ env.SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID }}
+          SSD_OPS_KEY_VAULT_NAME: ${{ env.SSD_OPS_KEY_VAULT_NAME }}
+          SSD_GITHUB_AUTOMATION_PAT_SECRET: ${{ env.SSD_GITHUB_AUTOMATION_PAT_SECRET }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ env.GITHUB_AUTOMATION_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -46,8 +113,11 @@ jobs:
       - name: Configure git identity
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "$GITHUB_AUTOMATION_USER_NAME"
+          git config user.email "$GITHUB_AUTOMATION_USER_EMAIL"
+        env:
+          GITHUB_AUTOMATION_USER_NAME: ${{ env.GITHUB_AUTOMATION_USER_NAME }}
+          GITHUB_AUTOMATION_USER_EMAIL: ${{ env.GITHUB_AUTOMATION_USER_EMAIL }}
 
       - name: Release changed packages
         id: release
@@ -71,8 +141,6 @@ jobs:
           fi
           echo "::error::Unexpected release:ci output (no release push and not empty)."
           exit 1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Dispatch production deploys
         if: steps.release.outputs.released == 'true'
