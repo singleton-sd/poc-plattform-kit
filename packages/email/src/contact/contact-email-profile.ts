@@ -27,21 +27,74 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function cleanString(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+function configurationError(
+  message: string,
+  providerName: 'forward-email' | 'development',
+): EmailProviderError {
+  return new EmailProviderError({
+    message,
+    kind: 'configuration',
+    provider: providerName,
+  });
 }
 
-function assertEmail(value: string, field: string): string {
+/** Parse an optional override field; reject present but invalid values. */
+function parseOptionalProfileString(
+  value: unknown,
+  fieldPath: string,
+  providerName: 'forward-email' | 'development',
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') {
+    throw configurationError(`${fieldPath} must be a string when provided`, providerName);
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw configurationError(`${fieldPath} must be a non-empty string when provided`, providerName);
+  }
+  return trimmed;
+}
+
+function assertEmail(
+  value: string,
+  field: string,
+  providerName: 'forward-email' | 'development',
+): string {
   if (!EMAIL_RE.test(value)) {
-    throw new EmailProviderError({
-      message: `${field} must be a valid email address`,
-      kind: 'configuration',
-      provider: 'forward-email',
-    });
+    throw configurationError(`${field} must be a valid email address`, providerName);
   }
   return value;
+}
+
+function parseProfileOverrideFields(
+  profile: Record<string, unknown>,
+  fieldPrefix: string,
+  providerName: 'forward-email' | 'development',
+): TenantEmailProfileOverride {
+  return {
+    fromAddress: parseOptionalProfileString(
+      profile.fromAddress,
+      `${fieldPrefix}.fromAddress`,
+      providerName,
+    ),
+    fromName: parseOptionalProfileString(profile.fromName, `${fieldPrefix}.fromName`, providerName),
+    contactInboxAddress: parseOptionalProfileString(
+      profile.contactInboxAddress,
+      `${fieldPrefix}.contactInboxAddress`,
+      providerName,
+    ),
+  };
+}
+
+function applyProfileOverride(
+  resolved: ContactEmailProfile,
+  override: TenantEmailProfileOverride | undefined,
+): void {
+  if (override?.fromAddress) resolved.fromAddress = override.fromAddress;
+  if (override?.fromName) resolved.fromName = override.fromName;
+  if (override?.contactInboxAddress) {
+    resolved.contactInboxAddress = override.contactInboxAddress;
+  }
 }
 
 function parseHostProfileMap(
@@ -53,28 +106,39 @@ function parseHostProfileMap(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new EmailProviderError({
-      message: 'CONTACT_EMAIL_PROFILES_BY_HOST must be valid JSON',
-      kind: 'configuration',
-      provider: providerName,
-    });
+    throw configurationError('CONTACT_EMAIL_PROFILES_BY_HOST must be valid JSON', providerName);
   }
   if (!isRecord(parsed)) {
-    throw new EmailProviderError({
-      message: 'CONTACT_EMAIL_PROFILES_BY_HOST must be an object map by host',
-      kind: 'configuration',
-      provider: providerName,
-    });
+    throw configurationError(
+      'CONTACT_EMAIL_PROFILES_BY_HOST must be an object map by host',
+      providerName,
+    );
   }
 
   const out: HostProfileMap = {};
   for (const [host, profile] of Object.entries(parsed)) {
-    if (!isRecord(profile)) continue;
-    out[host.toLowerCase()] = {
-      fromAddress: cleanString(profile.fromAddress),
-      fromName: cleanString(profile.fromName),
-      contactInboxAddress: cleanString(profile.contactInboxAddress),
-    };
+    if (!isRecord(profile)) {
+      throw configurationError(
+        `CONTACT_EMAIL_PROFILES_BY_HOST["${host}"] must be an object`,
+        providerName,
+      );
+    }
+    const parsedProfile = parseProfileOverrideFields(
+      profile,
+      `CONTACT_EMAIL_PROFILES_BY_HOST["${host}"]`,
+      providerName,
+    );
+    if (
+      !parsedProfile.fromAddress &&
+      !parsedProfile.fromName &&
+      !parsedProfile.contactInboxAddress
+    ) {
+      throw configurationError(
+        `CONTACT_EMAIL_PROFILES_BY_HOST["${host}"] must include at least one sender field`,
+        providerName,
+      );
+    }
+    out[host.toLowerCase()] = parsedProfile;
   }
   return out;
 }
@@ -108,23 +172,21 @@ export function clearHostProfileMapCache(): void {
  */
 export function resolveTenantEmailProfileOverride(
   settings: Record<string, unknown> | null | undefined,
+  providerName: 'forward-email' | 'development' = 'forward-email',
 ): TenantEmailProfileOverride | undefined {
   if (!settings || !isRecord(settings.email)) return undefined;
-  const email = settings.email;
-  const fromAddress = cleanString(email.fromAddress);
-  const fromName = cleanString(email.fromName);
-  const contactInboxAddress = cleanString(email.contactInboxAddress);
-
-  if (!fromAddress && !fromName && !contactInboxAddress) return undefined;
-
-  return { fromAddress, fromName, contactInboxAddress };
+  const parsed = parseProfileOverrideFields(settings.email, 'settings.email', providerName);
+  if (!parsed.fromAddress && !parsed.fromName && !parsed.contactInboxAddress) return undefined;
+  return parsed;
 }
 
 export function resolveContactEmailProfile(
   options: {
     env?: NodeJS.ProcessEnv;
     tenantSettings?: Record<string, unknown> | null;
-    requestOrigin?: string | null;
+    /** Pre-validated host from an allowlist (never raw client Origin). */
+    trustedRequestHost?: string | null;
+    profileOverride?: Partial<ContactEmailProfile>;
   } = {},
 ): ContactEmailProfile {
   const env = options.env ?? process.env;
@@ -137,35 +199,35 @@ export function resolveContactEmailProfile(
     contactInboxAddress: config.contactInboxAddress,
   };
 
-  const tenantOverride = resolveTenantEmailProfileOverride(options.tenantSettings);
-  if (tenantOverride?.fromAddress) resolved.fromAddress = tenantOverride.fromAddress;
-  if (tenantOverride?.fromName) resolved.fromName = tenantOverride.fromName;
-  if (tenantOverride?.contactInboxAddress) {
-    resolved.contactInboxAddress = tenantOverride.contactInboxAddress;
+  applyProfileOverride(
+    resolved,
+    resolveTenantEmailProfileOverride(options.tenantSettings, providerName),
+  );
+
+  const trustedHost = options.trustedRequestHost?.trim().toLowerCase();
+  if (trustedHost) {
+    const hostProfiles = getHostProfileMap(env.CONTACT_EMAIL_PROFILES_BY_HOST, providerName);
+    applyProfileOverride(resolved, hostProfiles[trustedHost]);
   }
 
-  const requestOrigin = options.requestOrigin;
-  if (requestOrigin) {
-    let host: string | null = null;
-    try {
-      host = new URL(requestOrigin).host.toLowerCase();
-    } catch {
-      // Invalid Origin input should not block fallback profile resolution.
-    }
-    if (host) {
-      const hostProfiles = getHostProfileMap(env.CONTACT_EMAIL_PROFILES_BY_HOST, providerName);
-      const hostOverride = hostProfiles[host];
-      if (hostOverride?.fromAddress) resolved.fromAddress = hostOverride.fromAddress;
-      if (hostOverride?.fromName) resolved.fromName = hostOverride.fromName;
-      if (hostOverride?.contactInboxAddress) {
-        resolved.contactInboxAddress = hostOverride.contactInboxAddress;
-      }
-    }
+  if (options.profileOverride) {
+    applyProfileOverride(
+      resolved,
+      parseProfileOverrideFields(
+        options.profileOverride as Record<string, unknown>,
+        'profileOverride',
+        providerName,
+      ),
+    );
   }
 
   return {
-    fromAddress: assertEmail(resolved.fromAddress, 'fromAddress'),
+    fromAddress: assertEmail(resolved.fromAddress, 'fromAddress', providerName),
     fromName: resolved.fromName,
-    contactInboxAddress: assertEmail(resolved.contactInboxAddress, 'contactInboxAddress'),
+    contactInboxAddress: assertEmail(
+      resolved.contactInboxAddress,
+      'contactInboxAddress',
+      providerName,
+    ),
   };
 }

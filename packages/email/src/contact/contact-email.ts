@@ -110,20 +110,17 @@ export async function sendContactInquiryEmail(
   env: NodeJS.ProcessEnv = process.env,
   options: {
     tenantSettings?: Record<string, unknown> | null;
-    requestOrigin?: string | null;
-    profile?: Partial<ContactEmailProfile>;
+    /** Pre-validated host from an allowlist (never raw client Origin). */
+    trustedRequestHost?: string | null;
+    profileOverride?: Partial<ContactEmailProfile>;
   } = {},
 ): Promise<{ id: string; status: 'sent'; result: EmailSendResult }> {
   const profile = resolveContactEmailProfile({
     env,
     tenantSettings: options.tenantSettings,
-    requestOrigin: options.requestOrigin,
+    trustedRequestHost: options.trustedRequestHost,
+    profileOverride: options.profileOverride,
   });
-  if (options.profile?.fromAddress) profile.fromAddress = options.profile.fromAddress;
-  if (options.profile?.fromName) profile.fromName = options.profile.fromName;
-  if (options.profile?.contactInboxAddress) {
-    profile.contactInboxAddress = options.profile.contactInboxAddress;
-  }
 
   if (!profile.contactInboxAddress || !profile.fromAddress) {
     throw new EmailProviderError({

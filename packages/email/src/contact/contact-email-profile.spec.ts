@@ -28,6 +28,19 @@ describe('resolveTenantEmailProfileOverride', () => {
     assert.equal(resolveTenantEmailProfileOverride({}), undefined);
     assert.equal(resolveTenantEmailProfileOverride({ email: {} }), undefined);
   });
+
+  it('rejects invalid tenant email field types', () => {
+    assert.throws(
+      () =>
+        resolveTenantEmailProfileOverride({
+          email: { fromAddress: 123 },
+        }),
+      (error: unknown) =>
+        error instanceof EmailProviderError &&
+        error.kind === 'configuration' &&
+        error.message.includes('settings.email.fromAddress'),
+    );
+  });
 });
 
 describe('getHostProfileMap', () => {
@@ -59,6 +72,31 @@ describe('getHostProfileMap', () => {
     );
     assert.notEqual(first, second);
     assert.equal(second['b.example.com']?.fromName, 'B');
+  });
+
+  it('rejects non-object host profile entries', () => {
+    clearHostProfileMapCache();
+    assert.throws(
+      () =>
+        getHostProfileMap(JSON.stringify({ 'evil.example.com': 'not-an-object' }), 'development'),
+      (error: unknown) =>
+        error instanceof EmailProviderError && error.message.includes('must be an object'),
+    );
+  });
+
+  it('rejects invalid supplied host profile fields', () => {
+    clearHostProfileMapCache();
+    assert.throws(
+      () =>
+        getHostProfileMap(
+          JSON.stringify({
+            'inkads.poc.singletonsd.com': { contactInboxAddress: '' },
+          }),
+          'development',
+        ),
+      (error: unknown) =>
+        error instanceof EmailProviderError && error.message.includes('contactInboxAddress'),
+    );
   });
 });
 
@@ -97,7 +135,7 @@ describe('resolveContactEmailProfile', () => {
     });
   });
 
-  it('applies host override after tenant override', () => {
+  it('applies trusted host override after tenant override', () => {
     clearHostProfileMapCache();
     const profile = resolveContactEmailProfile({
       env: {
@@ -109,7 +147,7 @@ describe('resolveContactEmailProfile', () => {
           },
         }),
       },
-      requestOrigin: 'https://inkads.poc.singletonsd.com',
+      trustedRequestHost: 'inkads.poc.singletonsd.com',
       tenantSettings: {
         email: {
           fromAddress: 'noreply@tenant.mail.singletonsd.com',
@@ -125,6 +163,33 @@ describe('resolveContactEmailProfile', () => {
     });
   });
 
+  it('ignores host overrides when trustedRequestHost is not supplied', () => {
+    clearHostProfileMapCache();
+    const profile = resolveContactEmailProfile({
+      env: {
+        ...baseEnv,
+        CONTACT_EMAIL_PROFILES_BY_HOST: JSON.stringify({
+          'inkads.poc.singletonsd.com': {
+            fromAddress: 'noreply@mail.inkads.poc.singletonsd.com',
+          },
+        }),
+      },
+    });
+    assert.equal(profile.fromAddress, 'noreply@mail.plattform-kit.poc.singletonsd.com');
+  });
+
+  it('validates explicit profile overrides before returning', () => {
+    assert.throws(
+      () =>
+        resolveContactEmailProfile({
+          env: baseEnv,
+          profileOverride: { fromAddress: 'not-an-email' },
+        }),
+      (error: unknown) =>
+        error instanceof EmailProviderError && error.message.includes('fromAddress'),
+    );
+  });
+
   it('rejects malformed host profile JSON', () => {
     clearHostProfileMapCache();
     assert.throws(
@@ -134,7 +199,7 @@ describe('resolveContactEmailProfile', () => {
             ...baseEnv,
             CONTACT_EMAIL_PROFILES_BY_HOST: '{bad-json}',
           },
-          requestOrigin: 'https://inkads.poc.singletonsd.com',
+          trustedRequestHost: 'inkads.poc.singletonsd.com',
         }),
       (error: unknown) =>
         error instanceof EmailProviderError &&

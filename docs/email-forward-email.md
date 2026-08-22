@@ -82,7 +82,7 @@ Never print or commit the token. Prefer User/Process env locally; production loa
 | `EMAIL_FROM_NAME` | `app:notifications:emailFromName` | e.g. `Plattform Kit` |
 | `CONTACT_INBOX_ADDRESS` | `app:notifications:contactInboxAddress` | e.g. `hello@singletonsd.com` |
 | `CONTACT_EMAIL_PROFILES_BY_HOST` | `app:notifications:contactEmailProfilesByHost` | Optional JSON map for host-specific PoC sender profiles |
-| `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` for live send in production hosts |
+| `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` whenever `EMAIL_PROVIDER=forward-email` (including explicit provider selection) |
 
 See root [`.env.example`](../.env.example) for local placeholders (empty values only).
 
@@ -100,7 +100,9 @@ Resolution order for contact email:
 
 1. Global defaults (`EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `CONTACT_INBOX_ADDRESS`)
 2. Tenant override from tenant settings `settings.email` (API/runtime callers that pass tenant settings)
-3. Host override from `CONTACT_EMAIL_PROFILES_BY_HOST` (marketing-edge by request `Origin` host)
+3. Host override from `CONTACT_EMAIL_PROFILES_BY_HOST` when the marketing-edge caller passes a **trusted** request host derived from an allowlisted `Origin` (`ORIGINS` env)
+
+Untrusted or unlisted `Origin` values are ignored for host-profile selection so a client cannot forge another PoC's sender or inbox.
 
 `CONTACT_EMAIL_PROFILES_BY_HOST` example:
 
@@ -119,7 +121,7 @@ Resolution order for contact email:
 }
 ```
 
-Validation is fail-fast: invalid email values or malformed JSON raise configuration errors before sending.
+Validation is fail-fast: malformed profile objects/fields, invalid email values, or malformed JSON raise configuration errors before sending.
 
 ## Preview safety (locked)
 
