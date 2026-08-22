@@ -1,7 +1,7 @@
 {
   "source": "singleton-sd/ai-plattform-skills",
   "sourceUrl": "https://github.com/singleton-sd/ai-plattform-skills",
-  "ref": "master",
+  "ref": "c30b0277a4ae0bbddaa04ad53516b2c1dec3a19b",
   "skillsCli": "skills@1.5.23",
   "engineeringHost": "github",
   "profile": "github",
