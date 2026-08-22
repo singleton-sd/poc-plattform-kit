@@ -69,11 +69,26 @@ jobs:
         id: automation_pat
         run: |
           set -euo pipefail
-          pat=$(az keyvault secret show \
-            --subscription "$SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID" \
-            --vault-name "$SSD_OPS_KEY_VAULT_NAME" \
-            --name "$SSD_GITHUB_AUTOMATION_PAT_SECRET" \
-            --query value -o tsv)
+          vault_uri="https://${SSD_OPS_KEY_VAULT_NAME}.vault.azure.net"
+          secret_uri="${vault_uri}/secrets/${SSD_GITHUB_AUTOMATION_PAT_SECRET}/?api-version=7.4"
+          # Cross-subscription: OIDC login uses the app subscription. Data-plane REST
+          # + Key Vault Secrets User on the vault avoids needing subscription access.
+          err_file="$RUNNER_TEMP/kv-pat.err"
+          if ! pat=$(az rest \
+            --method GET \
+            --uri "$secret_uri" \
+            --resource "https://vault.azure.net" \
+            --query value \
+            -o tsv 2>"$err_file"); then
+            echo "::error::Failed to read $SSD_GITHUB_AUTOMATION_PAT_SECRET from $SSD_OPS_KEY_VAULT_NAME."
+            if grep -Eiq 'Forbidden|403|AuthorizationFailed|Access denied|KeyVaultAccessForbidden|does not have.*secret get' "$err_file"; then
+              echo "Grant this repo's OIDC service principal Key Vault Secrets User on the devtools vault (cross-subscription RBAC — subscription Reader is not required). See SETUP.md."
+            else
+              echo "Check vault name, secret name, network/firewall, and that $SSD_GITHUB_AUTOMATION_PAT_SECRET exists. See SETUP.md."
+            fi
+            cat "$err_file" >&2
+            exit 1
+          fi
           if [ -z "$pat" ]; then
             echo "::error::Key Vault secret $SSD_GITHUB_AUTOMATION_PAT_SECRET in $SSD_OPS_KEY_VAULT_NAME is empty. Follow SETUP.md."
             exit 1

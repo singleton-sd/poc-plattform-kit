@@ -22,6 +22,8 @@ test('release.yml loads org platform automation PAT from devtools Key Vault', as
   assert.match(workflow, /SSD_OPS_KEY_VAULT_NAME/);
   assert.match(workflow, /ssd-devtools-kv-prod-ae/);
   assert.match(workflow, /github-automation-pat/);
+  assert.match(workflow, /vault\.azure\.net/);
+  assert.doesNotMatch(workflow, /az keyvault secret show[\s\S]*SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID/);
   assert.match(workflow, /persist-credentials: false/);
   assert.match(workflow, /pat_file/);
   assert.match(workflow, /trap cleanup EXIT/);

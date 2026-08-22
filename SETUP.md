@@ -74,7 +74,7 @@ Per-app vault `ssd-pocpk-kv-dev-ae` holds **runtime** secrets only (DB, auth, SW
      --value '<fine-grained-pat>'
    ```
 
-4. **Entra RBAC** — grant the GitHub Actions OIDC service principal (`ssd-pocpk-gha-oidc-dev` or your repo’s OIDC app) **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (cross-subscription; same tenant). Repeat for each repo’s OIDC SP if they differ.
+4. **Entra RBAC** — grant the GitHub Actions OIDC service principal (`ssd-pocpk-gha-oidc-dev` or your repo’s OIDC app) **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (cross-subscription; same tenant). **Subscription-level roles on the devtools subscription are not required** — `release.yml` reads the secret via the Key Vault data plane (`*.vault.azure.net`), not `az keyvault` with `--subscription`. Repeat for each repo’s OIDC SP if they differ.
 
 5. **Ruleset bypass (per repo)** — **Settings → Rules → Rulesets** → default-branch ruleset → **Bypass list → Add bypass** → select the machine **user** → **Always bypass**.
 
