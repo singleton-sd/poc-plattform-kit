@@ -25,6 +25,11 @@ on:
       - 'scripts/stage-api-deploy-docker.sh'
       - 'scripts/verify-api-appservice.sh'
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Commit SHA to deploy (from release.yml dispatch)
+        required: false
+        type: string
 
 concurrency:
   group: deploy-api-production
@@ -45,6 +50,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha || github.sha }}
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
         with:

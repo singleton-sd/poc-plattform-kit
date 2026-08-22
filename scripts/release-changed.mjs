@@ -15,12 +15,12 @@
  *
  * Usage:
  *   node scripts/release-changed.mjs           # dry-run
- *   node scripts/release-changed.mjs --ci      # bump, commit, tag, push
+ *   node scripts/release-changed.mjs --ci      # bump, commit, tag, push main
  */
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import semver from 'semver';
 import { CLIENT_CHANGELOG_TARGETS, updateClientChangelogs } from './client-changelog.mjs';
 
@@ -343,8 +343,11 @@ function syncToOriginMain() {
 }
 
 /**
- * Push the release commit only (no tags). Retries once after rebase when
- * concurrent main updates cause a non-fast-forward rejection.
+ * Push the release commit to main. Requires checkout credentials from the
+ * platform automation fine-grained PAT (devtools Key Vault
+ * `ssd-devtools-kv-prod-ae` / `github-automation-pat`; PAT owner on the
+ * main ruleset bypass list — see SETUP.md). Retries after rebase when
+ * concurrent main updates cause rejection.
  */
 function pushReleaseCommit() {
   const maxAttempts = 3;
@@ -475,4 +478,6 @@ function main() {
   console.log('Release commit and tags pushed.');
 }
 
-main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main();
+}

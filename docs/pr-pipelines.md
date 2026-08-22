@@ -15,9 +15,9 @@
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** | Marketing SWA **production** via OIDC → Key Vault (`apps/marketing/dist` after Astro build) |
 | `deploy-decap-oauth.yml` | `apps/marketing-oauth/**`, `infra/decap-oauth.bicep` on **`main`** (also `workflow_dispatch`) | Decap GitHub OAuth Function App via OIDC → KV |
 | `deploy-api.yml` | `workflow_dispatch` from `release.yml` when `apps/api/package.json` bumps (also manual `workflow_dispatch`; push+`chore: Release` kept as fallback) | Nest zip → App Service **B1** via OIDC |
-| `release.yml` | push to **`main`** (skipped for `chore: Release` commits) | Path-aware bumps; commit + tags; then `gh workflow run` deploy-api / deploy-web |
+| `release.yml` | push to **`main`** (skipped for `chore: Release` commits) | Path-aware bumps; commit + tags on `main`; dispatch deploy-api / deploy-web |
 
-**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). It then **dispatches** matching **deploy-*** workflows via `workflow_dispatch` on **`main`** (the release tip; `gh workflow run --ref` requires a branch/tag, not a raw SHA) so shipped builds embed the new `package.json` version in the web footer / Swagger. A plain `GITHUB_TOKEN` push of the release commit does **not** start other workflows — do not rely on the push event alone.
+**Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). It pushes `chore: Release package versions` directly to **`main`** using the org-wide platform automation PAT from devtools Key Vault (`ssd-devtools-kv-prod-ae` / `github-automation-pat`; PAT owner on the main ruleset bypass list — see `SETUP.md`), pushes semver tags, then **dispatches** matching **deploy-*** workflows via `workflow_dispatch` with a `release_sha` input so each deploy checks out the exact release commit (not merely `main` tip). A plain `GITHUB_TOKEN` push does **not** start other workflows — do not rely on the push event alone.
 
 Branch naming is `<type>/<issue-number>-<kebab-title>` (e.g. `docs/174-github-native-orchestration-instructions`) per section 6 of [`docs/github-source-of-truth.md`](../docs/github-source-of-truth.md); legacy `feature/<clickup-task-id>-<kebab-title>` branches remain supported for ClickUp-tracked tickets still in flight. Create the matching worktree with `pnpm worktree:add` under the parent workspace `worktrees/` folder (see `AGENTS.md`). Humans only merge to `main`. Solo-repo: require CI checks, **not** approving reviews (see `SETUP.md`).
 
@@ -25,10 +25,12 @@ Branch naming is `<type>/<issue-number>-<kebab-title>` (e.g. `docs/174-github-na
 
 | Allowed in GitHub | Forbidden in GitHub |
 | --- | --- |
-| Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (IDs) | Any secret: SWA deploy token, connection strings, passwords, client secrets, ACR admin, `AZURE_CREDENTIALS` |
+| Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (IDs only) | Any secret: SWA deploy token, connection strings, passwords, client secrets, ACR admin, `AZURE_CREDENTIALS`, automation PAT |
 | Built-in `GITHUB_TOKEN` for PR comments | `AZURE_STATIC_WEB_APPS_API_TOKEN` or similar |
 
 Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use value only as a **job env var** (mask in logs; never a GitHub Secret).
+
+**Two Key Vault tiers:** per-app runtime vault (`ssd-pocpk-kv-dev-ae` in the app subscription) for DB/auth/deploy tokens apps consume via App Config; org devtools vault (`ssd-devtools-kv-prod-ae` in subscription Singleton SD) for CI/provision secrets shared across repos (`github-automation-pat`, etc.). Apps never read devtools KV.
 
 If OIDC Variables are missing, `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` and `preview-web.yml` **fail fast** with a clear error until Variables + RBAC are configured.
 

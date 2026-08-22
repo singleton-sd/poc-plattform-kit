@@ -79,10 +79,15 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `appinsights-connection-string` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 | `auth-secret` | `AUTH_SECRET` |
 | `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
+| `chromatic-project-token` | Chromatic project token (OIDC → KV at runtime) |
+
+**Org devtools vault** (`ssd-devtools-kv-prod-ae`, not this app vault): `github-automation-pat` — org-wide platform automation PAT for ruleset-bypass git pushes (`SETUP.md`).
 
 Auth.js Option B (Free SWA): set App Config `app:auth:url` + `app:auth:cookieDomain` and wire `AUTH_*` / `AZURE_AD_*` on App Service (secrets from KV). Do **not** require SWA Standard linked backends for SSO cookies — see `docs/sso.md`.
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
+
+**Org devtools Key Vault (CI/provision — not app runtime):** `ssd-devtools-kv-prod-ae` in subscription **Singleton SD** (`01c0bb8b-3770-4765-979a-cb13ae7e3dd2`), RG `ssd-devtools-rg-prod-ae`. Shared across org repos; GitHub Actions OIDC reads CI secrets here (e.g. org-wide `github-automation-pat`). App managed identities do **not** get access. See `SETUP.md` → Platform GitHub automation PAT.
 
 ### App Configuration
 

@@ -20,6 +20,74 @@ This is a solo GitHub identity repo. GitHub forbids self-approve, so do not requ
 4. Block force pushes and deletions; disallow direct pushes to `main`.
 5. **Human merge only** - agents never merge or review other agents' work. Connected review bots leave PR comments; the human validates the test plan and merges.
 
+**Platform GitHub automation PAT (org-wide, devtools Key Vault):**
+
+Protected default branches block `GITHUB_TOKEN` pushes on Free orgs (GitHub Actions integration bypass is unavailable). Trusted workflows instead use a **single org-wide fine-grained PAT** owned by a shared machine user, loaded from the **devtools provision Key Vault** at runtime via OIDC — never a GitHub Secret and **never** in per-app Key Vaults (apps must not read CI credentials).
+
+| Artifact | Name | Scope |
+| --- | --- | --- |
+| **Ops Key Vault** | `ssd-devtools-kv-prod-ae` | Org-wide CI/provision secrets (not app runtime). Subscription **Singleton SD** (`01c0bb8b-3770-4765-979a-cb13ae7e3dd2`), RG `ssd-devtools-rg-prod-ae`. |
+| Key Vault secret | `github-automation-pat` | **One PAT for all org repos** |
+| Workflow constants | `SSD_OPS_KEY_VAULT_*`, `SSD_GITHUB_AUTOMATION_PAT_SECRET` | Hardcoded at top of `release.yml` — copy workflow unchanged |
+| Per-repo Variables | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` only | Same three OIDC vars deploy/preview already use |
+
+Git commit author for release commits is resolved at runtime from the PAT (`GET /user`) — no extra repo Variables.
+
+Per-app vault `ssd-pocpk-kv-dev-ae` holds **runtime** secrets only (DB, auth, SWA deploy tokens for that app, etc.). Do **not** store `github-automation-pat` there.
+
+**Consumers today:** `release.yml` (version bumps + tags on `main`). **Future:** changelog sync, dependency bots, any job that must push through a ruleset bypass — copy the same OIDC → devtools KV pattern.
+
+#### One-time org setup (once)
+
+1. **Machine user** — e.g. `singleton-sd-automation`. Invite to the org; grant **Write** or **Maintain** on each repo that uses this pattern.
+2. **Fine-grained PAT** (machine user → **Developer settings → Fine-grained tokens**):
+
+   | Field | Value |
+   | --- | --- |
+   | **Token name** | `platform-automation` |
+   | **Description** | See block below |
+   | Resource owner | `singleton-sd` |
+   | Repository access | **All repositories** the automation should touch (org-wide), or an explicit multi-repo list |
+
+   **Repository permissions (minimum — nothing else required for release):**
+
+   | Permission | Access | Why |
+   | --- | --- | --- |
+   | **Contents** | Read and write | Push release commits and tags to `main` |
+   | **Metadata** | Read | Required by GitHub; used to resolve PAT owner via API |
+
+   Do **not** grant Admin, Actions, or Pull requests unless a future workflow needs them.
+
+   **Description** (paste into GitHub when creating the token):
+
+   ```text
+   Singleton SD platform automation — org-wide PAT for trusted GitHub Actions workflows that push to protected default branches (release versioning, tags, changelog/sync bots) across singleton-sd repositories. Loaded at runtime via Azure OIDC → Key Vault ssd-devtools-kv-prod-ae secret github-automation-pat; not stored as a GitHub Secret or in per-app Key Vaults. PAT owner must be on each target repository ruleset bypass list. Rotate on compromise or annually; update devtools Key Vault only.
+   ```
+
+3. **Key Vault** — store the PAT in **devtools** vault (never commit; never per-app vault):
+
+   ```powershell
+   az keyvault secret set `
+     --subscription 01c0bb8b-3770-4765-979a-cb13ae7e3dd2 `
+     --vault-name ssd-devtools-kv-prod-ae `
+     --name github-automation-pat `
+     --value '<fine-grained-pat>'
+   ```
+
+4. **Entra RBAC** — grant the GitHub Actions OIDC service principal (`ssd-pocpk-gha-oidc-dev` or your repo’s OIDC app) **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (cross-subscription; same tenant). Repeat for each repo’s OIDC SP if they differ.
+
+5. **Ruleset bypass (per repo)** — **Settings → Rules → Rulesets** → default-branch ruleset → **Bypass list → Add bypass** → select the machine **user** → **Always bypass**.
+
+#### Per-repository setup (copy-paste checklist)
+
+1. Copy `release.yml` (or the PAT-read steps) **unchanged** — org constants are in the workflow `env` block.
+2. Ensure repo **Variables** exist: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (same as deploy/preview).
+3. Grant this repo’s OIDC service principal **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae`.
+4. Add machine user to default-branch **ruleset bypass** (**Always bypass**).
+5. **Verify** — human push to `main` rejected; **Release** can push and tag.
+
+Without PAT + user bypass, automation fails with `GH013: Changes must be made through a pull request`.
+
 ### Branch naming (agents + optional GitHub rules)
 
 **Convention (primary - agents follow the "GitHub-native engineering workflow" section of `AGENTS.md`):**
@@ -183,6 +251,8 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 
 **Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`, `chromatic-project-token`
 
+**Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): `github-automation-pat` (org-wide platform automation PAT). See **Platform GitHub automation PAT** above.
+
 **Entra / Auth.js (App Config -> Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` -> `AUTH_SECRET`, `secret:azure-ad-client-secret` -> `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
 
 **Telemetry:** shared App Insights + LAW - see [`docs/telemetry.md`](docs/telemetry.md) / ClickUp Architecture Doc.
@@ -193,9 +263,9 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 | --- | --- |
 | `AZURE_CLIENT_ID` | OIDC app registration application (client) ID |
 | `AZURE_TENANT_ID` | Entra tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID (app resources; OIDC login default) |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (marketing SWA preview), **Contributor** on RG (ACA API + web preview deploy), **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (`deploy-api.yml`), **Key Vault Secrets User**, **App Configuration Data Reader**. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (marketing SWA preview), **Contributor** on RG (ACA API + web preview deploy), **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (`deploy-api.yml`), **Key Vault Secrets User** on `ssd-pocpk-kv-dev-ae` (app runtime), **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (org CI secrets — cross-subscription), **App Configuration Data Reader**. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 

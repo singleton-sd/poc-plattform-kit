@@ -1,5 +1,9 @@
 # Path-aware release-it: bump workspace package versions on main.
 # Skips when the push is already a release commit (avoids loops).
+# Git push uses the org-wide platform automation PAT from devtools Key Vault
+# (OIDC). Vault: ssd-devtools-kv-prod-ae / secret github-automation-pat.
+# Same vault + secret name across all singleton-sd repos — see SETUP.md.
+# PAT owner must be on the main ruleset bypass list (User, Always bypass).
 # After a bump, explicitly dispatch the affected production deploy workflows —
 # GITHUB_TOKEN pushes do not trigger other workflows (GitHub recursion guard).
 name: Release
@@ -12,6 +16,12 @@ concurrency:
   group: release-main
   cancel-in-progress: false
 
+env:
+  # Org-locked singleton-sd constants — copy release.yml unchanged into other repos.
+  SSD_OPS_KEY_VAULT_NAME: ssd-devtools-kv-prod-ae
+  SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: 01c0bb8b-3770-4765-979a-cb13ae7e3dd2
+  SSD_GITHUB_AUTOMATION_PAT_SECRET: github-automation-pat
+
 jobs:
   release:
     if: "${{ !startsWith(github.event.head_commit.message, 'chore: Release') }}"
@@ -21,13 +31,62 @@ jobs:
     env:
       DATABASE_URL: 'sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true'
     permissions:
-      contents: write
+      contents: read
+      id-token: write
       actions: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Require Azure OIDC Variables
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Variable $name. Release requires OIDC — see SETUP.md."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Stage platform automation PAT from devtools Key Vault
+        id: automation_pat
+        run: |
+          set -euo pipefail
+          pat=$(az keyvault secret show \
+            --subscription "$SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID" \
+            --vault-name "$SSD_OPS_KEY_VAULT_NAME" \
+            --name "$SSD_GITHUB_AUTOMATION_PAT_SECRET" \
+            --query value -o tsv)
+          if [ -z "$pat" ]; then
+            echo "::error::Key Vault secret $SSD_GITHUB_AUTOMATION_PAT_SECRET in $SSD_OPS_KEY_VAULT_NAME is empty. Follow SETUP.md."
+            exit 1
+          fi
+          echo "::add-mask::$pat"
+          pat_file="$RUNNER_TEMP/github-automation-pat"
+          printf '%s' "$pat" > "$pat_file"
+          chmod 600 "$pat_file"
+          echo "pat_file=$pat_file" >> "$GITHUB_OUTPUT"
+        env:
+          SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: ${{ env.SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID }}
+          SSD_OPS_KEY_VAULT_NAME: ${{ env.SSD_OPS_KEY_VAULT_NAME }}
+          SSD_GITHUB_AUTOMATION_PAT_SECRET: ${{ env.SSD_GITHUB_AUTOMATION_PAT_SECRET }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -41,16 +100,33 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Configure git identity
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Release changed packages
         id: release
         run: |
           set -euo pipefail
+          pat_file="${{ steps.automation_pat.outputs.pat_file }}"
+          origin_url="https://github.com/${{ github.repository }}.git"
+          cleanup() {
+            git remote set-url origin "$origin_url"
+            rm -f "$pat_file"
+          }
+          trap cleanup EXIT
+
+          pat=$(<"$pat_file")
+          user_json=$(curl -sf \
+            -H "Authorization: bearer $pat" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/user)
+          login=$(echo "$user_json" | jq -r '.login')
+          user_id=$(echo "$user_json" | jq -r '.id')
+          if [ -z "$login" ] || [ "$login" = null ] || [ -z "$user_id" ] || [ "$user_id" = null ]; then
+            echo "::error::Could not resolve platform automation user from PAT (check token Metadata + Contents permissions)."
+            exit 1
+          fi
+          git config user.name "$login"
+          git config user.email "${user_id}+${login}@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${pat}@github.com/${{ github.repository }}.git"
           tmp=$(mktemp)
           set +e
           pnpm release:ci 2>&1 | tee "$tmp"
@@ -65,46 +141,47 @@ jobs:
           fi
           if grep -q 'Release commit and tags pushed' "$tmp"; then
             echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "::error::Unexpected release:ci output (no release push and not empty)."
           exit 1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Dispatch production deploys
         if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
         run: |
           set -euo pipefail
-          # release:ci committed + pushed to origin/main from this working tree.
-          # gh workflow run --ref must be a branch or tag name (not a raw SHA).
-          git fetch origin main
-          HEAD_SHA=$(git rev-parse HEAD)
-          MAIN_SHA=$(git rev-parse origin/main)
-          if [ "$HEAD_SHA" != "$MAIN_SHA" ]; then
-            echo "::error::Local HEAD ($HEAD_SHA) does not match origin/main ($MAIN_SHA) after release push."
+          if [ -z "$RELEASE_SHA" ]; then
+            echo "::error::Missing release_sha output from release step."
             exit 1
           fi
-          mapfile -t files < <(git show --name-only --pretty=format: "$HEAD_SHA")
-          echo "Release commit $HEAD_SHA on main — files:"
+          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          MAIN_SHA=$(git rev-parse origin/main)
+          if [ "$RELEASE_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Release SHA ($RELEASE_SHA) does not match origin/main ($MAIN_SHA) after release push."
+            exit 1
+          fi
+          mapfile -t files < <(git show --name-only --pretty=format: "$RELEASE_SHA")
+          echo "Release commit $RELEASE_SHA on main — files:"
           printf '%s\n' "${files[@]}"
           dispatch=false
           for f in "${files[@]}"; do
             if [ "$f" = 'apps/api/package.json' ]; then
-              echo "Dispatching deploy-api.yml @ main ($HEAD_SHA)"
-              gh workflow run deploy-api.yml --ref main
+              echo "Dispatching deploy-api.yml @ $RELEASE_SHA"
+              gh workflow run deploy-api.yml --ref main -f release_sha="$RELEASE_SHA"
               dispatch=true
             fi
             if [ "$f" = 'apps/web/package.json' ]; then
-              echo "Dispatching deploy-web.yml @ main ($HEAD_SHA)"
-              gh workflow run deploy-web.yml --ref main
+              echo "Dispatching deploy-web.yml @ $RELEASE_SHA"
+              gh workflow run deploy-web.yml --ref main -f release_sha="$RELEASE_SHA"
               dispatch=true
             fi
             if [ "$f" = 'apps/marketing/package.json' ]; then
-              echo "Dispatching deploy-marketing.yml @ main ($HEAD_SHA)"
-              gh workflow run deploy-marketing.yml --ref main
+              echo "Dispatching deploy-marketing.yml @ $RELEASE_SHA"
+              gh workflow run deploy-marketing.yml --ref main -f release_sha="$RELEASE_SHA"
               dispatch=true
             fi
           done
