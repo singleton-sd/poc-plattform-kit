@@ -105,7 +105,14 @@ jobs:
         run: |
           set -euo pipefail
           pat_file="${{ steps.automation_pat.outputs.pat_file }}"
-          pat=$(cat "$pat_file")
+          origin_url="https://github.com/${{ github.repository }}.git"
+          cleanup() {
+            git remote set-url origin "$origin_url"
+            rm -f "$pat_file"
+          }
+          trap cleanup EXIT
+
+          pat=$(<"$pat_file")
           user_json=$(curl -sf \
             -H "Authorization: bearer $pat" \
             -H "Accept: application/vnd.github+json" \
@@ -119,13 +126,7 @@ jobs:
           fi
           git config user.name "$login"
           git config user.email "${user_id}+${login}@users.noreply.github.com"
-          origin_url="https://github.com/${{ github.repository }}.git"
           git remote set-url origin "https://x-access-token:${pat}@github.com/${{ github.repository }}.git"
-          cleanup() {
-            git remote set-url origin "$origin_url"
-            rm -f "$pat_file"
-          }
-          trap cleanup EXIT
           tmp=$(mktemp)
           set +e
           pnpm release:ci 2>&1 | tee "$tmp"
