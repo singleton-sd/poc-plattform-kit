@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-22
+
+- **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.22.0` → `0.23.0` (minor)
+- **[@poc-plattform-kit/marketing](apps/marketing/CHANGELOG.md)** `0.7.0` → `0.8.0` (minor)
+- **@poc-plattform-kit/marketing-oauth** `0.2.1` → `0.3.0` (minor)
+- **[@poc-plattform-kit/web](apps/web/CHANGELOG.md)** `0.15.0` → `0.16.0` (minor)
+- **@poc-plattform-kit/api-client** `0.12.0` → `0.13.0` (minor)
+- **@poc-plattform-kit/db** `0.1.1` → `0.2.0` (minor)
+- **@poc-plattform-kit/dto-map** `0.1.0` → `0.2.0` (minor)
+- **@poc-plattform-kit/email** `0.1.0` → `0.2.0` (minor)
+- **@poc-plattform-kit/events** `0.3.0` → `0.4.0` (minor)
+- **@poc-plattform-kit/forms** `0.5.0` → `0.6.0` (minor)
+- **@poc-plattform-kit/pillar-notifications** `0.2.0` → `0.3.0` (minor)
+- **@poc-plattform-kit/pillar-permissions** `0.5.0` → `0.6.0` (minor)
+- **@poc-plattform-kit/pillar-single-sign-on** `0.3.0` → `0.4.0` (minor)
+- **@poc-plattform-kit/pillar-tenant** `0.6.0` → `0.7.0` (minor)
 ## 2026-08-08
 
 - **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.21.0` → `0.22.0` (minor)

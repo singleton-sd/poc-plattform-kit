@@ -2,6 +2,54 @@
 
 Release history for **@poc-plattform-kit/marketing**, generated from conventional commits by the release-it workflow.
 
+## 0.8.0 — 2026-08-22
+
+### New
+
+- Contact on marketing-edge Function
+
+  Brochure Contact posts to Function App /contact via Forward
+
+- Polish marketing Privacy and Terms templates
+
+  Align legal pages with the Figma long-form layout: hero band,
+
+- Add marketing About page template
+
+  Compose the Figma About route with mission split, platform
+
+- Add marketing Contact page template
+
+  Compose the Figma Contact route with validated form UI, reach-us
+
+- Add marketing Pricing page template
+
+  Ship Figma pricing tiers, billing toggle, and comparison table.
+
+- Add marketing Features page template
+
+  Compose the Figma Home landing from shared shell components
+
+- Backfill changelog history
+
+- Add marketing Home page template
+
+  Compose the Figma Home landing from shared shell components
+
+- Add project changelogs
+
+- Add marketing shared shell and components
+
+  Reusable Astro shell (header/nav, footer, page container) and
+
+- Add client changelogs
+
+### Fixed
+
+- #213 Migrate marketing tokens to npm
+
+  Consume @singleton-sd/tokens instead of the CDN so the --ssd-* 1.3 contract resolves on the marketing site.
+
 ## 0.7.0 — 2026-08-08
 
 ### New

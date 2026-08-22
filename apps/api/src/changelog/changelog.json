@@ -2,6 +2,299 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.23.0",
+      "date": "2026-08-22",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "add BIMI brand identity to transactional email",
+          "reason": "Host and wire a BIMI logo + selector for provider-supported transactional branding."
+        },
+        {
+          "type": "New",
+          "summary": "add multi-PoC Forward Email sender profiles",
+          "reason": "Support tenant and host-based contact sender overrides while keeping forwardemail.net as the delivery provider, including config mapping, validation, tests, and documentation for multi-PoC rollout."
+        },
+        {
+          "type": "New",
+          "summary": "harden transactional email domain authentication",
+          "reason": "Externalize sender-domain DMARC/SPF/DKIM settings and remove deployment-specific defaults from shared email runtime logic. Add sender-domain alignment validation, DMARC aggregate reporting configuration guidance, and provisioning support for enforced DMARC policy."
+        },
+        {
+          "type": "New",
+          "summary": "add automated email domain branding validator",
+          "reason": "Add a reusable domain-agnostic validation command that checks SPF, DKIM, DMARC, BIMI DNS, BIMI logo reachability, and BIMI SVG structure with actionable failures for deployment gates."
+        },
+        {
+          "type": "New",
+          "summary": "214 Add role assignment commands"
+        },
+        {
+          "type": "New",
+          "summary": "198 Allow CORS from ACA web previews"
+        },
+        {
+          "type": "New",
+          "summary": "Show field errors after blur",
+          "reason": "Give hosts a per-field touched signal and a form-level"
+        },
+        {
+          "type": "New",
+          "summary": "Add tenant group principals"
+        },
+        {
+          "type": "New",
+          "summary": "Add tenant access reads"
+        },
+        {
+          "type": "New",
+          "summary": "Add live character counter to TextControl",
+          "reason": "Show used/maxLength when schema.maxLength is set and wire it into aria-describedby with the error id."
+        },
+        {
+          "type": "New",
+          "summary": "Expose tenant memberships on me"
+        },
+        {
+          "type": "New",
+          "summary": "Persist SSO user on sign-in"
+        },
+        {
+          "type": "New",
+          "summary": "Extract @poc-plattform-kit/email package",
+          "reason": "Move EmailProvider + contact helpers out of the Notifications"
+        },
+        {
+          "type": "New",
+          "summary": "Add frontend permission gating",
+          "reason": "Wire usePermission/PermissionGate with Request Access CTA on"
+        },
+        {
+          "type": "New",
+          "summary": "Contact on marketing-edge Function",
+          "reason": "Brochure Contact posts to Function App /contact via Forward"
+        },
+        {
+          "type": "New",
+          "summary": "Access Request workflow",
+          "reason": "Prisma AccessRequest + PermissionsAudit, approve/deny APIs that call Grant, and outbox events for Notifications."
+        },
+        {
+          "type": "New",
+          "summary": "Add Forward Email foundation",
+          "reason": "Provider-independent EmailProvider with Forward Email HTTP and"
+        },
+        {
+          "type": "New",
+          "summary": "Permission catalog automation + drift check",
+          "reason": "Manifest-driven route mappings for PermissionsGuard, register script for"
+        },
+        {
+          "type": "New",
+          "summary": "Add permissions grant/revoke API",
+          "reason": "Expose permanent, temporary (not_yet_expired), and one-time grants"
+        },
+        {
+          "type": "New",
+          "summary": "Backfill changelog history"
+        },
+        {
+          "type": "New",
+          "summary": "deploy seeded SQLite databases in API PR previews",
+          "reason": "[repo=singleton-sd/poc-plattform-kit] [clickup=86d3zgyzt]"
+        },
+        {
+          "type": "New",
+          "summary": "Add POST /tenants/self-service and fix onboarding follow-through",
+          "reason": "only by the global session/JWT APP_GUARD (no @Roles) so any authenticated"
+        },
+        {
+          "type": "New",
+          "summary": "add deterministic composable preview seed scenarios",
+          "reason": "[repo=singleton-sd/poc-plattform-kit] [clickup=86d3zgyzp]"
+        },
+        {
+          "type": "New",
+          "summary": "generate a SQLite Prisma client and template for API preview images",
+          "reason": "[repo=singleton-sd/poc-plattform-kit] [clickup=86d3zgyzm]"
+        },
+        {
+          "type": "New",
+          "summary": "Add project changelogs"
+        },
+        {
+          "type": "New",
+          "summary": "tenant invitations data model + create/list/revoke API",
+          "reason": "Adds TenantInvitation Prisma model (forward-only migration) plus"
+        },
+        {
+          "type": "New",
+          "summary": "Add client changelogs"
+        },
+        {
+          "type": "New",
+          "summary": "Provision OpenFGA server",
+          "reason": "Add ACA + Azure Files SQLite (beta), Entra OIDC bootstrap, tenant"
+        },
+        {
+          "type": "New",
+          "summary": "Add tenant membership + auto-assign creator as owner",
+          "reason": "Foundation ticket for the tenant-invitations epic:"
+        },
+        {
+          "type": "Fixed",
+          "summary": "distinguish host DNS failures and cancel oversize reads",
+          "reason": "Return lookupFailed from host A/AAAA resolution so resolver errors are reported separately from empty results. Cancel the response body reader when the BIMI logo exceeds the size limit."
+        },
+        {
+          "type": "Fixed",
+          "summary": "fail SPF validation when record ends with +all"
+        },
+        {
+          "type": "Fixed",
+          "summary": "reject non-global BIMI logo destination addresses",
+          "reason": "Extend destination classification to block IPv4-compatible loopback, RFC5737 documentation nets, IPv6 2001:db8::/32, and IPv4 multicast ranges."
+        },
+        {
+          "type": "Fixed",
+          "summary": "surface DNS resolver failures separately from missing records"
+        },
+        {
+          "type": "Fixed",
+          "summary": "address PR #267 review on undici engine pin and fetch cleanup",
+          "reason": "Pin email package Node to >=20.18.1 for undici 7.x, destroy pinned dispatchers in finally, reject unspecified/multicast IPv6, and assert fetch redirect/timeout safeguards in tests."
+        },
+        {
+          "type": "Fixed",
+          "summary": "harden BIMI logo fetch against DNS rebinding and IPv6 SSRF"
+        },
+        {
+          "type": "Fixed",
+          "summary": "address PR #267 review feedback on domain validator"
+        },
+        {
+          "type": "Fixed",
+          "summary": "merge main into #266 and align validator with auth profile",
+          "reason": "Reconcile with merged #264/#265 email auth and BIMI work. Resolve .env.example conflict, restrict expected DMARC policy to quarantine|reject, and default validation env fallbacks to EMAIL_DKIM_SELECTOR/EMAIL_DMARC_POLICY."
+        },
+        {
+          "type": "Fixed",
+          "summary": "reject empty DMARC rua comma segments and normalize rua output"
+        },
+        {
+          "type": "Fixed",
+          "summary": "address PR #268 review feedback and marketing-oauth CI",
+          "reason": "Remove duplicate EMAIL_SENDING_DOMAIN and sendingDomain App Config alias, tighten DMARC policy/rua validation, align host-profile tests with sending-domain checks, and validate aggregate report URIs in the provisioning script."
+        },
+        {
+          "type": "Fixed",
+          "summary": "merge main into #264 and reconcile auth profile with BIMI",
+          "reason": "Integrate merged BIMI/contact-profile work from main while preserving transactional email auth validation (DMARC, sending-domain alignment) in a dedicated transactional-email-auth-profile module."
+        },
+        {
+          "type": "Fixed",
+          "summary": "declare BIMI logo SVG response in OpenAPI",
+          "reason": "Document the /bimi/logo.svg 200 response as image/svg+xml and regenerate the api-client so the BIMI logo body is typed."
+        },
+        {
+          "type": "Fixed",
+          "summary": "commit OpenAPI client drift for BIMI logo endpoint",
+          "reason": "Regenerate openapi.json and api-client after adding the public /bimi/logo.svg route and Swagger tag."
+        },
+        {
+          "type": "Fixed",
+          "summary": "harden multi-PoC email profile validation and trust boundaries",
+          "reason": "Require EMAIL_ALLOW_PRODUCTION_SEND for explicit forward-email selection, reject malformed profile fields, validate profile overrides, and apply host overrides only from ORIGINS-allowlisted trusted hosts."
+        },
+        {
+          "type": "Fixed",
+          "summary": "address CodeRabbit BIMI and MIME review feedback",
+          "reason": "Tighten BIMI selector DNS label validation, require HTTPS evidence URLs, and fix quoted-printable encoding for astral Unicode with RFC-compliant soft line breaks."
+        },
+        {
+          "type": "Fixed",
+          "summary": "address BIMI review feedback on MIME and DNS helpers",
+          "reason": "Use quoted-printable for non-ASCII raw MIME parts and centralize BIMI Route53 record construction via shared TypeScript helpers consumed by the PowerShell provisioning script."
+        },
+        {
+          "type": "Fixed",
+          "summary": "consolidate PoC email profile helpers and cache host map",
+          "reason": "Share tenant settings.email parsing via @poc-plattform-kit/email and memoize CONTACT_EMAIL_PROFILES_BY_HOST JSON parsing for contact hot paths."
+        },
+        {
+          "type": "Fixed",
+          "summary": "build email package before openapi export",
+          "reason": "Ensure CI can resolve @poc-plattform-kit/email dist artifacts during API OpenAPI export."
+        },
+        {
+          "type": "Fixed",
+          "summary": "214 Harden role assignment commands"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Fix nullable group types"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Restrict permission mutation routes"
+        },
+        {
+          "type": "Fixed",
+          "summary": "mark respondedAt as required-but-nullable in invitation response",
+          "reason": "respondedAt is always present on TenantInvitationResponseDto (never"
+        },
+        {
+          "type": "Fixed",
+          "summary": "address Copilot feedback on tenant invitations",
+          "reason": "Set respondedAt when expiry-sweeping stale pending invites, align the"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address onboarding review",
+          "reason": "Stop preview workflows from migrating shared Azure SQL. Enforce the"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address Copilot review comments",
+          "reason": "Scope pending-create idempotency by tenant, validate mine query"
+        },
+        {
+          "type": "Fixed",
+          "summary": "remove aria-required from fieldset in ArrayControlRenderer (invalid ARIA on group role)"
+        },
+        {
+          "type": "Fixed",
+          "summary": "address remaining human review feedback on preview scenario tooling",
+          "reason": "Merged in patoperpetua-review-pr-117 (workflow paths filter, docs example,"
+        },
+        {
+          "type": "Fixed",
+          "summary": "address Codex review findings on preview scenario tooling",
+          "reason": "declaration line, so the PR template's own instructional example"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Drop native required, keep aria-required only",
+          "reason": "Native required on text/select/date inputs makes the browser run"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Add required/aria-required to shared field renderers",
+          "reason": "Text, select, date, and array field renderers in packages/forms only"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Close invitation race conditions from Codex review",
+          "reason": "Addresses three P2 findings on TenantInvitationService:"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Update test fixture for AuthenticatedUser.roles rename",
+          "reason": "main renamed AuthenticatedUser.role (singular) to roles: string[]"
+        }
+      ]
+    },
+    {
       "version": "0.22.0",
       "date": "2026-08-08",
       "changes": [
