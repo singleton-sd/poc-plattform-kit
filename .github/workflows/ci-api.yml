@@ -102,8 +102,10 @@ jobs:
         run: |
           pnpm --filter @poc-plattform-kit/api... run test
           pnpm --filter "./pillars/**" run test
+          pnpm --filter "./packages/**" run test
 
       - name: Build (api + pillars + packages)
         run: |
           pnpm --filter @poc-plattform-kit/api... run build
           pnpm --filter "./pillars/**" run build
+          pnpm --filter "./packages/**" run build

@@ -93,9 +93,11 @@ jobs:
           pnpm --filter @poc-plattform-kit/web run build-storybook
           pnpm --filter @poc-plattform-kit/marketing... run build
           pnpm --filter @poc-plattform-kit/marketing-oauth... run build
+          pnpm --filter "./packages/**" run build
 
       - name: Test (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run test
           pnpm --filter @poc-plattform-kit/marketing... run test
           pnpm --filter @poc-plattform-kit/marketing-oauth... run test
+          pnpm --filter "./packages/**" run test

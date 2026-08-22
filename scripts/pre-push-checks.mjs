@@ -58,7 +58,10 @@ export function resolveDiffRange(localSha, remoteSha, runGit) {
 }
 
 export function changedFilesForPushRef(ref, runGit) {
-  if (!ref.localRef.startsWith('refs/heads/')) {
+  if (ref.localSha === ZERO_SHA) {
+    return [];
+  }
+  if (!ref.remoteRef.startsWith('refs/heads/')) {
     return [];
   }
   const range = resolveDiffRange(ref.localSha, ref.remoteSha, runGit);
@@ -132,36 +135,37 @@ export const sharedChecks = [
     'pnpm changelog:test && pnpm changelog:check && pnpm test:worktree-paths',
     'Changelog drift check',
   ],
+  ['pnpm exec eslint .', 'ESLint (repo root)'],
 ];
 
 export const apiChecks = [
   ['pnpm openapi:check', 'OpenAPI client drift check'],
   ['pnpm permissions:check', 'Permissions catalog drift check'],
   [
-    'pnpm --filter @poc-plattform-kit/api... run lint && pnpm --filter "./pillars/**" run lint && pnpm exec eslint .',
+    'pnpm --filter @poc-plattform-kit/api... run lint && pnpm --filter "./pillars/**" run lint',
     'Lint (api + pillars + packages)',
   ],
   [
-    'pnpm --filter @poc-plattform-kit/api... run test && pnpm --filter "./pillars/**" run test',
+    'pnpm --filter @poc-plattform-kit/api... run test && pnpm --filter "./pillars/**" run test && pnpm --filter "./packages/**" run test',
     'Test (api + pillars + packages)',
   ],
   [
-    'pnpm --filter @poc-plattform-kit/api... run build && pnpm --filter "./pillars/**" run build',
+    'pnpm --filter @poc-plattform-kit/api... run build && pnpm --filter "./pillars/**" run build && pnpm --filter "./packages/**" run build',
     'Build (api + pillars + packages)',
   ],
 ];
 
 export const webChecks = [
   [
-    'pnpm --filter @poc-plattform-kit/web... run lint && pnpm --filter @poc-plattform-kit/marketing... run lint && pnpm --filter @poc-plattform-kit/marketing-oauth... run lint && pnpm exec eslint .',
+    'pnpm --filter @poc-plattform-kit/web... run lint && pnpm --filter @poc-plattform-kit/marketing... run lint && pnpm --filter @poc-plattform-kit/marketing-oauth... run lint',
     'Lint (web + marketing + packages)',
   ],
   [
-    'pnpm --filter @poc-plattform-kit/web... run build && pnpm --filter @poc-plattform-kit/web run build-storybook && pnpm --filter @poc-plattform-kit/marketing... run build && pnpm --filter @poc-plattform-kit/marketing-oauth... run build',
+    'pnpm --filter @poc-plattform-kit/web... run build && pnpm --filter @poc-plattform-kit/web run build-storybook && pnpm --filter @poc-plattform-kit/marketing... run build && pnpm --filter @poc-plattform-kit/marketing-oauth... run build && pnpm --filter "./packages/**" run build',
     'Build (web + marketing + packages)',
   ],
   [
-    'pnpm --filter @poc-plattform-kit/web... run test && pnpm --filter @poc-plattform-kit/marketing... run test && pnpm --filter @poc-plattform-kit/marketing-oauth... run test',
+    'pnpm --filter @poc-plattform-kit/web... run test && pnpm --filter @poc-plattform-kit/marketing... run test && pnpm --filter @poc-plattform-kit/marketing-oauth... run test && pnpm --filter "./packages/**" run test',
     'Test (web + marketing + packages)',
   ],
 ];
