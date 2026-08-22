@@ -84,6 +84,28 @@ describe('validateEmailDomainBranding', () => {
     assert.ok(report.errors.some((error) => error.includes('BIMI TXT record')));
   });
 
+  it('reports DNS resolver failures distinctly from missing TXT records', async () => {
+    const report = await validateEmailDomainBranding(config, {
+      dnsResolveTxt: async () => {
+        throw new Error('SERVFAIL');
+      },
+      dnsLookupHost: async () => ['93.184.216.34'],
+      fetchImpl: async () => new Response(validSvg, { status: 200 }),
+    });
+
+    assert.equal(report.ok, false);
+    assert.ok(
+      report.errors.some((error) => error.includes('DNS lookup failed for mail.example.com')),
+    );
+    assert.ok(
+      report.errors.every(
+        (error) =>
+          !error.startsWith('No SPF TXT record found') &&
+          !error.startsWith('No DKIM TXT record found'),
+      ),
+    );
+  });
+
   it('fails on DMARC policy mismatch and BIMI logo URL mismatch', async () => {
     const report = await validateEmailDomainBranding(
       config,

@@ -79,35 +79,41 @@ export async function validateEmailDomainBranding(
   const bimiSelector = (config.bimiSelector ?? DEFAULT_BIMI_SELECTOR).trim().toLowerCase();
   const bimiName = `${bimiSelector}._bimi.${domain}`;
 
-  const spfRecords = await lookupTxtRecords(dns, domain);
-  const spfMatches = spfRecords.filter((record) => /^v=spf1\b/i.test(record));
-  if (spfMatches.length === 0) {
-    pushFail(
-      checks,
-      errors,
-      'spf',
-      `No SPF TXT record found on ${domain}. Add a TXT record like "v=spf1 include:spf.forwardemail.net -all".`,
-    );
-  } else if (spfMatches.length > 1) {
-    pushFail(
-      checks,
-      errors,
-      'spf',
-      `Multiple SPF TXT records found on ${domain} (${spfMatches.length}). SPF permits exactly one record.`,
-    );
-  } else if (!/\s(?:-all|~all|\+all|\?all)\s*$/i.test(spfMatches[0])) {
-    pushWarn(
-      checks,
-      warnings,
-      'spf',
-      `SPF record on ${domain} does not end with an explicit all-mechanism (-all/~all/?all/+all): ${spfMatches[0]}`,
-    );
+  const spfLookup = await lookupTxtRecords(dns, domain);
+  if (spfLookup.lookupFailed) {
+    pushFail(checks, errors, 'spf', dnsLookupFailureMessage(domain));
   } else {
-    pushPass(checks, 'spf', `SPF TXT record found on ${domain}.`);
+    const spfMatches = spfLookup.records.filter((record) => /^v=spf1\b/i.test(record));
+    if (spfMatches.length === 0) {
+      pushFail(
+        checks,
+        errors,
+        'spf',
+        `No SPF TXT record found on ${domain}. Add a TXT record like "v=spf1 include:spf.forwardemail.net -all".`,
+      );
+    } else if (spfMatches.length > 1) {
+      pushFail(
+        checks,
+        errors,
+        'spf',
+        `Multiple SPF TXT records found on ${domain} (${spfMatches.length}). SPF permits exactly one record.`,
+      );
+    } else if (!/\s(?:-all|~all|\+all|\?all)\s*$/i.test(spfMatches[0])) {
+      pushWarn(
+        checks,
+        warnings,
+        'spf',
+        `SPF record on ${domain} does not end with an explicit all-mechanism (-all/~all/?all/+all): ${spfMatches[0]}`,
+      );
+    } else {
+      pushPass(checks, 'spf', `SPF TXT record found on ${domain}.`);
+    }
   }
 
-  const dkimRecords = await lookupTxtRecords(dns, dkimName);
-  if (!dkimRecords.some((record) => /v=dkim1/i.test(record))) {
+  const dkimLookup = await lookupTxtRecords(dns, dkimName);
+  if (dkimLookup.lookupFailed) {
+    pushFail(checks, errors, 'dkim', dnsLookupFailureMessage(dkimName));
+  } else if (!dkimLookup.records.some((record) => /v=dkim1/i.test(record))) {
     pushFail(
       checks,
       errors,
@@ -118,74 +124,82 @@ export async function validateEmailDomainBranding(
     pushPass(checks, 'dkim', `DKIM TXT record found on ${dkimName}.`);
   }
 
-  const dmarcRecords = await lookupTxtRecords(dns, dmarcName);
-  const dmarc = dmarcRecords.find((record) => /^v=dmarc1\b/i.test(record));
-  if (!dmarc) {
-    pushFail(
-      checks,
-      errors,
-      'dmarc',
-      `No DMARC TXT record found on ${dmarcName}. Add a record with "v=DMARC1; p=${config.expectedDmarcPolicy}; ...".`,
-    );
+  const dmarcLookup = await lookupTxtRecords(dns, dmarcName);
+  if (dmarcLookup.lookupFailed) {
+    pushFail(checks, errors, 'dmarc', dnsLookupFailureMessage(dmarcName));
   } else {
-    const policyMatch = dmarc.match(/(?:^|;)\s*p\s*=\s*([a-z]+)/i)?.[1]?.toLowerCase();
-    const pct = parseDmarcPct(dmarc);
-    if (pct === 'invalid') {
+    const dmarc = dmarcLookup.records.find((record) => /^v=dmarc1\b/i.test(record));
+    if (!dmarc) {
       pushFail(
         checks,
         errors,
         'dmarc',
-        `DMARC pct tag is malformed on ${dmarcName}. Use an integer from 0 to 100, or omit pct for full enforcement.`,
-      );
-    } else if (policyMatch !== config.expectedDmarcPolicy) {
-      pushFail(
-        checks,
-        errors,
-        'dmarc',
-        `DMARC policy mismatch on ${dmarcName}: expected p=${config.expectedDmarcPolicy}, got p=${policyMatch ?? 'missing'}.`,
-      );
-    } else if (pct !== null && pct !== 100) {
-      pushFail(
-        checks,
-        errors,
-        'dmarc',
-        `DMARC pct=${pct} on ${dmarcName} does not enforce the full policy. Use pct=100 or omit pct.`,
+        `No DMARC TXT record found on ${dmarcName}. Add a record with "v=DMARC1; p=${config.expectedDmarcPolicy}; ...".`,
       );
     } else {
-      pushPass(checks, 'dmarc', `DMARC TXT record found with p=${config.expectedDmarcPolicy}.`);
+      const policyMatch = dmarc.match(/(?:^|;)\s*p\s*=\s*([a-z]+)/i)?.[1]?.toLowerCase();
+      const pct = parseDmarcPct(dmarc);
+      if (pct === 'invalid') {
+        pushFail(
+          checks,
+          errors,
+          'dmarc',
+          `DMARC pct tag is malformed on ${dmarcName}. Use an integer from 0 to 100, or omit pct for full enforcement.`,
+        );
+      } else if (policyMatch !== config.expectedDmarcPolicy) {
+        pushFail(
+          checks,
+          errors,
+          'dmarc',
+          `DMARC policy mismatch on ${dmarcName}: expected p=${config.expectedDmarcPolicy}, got p=${policyMatch ?? 'missing'}.`,
+        );
+      } else if (pct !== null && pct !== 100) {
+        pushFail(
+          checks,
+          errors,
+          'dmarc',
+          `DMARC pct=${pct} on ${dmarcName} does not enforce the full policy. Use pct=100 or omit pct.`,
+        );
+      } else {
+        pushPass(checks, 'dmarc', `DMARC TXT record found with p=${config.expectedDmarcPolicy}.`);
+      }
     }
   }
 
-  const bimiRecords = await lookupTxtRecords(dns, bimiName);
-  const bimi = bimiRecords.find((record) => /^v=bimi1\b/i.test(record));
+  const bimiLookup = await lookupTxtRecords(dns, bimiName);
   let bimiLogoUrl: string | null = null;
 
-  if (!bimi) {
-    pushFail(
-      checks,
-      errors,
-      'bimi-record',
-      `No BIMI TXT record found on ${bimiName}. Add a record like "v=BIMI1; l=https://.../logo.svg;".`,
-    );
+  if (bimiLookup.lookupFailed) {
+    pushFail(checks, errors, 'bimi-record', dnsLookupFailureMessage(bimiName));
   } else {
-    const parsed = parseBimiRecord(bimi);
-    bimiLogoUrl = parsed.locationUrl;
-    if (!parsed.locationUrl) {
+    const bimi = bimiLookup.records.find((record) => /^v=bimi1\b/i.test(record));
+    if (!bimi) {
       pushFail(
         checks,
         errors,
         'bimi-record',
-        `BIMI TXT record on ${bimiName} is missing the l= logo URL: ${bimi}`,
-      );
-    } else if (config.expectedBimiLogoUrl && parsed.locationUrl !== config.expectedBimiLogoUrl) {
-      pushFail(
-        checks,
-        errors,
-        'bimi-record',
-        `BIMI logo URL mismatch on ${bimiName}: expected ${config.expectedBimiLogoUrl}, got ${parsed.locationUrl}.`,
+        `No BIMI TXT record found on ${bimiName}. Add a record like "v=BIMI1; l=https://.../logo.svg;".`,
       );
     } else {
-      pushPass(checks, 'bimi-record', `BIMI TXT record found on ${bimiName}.`);
+      const parsed = parseBimiRecord(bimi);
+      bimiLogoUrl = parsed.locationUrl;
+      if (!parsed.locationUrl) {
+        pushFail(
+          checks,
+          errors,
+          'bimi-record',
+          `BIMI TXT record on ${bimiName} is missing the l= logo URL: ${bimi}`,
+        );
+      } else if (config.expectedBimiLogoUrl && parsed.locationUrl !== config.expectedBimiLogoUrl) {
+        pushFail(
+          checks,
+          errors,
+          'bimi-record',
+          `BIMI logo URL mismatch on ${bimiName}: expected ${config.expectedBimiLogoUrl}, got ${parsed.locationUrl}.`,
+        );
+      } else {
+        pushPass(checks, 'bimi-record', `BIMI TXT record found on ${bimiName}.`);
+      }
     }
   }
 
@@ -286,13 +300,20 @@ async function resolveTxtFlat(hostname: string): Promise<string[]> {
 async function lookupTxtRecords(
   dnsResolveTxt: (hostname: string) => Promise<string[]>,
   hostname: string,
-): Promise<string[]> {
+): Promise<{ records: string[]; lookupFailed: boolean }> {
   try {
     const values = await dnsResolveTxt(hostname);
-    return values.map((value) => value.trim()).filter(Boolean);
+    return {
+      records: values.map((value) => value.trim()).filter(Boolean),
+      lookupFailed: false,
+    };
   } catch {
-    return [];
+    return { records: [], lookupFailed: true };
   }
+}
+
+function dnsLookupFailureMessage(hostname: string): string {
+  return `DNS lookup failed for ${hostname}. Check resolver connectivity and retry; this is distinct from a missing TXT record.`;
 }
 
 function parseBimiRecord(value: string): ParsedBimiRecord {
