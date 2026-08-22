@@ -15,8 +15,7 @@
  *
  * Usage:
  *   node scripts/release-changed.mjs           # dry-run
- *   node scripts/release-changed.mjs --ci      # bump, commit, push release branch
- *   node scripts/release-changed.mjs --push-tags <sha> <tag> [tag...]
+ *   node scripts/release-changed.mjs --ci      # bump, commit, tag, push main
  */
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -27,10 +26,7 @@ import { CLIENT_CHANGELOG_TARGETS, updateClientChangelogs } from './client-chang
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
-const PUSH_TAGS = process.argv.includes('--push-tags');
 const RELEASE_SUBJECT = 'chore: Release package versions';
-/** Ephemeral branch; not protected by the main ruleset. Merged via PR in release.yml. */
-export const RELEASE_BRANCH = 'chore/release-package-versions';
 const API_PACKAGE = '@poc-plattform-kit/api';
 /** Paths refreshed when the API package version bumps (Swagger reads package.json). */
 const OPENAPI_CLIENT_PATHS = [
@@ -347,16 +343,15 @@ function syncToOriginMain() {
 }
 
 /**
- * Push the release commit to the ephemeral release branch (not main — branch
- * protection requires a PR). Retries after rebase when concurrent main updates
- * cause a non-fast-forward rejection.
- * @param {string} branch
+ * Push the release commit to main. Requires the main ruleset to bypass the
+ * GitHub Actions integration (actor_id 15368, bypass_mode always) — see
+ * SETUP.md. Retries after rebase when concurrent main updates cause rejection.
  */
-function pushReleaseBranch(branch = RELEASE_BRANCH) {
+function pushReleaseCommit() {
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      run('git', ['push', '-f', 'origin', `HEAD:${branch}`]);
+      run('git', ['push', 'origin', 'HEAD:main']);
       return;
     } catch (error) {
       if (attempt === maxAttempts) throw error;
@@ -370,36 +365,21 @@ function pushReleaseBranch(branch = RELEASE_BRANCH) {
 }
 
 /**
- * Create and push annotated tags at an on-main release commit SHA.
+ * Create and push annotated tags only after HEAD is on origin/main.
  * Never use `git push --follow-tags`: git can accept new tags while rejecting
- * a non-fast-forward branch update, leaving orphan tags that block later releases.
- * @param {string} commitSha
+ * a non-fast-forward main update, leaving orphan tags that block later releases.
  * @param {string[]} tags
  */
-function createAndPushTagsAt(commitSha, tags) {
+function createAndPushTags(tags) {
   for (const tag of tags) {
     if (tagExists(tag)) {
       run('git', ['tag', '-d', tag]);
     }
-    run('git', ['tag', '-a', tag, commitSha, '-m', tag]);
+    run('git', ['tag', '-a', tag, '-m', tag]);
   }
   if (tags.length > 0) {
     run('git', ['push', 'origin', ...tags]);
   }
-}
-
-/**
- * @param {string[]} argv
- */
-function pushTagsFromArgv(argv) {
-  const idx = argv.indexOf('--push-tags');
-  const commitSha = argv[idx + 1];
-  const tags = argv.slice(idx + 2).filter(Boolean);
-  if (!commitSha || tags.length === 0) {
-    throw new Error('usage: release-changed.mjs --push-tags <sha> <tag> [tag...]');
-  }
-  createAndPushTagsAt(commitSha, tags);
-  console.log('Release tags pushed.');
 }
 
 function main() {
@@ -455,7 +435,7 @@ function main() {
   }
 
   if (!CI) {
-    console.log('\nRe-run with --ci to bump, commit, and push the release branch.');
+    console.log('\nRe-run with --ci to bump, commit, tag, and push.');
     return;
   }
 
@@ -489,21 +469,13 @@ function main() {
     env: { ...process.env, HUSKY: '0' },
   });
 
-  const releaseSha = run('git', ['rev-parse', 'HEAD']);
-  const tags = releases.map((r) => r.tag);
-
-  // Commit first; tags land after release.yml merges the PR onto main.
-  pushReleaseBranch();
-  console.log(`Release commit: ${releaseSha}`);
-  console.log(`Release branch pushed: ${RELEASE_BRANCH}`);
-  console.log(`Release tags: ${tags.join(',')}`);
-  console.log('Release branch pushed (await PR merge and tag push).');
+  // Commit first, then tag. Tagging before a rebase-on-push-failure leaves
+  // tags pointing at a rewritten commit SHA.
+  pushReleaseCommit();
+  createAndPushTags(releases.map((r) => r.tag));
+  console.log('Release commit and tags pushed.');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  if (PUSH_TAGS) {
-    pushTagsFromArgv(process.argv);
-  } else {
-    main();
-  }
+  main();
 }

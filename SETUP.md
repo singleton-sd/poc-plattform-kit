@@ -20,6 +20,17 @@ This is a solo GitHub identity repo. GitHub forbids self-approve, so do not requ
 4. Block force pushes and deletions; disallow direct pushes to `main`.
 5. **Human merge only** - agents never merge or review other agents' work. Connected review bots leave PR comments; the human validates the test plan and merges.
 
+**Automated release bypass (required for `release.yml`):**
+
+`release.yml` pushes `chore: Release package versions` commits directly to `main`. Humans still merge feature PRs; only **GitHub Actions** may bypass the PR rule for that automation.
+
+1. Open **Settings → Rules → Rulesets** → the ruleset protecting `main` (currently **Rule**, id `20315359`).
+2. Under **Bypass list**, add **GitHub Actions** with mode **Always bypass**.
+   - API equivalent: integration `actor_id` **15368**, `actor_type` **Integration**, `bypass_mode` **always**.
+3. Save. Verify: a direct human push to `main` is still rejected; the next green **Release** workflow run can push.
+
+Without this bypass, Release fails with `GH013: Changes must be made through a pull request`. Do not route releases through a second PR + CI cycle — fix the bypass instead.
+
 ### Branch naming (agents + optional GitHub rules)
 
 **Convention (primary - agents follow the "GitHub-native engineering workflow" section of `AGENTS.md`):**

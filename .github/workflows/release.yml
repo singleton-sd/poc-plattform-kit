@@ -1,7 +1,8 @@
 # Path-aware release-it: bump workspace package versions on main.
 # Skips when the push is already a release commit (avoids loops).
-# Branch protection requires a PR — release:ci pushes chore/release-package-versions,
-# this workflow opens/merges that PR, pushes tags, then dispatches deploy workflows.
+# Requires GitHub Actions (integration 15368) on the main ruleset bypass list
+# with bypass_mode always — see SETUP.md. Then release:ci pushes main directly.
+# After a bump, explicitly dispatch the affected production deploy workflows —
 # GITHUB_TOKEN pushes do not trigger other workflows (GitHub recursion guard).
 name: Release
 
@@ -24,7 +25,6 @@ jobs:
     permissions:
       contents: write
       actions: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,73 +65,47 @@ jobs:
             echo "released=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if grep -q 'Release branch pushed:' "$tmp"; then
+          if grep -q 'Release commit and tags pushed' "$tmp"; then
             echo "released=true" >> "$GITHUB_OUTPUT"
-            echo "release_sha=$(grep '^Release commit: ' "$tmp" | tail -1 | awk '{print $3}')" >> "$GITHUB_OUTPUT"
-            echo "tags=$(grep '^Release tags: ' "$tmp" | tail -1 | sed 's/^Release tags: //')" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "::error::Unexpected release:ci output (no release branch push and not empty)."
+          echo "::error::Unexpected release:ci output (no release push and not empty)."
           exit 1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Merge release PR
-        if: steps.release.outputs.released == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_BRANCH: chore/release-package-versions
-        run: |
-          set -euo pipefail
-          git fetch origin "$RELEASE_BRANCH" main
-          pr=$(gh pr list --head "$RELEASE_BRANCH" --base main --state open --json number --jq '.[0].number // empty')
-          if [ -z "$pr" ]; then
-            pr=$(gh pr create --base main --head "$RELEASE_BRANCH" \
-              --title "chore: Release package versions" \
-              --body "Automated release from [\`release.yml\`](https://github.com/${{ github.repository }}/actions/workflows/release.yml).")
-          fi
-          echo "Waiting for required checks on PR #$pr..."
-          gh pr checks "$pr" --watch --fail-fast
-          gh pr merge "$pr" --merge --delete-branch
-          git fetch origin main --tags
-          git reset --hard origin/main
-
-      - name: Push release tags
-        if: steps.release.outputs.released == 'true'
-        env:
-          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
-          RELEASE_TAGS: ${{ steps.release.outputs.tags }}
-        run: |
-          set -euo pipefail
-          # shellcheck disable=SC2206
-          tags=(${RELEASE_TAGS//,/ })
-          node scripts/release-changed.mjs --push-tags "$RELEASE_SHA" "${tags[@]}"
 
       - name: Dispatch production deploys
         if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
         run: |
           set -euo pipefail
-          git fetch origin main --tags
-          echo "Release commit $RELEASE_SHA on main — files:"
-          mapfile -t files < <(git show --name-only --pretty=format: "$RELEASE_SHA")
+          # release:ci committed + pushed to origin/main from this working tree.
+          # gh workflow run --ref must be a branch or tag name (not a raw SHA).
+          git fetch origin main
+          HEAD_SHA=$(git rev-parse HEAD)
+          MAIN_SHA=$(git rev-parse origin/main)
+          if [ "$HEAD_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Local HEAD ($HEAD_SHA) does not match origin/main ($MAIN_SHA) after release push."
+            exit 1
+          fi
+          mapfile -t files < <(git show --name-only --pretty=format: "$HEAD_SHA")
+          echo "Release commit $HEAD_SHA on main — files:"
           printf '%s\n' "${files[@]}"
           dispatch=false
           for f in "${files[@]}"; do
             if [ "$f" = 'apps/api/package.json' ]; then
-              echo "Dispatching deploy-api.yml @ main ($RELEASE_SHA)"
+              echo "Dispatching deploy-api.yml @ main ($HEAD_SHA)"
               gh workflow run deploy-api.yml --ref main
               dispatch=true
             fi
             if [ "$f" = 'apps/web/package.json' ]; then
-              echo "Dispatching deploy-web.yml @ main ($RELEASE_SHA)"
+              echo "Dispatching deploy-web.yml @ main ($HEAD_SHA)"
               gh workflow run deploy-web.yml --ref main
               dispatch=true
             fi
             if [ "$f" = 'apps/marketing/package.json' ]; then
-              echo "Dispatching deploy-marketing.yml @ main ($RELEASE_SHA)"
+              echo "Dispatching deploy-marketing.yml @ main ($HEAD_SHA)"
               gh workflow run deploy-marketing.yml --ref main
               dispatch=true
             fi
