@@ -122,7 +122,7 @@ DTOs.
 | --- | --- | --- |
 | Web app | Next.js PWA SPA + Tailwind + Singleton SD design tokens | `apps/web`; consumes the generated API client |
 | Marketing | Astro SSG + Tailwind + tokens + Markdown + Decap CMS (`/admin`) | `apps/marketing`; see [`docs/marketing-astro-decap.md`](../marketing-astro-decap.md) |
-| Marketing edge | Azure Function App (public anonymous HTTP: Contact form, etc.) | `apps/marketing-oauth`; deliberately **not** on Nest `apps/api` — see [`docs/marketing-edge.md`](../marketing-edge.md) |
+| Marketing edge | Azure Function App (public anonymous HTTP: Contact form, etc.) | `apps/marketing-oauth`; deliberately **not** on Nest `apps/api` — see [`docs/marketing-edge.md`](../marketing-edge.md). Decap `/admin` GitHub login is shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit) (`https://auth.singletonsd.com`), not this Function. |
 
 ## Deployment topology
 

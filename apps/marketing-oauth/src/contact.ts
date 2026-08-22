@@ -5,7 +5,7 @@ import {
   validateContactInquiry,
   type EmailProvider,
 } from '@poc-plattform-kit/email';
-import { isAllowedOauthHostname, parseOrigins } from './login-script';
+import { isAllowedHostname, parseOrigins } from './origins';
 
 export {
   buildContactEmailRequest,
@@ -35,7 +35,7 @@ export function resolveTrustedContactHost(
 
   try {
     const host = new URL(requestOrigin).host;
-    return isAllowedOauthHostname(host, allowlist) ? host.toLowerCase() : null;
+    return isAllowedHostname(host, allowlist) ? host.toLowerCase() : null;
   } catch {
     return null;
   }
@@ -85,7 +85,7 @@ export async function submitContactInquiry(
   return { id: result.id, status: result.status };
 }
 
-/** CORS: reflect Origin when it matches the Decap ORIGINS allowlist. */
+/** CORS: reflect Origin when it matches the ORIGINS allowlist. */
 export function contactCorsHeaders(requestOrigin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -103,7 +103,7 @@ export function contactCorsHeaders(requestOrigin: string | null): Record<string,
 
   try {
     const host = new URL(requestOrigin).host;
-    if (isAllowedOauthHostname(host, allowlist)) {
+    if (isAllowedHostname(host, allowlist)) {
       headers['Access-Control-Allow-Origin'] = requestOrigin;
       headers.Vary = 'Origin';
     }

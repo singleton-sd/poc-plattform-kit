@@ -454,7 +454,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - DB: Azure SQL + Prisma `sqlserver`
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) - see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); SWA Free `ssd-pocpk-mkt-dev-ae`
-- **Marketing edge (locked):** public anonymous HTTP for the brochure site (Contact form, future marketing-only endpoints) runs on Azure Function App `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`, B1 `pocpk-plan`) - not on Nest `apps/api`. Stable client env: `PUBLIC_MARKETING_API_BASE_URL`. See [docs/marketing-edge.md](docs/marketing-edge.md). Split to a dedicated marketing API only when this host outgrows Decap OAuth + thin edge routes.
+- **Marketing edge (locked):** public anonymous HTTP for the brochure site (Contact form, future marketing-only endpoints) runs on Azure Function App `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`, B1 `pocpk-plan`) - not on Nest `apps/api`. Stable client env: `PUBLIC_MARKETING_API_BASE_URL` (this Function; do not point it at `https://auth.singletonsd.com`). Decap `/admin` GitHub login is the shared org service [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md) (`https://auth.singletonsd.com`) — see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md). See [docs/marketing-edge.md](docs/marketing-edge.md). Split to a dedicated marketing API only when this host outgrows Contact + thin edge routes.
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest -> committed `packages/api-client/openapi.json` -> Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` - public allowlist in `docs/sso.md`
@@ -477,6 +477,8 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 | Non-secret app settings + KV references | App Configuration `ssd-pocpk-appcs-dev-ae` |
 
 Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`, `chromatic-project-token`, `clickup-api-token`.
+
+`github-decap-oauth-client-secret` is leftover from the old PK Decap OAuth proxy and is **not** required for marketing-edge Function deploy. Do not delete it from KV until no PK resource reads it. Decap `/admin` uses [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md).
 
 - **Local:** pull from KV / App Config. Never commit secrets. `.env` only as optional gitignored cache.
 - **CI (GitHub Actions):** OIDC login using repo **Variables** `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (IDs only) -> `az keyvault secret show` or App Config at job runtime. **Never** put `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, or other secrets in GitHub Secrets.
@@ -550,7 +552,7 @@ pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scri
 
 - **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. No DB/Prisma wiring yet, so it runs without live Azure resources.
 - **Web:** `pnpm dev:web` - Next.js PWA SPA (see `apps/web`).
-- **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (OAuth proxy follow-up). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
+- **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (GitHub login via shared `cms-oauth-kit` at `https://auth.singletonsd.com`). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
 - **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
 - **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.

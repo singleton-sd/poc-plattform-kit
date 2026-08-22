@@ -251,6 +251,8 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 
 **Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`, `chromatic-project-token`
 
+`github-decap-oauth-client-secret` is leftover from the old PK Decap OAuth proxy. Marketing-edge Function deploy does **not** require it (or GitHub Variable `DECAP_OAUTH_CLIENT_ID`). Do not delete the KV name until no PK resource reads it. Decap `/admin` login uses shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md) (`https://auth.singletonsd.com`).
+
 **Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): `github-automation-pat` (org-wide platform automation PAT). See **Platform GitHub automation PAT** above.
 
 **Entra / Auth.js (App Config -> Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` -> `AUTH_SECRET`, `secret:azure-ad-client-secret` -> `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
@@ -281,7 +283,7 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 
 ### Marketing edge (locked)
 
-Public brochure HTTP (Contact form, etc.) runs on Function App **`ssd-pocpk-decap-oauth-dev-ae`** (`apps/marketing-oauth`), **not** Nest `apps/api`. See [`docs/marketing-edge.md`](docs/marketing-edge.md).
+Public brochure HTTP (Contact form, etc.) runs on Function App **`ssd-pocpk-decap-oauth-dev-ae`** (`apps/marketing-oauth`), **not** Nest `apps/api`. See [`docs/marketing-edge.md`](docs/marketing-edge.md). Decap `/admin` GitHub login is **not** this Function — it is shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit) at `https://auth.singletonsd.com`. Do not point `PUBLIC_MARKETING_API_BASE_URL` at that origin.
 
 **Forward Email - create secret + App Config (ops; do not commit values):**
 
