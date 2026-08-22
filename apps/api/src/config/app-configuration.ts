@@ -34,6 +34,7 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:notifications:bimiSelector': 'EMAIL_BIMI_SELECTOR',
   'app:notifications:sendingDomain': 'EMAIL_SENDING_DOMAIN',
   'app:notifications:bimiEvidenceUrl': 'EMAIL_BIMI_EVIDENCE_URL',
+  'app:notifications:contactEmailProfilesByHost': 'CONTACT_EMAIL_PROFILES_BY_HOST',
   'app:notifications:emailProvider': 'EMAIL_PROVIDER',
   'app:notifications:emailAllowProductionSend': 'EMAIL_ALLOW_PRODUCTION_SEND',
 };

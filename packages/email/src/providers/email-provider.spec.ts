@@ -39,9 +39,25 @@ describe('loadEmailRuntimeConfig', () => {
     assert.equal(allowed.provider, 'forward-email');
   });
 
-  it('honours EMAIL_PROVIDER=forward-email', () => {
+  it('requires production send opt-in even when EMAIL_PROVIDER=forward-email', () => {
+    const blocked = loadEmailRuntimeConfig({
+      EMAIL_PROVIDER: 'forward-email',
+      FORWARD_EMAIL_TOKEN: 'secret',
+    });
+    assert.equal(blocked.provider, 'development');
+
+    const allowed = loadEmailRuntimeConfig({
+      EMAIL_PROVIDER: 'forward-email',
+      FORWARD_EMAIL_TOKEN: 'secret',
+      EMAIL_ALLOW_PRODUCTION_SEND: 'true',
+    });
+    assert.equal(allowed.provider, 'forward-email');
+  });
+
+  it('honours EMAIL_PROVIDER=forward-email when production send is allowed', () => {
     const config = loadEmailRuntimeConfig({
       EMAIL_PROVIDER: 'forward-email',
+      EMAIL_ALLOW_PRODUCTION_SEND: 'true',
       EMAIL_FROM_ADDRESS: 'noreply@mail.example.com',
       EMAIL_FROM_NAME: 'Plattform Kit',
       CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',

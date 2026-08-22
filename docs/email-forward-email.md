@@ -81,11 +81,47 @@ Never print or commit the token. Prefer User/Process env locally; production loa
 | `EMAIL_FROM_ADDRESS` | `app:notifications:emailFromAddress` | e.g. `noreply@mail.plattform-kit.poc.singletonsd.com` |
 | `EMAIL_FROM_NAME` | `app:notifications:emailFromName` | e.g. `Plattform Kit` |
 | `CONTACT_INBOX_ADDRESS` | `app:notifications:contactInboxAddress` | e.g. `hello@singletonsd.com` |
-| `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` for live send in production hosts |
+| `CONTACT_EMAIL_PROFILES_BY_HOST` | `app:notifications:contactEmailProfilesByHost` | Optional JSON map for host-specific PoC sender profiles |
+| `EMAIL_ALLOW_PRODUCTION_SEND` | `app:notifications:emailAllowProductionSend` | Must be `true` whenever `EMAIL_PROVIDER=forward-email` (including explicit provider selection) |
 
 See root [`.env.example`](../.env.example) for local placeholders (empty values only).
 
 Legacy contact env aliases (`CONTACT_FROM_EMAIL`, `CONTACT_INBOX_EMAIL`, `FORWARDEMAIL_*`) may still be read by the client for compatibility; prefer the `EMAIL_*` / `FORWARD_EMAIL_*` names above.
+
+## Multi-PoC sender profiles
+
+Forward Email remains the only outbound provider; per-PoC variation is sender profile data:
+
+- `fromAddress`
+- `fromName`
+- `contactInboxAddress`
+
+Resolution order for contact email:
+
+1. Global defaults (`EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `CONTACT_INBOX_ADDRESS`)
+2. Tenant override from tenant settings `settings.email` (API/runtime callers that pass tenant settings)
+3. Host override from `CONTACT_EMAIL_PROFILES_BY_HOST` when the marketing-edge caller passes a **trusted** request host derived from an allowlisted `Origin` (`ORIGINS` env)
+
+Untrusted or unlisted `Origin` values are ignored for host-profile selection so a client cannot forge another PoC's sender or inbox.
+
+`CONTACT_EMAIL_PROFILES_BY_HOST` example:
+
+```json
+{
+  "inkads.poc.singletonsd.com": {
+    "fromAddress": "noreply@mail.inkads.poc.singletonsd.com",
+    "fromName": "InkAds",
+    "contactInboxAddress": "inkads-support@singletonsd.com"
+  },
+  "plattform-kit.poc.singletonsd.com": {
+    "fromAddress": "noreply@mail.plattform-kit.poc.singletonsd.com",
+    "fromName": "Plattform Kit",
+    "contactInboxAddress": "hello@singletonsd.com"
+  }
+}
+```
+
+Validation is fail-fast: malformed profile objects/fields, invalid email values, or malformed JSON raise configuration errors before sending.
 
 ## Preview safety (locked)
 

@@ -70,4 +70,38 @@ describe('buildContactEmailRequest / sendContactInquiryEmail', () => {
     assert.equal(provider.sent[0]?.replyTo, 'jane@acme.com');
     assert.equal(provider.sent[0]?.to, 'hello@singletonsd.com');
   });
+
+  it('uses tenant email settings overrides when provided', async () => {
+    const provider = new DevelopmentEmailProvider({ logMetadata: false });
+    const dto = {
+      name: 'Jane Doe',
+      email: 'jane@acme.com',
+      subject: 'support',
+      message: 'Please help with our tenant onboarding.',
+    };
+
+    const sent = await sendContactInquiryEmail(
+      dto,
+      provider,
+      {
+        EMAIL_PROVIDER: 'development',
+        EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+        EMAIL_FROM_NAME: 'Plattform Kit',
+        CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
+      },
+      {
+        tenantSettings: {
+          email: {
+            fromAddress: 'noreply@mail.inkads.poc.singletonsd.com',
+            fromName: 'InkAds',
+            contactInboxAddress: 'inkads-support@singletonsd.com',
+          },
+        },
+      },
+    );
+
+    assert.equal(sent.status, 'sent');
+    assert.equal(provider.sent[0]?.to, 'inkads-support@singletonsd.com');
+    assert.match(String(provider.sent[0]?.from), /noreply@mail\.inkads\.poc\.singletonsd\.com/);
+  });
 });
