@@ -1666,6 +1666,20 @@
           }
         ]
       }
+    },
+    "/bimi/logo.svg": {
+      "get": {
+        "operationId": "BimiLogoController_logo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "bimi"
+        ]
+      }
     }
   },
   "info": {

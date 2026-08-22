@@ -1,8 +1,10 @@
 import { Controller, Get, Res } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Public } from '../single-sign-on/public.decorator';
 import { BIMI_LOGO_SVG } from '@poc-plattform-kit/email';
 
+@ApiTags('bimi')
 @Controller('bimi')
 export class BimiLogoController {
   @Get('logo.svg')
