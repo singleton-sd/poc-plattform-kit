@@ -25,6 +25,8 @@ test('release.yml loads org platform automation PAT from devtools Key Vault', as
   assert.match(workflow, /persist-credentials: false/);
   assert.match(workflow, /pat_file/);
   assert.match(workflow, /trap cleanup EXIT/);
+  assert.match(workflow, /release_sha=/);
+  assert.match(workflow, /-f release_sha=/);
   assert.doesNotMatch(workflow, /GITHUB_AUTOMATION_TOKEN=\$pat/);
   assert.doesNotMatch(workflow, /token: \$\{\{ env\.GITHUB_AUTOMATION_TOKEN \}\}/);
 });

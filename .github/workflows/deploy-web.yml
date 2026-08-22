@@ -17,6 +17,11 @@ on:
       - 'packages/**'
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Commit SHA to deploy (from release.yml dispatch)
+        required: false
+        type: string
 
 concurrency:
   group: deploy-web-production
@@ -34,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.release_sha || github.sha }}
           submodules: true
           lfs: false
 

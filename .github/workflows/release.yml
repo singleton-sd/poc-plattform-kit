@@ -140,6 +140,7 @@ jobs:
           fi
           if grep -q 'Release commit and tags pushed' "$tmp"; then
             echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "::error::Unexpected release:ci output (no release push and not empty)."
@@ -149,33 +150,37 @@ jobs:
         if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
         run: |
           set -euo pipefail
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
-          HEAD_SHA=$(git rev-parse HEAD)
-          MAIN_SHA=$(git rev-parse origin/main)
-          if [ "$HEAD_SHA" != "$MAIN_SHA" ]; then
-            echo "::error::Local HEAD ($HEAD_SHA) does not match origin/main ($MAIN_SHA) after release push."
+          if [ -z "$RELEASE_SHA" ]; then
+            echo "::error::Missing release_sha output from release step."
             exit 1
           fi
-          mapfile -t files < <(git show --name-only --pretty=format: "$HEAD_SHA")
-          echo "Release commit $HEAD_SHA on main — files:"
+          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          MAIN_SHA=$(git rev-parse origin/main)
+          if [ "$RELEASE_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Release SHA ($RELEASE_SHA) does not match origin/main ($MAIN_SHA) after release push."
+            exit 1
+          fi
+          mapfile -t files < <(git show --name-only --pretty=format: "$RELEASE_SHA")
+          echo "Release commit $RELEASE_SHA on main — files:"
           printf '%s\n' "${files[@]}"
           dispatch=false
           for f in "${files[@]}"; do
             if [ "$f" = 'apps/api/package.json' ]; then
-              echo "Dispatching deploy-api.yml @ main ($HEAD_SHA)"
-              gh workflow run deploy-api.yml --ref main
+              echo "Dispatching deploy-api.yml @ $RELEASE_SHA"
+              gh workflow run deploy-api.yml --ref main -f release_sha="$RELEASE_SHA"
               dispatch=true
             fi
             if [ "$f" = 'apps/web/package.json' ]; then
-              echo "Dispatching deploy-web.yml @ main ($HEAD_SHA)"
-              gh workflow run deploy-web.yml --ref main
+              echo "Dispatching deploy-web.yml @ $RELEASE_SHA"
+              gh workflow run deploy-web.yml --ref main -f release_sha="$RELEASE_SHA"
               dispatch=true
             fi
             if [ "$f" = 'apps/marketing/package.json' ]; then
-              echo "Dispatching deploy-marketing.yml @ main ($HEAD_SHA)"
-              gh workflow run deploy-marketing.yml --ref main
+              echo "Dispatching deploy-marketing.yml @ $RELEASE_SHA"
+              gh workflow run deploy-marketing.yml --ref main -f release_sha="$RELEASE_SHA"
               dispatch=true
             fi
           done
