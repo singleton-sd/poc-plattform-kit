@@ -1,4 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ChangelogController } from './changelog.controller';
+
+const apiPackage = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8')) as {
+  version: string;
+};
 
 describe('ChangelogController', () => {
   it('returns recent releases with an explanation of the change', () => {
@@ -18,7 +24,8 @@ describe('ChangelogController', () => {
         ]),
       }),
     );
-    expect(result.releases).toHaveLength(22);
+    expect(result.releases[0]?.version).toBe(apiPackage.version);
     expect(result.releases.at(-1)?.version).toBe('0.1.0');
+    expect(result.releases.length).toBeGreaterThan(1);
   });
 });
