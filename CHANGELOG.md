@@ -2,6 +2,10 @@
 
 ## 2026-08-22
 
+- **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.23.0` → `0.23.1` (patch)
+- **[@poc-plattform-kit/web](apps/web/CHANGELOG.md)** `0.16.0` → `0.16.1` (patch)
+## 2026-08-22
+
 - **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.22.0` → `0.23.0` (minor)
 - **[@poc-plattform-kit/marketing](apps/marketing/CHANGELOG.md)** `0.7.0` → `0.8.0` (minor)
 - **@poc-plattform-kit/marketing-oauth** `0.2.1` → `0.3.0` (minor)

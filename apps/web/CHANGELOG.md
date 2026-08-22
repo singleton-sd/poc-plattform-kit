@@ -2,6 +2,12 @@
 
 Release history for **@poc-plattform-kit/web**, generated from conventional commits by the release-it workflow.
 
+## 0.16.1 — 2026-08-22
+
+### Fixed
+
+- stop hardcoding web changelog release count in page test
+
 ## 0.16.0 — 2026-08-22
 
 ### New

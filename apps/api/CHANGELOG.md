@@ -2,6 +2,16 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.23.1 — 2026-08-22
+
+### Fixed
+
+- avoid Array.at in changelog spec for ES2021 target
+
+- stop hardcoding changelog release count in API test
+
+  Assert the newest release matches apps/api package.json version instead
+
 ## 0.23.0 — 2026-08-22
 
 ### New

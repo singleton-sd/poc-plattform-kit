@@ -2,6 +2,21 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.23.1",
+      "date": "2026-08-22",
+      "changes": [
+        {
+          "type": "Fixed",
+          "summary": "avoid Array.at in changelog spec for ES2021 target"
+        },
+        {
+          "type": "Fixed",
+          "summary": "stop hardcoding changelog release count in API test",
+          "reason": "Assert the newest release matches apps/api package.json version instead"
+        }
+      ]
+    },
+    {
       "version": "0.23.0",
       "date": "2026-08-22",
       "changes": [

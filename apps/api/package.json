@@ -1,6 +1,6 @@
 {
   "name": "@poc-plattform-kit/api",
-  "version": "0.23.0",
+  "version": "0.23.1",
   "private": true,
   "files": [
     "dist"
