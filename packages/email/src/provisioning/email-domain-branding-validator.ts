@@ -486,12 +486,13 @@ function isPrivateAddress(address: string): boolean {
   const ipVersion = isIP(address);
   if (ipVersion === 4) {
     const octets = address.split('.').map(Number);
-    const [a, b] = octets;
+    const [a, b, c] = octets;
     if (a === 10 || a === 127 || a === 0) return true;
     if (a === 169 && b === 254) return true;
     if (a === 172 && b >= 16 && b <= 31) return true;
     if (a === 192 && b === 168) return true;
     if (a === 100 && b >= 64 && b <= 127) return true;
+    if (isNonGlobalIPv4(a, b, c)) return true;
     return false;
   }
 
@@ -501,6 +502,7 @@ function isPrivateAddress(address: string): boolean {
     if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
     if (isLinkLocalIPv6(normalized)) return true;
     if (isMulticastIPv6(normalized)) return true;
+    if (isDocumentationIPv6(normalized)) return true;
   }
 
   return false;
@@ -515,6 +517,11 @@ function unwrapIPv4MappedAddress(address: string): string | null {
     return dottedMatch[1];
   }
 
+  const compatMatch = lower.match(/^::(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (compatMatch && isIP(compatMatch[1]) === 4) {
+    return compatMatch[1];
+  }
+
   const hexMatch = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
   if (hexMatch) {
     const hi = parseInt(hexMatch[1], 16);
@@ -526,6 +533,21 @@ function unwrapIPv4MappedAddress(address: string): string | null {
   }
 
   return null;
+}
+
+function isNonGlobalIPv4(a: number, b: number, c: number): boolean {
+  if (a >= 224 && a <= 239) return true;
+  if (a === 192 && b === 0 && c === 2) return true;
+  if (a === 198 && b === 51 && c === 100) return true;
+  if (a === 203 && b === 0 && c === 113) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  return false;
+}
+
+function isDocumentationIPv6(address: string): boolean {
+  const firstHextet = parseIPv6FirstHextet(address);
+  const secondHextet = parseIPv6SecondHextet(address);
+  return firstHextet === 0x2001 && secondHextet === 0xdb8;
 }
 
 function isLinkLocalIPv6(address: string): boolean {
@@ -553,6 +575,24 @@ function parseIPv6FirstHextet(address: string): number | null {
 
   const [firstPart] = lower.split(':');
   return parseInt(firstPart, 16);
+}
+
+function parseIPv6SecondHextet(address: string): number | null {
+  if (isIP(address) !== 6) return null;
+
+  const lower = address.toLowerCase();
+  if (lower.includes('::')) {
+    const [head] = lower.split('::');
+    const headParts = head.split(':').filter(Boolean);
+    if (headParts.length >= 2) {
+      return parseInt(headParts[1], 16);
+    }
+    return null;
+  }
+
+  const parts = lower.split(':');
+  if (parts.length < 2 || !parts[1]) return null;
+  return parseInt(parts[1], 16);
 }
 
 function validateConfig(config: EmailDomainBrandingValidationConfig): string | null {

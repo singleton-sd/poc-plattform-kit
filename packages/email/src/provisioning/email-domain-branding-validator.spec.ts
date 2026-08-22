@@ -285,6 +285,42 @@ describe('validateEmailDomainBranding', () => {
     assert.ok(report.errors.some((error) => error.includes('private address')));
   });
 
+  it('fails when BIMI logo URL resolves to IPv4-compatible loopback', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: async () => ['::127.0.0.1'],
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
+  it('fails when BIMI logo URL resolves to IPv6 documentation range', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: async () => ['2001:db8::1'],
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
+  it('fails when BIMI logo URL resolves to IPv4 documentation range', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: async () => ['192.0.2.1'],
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(report.errors.some((error) => error.includes('private address')));
+  });
+
   it('pins validated public address for BIMI logo fetch', () => {
     const lookup = createPinnedBimiLogoLookup('93.184.216.34');
     let resolvedAddress: string | undefined;
