@@ -192,6 +192,16 @@ Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: the "Pe
 - **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` runs [`scripts/stage-api-deploy.sh --kudu`](../scripts/stage-api-deploy.sh) then `az webapp deploy --type zip --async true --track-status false` (absolute deploy dir + `node-linker=hoisted` + `prisma generate`; no `rsync -aL`; no remote `nest build`; avoid full monorepo `node_modules` — Kudu **504**). Do **not** use `--track-status true` — it waits indefinitely on "Starting the site…" while Nest crash-loops. Startup is verified by [`scripts/verify-api-appservice.sh`](../scripts/verify-api-appservice.sh) (`/health` + App Service log download, fail-fast on recent container exit/Nest errors).
 - No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
+## Pre-push gate
+
+The Husky `pre-push` hook runs path-filtered lint, test, and build steps aligned
+with `ci-api.yml` / `ci-web.yml` before `git push`. To bypass in an emergency:
+
+- `SKIP_PREPUSH=1 git push` — skip checks for that push only
+- `git push --no-verify` — skip all git hooks (including pre-push)
+
+Prefer fixing failures over bypassing; CI will still run on the PR.
+
 ## Root scripts
 
 ```bash
