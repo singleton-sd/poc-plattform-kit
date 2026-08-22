@@ -1,0 +1,33 @@
+{
+  "source": "singleton-sd/ai-plattform-skills",
+  "sourceUrl": "https://github.com/singleton-sd/ai-plattform-skills",
+  "ref": "master",
+  "engineeringHost": "github",
+  "profile": "github",
+  "agents": ["cursor", "claude-code", "grok", "codex"],
+  "copy": true,
+  "skills": [
+    "task-driven-development",
+    "task-management",
+    "agent-orchestration",
+    "pr-agent-wake",
+    "create-tracking-ticket",
+    "backend",
+    "frontend",
+    "schema-driven-forms",
+    "form-ux",
+    "test-generation",
+    "code-review",
+    "fix-bugbot",
+    "git-conventions",
+    "repo-init",
+    "backlog-refinement",
+    "refine-idea",
+    "discover-requirements",
+    "discover-public-apis",
+    "idea-to-delivery",
+    "forward-email",
+    "register-permissions",
+    "storybook"
+  ]
+}

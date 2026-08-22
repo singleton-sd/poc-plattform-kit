@@ -397,7 +397,7 @@ Parallel PRs collide on shared hub paths. **Do not touch a hub unless the ticket
 | `pnpm-lock.yaml` | Dep change via `pnpm install` | Never hand-edit; never line-merge |
 | Root `package.json` / `pnpm-workspace.yaml` | Root tooling ticket | Prefer deps/scripts in `apps/*`, `packages/*`, `pillars/*` |
 | Workspace `**/package.json` | That package's ticket | Keep diffs minimal |
-| `.cursor/skills/**` | Dedicated skills-sync chore PR | Do not run `pnpm sync:skills` inside feature PRs |
+| `.agents/skills/**`, `.claude/skills/**`, `.grok/skills/**`, `.cursor/skills/**` | Dedicated skills-install chore PR | Do not run `pnpm skills:install:pin` inside feature PRs |
 | `AGENTS.md`, `SETUP.md`, `docs/pr-pipelines.md`, `infra/README.md` | Docs/ops issue | Otherwise open a GitHub issue as a follow-up |
 | `infra/main.bicep` + `infra/main.json` | Infra ticket | Always regenerate JSON: `az bicep build -f infra/main.bicep --outfile infra/main.json` and commit both |
 | `apps/api/src/main.ts`, `app.module.ts` | API feature wiring | Minimal diffs (register module/provider only) |
@@ -428,7 +428,7 @@ Script: [`scripts/resolve-merge-conflicts.ps1`](scripts/resolve-merge-conflicts.
 | `pnpm-lock.yaml` | Take main's lock -> `pnpm install` -> stage |
 | Any `package.json` | JSON-merge `dependencies` / `devDependencies` / `scripts` (both sides' keys) |
 | `infra/main.json` | After `main.bicep` is clean: `az bicep build` -> stage |
-| `.cursor/skills/**` | Take main (use `-SkillsSync` only on skills-sync tickets) |
+| `.agents/skills/**`, `.claude/skills/**`, `.grok/skills/**`, `.cursor/skills/**` | Take main (use `-SkillsSync` only on skills-install tickets) |
 | Docs hubs above | Take main (use `-ForceKeepFeatureDocs` to hand-merge) |
 | `.env.example` | Union unique `KEY=` lines |
 
@@ -502,9 +502,24 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 
 ## Skills
 
-Read curated skills under `.cursor/skills/` before coding (backend, frontend, test-generation, code-review, git-conventions, task-driven-development, etc.).
+Canonical skills live in [`singleton-sd/ai-plattform-skills`](https://github.com/singleton-sd/ai-plattform-skills).
+This repo selects and pins them via [`.skills/manifest.json`](.skills/manifest.json) and
+[`.skills/profile`](.skills/profile) (`engineeringHost: github`).
 
-Discovery → delivery: `refine-idea` → `discover-requirements` → `idea-to-delivery` (multi-ticket) or `backlog-refinement` (one existing Delivery ticket). Do not file Delivery work while the idea or requirements are unresolved. These skills predate the GitHub Issues migration ([#170](https://github.com/singleton-sd/poc-plattform-kit/issues/170)/[#173](https://github.com/singleton-sd/poc-plattform-kit/issues/173)); once crossing the engineering boundary per `docs/github-source-of-truth.md` section 3, the output is a GitHub Issue, not a new ClickUp Delivery ticket.
+```powershell
+pnpm skills:install:pin   # refresh from GitHub into multi-agent folders; commit on chore PRs only
+```
+
+Installed project paths (Skills CLI): `.agents/skills/`, `.claude/skills/`, `.grok/skills/`
+(Cursor/Codex share `.agents/skills/`). Legacy `.cursor/skills/` may remain during migration.
+
+Discovery → delivery: `refine-idea` → `discover-requirements` → `idea-to-delivery` (multi-issue)
+or `backlog-refinement` (one existing GitHub issue or ClickUp product feature). Engineering
+output is a **GitHub Issue**, not a new ClickUp Delivery ticket — see
+[`docs/github-source-of-truth.md`](docs/github-source-of-truth.md). ClickUp remains for product
+features and optional tracking tickets (`create-tracking-ticket`).
+
+`pnpm sync:skills` is an alias of `skills:install:pin` (deprecated name).
 
 ## TDD / quality
 
@@ -553,5 +568,7 @@ pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scri
 - **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (OAuth proxy follow-up). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
 - **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
-- **`pnpm sync:skills` is Windows-only** (PowerShell); skip on Linux — skills are already committed under `.cursor/skills/`.
+- **`pnpm skills:install:pin`** pulls from GitHub (`singleton-sd/ai-plattform-skills`) into
+  multi-agent skill folders. Cloud agents should use committed pinned skills when present;
+  re-run install only on dedicated skills chore PRs.
 - **Legacy ClickUp access** (existing ClickUp-tracked tickets only — see the "Legacy ClickUp workflow" section): prefer [`scripts/clickup.ps1`](scripts/clickup.ps1) / [`scripts/clickup.sh`](scripts/clickup.sh) + `CLICKUP_API_TOKEN`. Raw REST also fine. Do **not** use ClickUp MCP for routine ops. On 429, stop. Don't assign/move/merge tickets unless claiming or handing off.
