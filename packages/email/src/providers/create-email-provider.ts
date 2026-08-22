@@ -14,6 +14,7 @@ export interface EmailRuntimeConfig {
  * Resolve non-secret email configuration.
  * Prefer EMAIL_* / CONTACT_INBOX_ADDRESS; accept legacy CONTACT_* aliases.
  */
+/** Whether live Forward Email sends are permitted for the current environment. */
 function isProductionSendAllowed(env: NodeJS.ProcessEnv): boolean {
   return env.EMAIL_ALLOW_PRODUCTION_SEND === 'true';
 }

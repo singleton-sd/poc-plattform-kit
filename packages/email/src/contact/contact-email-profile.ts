@@ -23,10 +23,12 @@ type HostProfileCacheEntry = {
 /** Module-level cache: same env JSON is not re-parsed on every contact submit. */
 let hostProfileCache: HostProfileCacheEntry | null = null;
 
+/** Type guard for plain object records parsed from JSON or tenant settings. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+/** Build a configuration-scoped EmailProviderError for profile parsing failures. */
 function configurationError(
   message: string,
   providerName: 'forward-email' | 'development',
@@ -55,6 +57,7 @@ function parseOptionalProfileString(
   return trimmed;
 }
 
+/** Validate an email address or throw a configuration error. */
 function assertEmail(
   value: string,
   field: string,
@@ -66,6 +69,7 @@ function assertEmail(
   return value;
 }
 
+/** Parse optional sender override fields from a host map entry or tenant settings.email object. */
 function parseProfileOverrideFields(
   profile: Record<string, unknown>,
   fieldPrefix: string,
@@ -86,6 +90,7 @@ function parseProfileOverrideFields(
   };
 }
 
+/** Merge non-empty override fields into a resolved contact email profile. */
 function applyProfileOverride(
   resolved: ContactEmailProfile,
   override: TenantEmailProfileOverride | undefined,
@@ -97,6 +102,7 @@ function applyProfileOverride(
   }
 }
 
+/** Parse and validate `CONTACT_EMAIL_PROFILES_BY_HOST` JSON into a host-keyed override map. */
 function parseHostProfileMap(
   raw: string | undefined,
   providerName: 'forward-email' | 'development',
@@ -180,6 +186,10 @@ export function resolveTenantEmailProfileOverride(
   return parsed;
 }
 
+/**
+ * Resolve the contact inquiry sender profile with precedence:
+ * global env defaults, tenant settings.email, trusted host map, then explicit overrides.
+ */
 export function resolveContactEmailProfile(
   options: {
     env?: NodeJS.ProcessEnv;
