@@ -271,7 +271,7 @@ powershell -File ./scripts/provision-forward-email.ps1 `
 | `WhatIf` | off | Print change batch; no Route53 UPSERT |
 | `SkipDns` / `SkipVerify` | off | Skip Route53 or verify API calls |
 | `ForceDmarc` | off | Overwrite conflicting DMARC on the exact API name |
-| `DmarcPolicy` | `quarantine` | Enforced DMARC policy to write (`none`, `quarantine`, `reject`) |
+| `DmarcPolicy` | `quarantine` | Enforced DMARC policy to write (`quarantine` or `reject`) |
 | `DmarcAggregateReportAddress` | (empty) | Optional `mailto:` aggregate reporting URI added as `rua=` |
 | `BimiSelector` | `default` | BIMI selector label (`<selector>._bimi.<domain>`) |
 | `BimiLogoUrl` | (empty) | When set, upserts the BIMI TXT record |

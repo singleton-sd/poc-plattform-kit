@@ -50,6 +50,29 @@ describe('validateTransactionalEmailAuthProfile', () => {
     );
     assert.ok(errors.some((error) => error.includes('mailto')));
   });
+
+  it('rejects invalid comma-separated DMARC rua entries', () => {
+    const errors = validateTransactionalEmailAuthProfile(
+      loadTransactionalEmailAuthProfile({
+        EMAIL_FROM_ADDRESS: 'noreply@mail.example.test',
+        EMAIL_SENDING_DOMAIN: 'mail.example.test',
+        EMAIL_DMARC_RUA: 'mailto:reports@example.test,https://example.test',
+      }),
+    );
+    assert.ok(errors.some((error) => error.includes('mailto:')));
+  });
+
+  it('rejects monitoring-only DMARC policy', () => {
+    const errors = validateTransactionalEmailAuthProfile(
+      loadTransactionalEmailAuthProfile({
+        EMAIL_FROM_ADDRESS: 'noreply@mail.example.test',
+        EMAIL_SENDING_DOMAIN: 'mail.example.test',
+        EMAIL_DMARC_POLICY: 'none',
+      }),
+      { EMAIL_DMARC_POLICY: 'none' },
+    );
+    assert.ok(errors.some((error) => error.includes('none is not allowed')));
+  });
 });
 
 describe('validateResolvedSenderDomainAlignment', () => {

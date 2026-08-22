@@ -122,6 +122,7 @@ export async function sendContactInquiryEmail(
 ): Promise<{ id: string; status: 'sent'; result: EmailSendResult }> {
   const profileErrors = validateTransactionalEmailAuthProfile(
     loadTransactionalEmailAuthProfile(env),
+    env,
   );
   if (profileErrors.length > 0) {
     throw new EmailProviderError({

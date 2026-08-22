@@ -1,4 +1,4 @@
-export type DmarcPolicy = 'none' | 'quarantine' | 'reject';
+export type DmarcPolicy = 'quarantine' | 'reject';
 
 export interface TransactionalEmailAuthProfile {
   fromAddress: string;
@@ -33,6 +33,7 @@ export function loadTransactionalEmailAuthProfile(
 
 export function validateTransactionalEmailAuthProfile(
   profile: TransactionalEmailAuthProfile,
+  env: NodeJS.ProcessEnv = process.env,
 ): string[] {
   const errors: string[] = [];
 
@@ -43,16 +44,16 @@ export function validateTransactionalEmailAuthProfile(
     errors.push('EMAIL_SENDING_DOMAIN is required (or derive it from EMAIL_FROM_ADDRESS)');
   }
 
+  errors.push(...validateDmarcPolicyEnv(env.EMAIL_DMARC_POLICY));
+
   const fromDomain = extractEmailDomain(profile.fromAddress);
   if (profile.sendingDomain && fromDomain && !isDomainAligned(fromDomain, profile.sendingDomain)) {
-    errors.push('EMAIL_FROM_ADDRESS must align with EMAIL_SENDING_DOMAIN');
+    errors.push(
+      `EMAIL_FROM_ADDRESS (${fromDomain}) must align with EMAIL_SENDING_DOMAIN (${profile.sendingDomain})`,
+    );
   }
-  if (
-    profile.dmarcAggregateReportAddress &&
-    !profile.dmarcAggregateReportAddress.startsWith('mailto:')
-  ) {
-    errors.push('EMAIL_DMARC_RUA must start with "mailto:"');
-  }
+
+  errors.push(...validateDmarcAggregateReportAddress(profile.dmarcAggregateReportAddress));
 
   return errors;
 }
@@ -63,7 +64,7 @@ export function validateResolvedSenderDomainAlignment(
   env: NodeJS.ProcessEnv = process.env,
 ): string[] {
   const authProfile = loadTransactionalEmailAuthProfile(env);
-  const errors = validateTransactionalEmailAuthProfile(authProfile);
+  const errors = validateTransactionalEmailAuthProfile(authProfile, env);
   if (errors.length > 0) {
     return errors;
   }
@@ -74,7 +75,9 @@ export function validateResolvedSenderDomainAlignment(
     fromDomain &&
     !isDomainAligned(fromDomain, authProfile.sendingDomain)
   ) {
-    return ['Resolved fromAddress must align with EMAIL_SENDING_DOMAIN'];
+    return [
+      `Resolved fromAddress (${fromDomain}) must align with EMAIL_SENDING_DOMAIN (${authProfile.sendingDomain})`,
+    ];
   }
 
   return [];
@@ -91,10 +94,46 @@ export function extractEmailDomain(address: string): string | null {
 
 function normalizeDmarcPolicy(value: string | undefined): DmarcPolicy {
   const normalized = (value ?? '').trim().toLowerCase();
-  if (normalized === 'none' || normalized === 'quarantine' || normalized === 'reject') {
-    return normalized;
+  if (normalized === 'reject') {
+    return 'reject';
   }
   return 'quarantine';
+}
+
+function validateDmarcPolicyEnv(value: string | undefined): string[] {
+  const normalized = (value ?? '').trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+  if (normalized === 'none') {
+    return ['EMAIL_DMARC_POLICY must be quarantine or reject (none is not allowed)'];
+  }
+  if (normalized !== 'quarantine' && normalized !== 'reject') {
+    return [`EMAIL_DMARC_POLICY must be quarantine or reject (got "${value}")`];
+  }
+  return [];
+}
+
+function validateDmarcAggregateReportAddress(value: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const errors: string[] = [];
+  for (const entry of value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)) {
+    if (!entry.toLowerCase().startsWith('mailto:')) {
+      errors.push(`EMAIL_DMARC_RUA entry must start with "mailto:" (${entry})`);
+      continue;
+    }
+    const recipient = entry.slice('mailto:'.length).trim();
+    if (!recipient || !recipient.includes('@')) {
+      errors.push(`EMAIL_DMARC_RUA mailto entry must include a recipient (${entry})`);
+    }
+  }
+  return errors;
 }
 
 function isDomainAligned(fromDomain: string, sendingDomain: string): boolean {

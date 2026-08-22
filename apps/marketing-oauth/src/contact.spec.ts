@@ -117,6 +117,7 @@ describe('marketing-oauth contact send', () => {
         env: {
           ORIGINS: 'inkads.poc.singletonsd.com',
           EMAIL_FROM_ADDRESS: 'noreply@mail.plattform-kit.poc.singletonsd.com',
+          EMAIL_SENDING_DOMAIN: 'singletonsd.com',
           EMAIL_FROM_NAME: 'Plattform Kit',
           CONTACT_INBOX_ADDRESS: 'hello@singletonsd.com',
           CONTACT_EMAIL_PROFILES_BY_HOST: JSON.stringify({

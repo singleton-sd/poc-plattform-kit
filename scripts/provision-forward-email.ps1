@@ -42,7 +42,7 @@
   when it differs from the API value.
 
 .PARAMETER DmarcPolicy
-  DMARC enforcement policy to write (`none`, `quarantine`, `reject`).
+  DMARC enforcement policy to write (`quarantine` or `reject`).
   Default: quarantine.
 
 .PARAMETER DmarcAggregateReportAddress
@@ -88,7 +88,7 @@ param(
   [switch]$SkipDns,
   [switch]$SkipVerify,
   [switch]$ForceDmarc,
-  [ValidateSet('none', 'quarantine', 'reject')][string]$DmarcPolicy = 'quarantine',
+  [ValidateSet('quarantine', 'reject')][string]$DmarcPolicy = 'quarantine',
   [string]$DmarcAggregateReportAddress = '',
   [int]$MaxVerifyAttempts = 6,
   [int]$VerifyDelaySeconds = 20
@@ -194,6 +194,28 @@ function Merge-SpfInclude {
   return "$trimmed $include -all"
 }
 
+function Assert-DmarcAggregateReportAddress {
+  param([string]$Address)
+
+  if ([string]::IsNullOrWhiteSpace($Address)) {
+    return
+  }
+
+  foreach ($entry in ($Address -split ',')) {
+    $trimmed = $entry.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+      continue
+    }
+    if (-not $trimmed.StartsWith('mailto:', [StringComparison]::OrdinalIgnoreCase)) {
+      throw "DmarcAggregateReportAddress must start with mailto: (invalid entry: $trimmed)"
+    }
+    $recipient = $trimmed.Substring(7).Trim()
+    if ([string]::IsNullOrWhiteSpace($recipient) -or $recipient -notmatch '@') {
+      throw "DmarcAggregateReportAddress mailto URI must include a recipient (invalid entry: $trimmed)"
+    }
+  }
+}
+
 function Build-DmarcRecord {
   param(
     [Parameter(Mandatory)][string]$Policy,
@@ -208,6 +230,7 @@ function Build-DmarcRecord {
     'pct=100'
   )
   if (-not [string]::IsNullOrWhiteSpace($AggregateReportAddress)) {
+    Assert-DmarcAggregateReportAddress -Address $AggregateReportAddress
     $parts += "rua=$($AggregateReportAddress.Trim())"
   }
   return ($parts -join '; ') + ';'
@@ -412,6 +435,8 @@ $token = Get-ForwardEmailToken
 $authHeader = Get-BasicAuthHeaderValue -Token $token
 # Drop locals that are only needed for auth construction later reuse is via $authHeader.
 Remove-Variable token -ErrorAction SilentlyContinue
+
+Assert-DmarcAggregateReportAddress -Address $DmarcAggregateReportAddress
 
 if (-not $Domain.EndsWith(".$ZoneDomain") -and $Domain -ne $ZoneDomain) {
   throw "Domain '$Domain' is not under zone '$ZoneDomain'."
