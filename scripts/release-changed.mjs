@@ -350,10 +350,11 @@ function syncToOriginMain() {
  * concurrent main updates cause rejection.
  */
 function pushReleaseCommit() {
+  const gitEnv = { ...process.env, HUSKY: '0' };
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      run('git', ['push', 'origin', 'HEAD:main']);
+      run('git', ['push', 'origin', 'HEAD:main'], { env: gitEnv });
       return;
     } catch (error) {
       if (attempt === maxAttempts) throw error;
@@ -373,6 +374,7 @@ function pushReleaseCommit() {
  * @param {string[]} tags
  */
 function createAndPushTags(tags) {
+  const gitEnv = { ...process.env, HUSKY: '0' };
   for (const tag of tags) {
     if (tagExists(tag)) {
       run('git', ['tag', '-d', tag]);
@@ -380,7 +382,7 @@ function createAndPushTags(tags) {
     run('git', ['tag', '-a', tag, '-m', tag]);
   }
   if (tags.length > 0) {
-    run('git', ['push', 'origin', ...tags]);
+    run('git', ['push', 'origin', ...tags], { env: gitEnv });
   }
 }
 

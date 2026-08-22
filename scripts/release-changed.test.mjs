@@ -10,6 +10,8 @@ test('release-changed.mjs pushes main directly (not a release PR)', async () => 
   const script = await readFile(scriptUrl, 'utf8');
   assert.match(script, /HEAD:main/);
   assert.match(script, /pushReleaseCommit/);
+  assert.match(script, /HUSKY: '0'/);
+  assert.match(script, /push', 'origin', 'HEAD:main'[\s\S]*env: gitEnv/);
   assert.doesNotMatch(script, /chore\/release-package-versions/);
   assert.doesNotMatch(script, /--push-tags/);
 });
