@@ -2,6 +2,7 @@
   "source": "singleton-sd/ai-plattform-skills",
   "sourceUrl": "https://github.com/singleton-sd/ai-plattform-skills",
   "ref": "master",
+  "skillsCli": "skills@1.5.23",
   "engineeringHost": "github",
   "profile": "github",
   "agents": ["cursor", "claude-code", "grok", "codex"],
