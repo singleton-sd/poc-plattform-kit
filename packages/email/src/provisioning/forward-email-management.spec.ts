@@ -5,6 +5,7 @@ import {
   getRequiredDnsRecords,
   getRequiredBimiDnsRecords,
   mergeSpfInclude,
+  resolveBimiRoute53Record,
 } from './forward-email-management';
 
 describe('mergeSpfInclude', () => {
@@ -71,6 +72,21 @@ describe('getRequiredBimiDnsRecords', () => {
     assert.equal(records[0]?.type, 'TXT');
     assert.equal(records[0]?.name, 'default._bimi.mail');
     assert.equal(records[0]?.value, 'v=BIMI1; l=https://cdn.example.com/logo.svg; a=');
+  });
+
+  it('matches resolveBimiRoute53Record output', () => {
+    const options = {
+      selector: 'altLogo',
+      sendingDomain: 'mail.example.com',
+      zoneDomain: 'example.com',
+      logoUrl: 'https://cdn.example.com/logo.svg',
+      evidenceUrl: 'https://cdn.example.com/vmc.pem',
+    };
+    const resolved = resolveBimiRoute53Record(options);
+    const records = getRequiredBimiDnsRecords(options);
+    assert.equal(records[0]?.name, resolved.relativeName);
+    assert.equal(records[0]?.value, resolved.txtValue);
+    assert.equal(resolved.fqdnRecordName, 'altLogo._bimi.mail.example.com');
   });
 });
 

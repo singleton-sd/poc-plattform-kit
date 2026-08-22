@@ -213,6 +213,46 @@ function Get-Fqdn {
   return "$cleaned.$Zone"
 }
 
+function Get-BimiDnsRecordFromSharedBuilder {
+  param(
+    [Parameter(Mandatory)][string]$Selector,
+    [Parameter(Mandatory)][string]$SendingDomain,
+    [Parameter(Mandatory)][string]$ZoneDomain,
+    [Parameter(Mandatory)][string]$LogoUrl,
+    [string]$EvidenceUrl = ''
+  )
+
+  $repoRoot = Split-Path -Parent $PSScriptRoot
+  $emailDist = Join-Path $repoRoot 'packages\email\dist\index.js'
+  if (-not (Test-Path $emailDist)) {
+    Push-Location $repoRoot
+    try {
+      pnpm --filter @poc-plattform-kit/email run build | Out-Null
+    }
+    finally {
+      Pop-Location
+    }
+  }
+
+  $scriptPath = Join-Path $repoRoot 'scripts\build-bimi-dns-record.mjs'
+  $argList = @(
+    $scriptPath,
+    '--selector', $Selector,
+    '--sending-domain', $SendingDomain,
+    '--zone-domain', $ZoneDomain,
+    '--logo-url', $LogoUrl
+  )
+  if (-not [string]::IsNullOrWhiteSpace($EvidenceUrl)) {
+    $argList += @('--evidence-url', $EvidenceUrl)
+  }
+
+  $json = node @argList 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw "build-bimi-dns-record failed: $json"
+  }
+  return $json | ConvertFrom-Json
+}
+
 function Write-Utf8NoBomJson {
   param(
     [Parameter(Mandatory)][string]$Path,
@@ -540,18 +580,16 @@ Re-run with that -Domain (script default) so noreply@$Domain can fully verify.
   if (-not [string]::IsNullOrWhiteSpace($BimiLogoUrl)) {
     $effectiveBimiSendingDomain = if ([string]::IsNullOrWhiteSpace($BimiSendingDomain)) { $Domain } else { $BimiSendingDomain }
 
-    if (-not $effectiveBimiSendingDomain.EndsWith(".$ZoneDomain") -and $effectiveBimiSendingDomain -ne $ZoneDomain) {
-      throw "BimiSendingDomain '$effectiveBimiSendingDomain' is not under zone '$ZoneDomain'."
-    }
+    $bimiRecord = Get-BimiDnsRecordFromSharedBuilder `
+      -Selector $BimiSelector `
+      -SendingDomain $effectiveBimiSendingDomain `
+      -ZoneDomain $ZoneDomain `
+      -LogoUrl $BimiLogoUrl `
+      -EvidenceUrl $BimiEvidenceUrl
 
-    $sendingRel = Get-RelativeName -FqdnOrRelative $effectiveBimiSendingDomain -Zone $ZoneDomain
-    $bimiRelName = if ([string]::IsNullOrWhiteSpace($sendingRel)) { "$BimiSelector._bimi" } else { "$BimiSelector._bimi.$sendingRel" }
+    $bimiRelName = $bimiRecord.relativeName
     $bimiFqdn = Get-Fqdn -Relative $bimiRelName -Zone $ZoneDomain
-
-    $evidence = $BimiEvidenceUrl
-    if ($null -eq $evidence -or [string]::IsNullOrWhiteSpace($evidence)) { $evidence = '' }
-
-    $bimiValue = "v=BIMI1; l=$($BimiLogoUrl.Trim()); a=$($evidence.Trim())"
+    $bimiValue = $bimiRecord.txtValue
 
     $existingBimiSets = @(Get-Route53RecordsForName -ZoneId $HostedZoneId -Fqdn $bimiFqdn -Type TXT)
     $existingBimi = if ($existingBimiSets.Count -gt 0) { $existingBimiSets[0] } else { $null }

@@ -49,6 +49,8 @@ export type {
 } from './provisioning/forward-email-management';
 export {
   ForwardEmailManagementClient,
+  getRequiredBimiDnsRecords,
   getRequiredDnsRecords,
   mergeSpfInclude,
+  resolveBimiRoute53Record,
 } from './provisioning/forward-email-management';

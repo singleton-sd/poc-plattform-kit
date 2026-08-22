@@ -3,7 +3,7 @@
  * Runtime senders must not import Route53 helpers from here.
  */
 
-import { buildBimiTxtValue } from '../bimi/bimi-dns';
+import { buildBimiDnsRecordName, buildBimiTxtValue } from '../bimi/bimi-dns';
 
 export interface ForwardEmailDnsRecord {
   type: 'MX' | 'TXT' | 'CNAME';
@@ -356,6 +356,38 @@ export function getRequiredDnsRecords(options: {
 }
 
 /**
+ * Resolve BIMI DNS record name/value for a Route53 hosted zone.
+ *
+ * Record name/value construction is centralized in `buildBimiDnsRecordName` /
+ * `buildBimiTxtValue` so provisioning scripts and TypeScript callers stay aligned.
+ */
+export function resolveBimiRoute53Record(options: {
+  selector: string;
+  sendingDomain: string;
+  zoneDomain: string;
+  logoUrl: string;
+  evidenceUrl?: string;
+}): {
+  relativeName: string;
+  txtValue: string;
+  fqdnRecordName: string;
+} {
+  const { selector, sendingDomain, zoneDomain, logoUrl, evidenceUrl } = options;
+
+  if (!sendingDomain.endsWith(`.${zoneDomain}`) && sendingDomain !== zoneDomain) {
+    throw new Error(`Sending domain ${sendingDomain} is not under zone ${zoneDomain}`);
+  }
+
+  const settings = { selector, sendingDomain, logoUrl, evidenceUrl };
+  const fqdnRecordName = buildBimiDnsRecordName(settings);
+  return {
+    fqdnRecordName,
+    relativeName: stripZoneSuffix(fqdnRecordName, zoneDomain),
+    txtValue: buildBimiTxtValue(settings),
+  };
+}
+
+/**
  * BIMI TXT record (for mailbox providers that support BIMI).
  *
  * DNS record name: `<selector>._bimi.<sendingDomain>` (relative to Route53 zone).
@@ -367,23 +399,12 @@ export function getRequiredBimiDnsRecords(options: {
   logoUrl: string;
   evidenceUrl?: string;
 }): ForwardEmailDnsRecord[] {
-  const { selector, sendingDomain, zoneDomain, logoUrl, evidenceUrl } = options;
-
-  if (!sendingDomain.endsWith(`.${zoneDomain}`)) {
-    throw new Error(`Sending domain ${sendingDomain} is not under zone ${zoneDomain}`);
-  }
-
-  const relative = sendingDomain.slice(0, -(zoneDomain.length + 1));
+  const resolved = resolveBimiRoute53Record(options);
   return [
     {
       type: 'TXT',
-      name: `${selector}._bimi.${relative}`,
-      value: buildBimiTxtValue({
-        selector,
-        sendingDomain,
-        logoUrl,
-        evidenceUrl,
-      }),
+      name: resolved.relativeName,
+      value: resolved.txtValue,
       purpose: 'bimi',
       source: 'static',
     },

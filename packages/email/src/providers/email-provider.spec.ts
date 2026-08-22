@@ -236,6 +236,33 @@ describe('ForwardEmailProvider', () => {
     assert.match(raw, /BIMI-Selector: v=BIMI1; s=altLogo/);
     assert.match(raw, /From: "Plattform Kit" <noreply@mail\.example\.com>/);
   });
+
+  it('uses quoted-printable for non-ASCII raw MIME body parts', async () => {
+    const calls: Array<{ init: RequestInit }> = [];
+    const provider = new ForwardEmailProvider({
+      apiToken: 'test-token',
+      baseUrl: 'https://api.example.test',
+      maxRetries: 0,
+      bimiSelector: 'altLogo',
+      fetchImpl: async (_input, init) => {
+        calls.push({ init: init ?? {} });
+        return new Response(JSON.stringify({ id: 'fe-123' }), { status: 200 });
+      },
+    });
+
+    await provider.send({
+      to: 'hello@singletonsd.com',
+      from: 'noreply@mail.example.com',
+      subject: 'Hello',
+      text: 'Grácias por contactarnos',
+      html: '<p>Grácias por contactarnos</p>',
+    });
+
+    const body = String(calls[0]?.init.body ?? '');
+    const raw = new URLSearchParams(body).get('raw') ?? '';
+    assert.match(raw, /Content-Transfer-Encoding: quoted-printable/);
+    assert.match(raw, /=C3=A1/);
+  });
 });
 
 describe('DevelopmentEmailProvider', () => {

@@ -279,6 +279,81 @@ function normalizeToCrlf(value: string): string {
   return value.replace(/\r?\n/g, '\r\n');
 }
 
+/** Printable ASCII (tab + CR/LF + 0x20-0x7E) is safe for `charset=utf-8` + `7bit`. */
+const ASCII_7BIT_BODY = /^[\t\r\n\x20-\x7E]*$/;
+
+function isAscii7BitBody(content: string): boolean {
+  return ASCII_7BIT_BODY.test(content);
+}
+
+function encodeQuotedPrintableLine(line: string): string {
+  let encoded = '';
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i]!;
+    const code = char.charCodeAt(0);
+    const isTrailingWhitespace = (code === 32 || code === 9) && i === line.length - 1;
+    const mustEncode = char === '=' || code < 32 || code > 126 || isTrailingWhitespace;
+    if (mustEncode) {
+      for (const byte of Buffer.from(char, 'utf8')) {
+        encoded += `=${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+      }
+    } else {
+      encoded += char;
+    }
+  }
+  return wrapQuotedPrintableLine(encoded);
+}
+
+function wrapQuotedPrintableLine(line: string): string {
+  if (line.length <= 76) return line;
+
+  const parts: string[] = [];
+  let pos = 0;
+  while (pos < line.length) {
+    let chunkLen = Math.min(76, line.length - pos);
+    while (chunkLen > 0 && pos + chunkLen < line.length && line[pos + chunkLen - 1] === '=') {
+      chunkLen -= 1;
+    }
+    parts.push(`${line.slice(pos, pos + chunkLen)}=`);
+    pos += chunkLen;
+  }
+  return parts.join('\r\n');
+}
+
+function encodeQuotedPrintable(content: string): string {
+  const normalized = normalizeToCrlf(content);
+  return normalized
+    .split('\r\n')
+    .map((line) => encodeQuotedPrintableLine(line))
+    .join('\r\n');
+}
+
+function encodeMimeBodyPart(content: string): {
+  transferEncoding: '7bit' | 'quoted-printable';
+  body: string;
+} {
+  const normalized = normalizeToCrlf(content);
+  if (isAscii7BitBody(normalized)) {
+    return { transferEncoding: '7bit', body: normalized };
+  }
+  return {
+    transferEncoding: 'quoted-printable',
+    body: encodeQuotedPrintable(normalized),
+  };
+}
+
+function appendMimeBodyPart(
+  lines: string[],
+  contentType: 'text/plain' | 'text/html',
+  content: string,
+): void {
+  const { transferEncoding, body } = encodeMimeBodyPart(content);
+  lines.push(`Content-Type: ${contentType}; charset=utf-8`);
+  lines.push(`Content-Transfer-Encoding: ${transferEncoding}`);
+  lines.push('');
+  lines.push(body);
+}
+
 function buildRawEmailMessage(options: {
   toList: string[];
   fromHeader: string;
@@ -305,26 +380,17 @@ function buildRawEmailMessage(options: {
     lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
     lines.push('');
     lines.push(`--${boundary}`);
-    lines.push('Content-Type: text/plain; charset=utf-8');
-    lines.push('Content-Transfer-Encoding: 7bit');
-    lines.push('');
-    lines.push(normalizeToCrlf(textPart));
+    appendMimeBodyPart(lines, 'text/plain', textPart);
 
     lines.push(`--${boundary}`);
-    lines.push('Content-Type: text/html; charset=utf-8');
-    lines.push('Content-Transfer-Encoding: 7bit');
-    lines.push('');
-    lines.push(normalizeToCrlf(htmlPart));
+    appendMimeBodyPart(lines, 'text/html', htmlPart);
 
     lines.push(`--${boundary}--`);
     lines.push('');
     return lines.join('\r\n');
   }
 
-  lines.push('Content-Type: text/plain; charset=utf-8');
-  lines.push('Content-Transfer-Encoding: 7bit');
-  lines.push('');
-  lines.push(normalizeToCrlf(textPart));
+  appendMimeBodyPart(lines, 'text/plain', textPart);
   lines.push('');
   return lines.join('\r\n');
 }
