@@ -48,16 +48,23 @@ describe('validateEmailDomainBranding', () => {
     };
   }
 
+  function hostLookup(addresses: string[], lookupFailed = false) {
+    return async (): Promise<{ addresses: string[]; lookupFailed: boolean }> => ({
+      addresses,
+      lookupFailed,
+    });
+  }
+
   function validDeps(
     overrides: {
       dnsResolveTxt?: (hostname: string) => Promise<string[]>;
-      dnsLookupHost?: (hostname: string) => Promise<string[]>;
+      dnsLookupHost?: (hostname: string) => Promise<{ addresses: string[]; lookupFailed: boolean }>;
       fetchImpl?: typeof undiciFetch;
     } = {},
   ) {
     return {
       dnsResolveTxt: overrides.dnsResolveTxt ?? resolver(validDnsRecords()),
-      dnsLookupHost: overrides.dnsLookupHost ?? (async () => ['93.184.216.34']),
+      dnsLookupHost: overrides.dnsLookupHost ?? hostLookup(['93.184.216.34']),
       fetchImpl: overrides.fetchImpl ?? (async () => new Response(validSvg, { status: 200 })),
     };
   }
@@ -73,7 +80,7 @@ describe('validateEmailDomainBranding', () => {
   it('fails with actionable messages when DNS is missing', async () => {
     const report = await validateEmailDomainBranding(config, {
       dnsResolveTxt: resolver({}),
-      dnsLookupHost: async () => ['93.184.216.34'],
+      dnsLookupHost: hostLookup(['93.184.216.34']),
       fetchImpl: async () => new Response('missing', { status: 404, statusText: 'Not Found' }),
     });
 
@@ -89,7 +96,7 @@ describe('validateEmailDomainBranding', () => {
       dnsResolveTxt: async () => {
         throw new Error('SERVFAIL');
       },
-      dnsLookupHost: async () => ['93.184.216.34'],
+      dnsLookupHost: hostLookup(['93.184.216.34']),
       fetchImpl: async () => new Response(validSvg, { status: 200 }),
     });
 
@@ -175,6 +182,21 @@ describe('validateEmailDomainBranding', () => {
     assert.ok(report.errors.some((error) => error.includes('ends with +all')));
   });
 
+  it('reports host DNS resolver failures distinctly from unresolved hostnames', async () => {
+    const report = await validateEmailDomainBranding(
+      config,
+      validDeps({
+        dnsLookupHost: hostLookup([], true),
+      }),
+    );
+
+    assert.equal(report.ok, false);
+    assert.ok(
+      report.errors.some((error) => error.includes('DNS lookup failed for assets.example.com')),
+    );
+    assert.ok(report.errors.every((error) => !error.includes('hostname could not be resolved')));
+  });
+
   it('fails when DMARC pct=0 disables full enforcement', async () => {
     const report = await validateEmailDomainBranding(
       config,
@@ -245,7 +267,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['10.0.0.1'],
+        dnsLookupHost: hostLookup(['10.0.0.1']),
       }),
     );
 
@@ -257,7 +279,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['fe90::1'],
+        dnsLookupHost: hostLookup(['fe90::1']),
       }),
     );
 
@@ -269,7 +291,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['::ffff:127.0.0.1'],
+        dnsLookupHost: hostLookup(['::ffff:127.0.0.1']),
       }),
     );
 
@@ -281,7 +303,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['::'],
+        dnsLookupHost: hostLookup(['::']),
       }),
     );
 
@@ -293,7 +315,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['ff02::1'],
+        dnsLookupHost: hostLookup(['ff02::1']),
       }),
     );
 
@@ -305,7 +327,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['::127.0.0.1'],
+        dnsLookupHost: hostLookup(['::127.0.0.1']),
       }),
     );
 
@@ -317,7 +339,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['2001:db8::1'],
+        dnsLookupHost: hostLookup(['2001:db8::1']),
       }),
     );
 
@@ -329,7 +351,7 @@ describe('validateEmailDomainBranding', () => {
     const report = await validateEmailDomainBranding(
       config,
       validDeps({
-        dnsLookupHost: async () => ['192.0.2.1'],
+        dnsLookupHost: hostLookup(['192.0.2.1']),
       }),
     );
 

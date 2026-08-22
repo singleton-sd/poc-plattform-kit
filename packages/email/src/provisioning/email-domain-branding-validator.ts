@@ -31,8 +31,13 @@ export interface EmailDomainBrandingValidationConfig {
 
 export interface EmailDomainBrandingValidationDependencies {
   dnsResolveTxt?: (hostname: string) => Promise<string[]>;
-  dnsLookupHost?: (hostname: string) => Promise<string[]>;
+  dnsLookupHost?: (hostname: string) => Promise<HostLookupResult>;
   fetchImpl?: typeof undiciFetch;
+}
+
+export interface HostLookupResult {
+  addresses: string[];
+  lookupFailed: boolean;
 }
 
 interface ParsedBimiRecord {
@@ -343,7 +348,7 @@ function parseDmarcPct(dmarc: string): number | null | 'invalid' {
 async function fetchBimiLogoSvg(
   bimiLogoUrl: string,
   fetchImpl: typeof undiciFetch,
-  dnsLookupHost: (hostname: string) => Promise<string[]>,
+  dnsLookupHost: (hostname: string) => Promise<HostLookupResult>,
 ): Promise<string> {
   const target = await assertSafeBimiLogoUrl(bimiLogoUrl, dnsLookupHost);
   const dispatcher = createPinnedBimiLogoFetchDispatcher(target);
@@ -369,7 +374,7 @@ async function fetchBimiLogoSvg(
 
 async function assertSafeBimiLogoUrl(
   bimiLogoUrl: string,
-  dnsLookupHost: (hostname: string) => Promise<string[]>,
+  dnsLookupHost: (hostname: string) => Promise<HostLookupResult>,
 ): Promise<SafeBimiLogoTarget> {
   let parsed: URL;
   try {
@@ -387,12 +392,15 @@ async function assertSafeBimiLogoUrl(
     throw new Error(`BIMI logo URL targets an unsafe destination: ${hostname}`);
   }
 
-  const addresses = await dnsLookupHost(hostname);
-  if (addresses.length === 0) {
+  const hostLookup = await dnsLookupHost(hostname);
+  if (hostLookup.lookupFailed) {
+    throw new Error(dnsLookupFailureMessage(hostname));
+  }
+  if (hostLookup.addresses.length === 0) {
     throw new Error(`BIMI logo URL hostname could not be resolved: ${hostname}`);
   }
 
-  for (const address of addresses) {
+  for (const address of hostLookup.addresses) {
     if (isPrivateAddress(address)) {
       throw new Error(`BIMI logo URL resolves to a private address: ${address}`);
     }
@@ -401,7 +409,7 @@ async function assertSafeBimiLogoUrl(
   return {
     hostname,
     port: parsed.port ? Number(parsed.port) : 443,
-    pinnedAddress: addresses[0],
+    pinnedAddress: hostLookup.addresses[0],
   };
 }
 
@@ -447,6 +455,7 @@ async function readResponseTextWithLimit(response: Response, maxBytes: number): 
     if (done) break;
     total += value.length;
     if (total > maxBytes) {
+      await reader.cancel();
       throw new Error(`BIMI logo response exceeds ${maxBytes} bytes.`);
     }
     chunks.push(value);
@@ -462,12 +471,15 @@ async function readResponseTextWithLimit(response: Response, maxBytes: number): 
   return new TextDecoder().decode(combined);
 }
 
-async function lookupHostAddresses(hostname: string): Promise<string[]> {
+async function lookupHostAddresses(hostname: string): Promise<HostLookupResult> {
   try {
     const results = await lookup(hostname, { all: true });
-    return results.map((result) => result.address);
+    return {
+      addresses: results.map((result) => result.address),
+      lookupFailed: false,
+    };
   } catch {
-    return [];
+    return { addresses: [], lookupFailed: true };
   }
 }
 
