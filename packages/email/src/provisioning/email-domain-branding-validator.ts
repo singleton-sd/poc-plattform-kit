@@ -1,4 +1,5 @@
-import { resolveTxt } from 'node:dns/promises';
+import { lookup, resolveTxt } from 'node:dns/promises';
+import { isIP } from 'node:net';
 
 import type { DmarcPolicy } from '../contact/transactional-email-auth-profile';
 
@@ -29,6 +30,7 @@ export interface EmailDomainBrandingValidationConfig {
 
 export interface EmailDomainBrandingValidationDependencies {
   dnsResolveTxt?: (hostname: string) => Promise<string[]>;
+  dnsLookupHost?: (hostname: string) => Promise<string[]>;
   fetchImpl?: typeof fetch;
 }
 
@@ -37,6 +39,8 @@ interface ParsedBimiRecord {
 }
 
 const DEFAULT_BIMI_SELECTOR = 'default';
+const BIMI_LOGO_FETCH_TIMEOUT_MS = 10_000;
+const BIMI_LOGO_MAX_BYTES = 512 * 1024;
 
 export async function validateEmailDomainBranding(
   config: EmailDomainBrandingValidationConfig,
@@ -46,6 +50,7 @@ export async function validateEmailDomainBranding(
   const errors: string[] = [];
   const warnings: string[] = [];
   const dns = deps.dnsResolveTxt ?? resolveTxtFlat;
+  const dnsLookupHost = deps.dnsLookupHost ?? lookupHostAddresses;
   const fetchImpl = deps.fetchImpl ?? fetch;
 
   const configError = validateConfig(config);
@@ -62,20 +67,27 @@ export async function validateEmailDomainBranding(
   const bimiName = `${bimiSelector}._bimi.${domain}`;
 
   const spfRecords = await lookupTxtRecords(dns, domain);
-  const spf = spfRecords.find((record) => /^v=spf1\b/i.test(record));
-  if (!spf) {
+  const spfMatches = spfRecords.filter((record) => /^v=spf1\b/i.test(record));
+  if (spfMatches.length === 0) {
     pushFail(
       checks,
       errors,
       'spf',
       `No SPF TXT record found on ${domain}. Add a TXT record like "v=spf1 include:spf.forwardemail.net -all".`,
     );
-  } else if (!/\s(?:-all|~all|\+all|\?all)\s*$/i.test(spf)) {
+  } else if (spfMatches.length > 1) {
+    pushFail(
+      checks,
+      errors,
+      'spf',
+      `Multiple SPF TXT records found on ${domain} (${spfMatches.length}). SPF permits exactly one record.`,
+    );
+  } else if (!/\s(?:-all|~all|\+all|\?all)\s*$/i.test(spfMatches[0])) {
     pushWarn(
       checks,
       warnings,
       'spf',
-      `SPF record on ${domain} does not end with an explicit all-mechanism (-all/~all/?all/+all): ${spf}`,
+      `SPF record on ${domain} does not end with an explicit all-mechanism (-all/~all/?all/+all): ${spfMatches[0]}`,
     );
   } else {
     pushPass(checks, 'spf', `SPF TXT record found on ${domain}.`);
@@ -104,12 +116,27 @@ export async function validateEmailDomainBranding(
     );
   } else {
     const policyMatch = dmarc.match(/(?:^|;)\s*p\s*=\s*([a-z]+)/i)?.[1]?.toLowerCase();
-    if (policyMatch !== config.expectedDmarcPolicy) {
+    const pct = parseDmarcPct(dmarc);
+    if (pct === 'invalid') {
+      pushFail(
+        checks,
+        errors,
+        'dmarc',
+        `DMARC pct tag is malformed on ${dmarcName}. Use an integer from 0 to 100, or omit pct for full enforcement.`,
+      );
+    } else if (policyMatch !== config.expectedDmarcPolicy) {
       pushFail(
         checks,
         errors,
         'dmarc',
         `DMARC policy mismatch on ${dmarcName}: expected p=${config.expectedDmarcPolicy}, got p=${policyMatch ?? 'missing'}.`,
+      );
+    } else if (pct !== null && pct !== 100) {
+      pushFail(
+        checks,
+        errors,
+        'dmarc',
+        `DMARC pct=${pct} on ${dmarcName} does not enforce the full policy. Use pct=100 or omit pct.`,
       );
     } else {
       pushPass(checks, 'dmarc', `DMARC TXT record found with p=${config.expectedDmarcPolicy}.`);
@@ -178,14 +205,16 @@ export async function validateEmailDomainBranding(
     return { ok: errors.length === 0, checks, errors, warnings };
   }
 
-  const response = await fetchImpl(bimiLogoUrl, { method: 'GET' });
-  if (!response.ok) {
-    pushFail(
-      checks,
-      errors,
-      'bimi-logo-https',
-      `BIMI logo URL returned HTTP ${response.status} ${response.statusText}. URL: ${bimiLogoUrl}`,
-    );
+  let svgText: string;
+  try {
+    svgText = await fetchBimiLogoSvg(bimiLogoUrl, fetchImpl, dnsLookupHost);
+    pushPass(checks, 'bimi-logo-https', `BIMI logo URL responded successfully: ${bimiLogoUrl}`);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'BIMI logo could not be downloaded due to a network error.';
+    pushFail(checks, errors, 'bimi-logo-https', message);
     pushSkip(
       checks,
       'bimi-svg-structure',
@@ -193,9 +222,7 @@ export async function validateEmailDomainBranding(
     );
     return { ok: errors.length === 0, checks, errors, warnings };
   }
-  pushPass(checks, 'bimi-logo-https', `BIMI logo URL responded successfully: ${bimiLogoUrl}`);
 
-  const svgText = await response.text();
   const svgIssues = validateBimiSvgStructure(svgText);
   if (svgIssues.length > 0) {
     const message = `BIMI SVG structure validation failed: ${svgIssues.join(' ')}`;
@@ -256,8 +283,153 @@ async function lookupTxtRecords(
 }
 
 function parseBimiRecord(value: string): ParsedBimiRecord {
-  const locationUrl = value.match(/(?:^|;)\s*l\s*=\s*([^;]+)/i)?.[1]?.trim() ?? null;
+  const rawLocationUrl = value.match(/(?:^|;)\s*l\s*=\s*([^;]+)/i)?.[1] ?? null;
+  const locationUrl = rawLocationUrl === null ? null : rawLocationUrl.trim().replace(/^"|"$/g, '');
   return { locationUrl };
+}
+
+function parseDmarcPct(dmarc: string): number | null | 'invalid' {
+  const match = dmarc.match(/(?:^|;)\s*pct\s*=\s*(\d+)/i);
+  if (!match) return null;
+
+  const value = Number(match[1]);
+  if (!Number.isInteger(value) || value < 0 || value > 100) {
+    return 'invalid';
+  }
+  return value;
+}
+
+async function fetchBimiLogoSvg(
+  bimiLogoUrl: string,
+  fetchImpl: typeof fetch,
+  dnsLookupHost: (hostname: string) => Promise<string[]>,
+): Promise<string> {
+  await assertSafeBimiLogoUrl(bimiLogoUrl, dnsLookupHost);
+
+  const response = await fetchImpl(bimiLogoUrl, {
+    method: 'GET',
+    redirect: 'error',
+    signal: AbortSignal.timeout(BIMI_LOGO_FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `BIMI logo URL returned HTTP ${response.status} ${response.statusText}. URL: ${bimiLogoUrl}`,
+    );
+  }
+
+  return readResponseTextWithLimit(response, BIMI_LOGO_MAX_BYTES);
+}
+
+async function assertSafeBimiLogoUrl(
+  bimiLogoUrl: string,
+  dnsLookupHost: (hostname: string) => Promise<string[]>,
+): Promise<void> {
+  let parsed: URL;
+  try {
+    parsed = new URL(bimiLogoUrl);
+  } catch {
+    throw new Error(`Invalid BIMI logo URL: ${bimiLogoUrl}`);
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`BIMI logo URL must use HTTPS, got: ${bimiLogoUrl}`);
+  }
+
+  const hostname = parsed.hostname.replace(/^\[/, '').replace(/\]$/, '');
+  if (isUnsafeHostname(hostname)) {
+    throw new Error(`BIMI logo URL targets an unsafe destination: ${hostname}`);
+  }
+
+  const addresses = await dnsLookupHost(hostname);
+  if (addresses.length === 0) {
+    throw new Error(`BIMI logo URL hostname could not be resolved: ${hostname}`);
+  }
+
+  for (const address of addresses) {
+    if (isPrivateAddress(address)) {
+      throw new Error(`BIMI logo URL resolves to a private address: ${address}`);
+    }
+  }
+}
+
+async function readResponseTextWithLimit(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = response.headers.get('content-length');
+  if (contentLength !== null && Number(contentLength) > maxBytes) {
+    throw new Error(`BIMI logo response exceeds ${maxBytes} bytes.`);
+  }
+
+  const body = response.body;
+  if (!body) {
+    return response.text();
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > maxBytes) {
+      throw new Error(`BIMI logo response exceeds ${maxBytes} bytes.`);
+    }
+    chunks.push(value);
+  }
+
+  const combined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return new TextDecoder().decode(combined);
+}
+
+async function lookupHostAddresses(hostname: string): Promise<string[]> {
+  try {
+    const results = await lookup(hostname, { all: true });
+    return results.map((result) => result.address);
+  } catch {
+    return [];
+  }
+}
+
+function isUnsafeHostname(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+  if (lower === 'localhost' || lower.endsWith('.localhost')) return true;
+  if (lower.endsWith('.local')) return true;
+
+  const ipVersion = isIP(hostname);
+  if (ipVersion === 4 || ipVersion === 6) {
+    return isPrivateAddress(hostname);
+  }
+
+  return false;
+}
+
+function isPrivateAddress(address: string): boolean {
+  const ipVersion = isIP(address);
+  if (ipVersion === 4) {
+    const octets = address.split('.').map(Number);
+    const [a, b] = octets;
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    return false;
+  }
+
+  if (ipVersion === 6) {
+    const normalized = address.toLowerCase();
+    if (normalized === '::1') return true;
+    if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+    if (normalized.startsWith('fe80')) return true;
+  }
+
+  return false;
 }
 
 function validateConfig(config: EmailDomainBrandingValidationConfig): string | null {
