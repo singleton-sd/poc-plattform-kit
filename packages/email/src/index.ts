@@ -24,7 +24,14 @@ export type {
   ContactSubject,
   ContactValidationResult,
 } from './contact/contact-email';
-export type { ContactEmailProfile, DmarcPolicy } from './contact/contact-email-profile';
+export type {
+  ContactEmailProfile,
+  TenantEmailProfileOverride,
+} from './contact/contact-email-profile';
+export type {
+  DmarcPolicy,
+  TransactionalEmailAuthProfile,
+} from './contact/transactional-email-auth-profile';
 export {
   CONTACT_SUBJECTS,
   buildContactEmailRequest,
@@ -33,19 +40,37 @@ export {
   validateContactInquiry,
 } from './contact/contact-email';
 export {
-  extractEmailDomain,
-  loadContactEmailProfile,
-  validateContactEmailProfile,
+  clearHostProfileMapCache,
+  getHostProfileMap,
+  resolveContactEmailProfile,
+  resolveTenantEmailProfileOverride,
 } from './contact/contact-email-profile';
+export {
+  extractEmailDomain,
+  loadTransactionalEmailAuthProfile,
+  validateResolvedSenderDomainAlignment,
+  validateTransactionalEmailAuthProfile,
+} from './contact/transactional-email-auth-profile';
+
+export { BIMI_LOGO_SVG } from './bimi/bimi-logo';
+export {
+  assertValidBimiSelector,
+  buildBimiDnsRecordName,
+  buildBimiSelectorHeaderValue,
+  buildBimiTxtValue,
+  type BimiDnsSettings,
+} from './bimi/bimi-dns';
 
 export type {
   ForwardEmailAliasSummary,
-  ForwardEmailDnsRecord,
   ForwardEmailDomainSummary,
+  ForwardEmailDnsRecord,
   ForwardEmailManagementClientOptions,
 } from './provisioning/forward-email-management';
 export {
   ForwardEmailManagementClient,
+  getRequiredBimiDnsRecords,
   getRequiredDnsRecords,
   mergeSpfInclude,
+  resolveBimiRoute53Record,
 } from './provisioning/forward-email-management';

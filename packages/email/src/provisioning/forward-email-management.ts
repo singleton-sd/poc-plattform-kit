@@ -3,13 +3,15 @@
  * Runtime senders must not import Route53 helpers from here.
  */
 
+import { buildBimiDnsRecordName, buildBimiTxtValue } from '../bimi/bimi-dns';
+
 export interface ForwardEmailDnsRecord {
   type: 'MX' | 'TXT' | 'CNAME';
   /** Relative name under the parent hosted zone (e.g. plattform-kit.poc). */
   name: string;
   value: string;
   priority?: number;
-  purpose: 'verification' | 'mx' | 'spf' | 'dkim' | 'dmarc' | 'return-path';
+  purpose: 'verification' | 'mx' | 'spf' | 'dkim' | 'dmarc' | 'return-path' | 'bimi';
   source: 'static' | 'api';
 }
 
@@ -351,6 +353,62 @@ export function getRequiredDnsRecords(options: {
   }
 
   return records;
+}
+
+/**
+ * Resolve BIMI DNS record name/value for a Route53 hosted zone.
+ *
+ * Record name/value construction is centralized in `buildBimiDnsRecordName` /
+ * `buildBimiTxtValue` so provisioning scripts and TypeScript callers stay aligned.
+ */
+export function resolveBimiRoute53Record(options: {
+  selector: string;
+  sendingDomain: string;
+  zoneDomain: string;
+  logoUrl: string;
+  evidenceUrl?: string;
+}): {
+  relativeName: string;
+  txtValue: string;
+  fqdnRecordName: string;
+} {
+  const { selector, sendingDomain, zoneDomain, logoUrl, evidenceUrl } = options;
+
+  if (!sendingDomain.endsWith(`.${zoneDomain}`) && sendingDomain !== zoneDomain) {
+    throw new Error(`Sending domain ${sendingDomain} is not under zone ${zoneDomain}`);
+  }
+
+  const settings = { selector, sendingDomain, logoUrl, evidenceUrl };
+  const fqdnRecordName = buildBimiDnsRecordName(settings);
+  return {
+    fqdnRecordName,
+    relativeName: stripZoneSuffix(fqdnRecordName, zoneDomain),
+    txtValue: buildBimiTxtValue(settings),
+  };
+}
+
+/**
+ * BIMI TXT record (for mailbox providers that support BIMI).
+ *
+ * DNS record name: `<selector>._bimi.<sendingDomain>` (relative to Route53 zone).
+ */
+export function getRequiredBimiDnsRecords(options: {
+  selector: string;
+  sendingDomain: string;
+  zoneDomain: string;
+  logoUrl: string;
+  evidenceUrl?: string;
+}): ForwardEmailDnsRecord[] {
+  const resolved = resolveBimiRoute53Record(options);
+  return [
+    {
+      type: 'TXT',
+      name: resolved.relativeName,
+      value: resolved.txtValue,
+      purpose: 'bimi',
+      source: 'static',
+    },
+  ];
 }
 
 export function mergeSpfInclude(
