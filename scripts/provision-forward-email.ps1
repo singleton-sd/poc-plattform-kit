@@ -198,13 +198,14 @@ function Assert-DmarcAggregateReportAddress {
   param([string]$Address)
 
   if ([string]::IsNullOrWhiteSpace($Address)) {
-    return
+    return $null
   }
 
+  $entries = New-Object System.Collections.Generic.List[string]
   foreach ($entry in ($Address -split ',')) {
     $trimmed = $entry.Trim()
     if ([string]::IsNullOrWhiteSpace($trimmed)) {
-      continue
+      throw 'DmarcAggregateReportAddress must not contain empty comma-separated entries'
     }
     if (-not $trimmed.StartsWith('mailto:', [StringComparison]::OrdinalIgnoreCase)) {
       throw "DmarcAggregateReportAddress must start with mailto: (invalid entry: $trimmed)"
@@ -213,7 +214,10 @@ function Assert-DmarcAggregateReportAddress {
     if ([string]::IsNullOrWhiteSpace($recipient) -or $recipient -notmatch '@') {
       throw "DmarcAggregateReportAddress mailto URI must include a recipient (invalid entry: $trimmed)"
     }
+    [void]$entries.Add($trimmed)
   }
+
+  return ($entries -join ',')
 }
 
 function Build-DmarcRecord {
@@ -229,9 +233,9 @@ function Build-DmarcRecord {
     'aspf=s'
     'pct=100'
   )
-  if (-not [string]::IsNullOrWhiteSpace($AggregateReportAddress)) {
-    Assert-DmarcAggregateReportAddress -Address $AggregateReportAddress
-    $parts += "rua=$($AggregateReportAddress.Trim())"
+  $normalizedRua = Assert-DmarcAggregateReportAddress -Address $AggregateReportAddress
+  if (-not [string]::IsNullOrWhiteSpace($normalizedRua)) {
+    $parts += "rua=$normalizedRua"
   }
   return ($parts -join '; ') + ';'
 }
@@ -436,7 +440,7 @@ $authHeader = Get-BasicAuthHeaderValue -Token $token
 # Drop locals that are only needed for auth construction later reuse is via $authHeader.
 Remove-Variable token -ErrorAction SilentlyContinue
 
-Assert-DmarcAggregateReportAddress -Address $DmarcAggregateReportAddress
+Assert-DmarcAggregateReportAddress -Address $DmarcAggregateReportAddress | Out-Null
 
 if (-not $Domain.EndsWith(".$ZoneDomain") -and $Domain -ne $ZoneDomain) {
   throw "Domain '$Domain' is not under zone '$ZoneDomain'."

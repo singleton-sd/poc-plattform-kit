@@ -62,6 +62,23 @@ describe('validateTransactionalEmailAuthProfile', () => {
     assert.ok(errors.some((error) => error.includes('mailto:')));
   });
 
+  it('rejects empty comma-separated DMARC rua entries', () => {
+    for (const rua of [
+      'mailto:reports@example.test,',
+      ',mailto:reports@example.test',
+      'mailto:a@example.test,,mailto:b@example.test',
+    ]) {
+      const errors = validateTransactionalEmailAuthProfile(
+        loadTransactionalEmailAuthProfile({
+          EMAIL_FROM_ADDRESS: 'noreply@mail.example.test',
+          EMAIL_SENDING_DOMAIN: 'mail.example.test',
+          EMAIL_DMARC_RUA: rua,
+        }),
+      );
+      assert.ok(errors.some((error) => error.includes('empty comma-separated')));
+    }
+  });
+
   it('rejects monitoring-only DMARC policy', () => {
     const errors = validateTransactionalEmailAuthProfile(
       loadTransactionalEmailAuthProfile({

@@ -120,10 +120,13 @@ function validateDmarcAggregateReportAddress(value: string): string[] {
   }
 
   const errors: string[] = [];
-  for (const entry of value
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean)) {
+  const parts = value.split(',');
+  for (const part of parts) {
+    const entry = part.trim();
+    if (!entry) {
+      errors.push('EMAIL_DMARC_RUA must not contain empty comma-separated entries');
+      return errors;
+    }
     if (!entry.toLowerCase().startsWith('mailto:')) {
       errors.push(`EMAIL_DMARC_RUA entry must start with "mailto:" (${entry})`);
       continue;
