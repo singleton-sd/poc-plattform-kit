@@ -54,9 +54,13 @@ jobs:
 
       - name: Check OIDC
         id: cfg
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
-          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
+          if [ -z "$AZURE_CLIENT_ID" ] || [ -z "$AZURE_TENANT_ID" ] || [ -z "$AZURE_SUBSCRIPTION_ID" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
             echo "OIDC Variables not set — skipping marketing-edge Function deploy."
           else
