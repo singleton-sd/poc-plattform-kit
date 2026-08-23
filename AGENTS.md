@@ -506,7 +506,7 @@ Canonical skills live in [`singleton-sd/ai-plattform-skills`](https://github.com
 This repo selects and pins them via [`.skills/manifest.json`](.skills/manifest.json) and
 [`.skills/profile`](.skills/profile) (`engineeringHost: github`).
 
-```powershell
+```bash
 pnpm skills:install:pin   # refresh from GitHub into multi-agent folders; commit on chore PRs only
 ```
 
@@ -519,7 +519,7 @@ output is a **GitHub Issue**, not a new ClickUp Delivery ticket — see
 [`docs/github-source-of-truth.md`](docs/github-source-of-truth.md). ClickUp remains for product
 features and optional tracking tickets (`create-tracking-ticket`).
 
-`pnpm sync:skills` is an alias of `skills:install:pin` (deprecated name).
+`pnpm sync:skills` and `./scripts/sync-skills.sh` are aliases of `skills:install:pin` (deprecated names).
 
 ## TDD / quality
 
