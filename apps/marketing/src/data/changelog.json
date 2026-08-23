@@ -2,6 +2,17 @@
   "product": "@poc-plattform-kit/marketing",
   "releases": [
     {
+      "version": "0.9.0",
+      "date": "2026-08-23",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "#283 Point Decap at cms-oauth-kit",
+          "reason": "Cut marketing /admin over to https://auth.singletonsd.com and"
+        }
+      ]
+    },
+    {
       "version": "0.8.0",
       "date": "2026-08-22",
       "changes": [

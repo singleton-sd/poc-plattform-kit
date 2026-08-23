@@ -2,6 +2,14 @@
 
 Release history for **@poc-plattform-kit/marketing**, generated from conventional commits by the release-it workflow.
 
+## 0.9.0 — 2026-08-23
+
+### New
+
+- #283 Point Decap at cms-oauth-kit
+
+  Cut marketing /admin over to https://auth.singletonsd.com and
+
 ## 0.8.0 — 2026-08-22
 
 ### New
