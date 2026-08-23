@@ -13,7 +13,7 @@
   hand-fix (lists them). Never uses --no-verify.
 
 .PARAMETER SkillsSync
-  Re-run pnpm sync:skills for skill conflicts instead of taking main.
+  Re-run pnpm skills:install:pin for skill conflicts instead of taking main.
 
 .PARAMETER ForceKeepFeatureDocs
   Leave AGENTS.md / SETUP.md / docs hubs / infra/README.md for hand-fix
@@ -271,7 +271,12 @@ function Test-IsDocHub {
 
 function Test-IsSkillPath {
   param([string]$Path)
-  return ($Path -like '.cursor/skills/*')
+  return (
+    ($Path -like '.cursor/skills/*') -or
+    ($Path -like '.agents/skills/*') -or
+    ($Path -like '.claude/skills/*') -or
+    ($Path -like '.grok/skills/*')
+  )
 }
 
 function Test-IsPackageJson {
@@ -356,20 +361,20 @@ if ($skillPaths.Count -gt 0) {
   Write-Step ("Skills conflicts ({0})" -f $skillPaths.Count)
   $skillArr = @($skillPaths)
   if ($SkillsSync) {
-    Write-Host 'Re-running pnpm sync:skills (-SkillsSync)'
+    Write-Host 'Re-running pnpm skills:install:pin (-SkillsSync)'
     Invoke-GitCheckoutSide -Side $Ctx.MainCheckout -Paths $skillArr
-    & pnpm sync:skills
+    & pnpm skills:install:pin
     if ($LASTEXITCODE -ne 0) {
-      Write-Warning 'pnpm sync:skills failed - skill paths left for hand-fix'
+      Write-Warning 'pnpm skills:install:pin failed - skill paths left for hand-fix'
       foreach ($s in $skillArr) { [void]$remaining.Add($s) }
     }
     else {
       Invoke-GitAdd -Paths $skillArr
-      git add -- .cursor/skills
+      git add -- .agents/skills .claude/skills .grok/skills .cursor/skills 2>$null
     }
   }
   else {
-    Write-Host 'Taking main for skills (not a skills-sync ticket). Use -SkillsSync to re-sync.'
+    Write-Host 'Taking main for skills (not a skills-install ticket). Use -SkillsSync to re-sync.'
     Invoke-GitCheckoutSide -Side $Ctx.MainCheckout -Paths $skillArr
     Invoke-GitAdd -Paths $skillArr
   }
