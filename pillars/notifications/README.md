@@ -62,7 +62,7 @@ Legacy aliases still accepted by the client: `FORWARDEMAIL_API_KEY`, `FORWARDEMA
 
 App Config keys keep the `app:notifications:*` prefix for ops continuity; they are **shared email runtime settings**, not a Nest-only concern.
 
-Never put provider API keys in GitHub Secrets or git. See also [docs/marketing-edge.md](../../docs/marketing-edge.md) for marketing-edge contact delivery wiring.
+Never put provider API keys in GitHub Secrets or git. Marketing brochure delivery is owned by shared [`PostKit`](https://github.com/singleton-sd/post-kit).
 
 ## Layout
 
@@ -79,10 +79,8 @@ pillars/notifications/src/
     whatsapp-provider.ts
 ```
 
-Marketing brochure Contact (`apps/marketing-oauth`) depends on
-**`@poc-plattform-kit/email` only** — not this pillar. Function zip deploy
-vendors the built email package into `node_modules` (see
-`scripts/deploy-decap-oauth.ps1`) so `workspace:*` is not required at runtime
-on Azure.
+Marketing brochure Contact is sent by shared
+[`PostKit`](https://github.com/singleton-sd/post-kit). This repository does not
+host the public Contact email Function.
 
 `EmailProvider` requires `isConfigured()` — any Nest/queue stub or mock must implement it (not only `send`).

@@ -179,8 +179,8 @@ const reachItems: ReachItem[] = [
   ] as const;
   let attemptedSubmit = false;
   const apiBase = (
-    (import.meta.env.PUBLIC_MARKETING_API_BASE_URL as string | undefined) ||
-    'https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net'
+    (import.meta.env.PUBLIC_POSTKIT_API_BASE_URL as string | undefined) ||
+    'https://ssd-postkit-api-prod-ae.azurewebsites.net'
   ).replace(/\/$/, '');
 
   function setFieldError(id: string, message: string | null) {

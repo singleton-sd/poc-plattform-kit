@@ -17,7 +17,7 @@ This document covers architecture, configuration, DNS (Route53), the provisionin
 Domain events / contact form / notifications.send
         │
         ▼
- @poc-plattform-kit/email          ← shared library (marketing-edge + pillar)
+ @poc-plattform-kit/email          ← Platform Kit notifications library
         │
         ├─ EmailProvider (abstraction)
         │     ├─ DevelopmentEmailProvider   ← default locally + PR previews
@@ -39,7 +39,7 @@ Domain events / contact form / notifications.send
 | DNS (MX / SPF / DKIM / DMARC / Return-Path) | AWS Route53 hosted zone `singletonsd.com` |
 | Secret storage | Azure Key Vault `ssd-pocpk-kv-dev-ae` secret name **`forwardemail-api-key`** |
 | Non-secret config | Azure App Configuration `ssd-pocpk-appcs-dev-ae` (`app:notifications:*` — shared email settings; name kept for ops continuity) |
-| Marketing contact HTTP | Marketing edge Function App depends on `@poc-plattform-kit/email` only (see [marketing-edge.md](./marketing-edge.md)) — not Nest / not the Notifications pillar runtime |
+| Marketing contact HTTP | Shared [`PostKit`](https://github.com/singleton-sd/post-kit); not hosted by Platform Kit |
 
 Pillars never embed provider secrets in source. Nest `apps/api` maps App Config / KV refs into process env via `apps/api/src/config/app-configuration.ts` before boot.
 
@@ -106,7 +106,7 @@ Resolution order for contact email:
 
 1. Global defaults (`EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `CONTACT_INBOX_ADDRESS`)
 2. Tenant override from tenant settings `settings.email` (API/runtime callers that pass tenant settings)
-3. Host override from `CONTACT_EMAIL_PROFILES_BY_HOST` when the marketing-edge caller passes a **trusted** request host derived from an allowlisted `Origin` (`ORIGINS` env)
+3. Host override from `CONTACT_EMAIL_PROFILES_BY_HOST` when a trusted runtime caller supplies a validated host
 
 Untrusted or unlisted `Origin` values are ignored for host-profile selection so a client cannot forge another PoC's sender or inbox.
 
@@ -382,7 +382,7 @@ Re-run the script with `-Alias` / `-AliasRecipient`, or `POST /v1/domains/{domai
 ## Related
 
 - Pillar overview: [`pillars/notifications/README.md`](../pillars/notifications/README.md)
-- Marketing edge contact delivery: [marketing-edge.md](./marketing-edge.md)
+- Marketing contact delivery: [`singleton-sd/post-kit`](https://github.com/singleton-sd/post-kit)
 - Route53 custom domains: [dns-route53.md](./dns-route53.md)
 - Cursor skill: [`.cursor/skills/forward-email/SKILL.md`](../.cursor/skills/forward-email/SKILL.md)
 - Upstream API: https://forwardemail.net/en/email-api
@@ -399,4 +399,4 @@ Re-run the script with `-Alias` / `-AliasRecipient`, or `POST /v1/domains/{domai
 
 RFC 1034 forbids MX/TXT on the same name as a CNAME, so the marketing hostname cannot be the mail domain. The provision script still detects a CNAME on whatever `-Domain` you pass and skips apex MX/TXT in that case; with the PoC default `mail.…` there is no website CNAME, so full verification applies.
 
-If an older Forward Email domain was created on `plattform-kit.poc.singletonsd.com` during foundation setup, leave or remove it in the Forward Email dashboard — production From/App Config should use the `mail.` domain only. Update App Config `app:notifications:emailFromAddress` (and redeploy marketing-edge if the Function still has the old default) when cutting over.
+If an older Forward Email domain was created on `plattform-kit.poc.singletonsd.com` during foundation setup, leave or remove it in the Forward Email dashboard — production From/App Config should use the `mail.` domain only.

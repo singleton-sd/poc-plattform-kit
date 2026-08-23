@@ -73,12 +73,7 @@ test('SETUP documents devtools vault, PAT permissions, and copy-paste setup', as
 });
 
 test('production deploy workflows disable checkout credential persistence', async () => {
-  for (const name of [
-    'deploy-api.yml',
-    'deploy-web.yml',
-    'deploy-marketing.yml',
-    'deploy-decap-oauth.yml',
-  ]) {
+  for (const name of ['deploy-api.yml', 'deploy-web.yml', 'deploy-marketing.yml']) {
     const workflow = await readFile(
       new URL(`../.github/workflows/${name}`, import.meta.url),
       'utf8',

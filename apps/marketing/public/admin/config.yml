@@ -1,12 +1,12 @@
 # Decap CMS — git-backed editor for marketing Markdown.
-# Auth: GitHub backend via Azure Function OAuth proxy.
+# Auth: shared org GitHub OAuth (cms-oauth-kit). Do not point at the PK Function.
 # Docs: docs/marketing-astro-decap.md
+# Consumer contract: https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md
 backend:
   name: github
   repo: singleton-sd/poc-plattform-kit
   branch: main
-  # Azure Function proxy (infra/decap-oauth.bicep → ssd-pocpk-decap-oauth-dev-ae)
-  base_url: https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net
+  base_url: https://auth.singletonsd.com
   auth_endpoint: auth
 
 # Prefer PRs so human merge still gates production publish.

@@ -30,7 +30,7 @@ rules that follow from it.
 | **SingleSignOn** | Entra AuthN, Auth.js session cookies, coarse roles | Implemented (no dedicated pillar package yet — lives in `apps/api` auth wiring; see `docs/sso.md`) |
 | **Permissions** | Fine-grained AuthZ (`Check(subject, action, resource)`) via OpenFGA | Implemented (`pillars/permissions`) |
 | **Subscriptions** | Tenant plans/entitlements | Outbox/Audit scaffold only so far |
-| **Contact** | Public brochure-site contact intake | Outbox/Audit scaffold; edge HTTP handled separately (see Marketing edge below) |
+| **Contact** | Product contact domain | Outbox/Audit scaffold; brochure intake is handled by shared PostKit |
 | **Support** | Support tickets, diagnostics, impersonation | Outbox/Audit scaffold; see `docs/discovery/*` for the in-progress design |
 | **Audit** | Platform-wide durable audit trail from every pillar's events | Implemented (`pillars/audit`) |
 | **Reporting** | Cross-pillar read models / projections built from events | Implemented (`pillars/reporting`) |
@@ -122,7 +122,7 @@ DTOs.
 | --- | --- | --- |
 | Web app | Next.js PWA SPA + Tailwind + Singleton SD design tokens | `apps/web`; consumes the generated API client |
 | Marketing | Astro SSG + Tailwind + tokens + Markdown + Decap CMS (`/admin`) | `apps/marketing`; see [`docs/marketing-astro-decap.md`](../marketing-astro-decap.md) |
-| Marketing edge | Azure Function App (public anonymous HTTP: Contact form, etc.) | `apps/marketing-oauth`; deliberately **not** on Nest `apps/api` — see [`docs/marketing-edge.md`](../marketing-edge.md) |
+| Marketing connectors | Shared services | Contact uses [`PostKit`](https://github.com/singleton-sd/post-kit); Decap `/admin` login uses [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit). Platform Kit hosts neither Function. |
 
 ## Deployment topology
 
@@ -131,7 +131,6 @@ DTOs.
 | Web | SWA Free (custom domain) | SWA Free PR preview (`*.azurestaticapps.net`) |
 | Marketing | SWA Free (custom domain) | SWA Free PR preview |
 | API | App Service B1 (custom domain) | Azure Container Apps Consumption, ephemeral, scale-to-zero |
-| Marketing edge | Azure Function App B1 | — |
 | OpenFGA | Azure Container Apps Consumption | shares the dev store; see ADR 0002 |
 
 Public hostnames sit under `singletonsd.com`, with DNS in AWS Route53

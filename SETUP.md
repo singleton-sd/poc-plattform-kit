@@ -249,7 +249,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events -> Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `github-decap-oauth-client-secret`, `chromatic-project-token`
+**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`
 
 **Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): `github-automation-pat` (org-wide platform automation PAT). See **Platform GitHub automation PAT** above.
 
@@ -279,46 +279,9 @@ App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **
 
 Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`. Non-secret App Config: provider base URLs, WhatsApp phone-number-id, Graph API version (secrets only as KV references).
 
-### Marketing edge (locked)
+### Marketing connectors (locked)
 
-Public brochure HTTP (Contact form, etc.) runs on Function App **`ssd-pocpk-decap-oauth-dev-ae`** (`apps/marketing-oauth`), **not** Nest `apps/api`. See [`docs/marketing-edge.md`](docs/marketing-edge.md).
-
-**Forward Email - create secret + App Config (ops; do not commit values):**
-
-```powershell
-az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
-
-# 1) Key Vault secret (prompt avoids shell history)
-az keyvault secret set `
-  --vault-name ssd-pocpk-kv-dev-ae `
-  --name forwardemail-api-key `
-  --file -   # paste token, Enter, then Ctrl+Z Enter on Windows - or use --value only in a private session
-
-# Prefer interactive file/stdin. Example with env var you set yourself (not committed):
-# $env:FORWARDEMAIL_API_KEY = '<paste once>'
-# az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name forwardemail-api-key --value $env:FORWARDEMAIL_API_KEY
-# Remove-Item Env:FORWARDEMAIL_API_KEY
-
-# 2) App Config Key Vault reference (same content-type as other secret:* keys)
-az appconfig kv set `
-  --name ssd-pocpk-appcs-dev-ae `
-  --key secret:forwardemail-api-key `
-  --content-type "application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8" `
-  --value '{\"uri\": \"https://ssd-pocpk-kv-dev-ae.vault.azure.net/secrets/forwardemail-api-key\"}' `
-  --yes
-
-# 3) Non-secret contact delivery settings
-az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:forwardEmailBaseUrl --value "https://api.forwardemail.net" --yes
-az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:contactInboxEmail --value "hello@singletonsd.com" --yes
-az appconfig kv set --name ssd-pocpk-appcs-dev-ae --key app:notifications:contactFromEmail --value "noreply@mail.plattform-kit.poc.singletonsd.com" --yes
-```
-
-Verify (no secret values printed):
-
-```powershell
-az keyvault secret show --vault-name ssd-pocpk-kv-dev-ae --name forwardemail-api-key --query "{name:name, enabled:attributes.enabled}" -o json
-az appconfig kv show --name ssd-pocpk-appcs-dev-ae --key secret:forwardemail-api-key --query "{key:key, contentType:contentType}" -o json
-```
+Decap `/admin` login uses shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit) at `https://auth.singletonsd.com`. The brochure Contact form uses shared [`PostKit`](https://github.com/singleton-sd/post-kit) through `PUBLIC_POSTKIT_API_BASE_URL`. Platform Kit does not deploy a marketing OAuth or email Function.
 
 | Surface | Rule |
 | --- | --- |
