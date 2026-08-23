@@ -21,7 +21,6 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/api/package.json ./apps/api/
 COPY apps/marketing/package.json ./apps/marketing/
-COPY apps/marketing-oauth/package.json ./apps/marketing-oauth/
 COPY packages ./packages
 COPY pillars ./pillars
 RUN pnpm install --frozen-lockfile

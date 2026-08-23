@@ -19,9 +19,7 @@ export function expectedChecks(paths) {
   );
   const apiCi = paths.some((path) => /^(apps\/api|pillars|packages)\//.test(path));
   const webCi =
-    paths.some((path) =>
-      /^(apps\/web|apps\/marketing|apps\/marketing-oauth|packages)\//.test(path),
-    ) || rootCi;
+    paths.some((path) => /^(apps\/web|apps\/marketing|packages)\//.test(path)) || rootCi;
   if (apiCi || rootCi) checks.add('Lint / test / build (api)');
   if (webCi) checks.add('Lint / format / build (web)');
   return [...checks];

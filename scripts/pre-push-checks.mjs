@@ -157,15 +157,15 @@ export const apiChecks = [
 
 export const webChecks = [
   [
-    'pnpm --filter @poc-plattform-kit/web... run lint && pnpm --filter @poc-plattform-kit/marketing... run lint && pnpm --filter @poc-plattform-kit/marketing-oauth... run lint',
+    'pnpm --filter @poc-plattform-kit/web... run lint && pnpm --filter @poc-plattform-kit/marketing... run lint',
     'Lint (web + marketing + packages)',
   ],
   [
-    'pnpm --filter @poc-plattform-kit/web... run build && pnpm --filter @poc-plattform-kit/web run build-storybook && pnpm --filter @poc-plattform-kit/marketing... run build && pnpm --filter @poc-plattform-kit/marketing-oauth... run build && pnpm --filter "./packages/**" run build',
+    'pnpm --filter @poc-plattform-kit/web... run build && pnpm --filter @poc-plattform-kit/web run build-storybook && pnpm --filter @poc-plattform-kit/marketing... run build && pnpm --filter "./packages/**" run build',
     'Build (web + marketing + packages)',
   ],
   [
-    'pnpm --filter @poc-plattform-kit/web... run test && pnpm --filter @poc-plattform-kit/marketing... run test && pnpm --filter @poc-plattform-kit/marketing-oauth... run test && pnpm --filter "./packages/**" run test',
+    'pnpm --filter @poc-plattform-kit/web... run test && pnpm --filter @poc-plattform-kit/marketing... run test && pnpm --filter "./packages/**" run test',
     'Test (web + marketing + packages)',
   ],
 ];

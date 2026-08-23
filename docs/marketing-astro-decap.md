@@ -11,9 +11,8 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 | Content | Markdown collections under `apps/marketing/src/content/pages/` |
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
 | OAuth login | Shared org service **`cms-oauth-kit`** (`https://auth.singletonsd.com`). See [`singleton-sd/cms-oauth-kit` AGENTS.md](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md). This repo is **not** the org Decap OAuth provider. |
-| Marketing edge HTTP | Azure Function App `ssd-pocpk-decap-oauth-dev-ae` (`apps/marketing-oauth`) — public brochure endpoints (Contact + health) **only**. See [marketing-edge.md](./marketing-edge.md). Do **not** attach these to Nest `apps/api`. Do **not** point `PUBLIC_MARKETING_API_BASE_URL` at `https://auth.singletonsd.com`. |
+| Contact email | Shared [`PostKit`](https://github.com/singleton-sd/post-kit) API via `PUBLIC_POSTKIT_API_BASE_URL` |
 | Deploy site | `deploy-marketing.yml` → OIDC → Key Vault → SWA upload of `apps/marketing/dist` |
-| Deploy marketing-edge | `deploy-decap-oauth.yml` → OIDC → Bicep + zip Function App (Contact; filename/app name kept as a follow-up rename) |
 
 No WordPress, Gatsby, or always-on CMS server for the site itself.
 
@@ -68,7 +67,7 @@ Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
 | Markdown content | No — GitHub |
 | Astro site | No — CI build + SWA |
 | GitHub OAuth login | **Yes** — shared org Function `https://auth.singletonsd.com` (`singleton-sd/cms-oauth-kit`) |
-| Marketing Contact HTTP | **Yes** — PK Function App `ssd-pocpk-decap-oauth-dev-ae` (not the OAuth service) |
+| Marketing Contact HTTP | **Yes** — shared PostKit API |
 
 ### Decap OAuth (shared)
 
@@ -89,27 +88,19 @@ backend:
   auth_endpoint: auth
 ```
 
-### Marketing-edge routes (PK Function)
+### Contact email (PostKit)
 
 | Path | Role |
 | --- | --- |
-| `/contact` | Anonymous marketing Contact form (`POST` / `OPTIONS`) → Forward Email |
-| `/health` | Liveness |
+| `/contact` | Anonymous marketing Contact form (`POST` / `OPTIONS`) → PostKit |
 
-Astro Contact form posts to `{PUBLIC_MARKETING_API_BASE_URL}/contact` on **this** Function (`ssd-pocpk-decap-oauth-dev-ae`). That env is **not** `https://auth.singletonsd.com`.
-
-`ORIGINS` on the PK Function is a comma-separated list of **Contact CORS / trusted-host** hostnames (no scheme). It is unrelated to Decap opener ORIGINS (owned by cms-oauth-kit):
-
-`*.poc.singletonsd.com,purple-field-05048bf00*.azurestaticapps.net,localhost:4321`
-
-Do **not** use open `*.azurestaticapps.net` (any Azure customer’s Static Web App).
+Astro Contact posts to `{PUBLIC_POSTKIT_API_BASE_URL}/contact`. PostKit owns validation, rate limiting, tenant/host profiles, and email delivery.
 
 ### Human bootstrap (once)
 
 1. Confirm shared health: `https://auth.singletonsd.com/health` returns 200. Consumer contract: [`cms-oauth-kit` AGENTS.md](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md).
-2. PK Function deploy does **not** need GitHub Variable `DECAP_OAUTH_CLIENT_ID` or KV `github-decap-oauth-client-secret` (that secret may still exist in PK KV; do not delete until no PK resource reads it).
-3. Deploy marketing-edge: merge this PR (CI) or run `pwsh ./scripts/deploy-decap-oauth.ps1`.
-4. Open `https://plattform-kit.poc.singletonsd.com/admin` → Login with GitHub (custom domain only).
+2. Confirm PostKit `/health` returns 200 and its origin allowlist includes `plattform-kit.poc.singletonsd.com`.
+3. Open `https://plattform-kit.poc.singletonsd.com/admin` → Login with GitHub (custom domain only).
 
 Editors need **write** access to `singleton-sd/poc-plattform-kit`.
 
@@ -132,13 +123,10 @@ Unknown paths hit `src/pages/404.astro` (`404.html`) via SWA
 
 - App: `apps/marketing`
 - Admin: `apps/marketing/public/admin/`
-- Marketing-edge Function (Contact): `apps/marketing-oauth/`
-- Marketing-edge Bicep: `infra/decap-oauth.bicep`
 - Shared Decap OAuth: [`singleton-sd/cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit)
+- Shared Contact email: [`singleton-sd/post-kit`](https://github.com/singleton-sd/post-kit)
 - Deploy site: `.github/workflows/deploy-marketing.yml`
-- Deploy marketing-edge: `.github/workflows/deploy-decap-oauth.yml`
 - Local marketing: `pnpm dev:marketing`
-- Local marketing-edge: copy `local.settings.json.example` → `local.settings.json`, then `pnpm --filter @poc-plattform-kit/marketing-oauth start` (Azure Functions Core Tools)
 
 ## ClickUp
 

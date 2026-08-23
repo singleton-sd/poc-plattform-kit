@@ -2,7 +2,7 @@
 /// <reference types="astro/client" />
 
 interface ImportMetaEnv {
-  readonly PUBLIC_MARKETING_API_BASE_URL?: string;
+  readonly PUBLIC_POSTKIT_API_BASE_URL?: string;
 }
 
 interface ImportMeta {

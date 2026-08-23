@@ -85,7 +85,6 @@ new one (vs. a `docs/discovery/` proposal instead).
 | [`github-source-of-truth.md`](./github-source-of-truth.md) | Engineering system-of-record policy (ClickUp → GitHub migration) |
 | [`github-native-workflow-pilot.md`](./github-native-workflow-pilot.md) | Evidence and remaining gates for the GitHub-native workflow pilot (#176) |
 | [`marketing-astro-decap.md`](./marketing-astro-decap.md) | Marketing site — Astro + Decap CMS |
-| [`marketing-edge.md`](./marketing-edge.md) | Marketing edge public HTTP (Function App, not Nest) |
 | [`openapi-client.md`](./openapi-client.md) | OpenAPI contract + generated client flow |
 | [`permissions.md`](./permissions.md) | Permissions/OpenFGA catalog and workflow |
 | [`playwright.md`](./playwright.md) | Playwright browser-journey scope and setup |
