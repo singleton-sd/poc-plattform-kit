@@ -23,7 +23,7 @@ echo "==> Linking Neon project $PROJECT_ID"
 npx neon link --org-id "$ORG_ID" --project-id "$PROJECT_ID" -y --no-env-pull
 
 echo "==> Pulling env to $ROOT/.env"
-npx neon env pull --file "$ROOT/.env"
+(cd "$ROOT" && npx neon env pull --file .env)
 
 echo "==> Syncing Prisma env to packages/db/.env"
 cp "$ROOT/.env" "$ROOT/packages/db/.env"
