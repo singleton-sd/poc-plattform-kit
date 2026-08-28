@@ -34,7 +34,7 @@ fi
 "$DOCKER_BIN" run --rm \
   -v "${ROOT}:/src:ro" \
   -v "${ROOT}:/out" \
-  -e DATABASE_URL="${DATABASE_URL:-sqlserver://localhost:1433;database=dummy;user=sa;password=dummy;encrypt=true;trustServerCertificate=true}" \
+  -e DATABASE_URL="${DATABASE_URL:-postgresql://ci:ci@localhost:5432/ci?schema=public}" \
   -e "STAGE_ARGS=$*" \
   "$IMAGE" \
   bash -lc '

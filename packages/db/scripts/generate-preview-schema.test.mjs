@@ -17,7 +17,7 @@ const CANONICAL_SCHEMA_PATH = fileURLToPath(new URL('../prisma/schema.prisma', i
 
 const VALID_SCHEMA = `
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -36,12 +36,12 @@ test('validateSqliteCompatibility accepts a plain canonical schema', () => {
 });
 
 test('validateSqliteCompatibility accepts @db native type attributes on the canonical schema', () => {
-  const schema = VALID_SCHEMA.replace('name String', 'name String @db.NVarChar(100)');
+  const schema = VALID_SCHEMA.replace('name String', 'name String @db.VarChar(100)');
   assert.deepEqual(validateSqliteCompatibility(schema), []);
 });
 
 test('stripNativeDbAttributes removes provider-native annotations', () => {
-  const schema = VALID_SCHEMA.replace('name String', 'name String @db.NVarChar(100)');
+  const schema = VALID_SCHEMA.replace('name String', 'name String @db.VarChar(100)');
   const stripped = stripNativeDbAttributes(schema);
   assert.doesNotMatch(stripped, /@db\./);
   assert.match(stripped, /name String/);
@@ -59,8 +59,8 @@ test('validateSqliteCompatibility flags enum declarations', () => {
   assert.ok(diagnostics.some((d) => d.message.includes('enum Role')));
 });
 
-test('validateSqliteCompatibility requires the canonical provider to be sqlserver', () => {
-  const schema = VALID_SCHEMA.replace('provider = "sqlserver"', 'provider = "postgresql"');
+test('validateSqliteCompatibility requires the canonical provider to be postgresql', () => {
+  const schema = VALID_SCHEMA.replace('provider = "postgresql"', 'provider = "sqlite"');
   const diagnostics = validateSqliteCompatibility(schema);
   assert.ok(diagnostics.some((d) => d.rule === 'datasource-provider'));
 });
@@ -94,7 +94,7 @@ test('transformToSqlitePreviewSchema is idempotent on its own output (re-pins ou
 });
 
 test('transformToSqlitePreviewSchema strips @db native type attributes', () => {
-  const schema = VALID_SCHEMA.replace('name String', 'name String @db.NVarChar(100)');
+  const schema = VALID_SCHEMA.replace('name String', 'name String @db.VarChar(100)');
   const preview = transformToSqlitePreviewSchema(schema);
   assert.doesNotMatch(preview, /@db\./);
   assert.match(preview, /name String/);

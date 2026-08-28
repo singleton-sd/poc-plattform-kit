@@ -9,7 +9,7 @@ Repo-adapted from the greenfield checklist (Karbon-style CodeTable / System / Sh
 | Greenfield concept | poc-plattform-kit |
 |--------------------|-------------------|
 | Bounded context / service DB | **Pillar** (Tenant, SingleSignOn, Permissions, Subscriptions, Contact, Support, Audit, Reporting, Notifications) |
-| One owned schema set | Models owned by one pillar under `packages/db` (Azure SQL + Prisma `sqlserver`) |
+| One owned schema set | Models owned by one pillar under `packages/db` (PostgreSQL + Prisma `postgresql`) |
 | No shared mega-schema writes | **No cross-pillar DB joins or write HTTP** |
 | Cross-boundary contracts | Service Bus events, pillar HTTP APIs, read models — not raw cross-pillar SQL |
 | Platform / messaging in SQL | **Per-pillar** Outbox + local Audit in the same mutation transaction |
@@ -71,7 +71,7 @@ Avoid a new schema per feature unless packaging/ownership truly needs it.
 
 - Prisma only — no parallel hand-script track unless deliberately documented.
 - Schema in git; same path for local/dev/stage/prod.
-- Apply to Azure SQL with `pwsh ./infra/migrate-db.ps1` (OIDC/CLI → Key Vault `database-url` → `prisma migrate deploy`). Do not use `migrate dev` against shared Azure SQL.
+- Apply to PostgreSQL with `pwsh ./infra/migrate-db.ps1` (OIDC/CLI → Key Vault `database-url` → `prisma migrate deploy`). Do not use `migrate dev` against shared deployed databases.
 
 ### Data classification
 
@@ -106,7 +106,7 @@ Label sensitive tables/columns (docs or comments): public / internal / confident
 | `Message` | 500 | `description`, `syncError`, `failureReason`, `denyReason` |
 | Unbounded text | _(none)_ | `payload`, `changes`, `settings` — leave without `@db.*` |
 
-SQL Server: `@db.NVarChar(n)`. PostgreSQL (after [#290](https://github.com/singleton-sd/poc-plattform-kit/issues/290)): `@db.VarChar(n)`. SQLite previews strip `@db.*` in `generate-preview-schema.mjs`.
+SQL Server: `@db.NVarChar(n)` (legacy). PostgreSQL: `@db.VarChar(n)`. SQLite previews strip `@db.*` in `generate-preview-schema.mjs`.
 
 ### Referential integrity and indexing
 

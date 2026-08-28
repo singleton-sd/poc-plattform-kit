@@ -4,7 +4,7 @@ Fuller mirror: [`docs/db-practices.md`](../../../docs/db-practices.md). Repo arc
 
 **Philosophy:** Own your data, isolate tenants, seed reference data, evolve additively, and treat anything shared across pillars as a versioned API (HTTP, events, or a narrow SQL contract).
 
-Pillars = bounded contexts: Tenant, SingleSignOn, Permissions, Subscriptions, Contact, Support, Audit, Reporting, Notifications. Stack: Azure SQL + Prisma `sqlserver` in `packages/db`.
+Pillars = bounded contexts: Tenant, SingleSignOn, Permissions, Subscriptions, Contact, Support, Audit, Reporting, Notifications. Stack: PostgreSQL + Prisma `postgresql` in `packages/db`.
 
 ## Hard rules (flag violations)
 

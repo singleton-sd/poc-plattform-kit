@@ -35,7 +35,7 @@ jobs:
     name: Bump package versions
     # Placeholder URL for Prisma generate during openapi:export (no live DB).
     env:
-      DATABASE_URL: 'sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true'
+      DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
     permissions:
       contents: write
       id-token: write

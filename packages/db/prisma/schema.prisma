@@ -1,4 +1,4 @@
-// Azure SQL + Prisma sqlserver
+// PostgreSQL + Prisma postgresql
 // Foundation schema: shared User stub + per-pillar Outbox + local Audit.
 // Per AGENTS.md: no cross-pillar DB joins -- each pillar gets its own
 // Outbox/Audit tables rather than a shared table with a pillar column, so
@@ -6,10 +6,10 @@
 // (Tenant, Contact, Subscription, ...) land via their own foundation tickets.
 //
 // Identifier column lengths: docs/adr/0005-entity-id-strategy.md and
-// docs/db-practices.md (EntityId = NVarChar(64), etc.).
+// docs/db-practices.md (EntityId = VarChar(64), etc.).
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -19,10 +19,10 @@ generator client {
 
 /// Shared identity stub -- tenancy/roles land with the SingleSignOn ticket.
 model User {
-  id        String   @id @default(cuid()) @db.NVarChar(64)
-  entraOid  String   @unique @db.NVarChar(36)
-  email     String   @unique @db.NVarChar(320)
-  name      String?  @db.NVarChar(200)
+  id        String   @id @default(cuid()) @db.VarChar(64)
+  entraOid  String   @unique @db.VarChar(36)
+  email     String   @unique @db.VarChar(320)
+  name      String?  @db.VarChar(200)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -32,9 +32,9 @@ model User {
 // --- Tenant ---
 
 model Tenant {
-  id        String   @id @default(cuid()) @db.NVarChar(64)
-  name      String   @db.NVarChar(200)
-  slug      String   @unique @db.NVarChar(100)
+  id        String   @id @default(cuid()) @db.VarChar(64)
+  name      String   @db.VarChar(200)
+  slug      String   @unique @db.VarChar(100)
   settings  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -46,10 +46,10 @@ model Tenant {
 /// and future per-tenant roles; fine-grained authZ stays with the
 /// Permissions pillar (OpenFGA) -- this table is identity/membership only.
 model TenantMembership {
-  id        String   @id @default(cuid()) @db.NVarChar(64)
-  tenantId  String   @db.NVarChar(64)
-  userId    String   @db.NVarChar(64)
-  role      String   @db.NVarChar(50)
+  id        String   @id @default(cuid()) @db.VarChar(64)
+  tenantId  String   @db.VarChar(64)
+  userId    String   @db.VarChar(64)
+  role      String   @db.VarChar(50)
   createdAt DateTime @default(now())
 
   @@unique([tenantId, userId])
@@ -59,10 +59,10 @@ model TenantMembership {
 /// Tenant-local authorization principal. Groups deliberately do not mirror
 /// Entra groups: their lifecycle and membership are owned by the tenant.
 model TenantGroup {
-  id          String   @id @default(cuid()) @db.NVarChar(64)
-  tenantId    String   @db.NVarChar(64)
-  name        String   @db.NVarChar(200)
-  description String?  @db.NVarChar(500)
+  id          String   @id @default(cuid()) @db.VarChar(64)
+  tenantId    String   @db.VarChar(64)
+  name        String   @db.VarChar(200)
+  description String?  @db.VarChar(500)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -75,12 +75,12 @@ model TenantGroup {
 /// `syncStatus` gates effective OpenFGA membership: pending/failed additions
 /// are denied until reconciliation has written the tuple successfully.
 model TenantGroupMembership {
-  id          String    @id @default(cuid()) @db.NVarChar(64)
-  tenantId    String    @db.NVarChar(64)
-  groupId     String    @db.NVarChar(64)
-  userId      String    @db.NVarChar(64)
-  syncStatus  String    @default("pending") @db.NVarChar(50)
-  syncError   String?   @db.NVarChar(500)
+  id          String    @id @default(cuid()) @db.VarChar(64)
+  tenantId    String    @db.VarChar(64)
+  groupId     String    @db.VarChar(64)
+  userId      String    @db.VarChar(64)
+  syncStatus  String    @default("pending") @db.VarChar(50)
+  syncError   String?   @db.VarChar(500)
   syncedAt    DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -97,14 +97,14 @@ model TenantGroupMembership {
 /// create/list/revoke. `token` is stored raw (not hashed) -- PoC-simple per
 /// the ticket, single-use via `status` transitions out of "pending".
 model TenantInvitation {
-  id              String    @id @default(cuid()) @db.NVarChar(64)
-  tenantId        String    @db.NVarChar(64)
-  email           String    @db.NVarChar(320)
-  role            String    @db.NVarChar(50)
-  invitedByUserId String    @db.NVarChar(64)
-  token           String    @unique @db.NVarChar(64)
+  id              String    @id @default(cuid()) @db.VarChar(64)
+  tenantId        String    @db.VarChar(64)
+  email           String    @db.VarChar(320)
+  role            String    @db.VarChar(50)
+  invitedByUserId String    @db.VarChar(64)
+  token           String    @unique @db.VarChar(64)
   /// "pending" | "accepted" | "declined" | "revoked" | "expired"
-  status          String    @default("pending") @db.NVarChar(50)
+  status          String    @default("pending") @db.VarChar(50)
   expiresAt       DateTime
   createdAt       DateTime  @default(now())
   respondedAt     DateTime?
@@ -120,26 +120,26 @@ model TenantInvitation {
 }
 
 model TenantOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("tenant_outbox")
 }
 
 model TenantAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
@@ -149,26 +149,26 @@ model TenantAudit {
 // --- SingleSignOn ---
 
 model SingleSignOnOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("single_sign_on_outbox")
 }
 
 model SingleSignOnAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
@@ -178,26 +178,26 @@ model SingleSignOnAudit {
 // --- Subscriptions ---
 
 model SubscriptionsOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("subscriptions_outbox")
 }
 
 model SubscriptionsAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
@@ -207,26 +207,26 @@ model SubscriptionsAudit {
 // --- Contact ---
 
 model ContactOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("contact_outbox")
 }
 
 model ContactAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
@@ -236,26 +236,26 @@ model ContactAudit {
 // --- Support ---
 
 model SupportOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("support_outbox")
 }
 
 model SupportAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
@@ -267,23 +267,23 @@ model SupportAudit {
 /// Access request workflow: requester asks for a denied action; tenant admin
 /// or manager approves (permanent / temporary / one-time) or denies.
 model AccessRequest {
-  id                      String    @id @default(cuid()) @db.NVarChar(64)
-  tenantId                String    @db.NVarChar(64)
-  requesterId             String    @db.NVarChar(64)
-  requesterEntraOid       String    @db.NVarChar(36)
-  action                  String    @db.NVarChar(200)
-  resource                String    @db.NVarChar(200)
-  status                  String    @db.NVarChar(50)
-  decidedById             String?   @db.NVarChar(64)
+  id                      String    @id @default(cuid()) @db.VarChar(64)
+  tenantId                String    @db.VarChar(64)
+  requesterId             String    @db.VarChar(64)
+  requesterEntraOid       String    @db.VarChar(36)
+  action                  String    @db.VarChar(200)
+  resource                String    @db.VarChar(200)
+  status                  String    @db.VarChar(50)
+  decidedById             String?   @db.VarChar(64)
   decidedAt               DateTime?
-  denyReason              String?   @db.NVarChar(500)
-  grantType               String?   @db.NVarChar(50)
+  denyReason              String?   @db.VarChar(500)
+  grantType               String?   @db.VarChar(50)
   /// When the pending request itself expires if still undecided.
   requestExpiresAt        DateTime?
   /// Absolute grant expiry when grantType is temporary (set on approve).
   grantExpiresAt          DateTime?
   /// Requester's preferred grant type (hint for approvers); set on create.
-  preferredGrantType      String?   @db.NVarChar(50)
+  preferredGrantType      String?   @db.VarChar(50)
   /// Preferred temporary grant expiry when preferredGrantType is temporary.
   preferredGrantExpiresAt DateTime?
   createdAt               DateTime  @default(now())
@@ -296,26 +296,26 @@ model AccessRequest {
 }
 
 model PermissionsOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("permissions_outbox")
 }
 
 model PermissionsAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
@@ -323,7 +323,7 @@ model PermissionsAudit {
 }
 
 model PermissionsRoleRevision {
-  tenantId  String   @id @db.NVarChar(64)
+  tenantId  String   @id @db.VarChar(64)
   revision  Int      @default(0)
   updatedAt DateTime @updatedAt
 
@@ -331,14 +331,14 @@ model PermissionsRoleRevision {
 }
 
 model PermissionsRoleAssignment {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  tenantId      String    @db.NVarChar(64)
-  principalType String    @db.NVarChar(50)
-  principalId   String    @db.NVarChar(64)
-  roleId        String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  tenantId      String    @db.VarChar(64)
+  principalType String    @db.VarChar(50)
+  principalId   String    @db.VarChar(64)
+  roleId        String    @db.VarChar(200)
   assigned      Boolean
-  syncStatus    String    @default("pending") @db.NVarChar(50)
-  syncError     String?   @db.NVarChar(500)
+  syncStatus    String    @default("pending") @db.VarChar(50)
+  syncError     String?   @db.VarChar(500)
   syncedAt      DateTime?
   revision      Int
   createdAt     DateTime  @default(now())
@@ -350,12 +350,12 @@ model PermissionsRoleAssignment {
 }
 
 model PermissionsRoleCommand {
-  id                 String   @id @default(cuid()) @db.NVarChar(64)
-  tenantId           String   @db.NVarChar(64)
-  idempotencyKey     String   @db.NVarChar(200)
-  commandHash        String   @db.NVarChar(64)
-  assignmentId       String   @db.NVarChar(64)
-  consistencyVersion String   @db.NVarChar(50)
+  id                 String   @id @default(cuid()) @db.VarChar(64)
+  tenantId           String   @db.VarChar(64)
+  idempotencyKey     String   @db.VarChar(200)
+  commandHash        String   @db.VarChar(64)
+  assignmentId       String   @db.VarChar(64)
+  consistencyVersion String   @db.VarChar(50)
   changed            Boolean
   assigned           Boolean
   createdAt          DateTime @default(now())
@@ -368,15 +368,15 @@ model PermissionsRoleCommand {
 // --- Notifications ---
 
 model NotificationsOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("notifications_outbox")
@@ -387,26 +387,26 @@ model NotificationsOutbox {
 // Outbox/Audit tables track that consumption, same shape as every pillar.
 
 model AuditOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("audit_outbox")
 }
 
 model AuditAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
@@ -416,26 +416,26 @@ model AuditAudit {
 // --- Reporting ---
 
 model ReportingOutbox {
-  id            String    @id @default(cuid()) @db.NVarChar(64)
-  eventType     String    @db.NVarChar(200)
+  id            String    @id @default(cuid()) @db.VarChar(64)
+  eventType     String    @db.VarChar(200)
   payload       String
   occurredAt    DateTime  @default(now())
   processedAt   DateTime?
   claimedAt     DateTime?
-  claimId       String?   @db.NVarChar(64)
+  claimId       String?   @db.VarChar(64)
   failedAt      DateTime?
-  failureReason String?   @db.NVarChar(500)
+  failureReason String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@map("reporting_outbox")
 }
 
 model ReportingAudit {
-  id         String   @id @default(cuid()) @db.NVarChar(64)
-  entityType String   @db.NVarChar(100)
-  entityId   String   @db.NVarChar(64)
-  action     String   @db.NVarChar(200)
-  actorId    String?  @db.NVarChar(64)
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  entityType String   @db.VarChar(100)
+  entityId   String   @db.VarChar(64)
+  action     String   @db.VarChar(200)
+  actorId    String?  @db.VarChar(64)
   changes    String
   createdAt  DateTime @default(now())
 
