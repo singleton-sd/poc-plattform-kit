@@ -23,13 +23,11 @@ const PREVIEW_PROVIDER = 'sqlite';
  * Constructs the SQLite connector cannot represent. Each entry is a regex
  * matched against the raw schema text (comments are stripped first) plus a
  * human-readable explanation used in the diagnostic.
+ *
+ * `@db.*` native types are allowed on the canonical schema (ADR 0005) and are
+ * stripped when producing the SQLite preview schema.
  */
 const INCOMPATIBLE_CONSTRUCTS = [
-  {
-    pattern: /@db\.\w+/g,
-    describe: (match) =>
-      `native type attribute "${match}" has no portable SQLite mapping — remove it or add an explicit preview mapping`,
-  },
   {
     pattern: /@@schema\(/g,
     describe: () =>
@@ -102,6 +100,11 @@ export function validateSqliteCompatibility(schemaText) {
   return diagnostics;
 }
 
+/** Removes provider-native `@db.*` attributes — SQLite uses plain `String`. */
+export function stripNativeDbAttributes(schemaText) {
+  return schemaText.replace(/\s+@db\.\w+(?:\([^)]*\))?/g, '');
+}
+
 /**
  * Produces the SQLite preview schema text. Throws SchemaDiagnosticError when
  * the canonical schema is incompatible — callers must run
@@ -113,13 +116,15 @@ export function transformToSqlitePreviewSchema(schemaText) {
     throw new SchemaDiagnosticError(diagnostics);
   }
 
-  const datasourceBlock = findDatasourceBlock(schemaText);
+  let preview = stripNativeDbAttributes(schemaText);
+
+  const datasourceBlock = findDatasourceBlock(preview);
   const previewDatasourceBlock = datasourceBlock.replace(
     /provider\s*=\s*"sqlserver"/,
     `provider = "${PREVIEW_PROVIDER}"`,
   );
 
-  let preview = schemaText.replace(datasourceBlock, previewDatasourceBlock);
+  preview = preview.replace(datasourceBlock, previewDatasourceBlock);
 
   const generatorMatch = preview.match(/generator\s+\w+\s*\{[^}]*\}/);
   if (!generatorMatch) {

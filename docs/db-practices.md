@@ -86,6 +86,26 @@ Label sensitive tables/columns (docs or comments): public / internal / confident
 
 - Opaque public IDs (`cuid` / `ulid` / `uuid`) for APIs; document generation once.
 - Don’t rely on enumerable identity columns as the sole public handle.
+- **Platform convention (ADR [0005](./adr/0005-entity-id-strategy.md)):** keep Prisma `@default(cuid())` for primary keys; annotate keyed/reference `String` columns with explicit native lengths instead of Prisma’s default `NVARCHAR(1000)` on SQL Server.
+
+| Prisma role | Max length | Examples |
+| --- | --- | --- |
+| `EntityId` | 64 | `id`, `tenantId`, `userId`, `entityId`, `actorId`, `claimId`, seed `seed-*` fixtures, `randomUUID()` audit/outbox rows |
+| `EntraOid` | 36 | `entraOid`, `requesterEntraOid` |
+| `Email` | 320 | `email` |
+| `Slug` | 100 | `slug` |
+| `Token` | 64 | invitation `token` (`base64url` of 32 bytes) |
+| `ShortLabel` | 50 | `role`, `status`, `syncStatus`, `grantType`, `principalType` |
+| `Name` | 200 | tenant/group/user `name` |
+| `ActionResource` | 200 | `action`, `resource`, `eventType` |
+| `EntityType` | 100 | audit `entityType` |
+| `IdempotencyKey` | 200 | command idempotency keys |
+| `CommandHash` | 64 | SHA-256 hex digests |
+| `ConsistencyVersion` | 50 | optimistic concurrency tokens |
+| `Message` | 500 | `description`, `syncError`, `failureReason`, `denyReason` |
+| Unbounded text | _(none)_ | `payload`, `changes`, `settings` — leave without `@db.*` |
+
+SQL Server: `@db.NVarChar(n)`. PostgreSQL (after [#290](https://github.com/singleton-sd/poc-plattform-kit/issues/290)): `@db.VarChar(n)`. SQLite previews strip `@db.*` in `generate-preview-schema.mjs`.
 
 ### Referential integrity and indexing
 
