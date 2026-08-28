@@ -4,10 +4,8 @@ import { defineConfig } from '@neon/config/v1';
  * Neon branch config for Platform Kit (PoC).
  *
  * Services in use today:
- * - Lakebase Postgres — Prisma `packages/db` (tenant, pillars, outbox/audit)
- *
- * OpenFGA/Permissions still runs on Azure ACA SQLite (#293); add a second
- * Postgres database here when that migration lands.
+ * - Lakebase Postgres (`neondb`) — Prisma `packages/db` (tenant, pillars, outbox/audit)
+ * - Lakebase Postgres (`openfga`) — OpenFGA authorization engine datastore (#293)
  */
 export default defineConfig({
   branch: (branch) => {
