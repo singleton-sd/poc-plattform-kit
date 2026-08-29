@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Idempotent bootstrap for ssd-pocpk-openfga-dev-ae:
-    1. Deploy infra/openfga.bicep (ACA + Azure Files SQLite share on existing CAE)
+    1. Deploy infra/openfga.bicep (ACA + Neon PostgreSQL datastore on existing CAE)
     2. Ensure Entra app registration api://{tenantId}/ssd-pocpk-openfga (assignment-required)
     3. Assign the Nest API App Service managed identity as the sole app-role assignee
     4. Create/reuse OpenFGA store, push infra/openfga/model.json
@@ -26,7 +26,9 @@ param(
   [string]$Location = 'australiaeast',
   [string]$ContainerAppsEnvironmentName = 'ssd-pocpk-cae-dev-ae',
   [string]$OpenFgaAppName = 'ssd-pocpk-openfga-dev-ae',
-  [string]$StorageAccountName = 'ssdpocpkstofga',
+  [string]$KeyVaultName = 'ssd-pocpk-kv-dev-ae',
+  [string]$NeonBranch = 'production',
+  [string]$NeonOpenFgaDatabase = 'openfga',
   [string]$AppConfigName = 'ssd-pocpk-appcs-dev-ae',
   [string]$ApiWebAppName = 'pocpk-api-si5fhs6dvxiha',
   [string]$OpenFgaImageTag = 'v1.18.3',
@@ -54,6 +56,62 @@ function Assert-LastExit([string]$Action) {
     Write-Error "$Action failed (exit $LASTEXITCODE)."
     exit $LASTEXITCODE
   }
+}
+
+function Read-DotEnvValue {
+  param(
+    [Parameter(Mandatory = $true)][string]$FilePath,
+    [Parameter(Mandatory = $true)][string]$Key
+  )
+  if (-not (Test-Path $FilePath)) { return $null }
+  foreach ($line in Get-Content -Path $FilePath -ErrorAction SilentlyContinue) {
+    if ($line -match "^\s*$([regex]::Escape($Key))\s*=\s*(.*)\s*$") {
+      $value = $Matches[1].Trim()
+      if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+        $value = $value.Substring(1, $value.Length - 2)
+      }
+      return $value
+    }
+  }
+  return $null
+}
+
+function Get-NeonOpenFgaDatastoreUris {
+  $repoRoot = Split-Path $PSScriptRoot -Parent
+  $envFile = Join-Path $repoRoot '.env'
+  $runtime = Read-DotEnvValue -FilePath $envFile -Key 'OPENFGA_DATASTORE_URI'
+  $migrate = Read-DotEnvValue -FilePath $envFile -Key 'OPENFGA_DATASTORE_URI_UNPOOLED'
+  if ($runtime -and $migrate) {
+    Write-Host 'Using OpenFGA datastore URIs from repo .env'
+    return [pscustomobject]@{ Runtime = $runtime; Migrate = $migrate }
+  }
+
+  Write-Host "Resolving Neon OpenFGA URIs via neon CLI (branch=$NeonBranch, database=$NeonOpenFgaDatabase)"
+  Push-Location $repoRoot
+  try {
+    $migrate = (& npx neon connection-string $NeonBranch --database-name $NeonOpenFgaDatabase 2>$null | Select-Object -Last 1).Trim()
+    $runtime = (& npx neon connection-string $NeonBranch --database-name $NeonOpenFgaDatabase --pooled 2>$null | Select-Object -Last 1).Trim()
+  } finally {
+    Pop-Location
+  }
+  if ([string]::IsNullOrWhiteSpace($runtime) -or [string]::IsNullOrWhiteSpace($migrate)) {
+    Write-Error @"
+Could not resolve Neon OpenFGA connection strings.
+Run ./scripts/neon-env-pull.sh (or set OPENFGA_DATASTORE_URI / OPENFGA_DATASTORE_URI_UNPOOLED in repo .env) and retry.
+"@
+    exit 1
+  }
+  return [pscustomobject]@{ Runtime = $runtime; Migrate = $migrate }
+}
+
+function Set-KeyVaultSecret {
+  param(
+    [Parameter(Mandatory = $true)][string]$Name,
+    [Parameter(Mandatory = $true)][string]$Value
+  )
+  az keyvault secret set --vault-name $KeyVaultName --name $Name --value $Value -o none
+  Assert-LastExit "az keyvault secret set $Name"
+  Write-Host "  upserted Key Vault secret $Name"
 }
 
 Write-Step 'Checking Azure CLI login'
@@ -115,26 +173,46 @@ if (-not (Test-Path $modelJsonFile)) {
   exit 1
 }
 
-Write-Step $(if ($WhatIf) { 'Running what-if' } else { 'Deploying OpenFGA Container App + Azure Files' })
-$deployArgs = @(
-  'deployment', 'group', $(if ($WhatIf) { 'what-if' } else { 'create' }),
-  '--name', $DeploymentName,
-  '--resource-group', $ResourceGroup,
-  '--template-file', $bicepFile,
-  '--parameters',
-  "location=$Location",
-  "containerAppsEnvironmentName=$ContainerAppsEnvironmentName",
-  "openfgaAppName=$OpenFgaAppName",
-  "storageAccountName=$StorageAccountName",
-  "openfgaImageTag=$OpenFgaImageTag",
-  "oidcIssuer=https://login.microsoftonline.com/$entraTenantId/v2.0",
-  "oidcIssuerAlias=https://sts.windows.net/$entraTenantId/",
-  "openfgaAudience=$OpenFgaAudience",
-  '--output', 'json'
-)
+$datastoreUris = Get-NeonOpenFgaDatastoreUris
+if (-not $WhatIf) {
+  Write-Step "Upserting OpenFGA datastore secrets in Key Vault $KeyVaultName (values not logged)"
+  Set-KeyVaultSecret -Name 'openfga-database-url' -Value $datastoreUris.Runtime
+  Set-KeyVaultSecret -Name 'openfga-database-url-unpooled' -Value $datastoreUris.Migrate
+}
 
-$deployOut = & az @deployArgs
-Assert-LastExit 'OpenFGA Bicep deployment'
+Write-Step $(if ($WhatIf) { 'Running what-if' } else { 'Deploying OpenFGA Container App (Neon PostgreSQL)' })
+$parametersFile = Join-Path ([System.IO.Path]::GetTempPath()) ("openfga-params-{0}.json" -f ([guid]::NewGuid().ToString('N')))
+try {
+  @{
+    '$schema'                        = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
+    contentVersion                   = '1.0.0.0'
+    parameters                       = @{
+      location                         = @{ value = $Location }
+      containerAppsEnvironmentName     = @{ value = $ContainerAppsEnvironmentName }
+      openfgaAppName                   = @{ value = $OpenFgaAppName }
+      openfgaImageTag                  = @{ value = $OpenFgaImageTag }
+      oidcIssuer                       = @{ value = "https://login.microsoftonline.com/$entraTenantId/v2.0" }
+      oidcIssuerAlias                  = @{ value = "https://sts.windows.net/$entraTenantId/" }
+      openfgaAudience                  = @{ value = $OpenFgaAudience }
+      openfgaDatastoreUriMigrate       = @{ value = $datastoreUris.Migrate }
+      openfgaDatastoreUriRuntime       = @{ value = $datastoreUris.Runtime }
+    }
+  } | ConvertTo-Json -Depth 6 | Set-Content -Path $parametersFile -Encoding utf8
+
+  $deployArgs = @(
+    'deployment', 'group', $(if ($WhatIf) { 'what-if' } else { 'create' }),
+    '--name', $DeploymentName,
+    '--resource-group', $ResourceGroup,
+    '--template-file', $bicepFile,
+    '--parameters', "@$parametersFile",
+    '--output', 'json'
+  )
+
+  $deployOut = & az @deployArgs
+  Assert-LastExit 'OpenFGA Bicep deployment'
+} finally {
+  Remove-Item -Force $parametersFile -ErrorAction SilentlyContinue
+}
 
 if ($WhatIf) {
   Write-Host $deployOut
@@ -439,8 +517,8 @@ Write-Step 'Deployment summary (no secrets)'
   Fqdn               = $openfgaFqdn
   ApiUrl             = $openfgaApiUrl
   Image              = "openfga/openfga:$OpenFgaImageTag"
-  DatastoreEngine    = 'sqlite (EmptyDir PoC; Azure Files SMB unsuitable; minReplicas=1)'
-  StorageAccount     = $StorageAccountName
+  DatastoreEngine    = 'postgres (Neon openfga database; minReplicas=1)'
+  KeyVaultSecrets    = 'openfga-database-url, openfga-database-url-unpooled'
   Audience           = $OpenFgaAudience
   EntraAppId         = $appClientId
   StoreId            = $storeId
