@@ -36,7 +36,7 @@ Grant types:
 | `one_time` | Action tuple + `one_time_grant:{resource}\|{action}#pending` marker; first successful Check deletes both |
 
 OpenFGA runs on ACA Consumption (`ssd-pocpk-openfga-dev-ae`). Model DSL:
-`infra/openfga/model.fga` (re-push via `infra/deploy-openfga.ps1` after model changes).
+`infra/openfga/model.fga` (re-push via `infra/deploy-openfga.sh` after model changes).
 Route → action catalog: `infra/openfga/permissions.manifest.json` (see
 [`docs/permissions.md`](../../docs/permissions.md)).
 

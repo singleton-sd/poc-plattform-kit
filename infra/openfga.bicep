@@ -1,5 +1,5 @@
 // OpenFGA authZ engine — Azure Container Apps Consumption + Neon PostgreSQL datastore.
-// Deploy: powershell -File ./infra/deploy-openfga.ps1
+// Deploy: ./infra/deploy-openfga.sh
 // CAF: ssd-pocpk-openfga-dev-ae on existing CAE ssd-pocpk-cae-dev-ae.
 // Datastore: PostgreSQL on Neon (`openfga` database); connection strings from deploy script / Key Vault.
 // AuthN: OPENFGA_AUTHN_METHOD=oidc against Entra app api://{tenant}/ssd-pocpk-openfga (wired by deploy script).

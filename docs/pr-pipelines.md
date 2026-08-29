@@ -173,7 +173,7 @@ Fine-grained `Check()` runs against a **shared** OpenFGA Container App on the sa
 Provision / re-bootstrap (idempotent; OIDC login same Variables as above — no GitHub Secrets):
 
 ```powershell
-powershell -File ./infra/deploy-openfga.ps1
+./infra/deploy-openfga.sh
 ```
 
 Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: the "Permissions / OpenFGA" section of `infra/README.md`.
