@@ -116,18 +116,20 @@ function Set-KeyVaultSecret {
 
 function Protect-TempParametersFile {
   param([Parameter(Mandatory = $true)][string]$Path)
-  if ($IsLinux -or $IsMacOS) {
-    & chmod 600 $Path
-    Assert-LastExit 'chmod 600 parameters file'
+  $runningOnWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [System.Runtime.InteropServices.OSPlatform]::Windows
+  )
+  if ($runningOnWindows) {
+    $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    & icacls $Path /inheritance:r /grant:r "${currentUser}:(F)" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      Write-Error "Failed to restrict ACL on temporary parameters file $Path"
+      exit $LASTEXITCODE
+    }
     return
   }
-  if (-not $IsWindows) { return }
-  $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-  & icacls $Path /inheritance:r /grant:r "${currentUser}:(F)" | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to restrict ACL on temporary parameters file $Path"
-    exit $LASTEXITCODE
-  }
+  & chmod 600 $Path
+  Assert-LastExit 'chmod 600 parameters file'
 }
 
 Write-Step 'Checking Azure CLI login'
