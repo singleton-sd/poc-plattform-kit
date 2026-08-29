@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Provision OpenFGA on ACA + Azure Files, Entra OIDC app, store/model bootstrap.
+  Provision OpenFGA on ACA + Neon PostgreSQL, Entra OIDC app, store/model bootstrap.
 
 .DESCRIPTION
   Idempotent bootstrap for ssd-pocpk-openfga-dev-ae:
@@ -114,6 +114,22 @@ function Set-KeyVaultSecret {
   Write-Host "  upserted Key Vault secret $Name"
 }
 
+function Protect-TempParametersFile {
+  param([Parameter(Mandatory = $true)][string]$Path)
+  if ($IsLinux -or $IsMacOS) {
+    & chmod 600 $Path
+    Assert-LastExit 'chmod 600 parameters file'
+    return
+  }
+  if (-not $IsWindows) { return }
+  $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+  & icacls $Path /inheritance:r /grant:r "${currentUser}:(F)" | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to restrict ACL on temporary parameters file $Path"
+    exit $LASTEXITCODE
+  }
+}
+
 Write-Step 'Checking Azure CLI login'
 $accountJson = az account show -o json 2>$null
 if (-not $accountJson) {
@@ -198,6 +214,7 @@ try {
       openfgaDatastoreUriRuntime       = @{ value = $datastoreUris.Runtime }
     }
   } | ConvertTo-Json -Depth 6 | Set-Content -Path $parametersFile -Encoding utf8
+  Protect-TempParametersFile -Path $parametersFile
 
   $deployArgs = @(
     'deployment', 'group', $(if ($WhatIf) { 'what-if' } else { 'create' }),
