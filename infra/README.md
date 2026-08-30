@@ -195,7 +195,9 @@ OIDC deploy auth matches `preview-api.yml`: Azure CLI / GitHub OIDC Variables (`
 ## Prerequisites
 
 - Azure CLI (`az`) logged in with access to subscription `7b8343d7-969f-4b71-8864-b7925e7fae30`
-- PowerShell 7+
+- PowerShell 7+ (for `deploy.ps1` / `deploy-aca-preview.ps1` until [#296](https://github.com/singleton-sd/poc-plattform-kit/issues/296))
+- Bash 4+, `curl`, `python3` (required by `infra/deploy-openfga.sh`)
+- Neon CLI via `npx neon` when repo `.env` has no `OPENFGA_DATASTORE_URI*` values
 - Providers registered: `Microsoft.KeyVault`, `Microsoft.AppConfiguration`, `Microsoft.Insights`, `Microsoft.OperationalInsights`
 
 ```powershell

@@ -56,8 +56,12 @@ die() { echo "error: $*" >&2; exit 1; }
 step() { printf '\n==> %s\n' "$1"; }
 
 assert_az() {
+  local code=$?
   local action="$1"
-  local code="${2:-$?}"
+  if [[ $# -ge 2 ]]; then
+    action="$1"
+    code="$2"
+  fi
   if [[ "$code" -ne 0 ]]; then
     die "$action failed (exit $code)."
   fi
@@ -86,19 +90,17 @@ get_neon_openfga_datastore_uris() {
   local runtime migrate
   if runtime="$(read_dotenv_value "$env_file" OPENFGA_DATASTORE_URI 2>/dev/null)" \
     && migrate="$(read_dotenv_value "$env_file" OPENFGA_DATASTORE_URI_UNPOOLED 2>/dev/null)"; then
-    echo 'Using OpenFGA datastore URIs from repo .env'
+    echo 'Using OpenFGA datastore URIs from repo .env' >&2
     printf '%s\n%s\n' "$runtime" "$migrate"
     return 0
   fi
 
-  echo "Resolving Neon OpenFGA URIs via neon CLI (branch=$NEON_BRANCH, database=$NEON_OPENFGA_DATABASE)"
-  (
-    cd "$REPO_ROOT"
-    migrate="$(npx neon connection-string "$NEON_BRANCH" --database-name "$NEON_OPENFGA_DATABASE" 2>/dev/null | tail -1 | tr -d '\r')"
-    runtime="$(npx neon connection-string "$NEON_BRANCH" --database-name "$NEON_OPENFGA_DATABASE" --pooled 2>/dev/null | tail -1 | tr -d '\r')"
-    [[ -n "$runtime" && -n "$migrate" ]] || die "Could not resolve Neon OpenFGA connection strings. Run ./scripts/neon-env-pull.sh (or set OPENFGA_DATASTORE_URI / OPENFGA_DATASTORE_URI_UNPOOLED in repo .env) and retry."
-    printf '%s\n%s\n' "$runtime" "$migrate"
-  )
+  echo "Resolving Neon OpenFGA URIs via neon CLI (branch=$NEON_BRANCH, database=$NEON_OPENFGA_DATABASE)" >&2
+  cd "$REPO_ROOT"
+  migrate="$(npx neon connection-string "$NEON_BRANCH" --database-name "$NEON_OPENFGA_DATABASE" 2>/dev/null | tail -1 | tr -d '\r')"
+  runtime="$(npx neon connection-string "$NEON_BRANCH" --database-name "$NEON_OPENFGA_DATABASE" --pooled 2>/dev/null | tail -1 | tr -d '\r')"
+  [[ -n "$runtime" && -n "$migrate" ]] || die "Could not resolve Neon OpenFGA connection strings. Run ./scripts/neon-env-pull.sh (or set OPENFGA_DATASTORE_URI / OPENFGA_DATASTORE_URI_UNPOOLED in repo .env) and retry."
+  printf '%s\n%s\n' "$runtime" "$migrate"
 }
 
 set_keyvault_secret() {
@@ -205,13 +207,12 @@ ensure_entra_app() {
   else
     app_id="$(printf '%s' "$existing_app_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["appId"])')"
     echo "App registration already exists ($app_id)"
-    needs_update="$(printf '%s' "$existing_app_json" | python3 - "$OPENFGA_AUDIENCE" <<'PY'
+    needs_update="$(printf '%s' "$existing_app_json" | python3 -c '
 import json, sys
 audience = sys.argv[1]
 app = json.load(sys.stdin)
 print("yes" if audience not in (app.get("identifierUris") or []) else "no")
-PY
-)"
+' "$OPENFGA_AUDIENCE")"
     if [[ "$needs_update" == 'yes' ]]; then
       az ad app update --id "$app_id" --identifier-uris "$OPENFGA_AUDIENCE" -o none
       assert_az 'az ad app update identifier-uris'
@@ -227,7 +228,7 @@ PY
 
   tmp_roles="$(mktemp "${TMPDIR:-/tmp}/openfga-approles.XXXXXX.json")"
   chmod 600 "$tmp_roles"
-  app_role_id="$(printf '%s' "$app_full_json" | python3 - "$APP_ROLE_VALUE" "$tmp_roles" <<'PY'
+  app_role_id="$(printf '%s' "$app_full_json" | python3 -c '
 import json, sys, uuid
 app_role_value, out_path = sys.argv[1:3]
 app = json.load(sys.stdin)
@@ -257,8 +258,7 @@ for role in app.get("appRoles") or []:
 with open(out_path, "w", encoding="utf-8") as fh:
     json.dump({"appRoles": roles}, fh)
 print(new_id)
-PY
-)"
+' "$APP_ROLE_VALUE" "$tmp_roles")"
   if [[ -s "$tmp_roles" ]]; then
     az rest --method PATCH \
       --url "https://graph.microsoft.com/v1.0/applications/$app_object_id" \
@@ -294,13 +294,12 @@ PY
     -o json)"
   assert_az 'list appRoleAssignedTo'
 
-  has_assignment="$(printf '%s' "$assignments_json" | python3 - "$api_principal_id" "$app_role_id" <<'PY'
+  has_assignment="$(printf '%s' "$assignments_json" | python3 -c '
 import json, sys
 api_principal_id, app_role_id = sys.argv[1:3]
 assignments = json.load(sys.stdin).get("value") or []
 print("yes" if any(a.get("principalId") == api_principal_id and a.get("appRoleId") == app_role_id for a in assignments) else "no")
-PY
-)"
+' "$api_principal_id" "$app_role_id")"
   if [[ "$has_assignment" != 'yes' ]]; then
     tmp_body="$(mktemp "${TMPDIR:-/tmp}/openfga-assign.XXXXXX.json")"
     chmod 600 "$tmp_body"
@@ -321,7 +320,7 @@ PY
     echo "API MI already assigned ($api_principal_id)"
   fi
 
-  printf '%s' "$assignments_json" | python3 - "$api_principal_id" "$sp_object_id" <<'PY'
+  printf '%s' "$assignments_json" | python3 -c '
 import json, subprocess, sys
 api_principal_id, sp_object_id = sys.argv[1:3]
 assignments = json.load(sys.stdin).get("value") or []
@@ -342,7 +341,7 @@ for assignment in assignments:
         )
         if result.returncode != 0:
             print(f"warning: Could not remove assignee {principal_id}", file=sys.stderr)
-PY
+' "$api_principal_id" "$sp_object_id"
 }
 
 bootstrap_store_and_model() {
@@ -360,14 +359,13 @@ bootstrap_store_and_model() {
 
   step "Ensuring OpenFGA store '$STORE_NAME'"
   stores_json="$(openfga_api GET '/stores')"
-  existing_store_id="$(printf '%s' "$stores_json" | python3 - "$STORE_NAME" <<'PY'
+  existing_store_id="$(printf '%s' "$stores_json" | python3 -c '
 import json, sys
 store_name = sys.argv[1]
 stores = json.load(sys.stdin).get("stores") or []
 match = next((s for s in stores if s.get("name") == store_name), None)
 print(match["id"] if match else "")
-PY
-)"
+' "$STORE_NAME")"
   if [[ -n "$existing_store_id" ]]; then
     STORE_ID="$existing_store_id"
     echo "Reusing store $STORE_ID"
@@ -485,10 +483,11 @@ EOF
   [[ -f "$BICEP_FILE" ]] || die "Missing $BICEP_FILE"
   [[ -f "$MODEL_JSON_FILE" ]] || die "Missing $MODEL_JSON_FILE (companion to $MODEL_FGA_FILE)"
 
-  local uri_lines runtime_uri migrate_uri parameters_file deploy_mode deploy_out
+  local uri_lines runtime_uri migrate_uri parameters_file deploy_mode deploy_out deploy_code
   mapfile -t uri_lines < <(get_neon_openfga_datastore_uris)
-  runtime_uri="${uri_lines[0]}"
-  migrate_uri="${uri_lines[1]}"
+  runtime_uri="${uri_lines[0]:-}"
+  migrate_uri="${uri_lines[1]:-}"
+  [[ -n "$runtime_uri" && -n "$migrate_uri" ]] || die 'Resolved empty OpenFGA datastore URIs.'
 
   if [[ "$WHAT_IF" -eq 0 ]]; then
     step "Upserting OpenFGA datastore secrets in Key Vault $KEY_VAULT_NAME (values not logged)"
@@ -506,16 +505,23 @@ EOF
 
   parameters_file="$(mktemp "${TMPDIR:-/tmp}/openfga-params.XXXXXX.json")"
   chmod 600 "$parameters_file"
+  cleanup_parameters_file() {
+    rm -f "$parameters_file"
+  }
+  trap cleanup_parameters_file EXIT
   write_parameters_file "$parameters_file" "$entra_tenant_id" "$runtime_uri" "$migrate_uri"
 
+  set +e
   deploy_out="$(az deployment group "$deploy_mode" \
     --name "$DEPLOYMENT_NAME" \
     --resource-group "$RESOURCE_GROUP" \
     --template-file "$BICEP_FILE" \
     --parameters "@$parameters_file" \
     --output json)"
-  local deploy_code=$?
-  rm -f "$parameters_file"
+  deploy_code=$?
+  set -e
+  trap - EXIT
+  cleanup_parameters_file
   assert_az 'OpenFGA Bicep deployment' "$deploy_code"
 
   if [[ "$WHAT_IF" -eq 1 ]]; then

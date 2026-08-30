@@ -76,7 +76,7 @@ Current implementation references:
 
 4. Push the model to the OpenFGA store (when infra is available):
 
-   ```powershell
+   ```bash
    ./infra/deploy-openfga.sh
    ```
 
