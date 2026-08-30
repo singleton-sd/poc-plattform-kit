@@ -1,7 +1,7 @@
-// OpenFGA authZ engine — Azure Container Apps Consumption + Azure Files (SQLite beta).
-// Deploy: powershell -File ./infra/deploy-openfga.ps1
+// OpenFGA authZ engine — Azure Container Apps Consumption + Neon PostgreSQL datastore.
+// Deploy: ./infra/deploy-openfga.sh
 // CAF: ssd-pocpk-openfga-dev-ae on existing CAE ssd-pocpk-cae-dev-ae.
-// Datastore: SQLite on EmptyDir (Azure Files SMB is unsuitable for SQLite; share kept for future backup).
+// Datastore: PostgreSQL on Neon (`openfga` database); connection strings from deploy script / Key Vault.
 // AuthN: OPENFGA_AUTHN_METHOD=oidc against Entra app api://{tenant}/ssd-pocpk-openfga (wired by deploy script).
 
 @description('Azure region')
@@ -12,17 +12,6 @@ param containerAppsEnvironmentName string = 'ssd-pocpk-cae-dev-ae'
 
 @description('OpenFGA Container App name (CAF)')
 param openfgaAppName string = 'ssd-pocpk-openfga-dev-ae'
-
-@description('Storage account for Azure Files SQLite share (3–24 lowercase alphanumeric)')
-@minLength(3)
-@maxLength(24)
-param storageAccountName string = 'ssdpocpkstofga'
-
-@description('Azure Files share name for the OpenFGA SQLite database')
-param fileShareName string = 'openfga-data'
-
-@description('CAE storage mount name referenced by the Container App volume')
-param caeStorageName string = 'openfga-files'
 
 @description('Pinned openfga/openfga image tag (include v prefix)')
 param openfgaImageTag string = 'v1.18.3'
@@ -39,6 +28,14 @@ param openfgaAudience string = 'api://9a0e57d7-e58e-4e8b-814d-037cd7d9015c/ssd-p
 @description('HTTP target port for OpenFGA')
 param targetPort int = 8080
 
+@secure()
+@description('Neon PostgreSQL connection string (direct / unpooled) for migrate init container')
+param openfgaDatastoreUriMigrate string
+
+@secure()
+@description('Neon PostgreSQL connection string (pooled) for OpenFGA runtime')
+param openfgaDatastoreUriRuntime string
+
 var tags = {
   project: 'poc-plattform-kit'
   environment: 'dev'
@@ -46,55 +43,10 @@ var tags = {
 }
 
 var openfgaImage = 'openfga/openfga:${openfgaImageTag}'
-// Azure Files SMB does not support SQLite WAL reliably. Force DELETE journal + busy timeout
-// so migrate/run can create a non-empty DB on the share (plain file:/… often yields a 0-byte file).
-var datastoreUri = 'file:/data/openfga.db?_pragma=journal_mode(DELETE)&_pragma=busy_timeout(10000)&_pragma=synchronous(FULL)'
+var datastoreEngine = 'postgres'
 
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2025-01-01' existing = {
   name: containerAppsEnvironmentName
-}
-
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageAccountName
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard_LRS'
-  }
-  kind: 'StorageV2'
-  properties: {
-    allowBlobPublicAccess: false
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
-    allowSharedKeyAccess: true // required for ACA Azure Files SMB mounts today
-  }
-}
-
-resource fileServices 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
-  parent: storageAccount
-  name: 'default'
-}
-
-resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
-  parent: fileServices
-  name: fileShareName
-  properties: {
-    shareQuota: 5 // GiB — SQLite PoC footprint is tiny
-    accessTier: 'TransactionOptimized'
-  }
-}
-
-resource caeStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
-  parent: containerAppsEnvironment
-  name: caeStorageName
-  properties: {
-    azureFile: {
-      accountName: storageAccount.name
-      accountKey: storageAccount.listKeys().keys[0].value
-      shareName: fileShare.name
-      accessMode: 'ReadWrite'
-    }
-  }
 }
 
 resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
@@ -115,19 +67,26 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
         allowInsecure: false
         transport: 'auto'
       }
+      secrets: [
+        {
+          name: 'openfga-datastore-uri-migrate'
+          value: openfgaDatastoreUriMigrate
+        }
+        {
+          name: 'openfga-datastore-uri-runtime'
+          value: openfgaDatastoreUriRuntime
+        }
+      ]
     }
     template: {
       initContainers: [
         {
           name: 'migrate'
           image: openfgaImage
-          // Explicit flags — migrate marks engine/uri as required; env alone is fragile.
           args: [
             'migrate'
             '--datastore-engine'
-            'sqlite'
-            '--datastore-uri'
-            datastoreUri
+            datastoreEngine
             '--timeout'
             '5m'
             '--verbose'
@@ -135,23 +94,17 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
           env: [
             {
               name: 'OPENFGA_DATASTORE_ENGINE'
-              value: 'sqlite'
+              value: datastoreEngine
             }
             {
               name: 'OPENFGA_DATASTORE_URI'
-              value: datastoreUri
+              secretRef: 'openfga-datastore-uri-migrate'
             }
           ]
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          volumeMounts: [
-            {
-              volumeName: 'openfga-data'
-              mountPath: '/data'
-            }
-          ]
         }
       ]
       containers: [
@@ -161,18 +114,16 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
           args: [
             'run'
             '--datastore-engine'
-            'sqlite'
-            '--datastore-uri'
-            datastoreUri
+            datastoreEngine
           ]
           env: [
             {
               name: 'OPENFGA_DATASTORE_ENGINE'
-              value: 'sqlite'
+              value: datastoreEngine
             }
             {
               name: 'OPENFGA_DATASTORE_URI'
-              value: datastoreUri
+              secretRef: 'openfga-datastore-uri-runtime'
             }
             {
               name: 'OPENFGA_AUTHN_METHOD'
@@ -199,18 +150,12 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
               value: 'false'
             }
             {
-              // Azure Files SQLite writes are slow; default 3s request timeout fails CreateStore.
               name: 'OPENFGA_REQUEST_TIMEOUT'
               value: '30s'
             }
             {
               name: 'OPENFGA_HTTP_UPSTREAM_TIMEOUT'
               value: '30s'
-            }
-            {
-              // SQLite must be single-writer; default MaxOpenConns=30 hangs/times out on SMB.
-              name: 'OPENFGA_DATASTORE_MAX_OPEN_CONNS'
-              value: '1'
             }
           ]
           resources: {
@@ -237,28 +182,12 @@ resource openfgaApp 'Microsoft.App/containerApps@2025-01-01' = {
               periodSeconds: 10
             }
           ]
-          volumeMounts: [
-            {
-              volumeName: 'openfga-data'
-              mountPath: '/data'
-            }
-          ]
         }
       ]
       scale: {
-        // SQLite is single-writer; keep exactly one replica.
         minReplicas: 1
         maxReplicas: 1
       }
-      volumes: [
-        {
-          // Azure Files SMB cannot host SQLite reliably (locking + multi-second writes
-          // exceed OpenFGA request deadlines even with nobrl). Use EmptyDir for PoC;
-          // share ssdpocpkstofga/openfga-data remains for a future backup job / Postgres follow-up.
-          name: 'openfga-data'
-          storageType: 'EmptyDir'
-        }
-      ]
     }
   }
 }
@@ -267,10 +196,6 @@ output openfgaAppName string = openfgaApp.name
 output openfgaFqdn string = openfgaApp.properties.configuration.ingress.fqdn
 output openfgaApiUrl string = 'https://${openfgaApp.properties.configuration.ingress.fqdn}'
 output openfgaPrincipalId string = openfgaApp.identity.principalId
-output storageAccountName string = storageAccount.name
-output fileShareName string = fileShare.name
-output caeStorageName string = caeStorage.name
 output openfgaImage string = openfgaImage
 output openfgaAudience string = openfgaAudience
-output datastoreEngine string = 'sqlite'
-output datastoreUri string = datastoreUri
+output datastoreEngine string = datastoreEngine

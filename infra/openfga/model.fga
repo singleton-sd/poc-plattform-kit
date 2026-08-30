@@ -1,5 +1,5 @@
 # Tenant-scoped authorization model for poc-plattform-kit (Permissions / OpenFGA).
-# Source of truth for infra/deploy-openfga.ps1 (pushed as authorization model).
+# Source of truth for infra/deploy-openfga.sh (pushed as authorization model).
 # Actions on type tenant match PermissionsService Check() relation names
 # (create / update / delete / read) used by Nest route mappings.
 #

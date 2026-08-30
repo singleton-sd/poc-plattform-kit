@@ -76,8 +76,8 @@ Current implementation references:
 
 4. Push the model to the OpenFGA store (when infra is available):
 
-   ```powershell
-   powershell -File ./infra/deploy-openfga.ps1
+   ```bash
+   ./infra/deploy-openfga.sh
    ```
 
 5. Confirm CI: `ci-api.yml` runs `pnpm permissions:check` on API/pillar/catalog path changes.

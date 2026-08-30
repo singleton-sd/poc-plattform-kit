@@ -19,7 +19,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | App Configuration | **Free** | Non-secret config + KV references |
 | ACR | **Basic** | API PR images; alphanumeric name only |
 | Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
-| Container Apps (OpenFGA) | **Consumption** | `ssd-pocpk-openfga-dev-ae`; SQLite on EmptyDir (PoC) |
+| Container Apps (OpenFGA) | **Consumption** | `ssd-pocpk-openfga-dev-ae`; PostgreSQL on Neon (`openfga` database) |
 | Log Analytics | **PerGB2018** | 30-day retention; shared by CAE + App Insights |
 | Application Insights | **Workspace-based** | Shared BE+FE sink |
 
@@ -57,7 +57,6 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Ephemeral ACA (API PR) | `ssd-pocpk-aca-pr-<n>-ae` | (CAF) | Consumption |
 | Ephemeral ACA (web PR) | `ssd-pocpk-aca-web-pr-<n>-ae` | (CAF) | Consumption |
 | OpenFGA Container App | `ssd-pocpk-openfga-dev-ae` | (CAF) | Consumption (min 1) |
-| OpenFGA Files (SQLite) | `ssdpocpkstofga` / share `openfga-data` | CAF alphanumeric | Standard_LRS (provisioned; SQLite PoC uses EmptyDir — share reserved for backup/Postgres follow-up) |
 
 ### Key Vault secret names (values never in git)
 
@@ -79,6 +78,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `auth-secret` | `AUTH_SECRET` |
 | `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
 | `chromatic-project-token` | Chromatic project token (OIDC → KV at runtime) |
+| `openfga-database-url` | Neon pooled URI for OpenFGA runtime (`OPENFGA_DATASTORE_URI`) |
+| `openfga-database-url-unpooled` | Neon direct URI for OpenFGA migrate (`OPENFGA_DATASTORE_URI_UNPOOLED`) |
 
 **Org devtools vault** (`ssd-devtools-kv-prod-ae`, not this app vault): `github-automation-pat` — org-wide platform automation PAT for ruleset-bypass git pushes (`SETUP.md`).
 
@@ -177,16 +178,16 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 | Concern | Choice |
 | --- | --- |
 | Image | `openfga/openfga:v1.18.3` (pin in `infra/openfga.bicep`) |
-| Datastore | **SQLite** on ACA **EmptyDir** (PoC). Azure Files SMB cannot host SQLite reliably (locking + multi-second writes exceed OpenFGA deadlines even with `nobrl`). Share `ssdpocpkstofga` / `openfga-data` is still provisioned for a future backup/Postgres follow-up. Single replica only (`minReplicas=1` / `maxReplicas=1`). Also set `OPENFGA_DATASTORE_MAX_OPEN_CONNS=1` and 30s request/upstream timeouts. |
+| Datastore | **PostgreSQL** on **Neon** (`openfga` database on branch `production`). Deploy script upserts pooled + direct URIs into Key Vault (`openfga-database-url`, `openfga-database-url-unpooled`) and passes them to ACA as secrets. Init container runs `openfga migrate`; runtime uses pooled URI. Single replica (`minReplicas=1` / `maxReplicas=1`) for PoC. Portable to Azure Database for PostgreSQL Flexible Server by swapping the connection string. |
 | AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://{tenantId}/ssd-pocpk-openfga` (assignment-required; bare `api://ssd-pocpk-openfga` is blocked by verified-domain URI policy). Nest API App Service system MI (`pocpk-api-si5fhs6dvxiha`) is the sole `OpenFga.Access` assignee. Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
 | Model | `infra/openfga/model.fga` (+ `model.json` for API push) — `user` (`manager` direct + `in_manager_chain` transitive), `tenant` roles/actions as `[user, user with not_yet_expired]`, `one_time_grant` marker, condition `not_yet_expired` |
-| Bootstrap | `powershell -File ./infra/deploy-openfga.ps1` (idempotent: Bicep + Entra + store/model + App Config `app:openfga:*`) |
+| Bootstrap | `./infra/deploy-openfga.sh` (idempotent: Bicep + Entra + store/model + App Config `app:openfga:*`) |
 
-```powershell
+```bash
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
-powershell -File ./infra/deploy-aca-preview.ps1   # CAE must exist first
-powershell -File ./infra/deploy-openfga.ps1 -WhatIf
-powershell -File ./infra/deploy-openfga.ps1
+pwsh ./infra/deploy-aca-preview.ps1   # CAE must exist first (see #296 for bash migration)
+./infra/deploy-openfga.sh --what-if
+./infra/deploy-openfga.sh
 ```
 
 OIDC deploy auth matches `preview-api.yml`: Azure CLI / GitHub OIDC Variables (`AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`) — never `AZURE_CREDENTIALS` or deploy tokens in GitHub Secrets.
@@ -194,7 +195,9 @@ OIDC deploy auth matches `preview-api.yml`: Azure CLI / GitHub OIDC Variables (`
 ## Prerequisites
 
 - Azure CLI (`az`) logged in with access to subscription `7b8343d7-969f-4b71-8864-b7925e7fae30`
-- PowerShell 7+
+- PowerShell 7+ (for `deploy.ps1` / `deploy-aca-preview.ps1` until [#296](https://github.com/singleton-sd/poc-plattform-kit/issues/296))
+- Bash 4+, `curl`, `python3` (required by `infra/deploy-openfga.sh`)
+- Neon CLI via `npx neon` when repo `.env` has no `OPENFGA_DATASTORE_URI*` values
 - Providers registered: `Microsoft.KeyVault`, `Microsoft.AppConfiguration`, `Microsoft.Insights`, `Microsoft.OperationalInsights`
 
 ```powershell
@@ -202,12 +205,12 @@ az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
 pwsh ./infra/deploy.ps1 -WhatIf   # preview
 pwsh ./infra/deploy.ps1           # create / update (idempotent)
 powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR previews
-powershell -File ./infra/deploy-openfga.ps1       # OpenFGA ACA + store/model bootstrap
+./infra/deploy-openfga.sh       # OpenFGA ACA + store/model bootstrap
 ```
 
 `deploy.ps1` upserts SQL/SB/SWA secrets into Key Vault, seeds App Config plain keys + KV refs, and mirrors non-secret + secret cache into local `.env` (gitignored).
 `deploy-aca-preview.ps1` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
-`deploy-openfga.ps1` provisions OpenFGA + Azure Files, Entra OIDC app, store/model, and `app:openfga:*` App Config keys.
+`deploy-openfga.sh` provisions OpenFGA on ACA (Neon PostgreSQL datastore), Entra OIDC app, store/model bootstrap, and `app:openfga:*` App Config keys. Requires Neon connection strings in repo `.env` (`OPENFGA_DATASTORE_URI` / `OPENFGA_DATASTORE_URI_UNPOOLED`) or a linked `neon` CLI project.
 `refresh-database-url.ps1` rebuilds KV `database-url` from `sql-admin-password`, resets the SQL admin password to match, and restarts the API App Service (use when Prisma reports auth failure for `pocpkadmin`).
 `migrate-db.ps1` pulls `database-url` from Key Vault into gitignored `packages/db/.env` and runs `prisma migrate deploy` against Azure SQL (forward-only; never commit the `.env`).
 

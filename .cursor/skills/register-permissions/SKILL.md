@@ -60,7 +60,7 @@ This updates both copies of `permissions.manifest.json`, appends a `define`
 1. `pnpm permissions:check` exits 0 (CI `ci-api.yml` runs the same check).
 2. Manifest has an entry for the guarded `METHOD` + Nest `route.path`.
 3. `action` exists on `resourceType` in `model.fga`.
-4. When infra is available, push the model (`infra/deploy-openfga.ps1` — see
+4. When infra is available, push the model (`infra/deploy-openfga.sh` — see
    [`docs/permissions.md`](../../../docs/permissions.md)).
 
 A PR that adds a guarded route without a catalog entry is not done.
