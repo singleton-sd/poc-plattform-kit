@@ -268,9 +268,7 @@ export function registerPermission({ root = ROOT, args }) {
 
   console.log('Applied:');
   console.log(JSON.stringify(summary, null, 2));
-  console.log(
-    '\nNext: pnpm permissions:check && ./infra/deploy-openfga.sh (push model).',
-  );
+  console.log('\nNext: pnpm permissions:check && ./infra/deploy-openfga.sh (push model).');
   return summary;
 }
 
