@@ -2,6 +2,25 @@ BEGIN TRY
 
 BEGIN TRAN;
 
+-- Preflight: documented limits in docs/db-practices.md / ADR 0005.
+-- Full report: packages/db/scripts/preflight-entity-id-column-sizing.sql
+-- Azure SQL supports NVARCHAR length narrows on PK/FK columns when values fit;
+-- constraint drop/recreate is not required for NVARCHAR(1000) -> NVARCHAR(n).
+IF EXISTS (
+  SELECT 1
+  FROM (
+    SELECT 1 AS issue FROM [dbo].[users] WHERE LEN([id]) > 64 OR LEN([entraOid]) > 36 OR LEN([email]) > 320 OR LEN([name]) > 200
+    UNION ALL SELECT 1 FROM [dbo].[tenants] WHERE LEN([id]) > 64 OR LEN([name]) > 200 OR LEN([slug]) > 100
+    UNION ALL SELECT 1 FROM [dbo].[tenant_memberships] WHERE LEN([id]) > 64 OR LEN([tenantId]) > 64 OR LEN([userId]) > 64 OR LEN([role]) > 50
+    UNION ALL SELECT 1 FROM [dbo].[tenant_invitations] WHERE LEN([email]) > 320 OR LEN([token]) > 64
+    UNION ALL SELECT 1 FROM [dbo].[access_requests] WHERE LEN([requesterEntraOid]) > 36
+    UNION ALL SELECT 1 FROM [dbo].[permissions_role_assignments] WHERE LEN([roleId]) > 200
+  ) AS preflight_issues
+)
+BEGIN
+  THROW 51000, 'entity_id_column_sizing preflight failed — run packages/db/scripts/preflight-entity-id-column-sizing.sql', 1;
+END;
+
 ALTER TABLE [dbo].[users] ALTER COLUMN [id] NVARCHAR(64) NOT NULL;
 ALTER TABLE [dbo].[users] ALTER COLUMN [entraOid] NVARCHAR(36) NOT NULL;
 ALTER TABLE [dbo].[users] ALTER COLUMN [email] NVARCHAR(320) NOT NULL;
