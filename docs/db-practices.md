@@ -63,7 +63,7 @@ Avoid a new schema per feature unless packaging/ownership truly needs it.
 - New columns nullable or with safe defaults.
 - No destructive renames/drops without expand → backfill → contract.
 - Prisma migrations are the only schema history; environments apply the same ordered set.
-- Before `20260828100000_entity_id_column_sizing`, run `packages/db/scripts/preflight-entity-id-column-sizing.sql` against Azure SQL to catch over-length legacy values (the migration embeds the same guard).
+- Before `20260828100000_entity_id_column_sizing`, run `packages/db/scripts/preflight-entity-id-column-sizing.sql` against Azure SQL to catch over-length legacy values for every narrowed column (`DATALENGTH(column) > n * 2` for `NVARCHAR(n)`; the migration embeds the same guard).
 
 ## Add (greenfield defaults)
 

@@ -9,12 +9,34 @@ BEGIN TRAN;
 IF EXISTS (
   SELECT 1
   FROM (
-    SELECT 1 AS issue FROM [dbo].[users] WHERE LEN([id]) > 64 OR LEN([entraOid]) > 36 OR LEN([email]) > 320 OR LEN([name]) > 200
-    UNION ALL SELECT 1 FROM [dbo].[tenants] WHERE LEN([id]) > 64 OR LEN([name]) > 200 OR LEN([slug]) > 100
-    UNION ALL SELECT 1 FROM [dbo].[tenant_memberships] WHERE LEN([id]) > 64 OR LEN([tenantId]) > 64 OR LEN([userId]) > 64 OR LEN([role]) > 50
-    UNION ALL SELECT 1 FROM [dbo].[tenant_invitations] WHERE LEN([email]) > 320 OR LEN([token]) > 64
-    UNION ALL SELECT 1 FROM [dbo].[access_requests] WHERE LEN([requesterEntraOid]) > 36
-    UNION ALL SELECT 1 FROM [dbo].[permissions_role_assignments] WHERE LEN([roleId]) > 200
+    SELECT 1 AS issue WHERE 1 = 0
+    UNION ALL SELECT 1 FROM [dbo].[access_requests] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([tenantId]) > 128 OR DATALENGTH([requesterId]) > 128 OR DATALENGTH([requesterEntraOid]) > 72 OR DATALENGTH([action]) > 400 OR DATALENGTH([resource]) > 400 OR DATALENGTH([status]) > 100 OR DATALENGTH([decidedById]) > 128 OR DATALENGTH([denyReason]) > 1000 OR DATALENGTH([grantType]) > 100 OR DATALENGTH([preferredGrantType]) > 100
+    UNION ALL SELECT 1 FROM [dbo].[audit_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[audit_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[contact_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[contact_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[notifications_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[permissions_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[permissions_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[permissions_role_assignments] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([tenantId]) > 128 OR DATALENGTH([principalType]) > 100 OR DATALENGTH([principalId]) > 128 OR DATALENGTH([roleId]) > 400 OR DATALENGTH([syncStatus]) > 100 OR DATALENGTH([syncError]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[permissions_role_commands] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([tenantId]) > 128 OR DATALENGTH([idempotencyKey]) > 400 OR DATALENGTH([commandHash]) > 128 OR DATALENGTH([assignmentId]) > 128 OR DATALENGTH([consistencyVersion]) > 100
+    UNION ALL SELECT 1 FROM [dbo].[permissions_role_revisions] WHERE DATALENGTH([tenantId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[reporting_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[reporting_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[single_sign_on_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[single_sign_on_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[subscriptions_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[subscriptions_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[support_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[support_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[tenant_audit] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entityType]) > 200 OR DATALENGTH([entityId]) > 128 OR DATALENGTH([action]) > 400 OR DATALENGTH([actorId]) > 128
+    UNION ALL SELECT 1 FROM [dbo].[tenant_group_memberships] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([tenantId]) > 128 OR DATALENGTH([groupId]) > 128 OR DATALENGTH([userId]) > 128 OR DATALENGTH([syncStatus]) > 100 OR DATALENGTH([syncError]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[tenant_groups] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([tenantId]) > 128 OR DATALENGTH([name]) > 400 OR DATALENGTH([description]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[tenant_invitations] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([tenantId]) > 128 OR DATALENGTH([email]) > 640 OR DATALENGTH([role]) > 100 OR DATALENGTH([invitedByUserId]) > 128 OR DATALENGTH([token]) > 128 OR DATALENGTH([status]) > 100
+    UNION ALL SELECT 1 FROM [dbo].[tenant_memberships] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([tenantId]) > 128 OR DATALENGTH([userId]) > 128 OR DATALENGTH([role]) > 100
+    UNION ALL SELECT 1 FROM [dbo].[tenant_outbox] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([eventType]) > 400 OR DATALENGTH([claimId]) > 128 OR DATALENGTH([failureReason]) > 1000
+    UNION ALL SELECT 1 FROM [dbo].[tenants] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([name]) > 400 OR DATALENGTH([slug]) > 200
+    UNION ALL SELECT 1 FROM [dbo].[users] WHERE DATALENGTH([id]) > 128 OR DATALENGTH([entraOid]) > 72 OR DATALENGTH([email]) > 640 OR DATALENGTH([name]) > 400
   ) AS preflight_issues
 )
 BEGIN
