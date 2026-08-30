@@ -488,6 +488,10 @@ EOF
   runtime_uri="${uri_lines[0]:-}"
   migrate_uri="${uri_lines[1]:-}"
   [[ -n "$runtime_uri" && -n "$migrate_uri" ]] || die 'Resolved empty OpenFGA datastore URIs.'
+  [[ "$runtime_uri" == postgres* || "$runtime_uri" == postgresql* ]] \
+    || die 'Resolved runtime datastore URI is not a PostgreSQL connection string.'
+  [[ "$migrate_uri" == postgres* || "$migrate_uri" == postgresql* ]] \
+    || die 'Resolved migrate datastore URI is not a PostgreSQL connection string.'
 
   if [[ "$WHAT_IF" -eq 0 ]]; then
     step "Upserting OpenFGA datastore secrets in Key Vault $KEY_VAULT_NAME (values not logged)"
