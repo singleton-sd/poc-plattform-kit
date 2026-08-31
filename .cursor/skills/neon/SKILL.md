@@ -100,7 +100,7 @@ For guidance on agent platforms that provision and operate Lakebase Postgres on 
 First check whether the target skill is already installed and accessible (for example, it appears in the available skills list or its `SKILL.md` is present). If it is, use it directly. If it is not installed, install it via the `skills` CLI, if available, with `npx`/`bunx`:
 
 ```bash
-npx skills add neondatabase/agent-skills -s <skill-name>
+npx skills@1.5.23 add https://github.com/neondatabase/agent-skills/tree/8370e740b4705a79d104b24dd29b3e33c8688378 -s <skill-name>
 ```
 
 Replace `<skill-name>` with the skill you need (for example, `neon-object-storage`, `neon-functions`, or `neon-ai-gateway`). Useful flags:
@@ -112,7 +112,7 @@ Replace `<skill-name>` with the skill you need (for example, `neon-object-storag
 For example, to install the object storage skill globally for a specific agent without prompts:
 
 ```bash
-npx skills add neondatabase/agent-skills -s neon-object-storage -g -y -a <agent-name>
+npx skills@1.5.23 add https://github.com/neondatabase/agent-skills/tree/8370e740b4705a79d104b24dd29b3e33c8688378 -s neon-object-storage -g -y -a <agent-name>
 ```
 
 If you don't have access to the `skills` CLI, you can visit https://neon.com/.well-known/agent-skills for a registry of all available Neon skills and fetch them manually.
@@ -121,23 +121,23 @@ If you don't have access to the `skills` CLI, you can visit https://neon.com/.we
 
 Keep the skills up to date: for every new session, update them so you are working with the latest best practices.
 
-Use the same method that was used to install them. With the `skills` CLI, run the install command above with `update` in place of `add`, or run `npx skills update` to update all Neon skills. If the skills were installed via a plugin, they are updated automatically.
+Use the same method that was used to install them. With the `skills` CLI, run the install command above with `update` in place of `add`, or run `npx skills@1.5.23 update` to update all Neon skills. If the skills were installed via a plugin, they are updated automatically.
 
 ## Getting Started with Neon
 
-Before `npx neon@latest init --agent`, check whether the CLI is already authenticated:
+Before `npx neon@4.10.2 init --agent`, check whether the CLI is already authenticated:
 
 - `NEON_API_KEY` is set
-- `npx neon@latest profile list -o json` lists a profile whose `account` is not `-`
+- `npx neon@4.10.2 profile list -o json` lists a profile whose `account` is not `-`
 
-A `DEFAULT` row with `account: "-"` and `file: "missing"` is not an account. If `neon` is not installed, or `npx neon@latest profile list` cannot run, that is not an account.
+A `DEFAULT` row with `account: "-"` and `file: "missing"` is not an account. If `neon` is not installed, or `npx neon@4.10.2 profile list` cannot run, that is not an account.
 
 If none of those hold, follow [Starting without a Neon account](#starting-without-a-neon-account).
 
 The easiest way to get started with Neon is to use our CLI and the project bootstrap wizard:
 
 ```bash
-npx neon@latest init --agent
+npx neon@4.10.2 init --agent
 ```
 
 Use the `--agent` flag to run in a non-interactive, state-machine mode.

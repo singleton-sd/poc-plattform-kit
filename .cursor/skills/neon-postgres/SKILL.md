@@ -21,7 +21,7 @@ metadata:
 If the `neon` skill is not installed, fetch it from https://neon.com/docs/ai/skills/neon/SKILL.md or install it with:
 
 ```bash
-npx skills add neondatabase/agent-skills --skill neon
+npx skills@1.5.23 add https://github.com/neondatabase/agent-skills/tree/8370e740b4705a79d104b24dd29b3e33c8688378 --skill neon
 ```
 
 # Lakebase Postgres
@@ -85,7 +85,7 @@ Link: https://neon.com/docs/introduction/branching.md
 For detailed branch creation workflows (normal vs schema-only branches, reset-from-parent, CLI/MCP selection), use the `neon-postgres-branches` skill. If it isn't installed, fetch it from https://neon.com/docs/ai/skills/neon-postgres-branches/SKILL.md or install it with:
 
 ```bash
-npx skills add neondatabase/agent-skills --skill neon-postgres-branches
+npx skills@1.5.23 add https://github.com/neondatabase/agent-skills/tree/8370e740b4705a79d104b24dd29b3e33c8688378 --skill neon-postgres-branches
 ```
 
 ## Migrations

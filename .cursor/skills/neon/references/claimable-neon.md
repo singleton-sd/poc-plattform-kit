@@ -8,7 +8,7 @@ Use this after the neon skill account check found no account.
 
 ## Path
 
-1. Install the CLI: `npm i -g neon@latest`
+1. Install the CLI: `npm i -g neon@4.10.2`
 2. If `neon claim --help` does not list `create`, skip to [If neon claim is missing](#if-neon-claim-is-missing).
 3. Write a `neon.ts` that declares the services you need, or skip the file and pass `--service` on create. Postgres is always requested.
 4. Create the project: `neon claim create --env-pull` (add `--service data-api --service auth` if there is no `neon.ts`)
@@ -18,7 +18,7 @@ Use this after the neon skill account check found no account.
 Do not run `neon init --agent` or `neon auth` on this path; those need a human Neon account. `--api-key` and `--profile` are refused on `neon claim`.
 
 ```bash
-npm i -g neon@latest
+npm i -g neon@4.10.2
 neon claim --help
 ```
 

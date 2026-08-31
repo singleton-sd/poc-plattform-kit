@@ -17,8 +17,8 @@ OPENFGA_DB='openfga'
 
 cd "$ROOT"
 
-if [[ -z "${NEON_API_KEY:-}" ]] && ! npx neon profile list -o json 2>/dev/null | grep -q '"account": "[^"-]'; then
-  echo "error: set NEON_API_KEY or run 'npx neon auth' first" >&2
+if [[ -z "${NEON_API_KEY:-}" ]] && ! pnpm exec neon profile list -o json 2>/dev/null | grep -q '"account": "[^"-]'; then
+  echo "error: set NEON_API_KEY or run 'pnpm exec neon auth' first" >&2
   exit 1
 fi
 
@@ -48,18 +48,18 @@ PY
   fi
 }
 
-echo "==> Linking Neon project $PROJECT_ID"
-npx neon link --org-id "$ORG_ID" --project-id "$PROJECT_ID" -y --no-env-pull
+echo "==> Linking Neon project $PROJECT_ID (branch $BRANCH)"
+pnpm exec neon link --org-id "$ORG_ID" --project-id "$PROJECT_ID" --branch "$BRANCH" -y --no-env-pull
 
 echo "==> Pulling platform env to $ROOT/.env"
-(cd "$ROOT" && npx neon env pull --file .env)
+(cd "$ROOT" && pnpm exec neon env pull --branch "$BRANCH" --file .env)
 
 echo "==> Fetching OpenFGA database connection strings ($OPENFGA_DB)"
 OPENFGA_DATASTORE_URI="$(
-  npx neon connection-string "$BRANCH" --database-name "$OPENFGA_DB" --pooled 2>/dev/null | tail -1
+  pnpm exec neon connection-string "$BRANCH" --database-name "$OPENFGA_DB" --pooled 2>/dev/null | tail -1
 )"
 OPENFGA_DATASTORE_URI_UNPOOLED="$(
-  npx neon connection-string "$BRANCH" --database-name "$OPENFGA_DB" 2>/dev/null | tail -1
+  pnpm exec neon connection-string "$BRANCH" --database-name "$OPENFGA_DB" 2>/dev/null | tail -1
 )"
 
 set_env_var "$ROOT/.env" OPENFGA_DATASTORE_ENGINE postgres

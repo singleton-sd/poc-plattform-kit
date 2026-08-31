@@ -87,6 +87,7 @@ test('transformToSqlitePreviewSchema strips directUrl from the datasource block'
   );
   const preview = transformToSqlitePreviewSchema(schema);
   assert.doesNotMatch(preview, /directUrl/);
+  assert.match(preview, /url\s*=\s*env\("DATABASE_URL"\)/);
 });
 
 test('transformToSqlitePreviewSchema pins a dedicated generator output', () => {
