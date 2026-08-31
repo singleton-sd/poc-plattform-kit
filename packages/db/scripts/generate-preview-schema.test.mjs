@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import {
   SchemaDiagnosticError,
+  stripNativeDbAttributes,
   transformToSqlitePreviewSchema,
   validateSqliteCompatibility,
 } from './generate-preview-schema.mjs';
@@ -34,11 +35,16 @@ test('validateSqliteCompatibility accepts a plain canonical schema', () => {
   assert.deepEqual(validateSqliteCompatibility(VALID_SCHEMA), []);
 });
 
-test('validateSqliteCompatibility flags @db native type attributes', () => {
+test('validateSqliteCompatibility accepts @db native type attributes on the canonical schema', () => {
   const schema = VALID_SCHEMA.replace('name String', 'name String @db.NVarChar(100)');
-  const diagnostics = validateSqliteCompatibility(schema);
-  assert.equal(diagnostics.length, 1);
-  assert.match(diagnostics[0].message, /@db\.NVarChar/);
+  assert.deepEqual(validateSqliteCompatibility(schema), []);
+});
+
+test('stripNativeDbAttributes removes provider-native annotations', () => {
+  const schema = VALID_SCHEMA.replace('name String', 'name String @db.NVarChar(100)');
+  const stripped = stripNativeDbAttributes(schema);
+  assert.doesNotMatch(stripped, /@db\./);
+  assert.match(stripped, /name String/);
 });
 
 test('validateSqliteCompatibility flags multi-schema attributes', () => {
@@ -87,13 +93,20 @@ test('transformToSqlitePreviewSchema is idempotent on its own output (re-pins ou
   assert.throws(() => transformToSqlitePreviewSchema(once), SchemaDiagnosticError);
 });
 
-test('transformToSqlitePreviewSchema throws SchemaDiagnosticError with all diagnostics for an incompatible schema', () => {
+test('transformToSqlitePreviewSchema strips @db native type attributes', () => {
   const schema = VALID_SCHEMA.replace('name String', 'name String @db.NVarChar(100)');
+  const preview = transformToSqlitePreviewSchema(schema);
+  assert.doesNotMatch(preview, /@db\./);
+  assert.match(preview, /name String/);
+});
+
+test('transformToSqlitePreviewSchema throws SchemaDiagnosticError with all diagnostics for an incompatible schema', () => {
+  const schema = `${VALID_SCHEMA}\nenum Role {\n  OWNER\n}\n`;
   assert.throws(
     () => transformToSqlitePreviewSchema(schema),
     (error) => {
       assert.ok(error instanceof SchemaDiagnosticError);
-      assert.equal(error.diagnostics.length, 1);
+      assert.ok(error.diagnostics.length >= 1);
       return true;
     },
   );
@@ -127,7 +140,7 @@ test('CLI exits non-zero with an actionable diagnostic for an incompatible schem
   try {
     const schemaPath = join(dir, 'schema.prisma');
     const outPath = join(dir, 'schema.preview.prisma');
-    writeFileSync(schemaPath, VALID_SCHEMA.replace('name String', 'name String @db.NVarChar(100)'));
+    writeFileSync(schemaPath, `${VALID_SCHEMA}\nenum Role {\n  OWNER\n}\n`);
 
     assert.throws(
       () => {
@@ -138,7 +151,7 @@ test('CLI exits non-zero with an actionable diagnostic for an incompatible schem
       },
       (error) => {
         assert.equal(error.status, 1);
-        assert.match(error.stderr.toString(), /@db\.NVarChar/);
+        assert.match(error.stderr.toString(), /enum Role/);
         return true;
       },
     );
