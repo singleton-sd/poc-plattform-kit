@@ -119,10 +119,9 @@ export function transformToSqlitePreviewSchema(schemaText) {
   let preview = stripNativeDbAttributes(schemaText);
 
   const datasourceBlock = findDatasourceBlock(preview);
-  const previewDatasourceBlock = datasourceBlock.replace(
-    /provider\s*=\s*"postgresql"/,
-    `provider = "${PREVIEW_PROVIDER}"`,
-  );
+  const previewDatasourceBlock = datasourceBlock
+    .replace(/provider\s*=\s*"postgresql"/, `provider = "${PREVIEW_PROVIDER}"`)
+    .replace(/\n\s*directUrl\s*=\s*env\("[^"]+"\)\s*/g, '\n');
 
   preview = preview.replace(datasourceBlock, previewDatasourceBlock);
 

@@ -80,6 +80,15 @@ test('transformToSqlitePreviewSchema swaps only the datasource provider', () => 
   assert.match(preview, /url\s*=\s*env\("DATABASE_URL"\)/);
 });
 
+test('transformToSqlitePreviewSchema strips directUrl from the datasource block', () => {
+  const schema = VALID_SCHEMA.replace(
+    'url      = env("DATABASE_URL")',
+    'url       = env("DATABASE_URL")\n  directUrl = env("DATABASE_URL_UNPOOLED")',
+  );
+  const preview = transformToSqlitePreviewSchema(schema);
+  assert.doesNotMatch(preview, /directUrl/);
+});
+
 test('transformToSqlitePreviewSchema pins a dedicated generator output', () => {
   const preview = transformToSqlitePreviewSchema(VALID_SCHEMA);
   assert.match(preview, /output\s*=\s*"\.\/generated\/preview-client"/);
