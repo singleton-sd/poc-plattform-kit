@@ -2,6 +2,22 @@
 
 Release history for **@poc-plattform-kit/web**, generated from conventional commits by the release-it workflow.
 
+## 0.16.2 — 2026-08-31
+
+### Fixed
+
+- drop and recreate PK/indexes before NVARCHAR narrows
+
+  SQL Server rejects narrowing NVARCHAR columns that participate in PK,
+
+- cover all column-sizing preflight checks with DATALENGTH
+
+  Expand embedded and standalone preflight guards to every NVARCHAR column
+
+- #256 Add entity ID column sizing preflight guard
+
+  Embed preflight THROW in migration and add standalone SQL script for over-length value detection before NVARCHAR narrows.
+
 ## 0.16.1 — 2026-08-22
 
 ### Fixed

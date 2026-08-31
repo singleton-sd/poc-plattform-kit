@@ -2,6 +2,27 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.23.2",
+      "date": "2026-08-31",
+      "changes": [
+        {
+          "type": "Fixed",
+          "summary": "drop and recreate PK/indexes before NVARCHAR narrows",
+          "reason": "SQL Server rejects narrowing NVARCHAR columns that participate in PK,"
+        },
+        {
+          "type": "Fixed",
+          "summary": "cover all column-sizing preflight checks with DATALENGTH",
+          "reason": "Expand embedded and standalone preflight guards to every NVARCHAR column"
+        },
+        {
+          "type": "Fixed",
+          "summary": "#256 Add entity ID column sizing preflight guard",
+          "reason": "Embed preflight THROW in migration and add standalone SQL script for over-length value detection before NVARCHAR narrows."
+        }
+      ]
+    },
+    {
       "version": "0.23.1",
       "date": "2026-08-22",
       "changes": [
