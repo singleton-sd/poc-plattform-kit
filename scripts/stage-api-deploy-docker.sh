@@ -35,6 +35,7 @@ fi
   -v "${ROOT}:/src:ro" \
   -v "${ROOT}:/out" \
   -e DATABASE_URL="${DATABASE_URL:-postgresql://ci:ci@localhost:5432/ci?schema=public}" \
+  -e DATABASE_URL_UNPOOLED="${DATABASE_URL_UNPOOLED:-${DATABASE_URL:-postgresql://ci:ci@localhost:5432/ci?schema=public}}" \
   -e "STAGE_ARGS=$*" \
   "$IMAGE" \
   bash -lc '

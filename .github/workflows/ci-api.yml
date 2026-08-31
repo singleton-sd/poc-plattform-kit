@@ -70,6 +70,7 @@ jobs:
     env:
       # prisma validate/generate read schema url; no live DB in CI
       DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
+      DATABASE_URL_UNPOOLED: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
     steps:
       - uses: actions/checkout@v4
 
