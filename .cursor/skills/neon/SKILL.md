@@ -169,7 +169,7 @@ These commands are included in the `init` command but can be run manually as nee
 
 ### Getting Started with the Neon MCP Server
 
-The above `init` command will install the Neon MCP server globally, but it can also be installed manually using: `npx -y add-mcp https://mcp.neon.tech/mcp -g -n Neon -y -a <agent-name>` or through your IDE plugin.
+The above `init` command will install the Neon MCP server globally, but it can also be installed manually using: `npx -y add-mcp@2.3.0 https://mcp.neon.tech/mcp -g -n Neon -y -a <agent-name>` or through your IDE plugin.
 
 For all available plugins, see: https://neon.com/docs/ai/ai-agents-tools.md
 
