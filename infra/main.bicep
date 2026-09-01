@@ -1,5 +1,5 @@
 // poc-plattform-kit — cheapest-that-works PoC Azure resources
-// Deploy: pwsh ./infra/deploy.ps1
+// Deploy: ./infra/deploy.sh
 // Cost: Free/Basic/Standard-min only (see SETUP.md).
 // Secrets: Key Vault only. App config: Azure App Configuration (+ KV refs).
 // Pipelines: GitHub OIDC → Azure → KV/App Config. No secrets in GitHub Secrets.
