@@ -2,6 +2,24 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.24.0 — 2026-09-01
+
+### New
+
+- rebaseline Prisma migrations for PostgreSQL (Refs #290)
+
+  Switch packages/db to postgresql, squash SQL Server T-SQL history into a
+
+### Fixed
+
+- pin CLI/skills versions and branch on env pull
+
+  Pin skills@1.5.23 and agent-skills tree SHA in Neon skill docs, use
+
+- strip directUrl from SQLite preview schema transform
+
+  Neon uses DATABASE_URL_UNPOOLED on the canonical PostgreSQL datasource;
+
 ## 0.23.2 — 2026-08-31
 
 ### Fixed

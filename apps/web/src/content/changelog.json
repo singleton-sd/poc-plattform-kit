@@ -2,6 +2,27 @@
   "product": "@poc-plattform-kit/web",
   "releases": [
     {
+      "version": "0.17.0",
+      "date": "2026-09-01",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "rebaseline Prisma migrations for PostgreSQL (Refs #290)",
+          "reason": "Switch packages/db to postgresql, squash SQL Server T-SQL history into a"
+        },
+        {
+          "type": "Fixed",
+          "summary": "pin CLI/skills versions and branch on env pull",
+          "reason": "Pin skills@1.5.23 and agent-skills tree SHA in Neon skill docs, use"
+        },
+        {
+          "type": "Fixed",
+          "summary": "strip directUrl from SQLite preview schema transform",
+          "reason": "Neon uses DATABASE_URL_UNPOOLED on the canonical PostgreSQL datasource;"
+        }
+      ]
+    },
+    {
       "version": "0.16.2",
       "date": "2026-08-31",
       "changes": [
