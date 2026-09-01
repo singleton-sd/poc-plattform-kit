@@ -33,7 +33,7 @@ Closes #
 
 Preview scenarios: <!-- fill in above, see the instructions at the top of this description -->
 
-- **Known SQLite vs SQL Server differences:** <!-- anything this preview can't prove; "none" if not applicable -->
+- **Known SQLite vs PostgreSQL differences:** <!-- anything this preview can't prove; "none" if not applicable -->
 
 ## Test plan
 

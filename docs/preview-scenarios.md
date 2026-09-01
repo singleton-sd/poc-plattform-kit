@@ -31,10 +31,10 @@ feature/bug work is documented in [`AGENTS.md`](../AGENTS.md).
   `apps/api/src/config/app-configuration.ts` cannot override (explicit
   environment variables always win over App Configuration).
 
-**What SQLite previews cannot prove:** SQL Server-specific migration,
+**What SQLite previews cannot prove:** PostgreSQL-specific migration,
 locking, collation, concurrency, or performance behaviour. Changes relying
-on SQL Server-specific behaviour (native types, raw SQL, provider-specific
-migrations) still need SQL Server integration validation — a preview is a
+on PostgreSQL-specific behaviour (native types, raw SQL, provider-specific
+migrations) still need Neon/Postgres integration validation — a preview is a
 complement to automated tests, never a replacement.
 
 ## The schema transform

@@ -1,6 +1,6 @@
 # poc-plattform-kit
 
-Platform kit PoC: nine NestJS pillars + Next.js PWA SPA, Azure SQL, Service Bus.
+Platform kit PoC: nine NestJS pillars + Next.js PWA SPA, PostgreSQL (Neon), Service Bus.
 
 ## Engineering source of truth
 
@@ -23,7 +23,7 @@ sequenced, or claimed.
 | Web | Next.js PWA SPA, Tailwind, [design tokens](https://tokens.design.singletonsd.com/) |
 | Marketing | Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`); see [docs/marketing-astro-decap.md](./docs/marketing-astro-decap.md) |
 | API | NestJS + Swagger |
-| DB | Azure SQL + Prisma (`sqlserver`) |
+| DB | PostgreSQL + Prisma (`postgresql`) — Neon PoC; Azure Flexible Server for shared |
 | Messaging | Azure Service Bus |
 | AuthN | Entra + Auth.js cookies (SingleSignOn) |
 | AuthZ | Permissions pillar — OpenFGA (ReBAC) on ACA Consumption |

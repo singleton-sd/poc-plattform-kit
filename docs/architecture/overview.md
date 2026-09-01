@@ -92,15 +92,17 @@ open.
 
 ## Data and persistence
 
-Azure SQL (Basic SKU) + Prisma with the `sqlserver` provider is the single
-canonical schema for production/dev. See
+**PostgreSQL** + Prisma `postgresql` is the canonical relational store.
+PoC workloads use **Neon**; shared/always-on deployments target **Azure
+Database for PostgreSQL Flexible Server**. Domain code must stay
+provider-portable (no Neon-only APIs in pillars). See
 [`docs/db-practices.md`](../db-practices.md) for ownership boundaries,
-reference-data conventions, additive-migration rules, and the outbox
-pattern in full.
+hosting guidance, `pg_dump`/`pg_restore`, additive-migration rules, and
+the outbox pattern.
 
 API PR previews are the one deliberate exception: they run against an
 isolated, disposable **SQLite** database seeded from named scenarios,
-never the shared Azure SQL database — see
+never the shared Neon database — see
 [ADR 0003](../adr/0003-sqlite-seeded-preview-databases.md) and
 [`docs/preview-scenarios.md`](../preview-scenarios.md) for the full
 mechanism, and [`docs/development/testing-strategy.md`](../development/testing-strategy.md)

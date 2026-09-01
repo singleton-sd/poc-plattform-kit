@@ -16,6 +16,38 @@ Repo-adapted from the greenfield checklist (Karbon-style CodeTable / System / Sh
 | Single migration system | **Prisma migrate only**, forward-only |
 | Secrets | Azure Key Vault (`ssd-pocpk-kv-dev-ae`); never commit values |
 
+## Provider and hosting (locked)
+
+| Concern | Choice |
+| --- | --- |
+| Canonical Prisma provider | `postgresql` (`packages/db/prisma/schema.prisma`) |
+| PoC / experimental host | **Neon** (project linked via `./scripts/neon-env-pull.sh`) |
+| Shared / always-on host | **Azure Database for PostgreSQL Flexible Server** |
+| Ephemeral PR previews | **SQLite** (generated `schema.preview.prisma`) — not Neon |
+
+**Portability:** pillars and app code must not call Neon-specific SDKs or APIs for domain persistence. Use Prisma + standard PostgreSQL. Moving a database between Neon and Azure Flexible Server is `pg_dump` / `pg_restore` (or Neon branching + dump) — not a schema rewrite.
+
+### Local PostgreSQL / Neon
+
+```bash
+# Preferred for this PoC: pull Neon branch env into .env + packages/db/.env
+./scripts/neon-env-pull.sh
+
+# Or point packages/db/.env at any Postgres 15+:
+# DATABASE_URL=postgresql://…        # pooled / app
+# DATABASE_URL_UNPOOLED=postgresql://…  # direct — required by Prisma directUrl / migrate
+pnpm --filter @poc-plattform-kit/db exec prisma migrate deploy
+```
+
+CI validates/generates with dummy `postgresql://ci:ci@localhost:5432/ci` URLs (no live DB). Live migrate uses Key Vault via `pwsh ./infra/migrate-db.ps1`.
+
+### Moving between Neon and Azure Flexible Server
+
+1. Prefer the **direct** (unpooled) connection for dump/restore.
+2. `pg_dump --format=custom --no-owner --no-acl …` from source.
+3. `pg_restore --clean --if-exists …` into empty target (or restore then `prisma migrate deploy` if history must match).
+4. Update Key Vault `database-url` / `database-url-unpooled` and restart the API.
+
 ## Keep
 
 ### Ownership boundaries
@@ -79,7 +111,7 @@ Label sensitive tables/columns (docs or comments): public / internal / confident
 
 ### Encryption and secrets
 
-- TLS in transit; at-rest encryption (Azure SQL TDE or equivalent).
+- TLS in transit; at-rest encryption (Neon / Azure PostgreSQL defaults).
 - No raw secrets/tokens in tenant tables — encrypt or store Key Vault references.
 - App secrets out of the DB except where the product truly requires them.
 
@@ -87,7 +119,7 @@ Label sensitive tables/columns (docs or comments): public / internal / confident
 
 - Opaque public IDs (`cuid` / `ulid` / `uuid`) for APIs; document generation once.
 - Don’t rely on enumerable identity columns as the sole public handle.
-- **Platform convention (ADR [0005](./adr/0005-entity-id-strategy.md)):** keep Prisma `@default(cuid())` for primary keys; annotate keyed/reference `String` columns with explicit native lengths instead of Prisma’s default `NVARCHAR(1000)` on SQL Server.
+- **Platform convention (ADR [0005](./adr/0005-entity-id-strategy.md)):** keep Prisma `@default(cuid())` for primary keys; annotate keyed/reference `String` columns with explicit `@db.VarChar(n)` (not Prisma’s unbounded default).
 
 | Prisma role | Max length | Examples |
 | --- | --- | --- |
@@ -106,7 +138,7 @@ Label sensitive tables/columns (docs or comments): public / internal / confident
 | `Message` | 500 | `description`, `syncError`, `failureReason`, `denyReason` |
 | Unbounded text | _(none)_ | `payload`, `changes`, `settings` — leave without `@db.*` |
 
-SQL Server: `@db.NVarChar(n)` (legacy). PostgreSQL: `@db.VarChar(n)`. SQLite previews strip `@db.*` in `generate-preview-schema.mjs`.
+PostgreSQL: `@db.VarChar(n)`. SQLite previews strip `@db.*` in `generate-preview-schema.mjs`. (Historical SQL Server used `@db.NVarChar(n)` before the Neon cutover.)
 
 ### Referential integrity and indexing
 
