@@ -9,7 +9,7 @@ Repo-adapted from the greenfield checklist (Karbon-style CodeTable / System / Sh
 | Greenfield concept | poc-plattform-kit |
 |--------------------|-------------------|
 | Bounded context / service DB | **Pillar** (Tenant, SingleSignOn, Permissions, Subscriptions, Contact, Support, Audit, Reporting, Notifications) |
-| One owned schema set | Models owned by one pillar under `packages/db` (Azure SQL + Prisma `sqlserver`) |
+| One owned schema set | Models owned by one pillar under `packages/db` (PostgreSQL + Prisma `postgresql`) |
 | No shared mega-schema writes | **No cross-pillar DB joins or write HTTP** |
 | Cross-boundary contracts | Service Bus events, pillar HTTP APIs, read models — not raw cross-pillar SQL |
 | Platform / messaging in SQL | **Per-pillar** Outbox + local Audit in the same mutation transaction |
@@ -63,7 +63,7 @@ Avoid a new schema per feature unless packaging/ownership truly needs it.
 - New columns nullable or with safe defaults.
 - No destructive renames/drops without expand → backfill → contract.
 - Prisma migrations are the only schema history; environments apply the same ordered set.
-- Before `20260828100000_entity_id_column_sizing`, run `packages/db/scripts/preflight-entity-id-column-sizing.sql` against Azure SQL to catch over-length legacy values for every narrowed column (`DATALENGTH(column) > n * 2` for `NVARCHAR(n)`; the migration embeds the same guard). The migration drops and recreates PK/unique/index objects that block `NVARCHAR` narrows, then restores them.
+- Identifier and reference column widths are enforced in `schema.prisma` (`@db.VarChar(n)` per ADR 0005) and in the PostgreSQL `20260828110000_init_postgresql` migration — no separate sizing migration on greenfield Postgres.
 
 ## Add (greenfield defaults)
 
@@ -71,7 +71,7 @@ Avoid a new schema per feature unless packaging/ownership truly needs it.
 
 - Prisma only — no parallel hand-script track unless deliberately documented.
 - Schema in git; same path for local/dev/stage/prod.
-- Apply to Azure SQL with `pwsh ./infra/migrate-db.ps1` (OIDC/CLI → Key Vault `database-url` → `prisma migrate deploy`). Do not use `migrate dev` against shared Azure SQL.
+- Apply to PostgreSQL with `pwsh ./infra/migrate-db.ps1` (OIDC/CLI → Key Vault `database-url` → `prisma migrate deploy`). Do not use `migrate dev` against shared deployed databases.
 
 ### Data classification
 
@@ -106,7 +106,7 @@ Label sensitive tables/columns (docs or comments): public / internal / confident
 | `Message` | 500 | `description`, `syncError`, `failureReason`, `denyReason` |
 | Unbounded text | _(none)_ | `payload`, `changes`, `settings` — leave without `@db.*` |
 
-SQL Server: `@db.NVarChar(n)`. PostgreSQL (after [#290](https://github.com/singleton-sd/poc-plattform-kit/issues/290)): `@db.VarChar(n)`. SQLite previews strip `@db.*` in `generate-preview-schema.mjs`.
+SQL Server: `@db.NVarChar(n)` (legacy). PostgreSQL: `@db.VarChar(n)`. SQLite previews strip `@db.*` in `generate-preview-schema.mjs`.
 
 ### Referential integrity and indexing
 

@@ -119,8 +119,11 @@ export function createCommandRunner(cwd = repoRoot) {
       env: {
         ...process.env,
         DATABASE_URL:
+          process.env.DATABASE_URL ?? 'postgresql://ci:ci@localhost:5432/ci?schema=public',
+        DATABASE_URL_UNPOOLED:
+          process.env.DATABASE_URL_UNPOOLED ??
           process.env.DATABASE_URL ??
-          'sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true',
+          'postgresql://ci:ci@localhost:5432/ci?schema=public',
       },
     });
     if (result.status !== 0) {

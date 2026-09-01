@@ -8,36 +8,33 @@ Accepted.
 
 Every API-affecting PR gets a live preview so a reviewer (human or bot) can
 exercise the change, not just read a diff. Production and dev run Prisma's
-`sqlserver` provider against a single shared Azure SQL database. Giving
-every open PR its own throwaway copy of that same Azure SQL database would
-mean either a shared mutable database across previews (previews corrupt
-each other's data, "it worked in the last preview" stops meaning anything)
-or provisioning/tearing down a real Azure SQL instance per PR (Azure SQL
-Basic still has real minutes-scale provisioning latency and cost, and this
-repo's cost-lock policy already picked the cheapest SQL SKU for exactly one
-shared instance).
+`postgresql` provider against a shared Neon PostgreSQL database. Giving
+every open PR its own throwaway copy of that same database would mean
+either a shared mutable database across previews (previews corrupt each
+other's data) or provisioning/tearing down a real managed instance per PR
+(cost and latency).
 
 ## Decision
 
 Every PR preview runs against an isolated, disposable **SQLite** database,
-never the shared Azure SQL database, seeded deterministically from a
+never the shared production PostgreSQL database, seeded deterministically from a
 catalog of named "preview scenarios" baked into the preview container image
 at build time. Production and normal local development are unaffected —
-they keep Prisma's `sqlserver` provider and the canonical schema unchanged.
+they keep Prisma's `postgresql` provider and the canonical schema unchanged.
 See [`docs/preview-scenarios.md`](../preview-scenarios.md) for the full
 mechanism (schema transform, scenario registry, seeding, verification).
 
 ## Alternatives considered
 
-- **A shared preview Azure SQL database, reset between deploys.** Rejected:
+- **A shared preview PostgreSQL database, reset between deploys.** Rejected:
   concurrent PRs would corrupt or race each other's data, and a reset step
   is one more failure point in a PR's CI path for infrastructure this repo
   doesn't otherwise need per PR.
-- **A dedicated ephemeral Azure SQL database per PR.** Rejected on cost and
-  latency: this repo's infra cost-lock already picked the cheapest single
-  SQL SKU; multiplying that by open-PR count contradicts that policy, and
-  provisioning/tearing down real Azure SQL per PR is far slower than
-  building a container image with a baked-in SQLite file.
+- **A dedicated ephemeral PostgreSQL database per PR.** Rejected on cost and
+  latency: multiplying managed database instances by open-PR count
+  contradicts PoC cost policy, and provisioning/tearing down real
+  instances per PR is far slower than building a container image with a
+  baked-in SQLite file.
 - **No seeded data at all (empty preview database).** Rejected: reviewers
   and bots need representative, deterministic states (happy path, empty
   states, permission/tenant boundaries) to actually exercise a change —
@@ -45,11 +42,11 @@ mechanism (schema transform, scenario registry, seeding, verification).
 
 ## Consequences
 
-- SQLite previews **cannot** prove SQL Server-specific behavior: native
+- SQLite previews **cannot** prove PostgreSQL-specific behavior: native
   `@db.*` types, collation, locking, concurrency, or performance. Any
-  change relying on that still needs real SQL Server integration
+  change relying on that still needs real PostgreSQL integration
   validation as a separate step — a preview complements automated tests,
-  it never replaces SQL-Server-specific validation.
+  it never replaces PostgreSQL-specific validation.
 - The canonical Prisma schema must stay representable in both providers, or
   be explicitly flagged: `packages/db/scripts/generate-preview-schema.mjs`
   fails loudly (not silently) on constructs the SQLite connector can't

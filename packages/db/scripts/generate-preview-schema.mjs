@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Derives a SQLite-compatible preview Prisma schema from the canonical
-// SQL Server schema. Production and normal builds keep using
+// PostgreSQL schema. Production and normal builds keep using
 // prisma/schema.prisma untouched; this script only produces the generated,
 // gitignored prisma/schema.preview.prisma consumed by preview image builds
 // and local preview/scenario tooling (see AGENTS.md "PoC preview scenarios").
@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const PREVIEW_GENERATOR_OUTPUT = './generated/preview-client';
-const CANONICAL_PROVIDER = 'sqlserver';
+const CANONICAL_PROVIDER = 'postgresql';
 const PREVIEW_PROVIDER = 'sqlite';
 
 /**
@@ -119,10 +119,9 @@ export function transformToSqlitePreviewSchema(schemaText) {
   let preview = stripNativeDbAttributes(schemaText);
 
   const datasourceBlock = findDatasourceBlock(preview);
-  const previewDatasourceBlock = datasourceBlock.replace(
-    /provider\s*=\s*"sqlserver"/,
-    `provider = "${PREVIEW_PROVIDER}"`,
-  );
+  const previewDatasourceBlock = datasourceBlock
+    .replace(/provider\s*=\s*"postgresql"/, `provider = "${PREVIEW_PROVIDER}"`)
+    .replace(/\n\s*directUrl\s*=\s*env\("[^"]+"\)\s*/g, '\n');
 
   preview = preview.replace(datasourceBlock, previewDatasourceBlock);
 
@@ -145,7 +144,7 @@ export function transformToSqlitePreviewSchema(schemaText) {
     '// GENERATED FILE — do not edit by hand.\n' +
     '// Produced by scripts/generate-preview-schema.mjs from prisma/schema.prisma\n' +
     '// for ephemeral PR preview / local scenario testing only. Production and\n' +
-    '// normal builds keep using the canonical SQL Server schema.\n\n';
+    '// normal builds keep using the canonical PostgreSQL schema.\n\n';
 
   return header + preview;
 }

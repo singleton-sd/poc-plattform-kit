@@ -2,10 +2,10 @@
 
 Ephemeral PR previews are the primary low-effort environment for product
 acceptance testing and demonstrations. Every API PR preview runs against an
-isolated, disposable **SQLite** database — never the shared Azure SQL
+isolated, disposable **SQLite** database — never the shared PostgreSQL
 database — seeded deterministically from a catalog of named **preview
 scenarios**. Production and normal local builds are unaffected: they keep
-using Prisma's `sqlserver` provider and the canonical schema.
+using Prisma's `postgresql` provider and the canonical schema.
 
 This document covers the SQLite preview foundation and the scenario
 framework (packages/db). Preview deployment wiring (per-PR seeding, the PR
@@ -15,7 +15,7 @@ feature/bug work is documented in [`AGENTS.md`](../AGENTS.md).
 
 ## Why SQLite only for previews
 
-- Prisma cannot switch one generated client between SQL Server and SQLite at
+- Prisma cannot switch one generated client between PostgreSQL and SQLite at
   runtime — the provider is baked in at `prisma generate` time.
 - `apps/api/Dockerfile` (used **only** by `preview-api.yml`, never by
   production App Service deploys) derives a SQLite-compatible schema from
@@ -66,7 +66,7 @@ pnpm --filter @poc-plattform-kit/db run preview:push     # DATABASE_URL=file:...
 (used by the Dockerfile) that repoints a schema's `generator client {
 output = ... }` at a different path — used to match the deployed tree's
 `node_modules` layout, the same way the Dockerfile already does for the
-production SQL Server client.
+production PostgreSQL client.
 
 ## The scenario catalog
 
@@ -85,7 +85,7 @@ registry:
   composes a representative set of them.
 - **`seed-runner.mjs`** — runs `seed(prisma)` then `verify(prisma)` for a
   resolved scenario list against any Prisma client (SQLite preview or, in
-  principle, SQL Server) — seeding only ever uses standard Prisma Client
+  principle, PostgreSQL) — seeding only ever uses standard Prisma Client
   APIs (`upsert`, `create`, `update`, `count`, `findMany`), never
   provider-specific SQL.
 - **`scripts/seed.mjs`** — the CLI entry point:

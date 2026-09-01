@@ -141,7 +141,8 @@ fi
 echo "==> prisma generate into $DEPLOY_DIR (schema=$DEPLOY_DIR/prisma/schema.prisma)"
 (
   cd "$DEPLOY_DIR"
-  export DATABASE_URL="${DATABASE_URL:-sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true}"
+  export DATABASE_URL="${DATABASE_URL:-postgresql://ci:ci@localhost:5432/ci?schema=public}"
+  export DATABASE_URL_UNPOOLED="${DATABASE_URL_UNPOOLED:-$DATABASE_URL}"
   "$PRISMA_CLI" generate --schema "$DEPLOY_DIR/prisma/schema.prisma"
 )
 # Real client ships index.js + engines at the pinned top-level path.

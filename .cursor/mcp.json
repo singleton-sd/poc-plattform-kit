@@ -1,5 +1,8 @@
 {
   "mcpServers": {
+    "Neon": {
+      "url": "https://mcp.neon.tech/mcp"
+    },
     "clickup": {
       "command": "npx",
       "args": ["-y", "@bcharleson/clickup-cli", "mcp"],
