@@ -3,8 +3,11 @@
   Provision poc-plattform-kit Azure resources (idempotent Bicep deploy).
 
 .DESCRIPTION
-  Creates RG (if missing), generates a SQL admin password once (saved to local .env),
-  and deploys infra/main.bicep into the target subscription.
+  Creates RG (if missing) and deploys infra/main.bicep into the target subscription.
+
+  Relational database is Neon PostgreSQL (not provisioned here). Set Key Vault
+  secrets `database-url` / `database-url-unpooled` from `./scripts/neon-env-pull.sh`
+  before or after deploy — this script does not invent a SQL connection string.
 
   Secrets are written to Azure Key Vault (locked store). Non-secret config and
   Key Vault references go to Azure App Configuration. Local .env is an optional
@@ -86,31 +89,6 @@ if ($rgExists -eq 'false') {
   Write-Host "Resource group already exists."
 }
 
-Write-Step 'Resolving SQL admin password (local .env only)'
-$sqlPassword = $null
-$sqlLogin = 'pocpkadmin'
-
-if (Test-Path $envFile) {
-  Get-Content $envFile | ForEach-Object {
-    if ($_ -match '^\s*AZURE_SQL_ADMIN_PASSWORD=(.+)\s*$') {
-      $sqlPassword = $Matches[1].Trim().Trim('"').Trim("'")
-    }
-    if ($_ -match '^\s*AZURE_SQL_ADMIN_LOGIN=(.+)\s*$') {
-      $sqlLogin = $Matches[1].Trim().Trim('"').Trim("'")
-    }
-  }
-}
-
-if ([string]::IsNullOrWhiteSpace($sqlPassword)) {
-  # Azure SQL password complexity: 8+ chars, 3 of 4 character classes
-  $bytes = New-Object byte[] 24
-  [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-  $sqlPassword = 'Pk!' + [Convert]::ToBase64String($bytes).Replace('+', 'A').Replace('/', 'B').Substring(0, 20) + '9a'
-  Write-Host 'Generated new SQL admin password (will write to .env).'
-} else {
-  Write-Host 'Reusing SQL admin password from existing .env.'
-}
-
 Write-Step 'Resolving deployer object id for Key Vault RBAC'
 $deployerObjectId = ''
 try {
@@ -134,8 +112,6 @@ $deployArgs = @(
   "appConfigSku=Free",
   "deployerObjectId=$deployerObjectId",
   "appServiceSku=B1",
-  "sqlAdminLogin=$sqlLogin",
-  "sqlAdminPassword=$sqlPassword",
   "alertEmail=$AlertEmail",
   '--output', 'json'
 )
@@ -158,13 +134,10 @@ function Get-Out([string]$Name) {
   return $outputs.$Name.value
 }
 
-$sqlFqdn = Get-Out 'sqlServerFqdn'
-$dbName = Get-Out 'sqlDatabaseName'
 $apiHost = Get-Out 'webAppHostname'
 $swaHost = Get-Out 'staticWebAppHostname'
 $marketingSwaHost = Get-Out 'marketingStaticWebAppHostname'
 $sbNs = Get-Out 'serviceBusNamespaceName'
-$sqlServerName = Get-Out 'sqlServerName'
 $webAppName = Get-Out 'webAppName'
 $swaName = Get-Out 'staticWebAppName'
 $marketingSwaName = Get-Out 'marketingStaticWebAppName'
@@ -175,9 +148,18 @@ $publicAppUrl = 'https://app.plattform-kit.poc.singletonsd.com'
 $publicMarketingUrl = 'https://plattform-kit.poc.singletonsd.com'
 $corsOrigins = "$publicAppUrl,$publicMarketingUrl,https://kind-rock-0f409fe00*.azurestaticapps.net,https://purple-field-05048bf00*.azurestaticapps.net"
 
-# Prisma sqlserver connection string (password URL-encoded)
-$encPassword = [uri]::EscapeDataString($sqlPassword)
-$databaseUrl = "sqlserver://${sqlFqdn}:1433;database=${dbName};user=${sqlLogin};password=${encPassword};encrypt=true;trustServerCertificate=false"
+# Preserve Neon DATABASE_URL* from local .env when present (never invent SQL Server URLs)
+function Get-EnvValueLocal([string]$Key) {
+  if (-not (Test-Path $envFile)) { return $null }
+  $raw = Get-Content $envFile -Raw
+  if ($raw -match "(?m)^\s*$([regex]::Escape($Key))=(.*)$") {
+    $v = $Matches[1].Trim()
+    if ($v) { return $v }
+  }
+  return $null
+}
+$databaseUrl = Get-EnvValueLocal 'DATABASE_URL'
+$databaseUrlUnpooled = Get-EnvValueLocal 'DATABASE_URL_UNPOOLED'
 
 Write-Step 'Writing local .env (gitignored)'
 $envLines = @(
@@ -186,12 +168,9 @@ $envLines = @(
   "AZURE_TENANT_ID=$($sub.tenantId)",
   "AZURE_RESOURCE_GROUP=$ResourceGroup",
   "AZURE_LOCATION=$Location",
-  "AZURE_SQL_SERVER=$sqlServerName",
-  "AZURE_SQL_SERVER_FQDN=$sqlFqdn",
-  "AZURE_SQL_DATABASE=$dbName",
-  "AZURE_SQL_ADMIN_LOGIN=$sqlLogin",
-  "AZURE_SQL_ADMIN_PASSWORD=$sqlPassword",
+  '# Neon PostgreSQL — set via ./scripts/neon-env-pull.sh then upsert to Key Vault',
   "DATABASE_URL=$databaseUrl",
+  "DATABASE_URL_UNPOOLED=$databaseUrlUnpooled",
   "AZURE_APP_SERVICE_NAME=$webAppName",
   "AZURE_APP_SERVICE_URL=$publicApiUrl",
   "AZURE_STATIC_WEB_APP_NAME=$swaName",
@@ -211,10 +190,10 @@ $envLines = @(
   'AZURE_AD_API_AUDIENCE='
 )
 
-# Preserve existing AUTH / Entra values if present
+# Preserve existing AUTH / Entra / Neon values if present
 if (Test-Path $envFile) {
   $existing = Get-Content $envFile -Raw
-  foreach ($key in @('AUTH_SECRET', 'AUTH_URL', 'AUTH_COOKIE_DOMAIN', 'AZURE_AD_CLIENT_ID', 'AZURE_AD_CLIENT_SECRET', 'AZURE_AD_TENANT_ID', 'AZURE_AD_API_AUDIENCE', 'AZURE_SERVICEBUS_CONNECTION_STRING')) {
+  foreach ($key in @('AUTH_SECRET', 'AUTH_URL', 'AUTH_COOKIE_DOMAIN', 'AZURE_AD_CLIENT_ID', 'AZURE_AD_CLIENT_SECRET', 'AZURE_AD_TENANT_ID', 'AZURE_AD_API_AUDIENCE', 'AZURE_SERVICEBUS_CONNECTION_STRING', 'DATABASE_URL', 'DATABASE_URL_UNPOOLED')) {
     if ($existing -match "(?m)^\s*$key=(.*)$") {
       $val = $Matches[1].Trim()
       if ($val) {
@@ -254,8 +233,17 @@ function Set-KvSecret([string]$SecretName, [string]$SecretValue) {
     Write-Warning "Failed to set $SecretName (check RBAC / provider registration)"
   }
 }
-Set-KvSecret 'sql-admin-password' $sqlPassword
-Set-KvSecret 'database-url' $databaseUrl
+# Neon DATABASE_URL* — upsert only when present locally; never invent sqlserver:// URLs
+if ($databaseUrl) {
+  Set-KvSecret 'database-url' $databaseUrl
+} else {
+  Write-Host '  skip database-url (set via ./scripts/neon-env-pull.sh then re-run, or az keyvault secret set)'
+}
+if ($databaseUrlUnpooled) {
+  Set-KvSecret 'database-url-unpooled' $databaseUrlUnpooled
+} else {
+  Write-Host '  skip database-url-unpooled (Prisma migrate directUrl; set from neon env pull)'
+}
 if ($sbCs) { Set-KvSecret 'servicebus-connection-string' $sbCs }
 
 $appInsightsNameOut = Get-Out 'applicationInsightsName'
@@ -328,7 +316,6 @@ Set-AppConfigPlain 'app:azure:resourceGroup' $ResourceGroup
 Set-AppConfigPlain 'app:azure:keyVaultName' $kvNameOut
 Set-AppConfigKvRef 'secret:database-url' 'database-url'
 Set-AppConfigKvRef 'secret:servicebus-connection-string' 'servicebus-connection-string'
-Set-AppConfigKvRef 'secret:sql-admin-password' 'sql-admin-password'
 Set-AppConfigKvRef 'secret:swa-deployment-token' 'swa-deployment-token'
 Set-AppConfigKvRef 'secret:appinsights-connection-string' 'appinsights-connection-string'
 Set-AppConfigPlain 'app:telemetry:cloudRoleName:api' 'api'
@@ -391,9 +378,7 @@ Write-Step 'Deployment summary (no secrets)'
   SubscriptionId           = $SubscriptionId
   ResourceGroup            = $ResourceGroup
   Location                 = $Location
-  SqlServer                = $sqlServerName
-  SqlFqdn                  = $sqlFqdn
-  SqlDatabase              = $dbName
+  Database                 = 'Neon PostgreSQL (Key Vault database-url)'
   AppService               = $webAppName
   AppServiceUrl            = $publicApiUrl
   AppServiceDefaultHost    = "https://$apiHost"
@@ -417,10 +402,11 @@ Next steps:
   1. AWS Route53: CNAME marketing/app/api hostnames → Azure defaults (+ TXT validation)
   2. Bind custom domains + managed certs on SWAs and App Service (B1)
   3. Entra app registration (SPA + API) — secrets in Key Vault; config in App Config
-  4. Tighten SQL firewall rule AllowAllDevPoC to your IP
+  4. Neon: ./scripts/neon-env-pull.sh then upsert DATABASE_URL* into Key Vault (database-url / database-url-unpooled)
   5. Confirm GitHub Variables AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID (OIDC)
   6. Wire App Service / SWA / ACA to App Configuration provider + managed identity
-  7. pnpm install && pull DATABASE_URL from Key Vault for Prisma migrate
+  7. pwsh ./infra/migrate-db.ps1 against Neon (Prisma postgresql)
   8. Never store deploy tokens or connection strings in GitHub Secrets
+  9. After cutover validation, delete legacy Azure SQL (#292)
 
 '@ -ForegroundColor Green

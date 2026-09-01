@@ -1,10 +1,11 @@
 <#
 .SYNOPSIS
-  Apply forward-only Prisma migrations to Azure SQL using Key Vault DATABASE_URL.
+  Apply forward-only Prisma migrations to Neon PostgreSQL using Key Vault URLs.
 
 .DESCRIPTION
-  Pulls `database-url` from Key Vault into a gitignored `packages/db/.env`, then
-  runs `prisma migrate deploy` (never `migrate dev` against shared Azure SQL).
+  Pulls `database-url` (pooled) and `database-url-unpooled` (direct / Prisma
+  `directUrl`) from Key Vault into a gitignored `packages/db/.env`, then runs
+  `prisma migrate deploy` (never `migrate dev` against shared Neon).
 
   Never prints secret values. Never put DATABASE_URL in GitHub Secrets — use
   OIDC → Key Vault locally or in a future CI job.
@@ -20,6 +21,7 @@ param(
   [string]$SubscriptionId = '7b8343d7-969f-4b71-8864-b7925e7fae30',
   [string]$KeyVaultName = 'ssd-pocpk-kv-dev-ae',
   [string]$SecretName = 'database-url',
+  [string]$UnpooledSecretName = 'database-url-unpooled',
   [switch]$WhatIf,
   [switch]$StatusOnly
 )
@@ -47,17 +49,30 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($databaseUrl)) {
   throw "Failed to read $SecretName from Key Vault"
 }
 
+Write-Step "Reading Key Vault secret $UnpooledSecretName (Prisma directUrl; value not logged)"
+$databaseUrlUnpooled = az keyvault secret show --vault-name $KeyVaultName --name $UnpooledSecretName --query value -o tsv 2>$null
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($databaseUrlUnpooled)) {
+  Write-Host "  warning: $UnpooledSecretName missing — falling back to pooled URL for migrate (prefer a direct Neon endpoint)"
+  $databaseUrlUnpooled = $databaseUrl
+}
+
 if ($WhatIf) {
-  Write-Host "WhatIf: would write gitignored packages/db/.env (DATABASE_URL length=$($databaseUrl.Length))"
+  Write-Host "WhatIf: would write gitignored packages/db/.env (DATABASE_URL length=$($databaseUrl.Length); UNPOOLED length=$($databaseUrlUnpooled.Length))"
   Write-Host 'WhatIf: would run: pnpm exec prisma migrate deploy (cwd packages/db)'
   $databaseUrl = $null
+  $databaseUrlUnpooled = $null
   exit 0
 }
 
-Write-Step 'Writing gitignored packages/db/.env (value not logged)'
-Set-Content -Path $envFile -Value "DATABASE_URL=$databaseUrl" -Encoding utf8
+Write-Step 'Writing gitignored packages/db/.env (values not logged)'
+@(
+  "DATABASE_URL=$databaseUrl"
+  "DATABASE_URL_UNPOOLED=$databaseUrlUnpooled"
+) | Set-Content -Path $envFile -Encoding utf8
 $databaseUrl = $null
+$databaseUrlUnpooled = $null
 $env:DATABASE_URL = $null
+$env:DATABASE_URL_UNPOOLED = $null
 
 Push-Location $dbDir
 try {
@@ -66,7 +81,7 @@ try {
     pnpm exec prisma migrate status
     if ($LASTEXITCODE -ne 0) { throw "prisma migrate status failed: $LASTEXITCODE" }
   } else {
-    Write-Step 'prisma migrate deploy (forward-only)'
+    Write-Step 'prisma migrate deploy (forward-only, Neon PostgreSQL)'
     pnpm exec prisma migrate deploy
     if ($LASTEXITCODE -ne 0) { throw "prisma migrate deploy failed: $LASTEXITCODE" }
     Write-Step 'prisma migrate status'
