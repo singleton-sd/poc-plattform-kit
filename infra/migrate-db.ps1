@@ -52,8 +52,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($databaseUrl)) {
 Write-Step "Reading Key Vault secret $UnpooledSecretName (Prisma directUrl; value not logged)"
 $databaseUrlUnpooled = az keyvault secret show --vault-name $KeyVaultName --name $UnpooledSecretName --query value -o tsv 2>$null
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($databaseUrlUnpooled)) {
-  Write-Host "  warning: $UnpooledSecretName missing — falling back to pooled URL for migrate (prefer a direct Neon endpoint)"
-  $databaseUrlUnpooled = $databaseUrl
+  throw "Failed to read $UnpooledSecretName from Key Vault (required for Prisma directUrl / migrate; do not use the pooled URL)"
 }
 
 if ($WhatIf) {

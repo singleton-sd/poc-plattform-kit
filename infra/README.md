@@ -215,11 +215,14 @@ powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR preview
 **Neon `database-url` pattern (human-set):**
 
 ```bash
-./scripts/neon-env-pull.sh   # writes DATABASE_URL / DATABASE_URL_UNPOOLED locally
+./scripts/neon-env-pull.sh   # writes DATABASE_URL / DATABASE_URL_UNPOOLED to repo-root .env
 az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url --file <(printenv DATABASE_URL)
 # or: az keyvault secret set --vault-name … --name database-url --value "$DATABASE_URL"
 az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url-unpooled --value "$DATABASE_URL_UNPOOLED"
+# Prisma Migrate / packages/db scripts read packages/db/.env — use migrate-db.ps1 to pull KV → that file
 ```
+
+`deploy.ps1` only upserts local `DATABASE_URL*` when the scheme is `postgresql://` / `postgres://` (rejects leftover `sqlserver://` values from older deploys).
 
 App Service continues to resolve `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Do not recreate `sql-admin-password` — Azure SQL is out of IaC; live server deletion is #292.
 

@@ -152,14 +152,23 @@ $corsOrigins = "$publicAppUrl,$publicMarketingUrl,https://kind-rock-0f409fe00*.a
 function Get-EnvValueLocal([string]$Key) {
   if (-not (Test-Path $envFile)) { return $null }
   $raw = Get-Content $envFile -Raw
+  # Double-quoted string: $($...) expands Escape() at runtime; capture group 1 is the value.
   if ($raw -match "(?m)^\s*$([regex]::Escape($Key))=(.*)$") {
     $v = $Matches[1].Trim()
     if ($v) { return $v }
   }
   return $null
 }
-$databaseUrl = Get-EnvValueLocal 'DATABASE_URL'
-$databaseUrlUnpooled = Get-EnvValueLocal 'DATABASE_URL_UNPOOLED'
+function Assert-PostgresUrl([string]$Label, [string]$Url) {
+  if ([string]::IsNullOrWhiteSpace($Url)) { return $null }
+  if ($Url -notmatch '^(?i)postgres(ql)?://') {
+    Write-Warning "$Label looks like a legacy/non-Postgres URL (expected postgresql:// or postgres://). Skipping Key Vault upsert — run ./scripts/neon-env-pull.sh and replace the value."
+    return $null
+  }
+  return $Url
+}
+$databaseUrl = Assert-PostgresUrl 'DATABASE_URL' (Get-EnvValueLocal 'DATABASE_URL')
+$databaseUrlUnpooled = Assert-PostgresUrl 'DATABASE_URL_UNPOOLED' (Get-EnvValueLocal 'DATABASE_URL_UNPOOLED')
 
 Write-Step 'Writing local .env (gitignored)'
 $envLines = @(
