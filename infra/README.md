@@ -11,7 +11,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 
 | Resource | PoC SKU | Notes |
 | --- | --- | --- |
-| Azure SQL DB | **Basic** (5 DTU) | Do not use Hyperscale / high GP |
+| Neon PostgreSQL | Neon Free / Launch | PoC relational DB (`neondb`); not provisioned by this Bicep — set KV `database-url*` |
 | App Service Plan | **B1** | Required for custom-domain managed TLS + Nest always-on |
 | Static Web Apps | **Free** ×2 | App (`pocpk-web-…`) + marketing (`ssd-pocpk-mkt-dev-ae`); region often `eastasia` for Free |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
@@ -36,7 +36,7 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | env | `dev` |
 | region | `ae` = australiaeast; SWA Free may stay `eastasia` |
 
-**Existing resources (legacy — do not rename):** `pocpk-{resource}-{uniqueString}` from first deploy. Renaming would recreate SQL/API/SWA/SB. Keep them; map in docs.
+**Existing resources (legacy — do not rename):** `pocpk-{resource}-{uniqueString}` from first deploy. Renaming would recreate API/SWA/SB. Keep them; map in docs. Legacy Azure SQL (`pocpk-sql-…`) is no longer in `main.bicep`; delete after Neon cutover (#292).
 
 ## Resources (live)
 
@@ -45,7 +45,7 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Resource group | `rg-poc-plattform-kit` | — | — |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | (CAF) | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | (CAF) | Free |
-| SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `ssd-pocpk-sql-dev-ae` | Basic |
+| Neon PostgreSQL | project `round-union-05852948` / DB `neondb` | — | Neon (outside Azure) |
 | App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | **B1** |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
 | Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | (CAF) | Free |
@@ -62,8 +62,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 
 | Secret name | Source env var |
 | --- | --- |
-| `sql-admin-password` | `AZURE_SQL_ADMIN_PASSWORD` |
-| `database-url` | `DATABASE_URL` |
+| `database-url` | `DATABASE_URL` (Neon pooled — hostname includes `-pooler`) |
+| `database-url-unpooled` | `DATABASE_URL_UNPOOLED` (Neon direct — Prisma migrate / schema) |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
 | `swa-deployment-token` | (from `az staticwebapp secrets list` — app SWA) |
 | `swa-marketing-deployment-token` | (from marketing SWA `ssd-pocpk-mkt-dev-ae`) |
@@ -108,11 +108,10 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:azureAd:clientId` | plain — Entra SPA/API client ID → `AZURE_AD_CLIENT_ID` |
 | `app:azureAd:tenantId` | plain — Entra tenant ID → `AZURE_AD_TENANT_ID` |
 | `app:azureAd:apiAudience` | plain — API app ID URI → `AZURE_AD_API_AUDIENCE` |
-| `secret:database-url` | Key Vault reference |
+| `secret:database-url` | Key Vault reference (Neon pooled) |
 | `secret:servicebus-connection-string` | Key Vault reference |
 | `secret:swa-deployment-token` | Key Vault reference |
 | `secret:swa-marketing-deployment-token` | Key Vault reference |
-| `secret:sql-admin-password` | Key Vault reference |
 | `secret:appinsights-connection-string` | Key Vault reference |
 | `secret:auth-secret` | Key Vault reference → `AUTH_SECRET` |
 | `secret:azure-ad-client-secret` | Key Vault reference → `AZURE_AD_CLIENT_SECRET` |
@@ -141,10 +140,10 @@ Also: non-secret notification provider URLs / WhatsApp phone-number-id / Graph A
 
 ### API PR previews (Container Apps)
 
-```powershell
+```bash
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
-powershell -File ./infra/deploy-aca-preview.ps1 -WhatIf
-powershell -File ./infra/deploy-aca-preview.ps1
+./infra/deploy-aca-preview.sh --what-if
+./infra/deploy-aca-preview.sh
 ```
 
 Bicep: `container-apps-preview.bicep`. Workflow: `.github/workflows/preview-api.yml`. Docs: `docs/pr-pipelines.md`.
@@ -185,7 +184,7 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 
 ```bash
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
-pwsh ./infra/deploy-aca-preview.ps1   # CAE must exist first (see #296 for bash migration)
+./infra/deploy-aca-preview.sh   # CAE must exist first
 ./infra/deploy-openfga.sh --what-if
 ./infra/deploy-openfga.sh
 ```
@@ -195,29 +194,41 @@ OIDC deploy auth matches `preview-api.yml`: Azure CLI / GitHub OIDC Variables (`
 ## Prerequisites
 
 - Azure CLI (`az`) logged in with access to subscription `7b8343d7-969f-4b71-8864-b7925e7fae30`
-- PowerShell 7+ (for `deploy.ps1` / `deploy-aca-preview.ps1` until [#296](https://github.com/singleton-sd/poc-plattform-kit/issues/296))
-- Bash 4+, `curl`, `python3` (required by `infra/deploy-openfga.sh`)
-- Neon CLI via `npx neon` when repo `.env` has no `OPENFGA_DATASTORE_URI*` values
+- Bash 4+, `curl`, `python3` (required by all `infra/*.sh` deploy helpers)
+- Neon CLI via `npx neon` when repo `.env` has no `OPENFGA_DATASTORE_URI*` / `DATABASE_URL*` values
 - Providers registered: `Microsoft.KeyVault`, `Microsoft.AppConfiguration`, `Microsoft.Insights`, `Microsoft.OperationalInsights`
 
-```powershell
+```bash
 az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
-pwsh ./infra/deploy.ps1 -WhatIf   # preview
-pwsh ./infra/deploy.ps1           # create / update (idempotent)
-powershell -File ./infra/deploy-aca-preview.ps1   # CAE + ACR for API PR previews
-./infra/deploy-openfga.sh       # OpenFGA ACA + store/model bootstrap
+./infra/deploy.sh --what-if   # preview
+./infra/deploy.sh             # create / update (idempotent)
+./infra/deploy-aca-preview.sh # CAE + ACR for API PR previews
+./infra/deploy-openfga.sh     # OpenFGA ACA + store/model bootstrap
 ```
 
-`deploy.ps1` upserts SQL/SB/SWA secrets into Key Vault, seeds App Config plain keys + KV refs, and mirrors non-secret + secret cache into local `.env` (gitignored).
-`deploy-aca-preview.ps1` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
+`deploy.sh` upserts SB/SWA/App Insights secrets into Key Vault (and Neon `database-url*` when present in local `.env`), seeds App Config plain keys + KV refs, and mirrors non-secret + secret cache into local `.env` (gitignored).
+`deploy-aca-preview.sh` upserts ACR admin secrets (`acr-admin-*`) into the same vault.
 `deploy-openfga.sh` provisions OpenFGA on ACA (Neon PostgreSQL datastore), Entra OIDC app, store/model bootstrap, and `app:openfga:*` App Config keys. Requires Neon connection strings in repo `.env` (`OPENFGA_DATASTORE_URI` / `OPENFGA_DATASTORE_URI_UNPOOLED`) or a linked `neon` CLI project.
-`refresh-database-url.ps1` rebuilds KV `database-url` from `sql-admin-password`, resets the SQL admin password to match, and restarts the API App Service (use when Prisma reports auth failure for `pocpkadmin`).
-`migrate-db.ps1` pulls `database-url` from Key Vault into gitignored `packages/db/.env` and runs `prisma migrate deploy` against Azure SQL (forward-only; never commit the `.env`).
+`migrate-db.sh` pulls Key Vault `database-url` + `database-url-unpooled` into gitignored `packages/db/.env` and runs `prisma migrate deploy` against Neon PostgreSQL (forward-only; never commit the `.env`).
 
-```powershell
-pwsh ./infra/migrate-db.ps1 -WhatIf
-pwsh ./infra/migrate-db.ps1
-pwsh ./infra/migrate-db.ps1 -StatusOnly
+**Neon `database-url` pattern (human-set):**
+
+```bash
+./scripts/neon-env-pull.sh   # writes DATABASE_URL / DATABASE_URL_UNPOOLED to repo-root .env
+az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url --file <(printenv DATABASE_URL)
+# or: az keyvault secret set --vault-name … --name database-url --value "$DATABASE_URL"
+az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url-unpooled --value "$DATABASE_URL_UNPOOLED"
+# Prisma Migrate / packages/db scripts read packages/db/.env — use migrate-db.sh to pull KV → that file
+```
+
+`deploy.sh` only upserts local `DATABASE_URL*` when the scheme is `postgresql://` / `postgres://` (rejects leftover `sqlserver://` values from older deploys). `migrate-db.sh` fails closed if `database-url-unpooled` is missing.
+
+App Service continues to resolve `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Do not recreate `sql-admin-password` — Azure SQL is out of IaC; live server deletion is #292.
+
+```bash
+./infra/migrate-db.sh --what-if
+./infra/migrate-db.sh
+./infra/migrate-db.sh --status-only
 ```
 
 ## Secrets & config surfaces

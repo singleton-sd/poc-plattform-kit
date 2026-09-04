@@ -1,5 +1,5 @@
 // poc-plattform-kit — cheapest-that-works PoC Azure resources
-// Deploy: pwsh ./infra/deploy.ps1
+// Deploy: ./infra/deploy.sh
 // Cost: Free/Basic/Standard-min only (see SETUP.md).
 // Secrets: Key Vault only. App config: Azure App Configuration (+ KV refs).
 // Pipelines: GitHub OIDC → Azure → KV/App Config. No secrets in GitHub Secrets.
@@ -31,13 +31,6 @@ param appConfigSku string = 'Free'
 @description('Object ID of deployer/user to grant Key Vault Administrator (empty skips role)')
 param deployerObjectId string = ''
 
-@description('SQL Server administrator login')
-param sqlAdminLogin string = 'pocpkadmin'
-
-@description('SQL Server administrator password (generated locally; never commit)')
-@secure()
-param sqlAdminPassword string
-
 @description('App Service Plan SKU — B1 required for custom-domain managed TLS + always-on')
 @allowed(['F1', 'B1'])
 param appServiceSku string = 'B1'
@@ -52,9 +45,6 @@ param marketingSwaName string = 'ssd-pocpk-mkt-dev-ae'
 @description('Service Bus SKU (Standard required for topics; never Premium for PoC)')
 @allowed(['Standard'])
 param serviceBusSku string = 'Standard'
-
-@description('Azure SQL database name')
-param sqlDatabaseName string = 'pocpk'
 
 @description('CAF Log Analytics workspace name')
 param logAnalyticsWorkspaceName string = 'ssd-pocpk-law-dev-ae'
@@ -73,7 +63,6 @@ var roleKeyVaultAdministrator = '00482a5a-887f-4fb3-b363-3b7fe8e74483'
 var roleKeyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
-var sqlServerName = '${namePrefix}-sql-${uniqueSuffix}'
 var appPlanName = '${namePrefix}-plan'
 var webAppName = '${namePrefix}-api-${uniqueSuffix}'
 var swaName = '${namePrefix}-web-${uniqueSuffix}'
@@ -99,51 +88,10 @@ var jobQueues = [
   'notifications.send'
 ]
 
-resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
-  name: sqlServerName
-  location: location
-  properties: {
-    administratorLogin: sqlAdminLogin
-    administratorLoginPassword: sqlAdminPassword
-    version: '12.0'
-    minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
-resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
-// PoC convenience — replace with your client IP before production use
-resource sqlFirewallDev 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAllDevPoC'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '255.255.255.255'
-  }
-}
-
-resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
-  parent: sqlServer
-  name: sqlDatabaseName
-  location: location
-  sku: {
-    name: 'Basic'
-    tier: 'Basic'
-    capacity: 5
-  }
-  properties: {
-    collation: 'SQL_Latin1_General_CP1_CI_AS'
-    maxSizeBytes: 2147483648
-  }
-}
+// Relational database: Neon PostgreSQL (not provisioned in this template).
+// Human sets Key Vault secrets `database-url` (pooled) and `database-url-unpooled`
+// (direct) — App Service resolves DATABASE_URL via the KV reference below.
+// Azure SQL removal from live subscription is #292 after cutover validation.
 
 resource appPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appPlanName
@@ -496,10 +444,6 @@ resource appConfigDeployerOwner 'Microsoft.Authorization/roleAssignments@2022-04
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output swaLocation string = swaLocation
-output sqlServerName string = sqlServer.name
-output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
-output sqlDatabaseName string = sqlDatabase.name
-output sqlAdminLogin string = sqlAdminLogin
 output webAppName string = webApp.name
 output webAppHostname string = webApp.properties.defaultHostName
 output webAppPrincipalId string = webApp.identity.principalId

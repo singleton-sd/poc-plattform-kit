@@ -170,7 +170,7 @@ Do not file new engineering work in ClickUp Delivery.
 **Subscription:** **ssd-poc-plattform-kit** / `7b8343d7-969f-4b71-8864-b7925e7fae30`  
 **Tenant:** `9a0e57d7-e58e-4e8b-814d-037cd7d9015c`  
 **Resource group:** `rg-poc-plattform-kit` (region `australiaeast`; SWA Free in `eastasia`)  
-**IaC:** [`infra/`](./infra/) - `powershell -File ./infra/deploy.ps1`
+**IaC:** [`infra/`](./infra/) - `./infra/deploy.sh`
 
 ### Locked: cost + naming
 
@@ -249,7 +249,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events -> Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`
+**Key Vault secret names (not values):** `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `openfga-database-url`, `openfga-database-url-unpooled`
 
 **Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): `github-automation-pat` (org-wide platform automation PAT). See **Platform GitHub automation PAT** above.
 
