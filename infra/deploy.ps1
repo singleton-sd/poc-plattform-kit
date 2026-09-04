@@ -206,6 +206,10 @@ if (Test-Path $envFile) {
     if ($existing -match "(?m)^\s*$key=(.*)$") {
       $val = $Matches[1].Trim()
       if ($val) {
+        if ($key -in @('DATABASE_URL', 'DATABASE_URL_UNPOOLED') -and $val -notmatch '^(?i)postgres(ql)?://') {
+          Write-Warning "Skipping preserve of non-Postgres $key from existing .env"
+          continue
+        }
         $envLines = $envLines | ForEach-Object {
           if ($_ -match "^$key=") { "$key=$val" } else { $_ }
         }
