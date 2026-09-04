@@ -174,7 +174,7 @@ Do not file new engineering work in ClickUp Delivery.
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work - SQL **Basic**, App Service **B1** (custom-domain HTTPS + Nest always-on), SWA **Free** x2 (app + marketing production), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API + web PR previews + OpenFGA).
+- **Cost:** cheapest SKUs that still work - Neon (PoC) / Azure Database for PostgreSQL Flexible Server (shared), App Service **B1** (custom-domain HTTPS + Nest always-on), SWA **Free** x2 (app + marketing production), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API + web PR previews + OpenFGA).
 - **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` -> e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`, `ssd-pocpk-mkt-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
 
@@ -217,7 +217,7 @@ Copy the JSON config to onboard another domain later (see `docs/dns-route53.md`)
 
 | Kind | Name | URL / notes | SKU |
 | --- | --- | --- | --- |
-| SQL Server / DB | `pocpk-sql-si5fhs6dvxiha` / `pocpk` | `pocpk-sql-si5fhs6dvxiha.database.windows.net` | Basic |
+| Neon PostgreSQL (PoC; IaC no longer provisions Azure SQL — see [#291](https://github.com/singleton-sd/poc-plattform-kit/issues/291) / [#298](https://github.com/singleton-sd/poc-plattform-kit/pull/298); live server delete is [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292)) | project `round-union-05852948` / `neondb` | Key Vault `database-url` (+ `database-url-unpooled`) | Neon |
 | App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://api.plattform-kit.poc.singletonsd.com (default: `....azurewebsites.net`) | **B1** |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | https://app.plattform-kit.poc.singletonsd.com (default: `....azurestaticapps.net`) | Free |
 | Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | https://plattform-kit.poc.singletonsd.com (PR previews need `stagingEnvironmentPolicy=Enabled`) | Free |
@@ -249,7 +249,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events -> Audit.
 
-**Key Vault secret names (not values):** `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`
+**Key Vault secret names (not values):** `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`
 
 **Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): `github-automation-pat` (org-wide platform automation PAT). See **Platform GitHub automation PAT** above.
 
@@ -290,5 +290,5 @@ Decap `/admin` login uses shared [`cms-oauth-kit`](https://github.com/singleton-
 | App Service / SWA / Container Apps | Prefer App Configuration provider + KV references for secrets. |
 
 - [x] CLI identity can see the subscription
-- [x] Core deploy succeeded - SQL, App Service, SWA Free, Service Bus Standard
-- [x] Key Vault `ssd-pocpk-kv-dev-ae` provisioned; SQL/SB/SWA secrets in KV
+- [x] Core deploy succeeded - App Service, SWA Free, Service Bus Standard (relational DB is Neon / Key Vault `database-url*`, not Azure SQL)
+- [x] Key Vault `ssd-pocpk-kv-dev-ae` provisioned; SB/SWA/Neon secrets in KV
