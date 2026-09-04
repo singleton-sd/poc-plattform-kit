@@ -99,6 +99,18 @@ print(value)
 PY
 }
 
+# Reject legacy sqlserver:// (and any non-Postgres) URLs before KV upsert / .env preserve.
+assert_postgres_url() {
+  local label="$1" url="${2:-}"
+  [[ -n "$url" ]] || { echo ""; return 0; }
+  if [[ ! "$url" =~ ^[Pp][Oo][Ss][Tt][Gg][Rr][Ee][Ss]([Qq][Ll])?:// ]]; then
+    echo "  warning: $label looks like a legacy/non-Postgres URL (expected postgresql:// or postgres://). Skipping." >&2
+    echo ""
+    return 0
+  fi
+  printf '%s' "$url"
+}
+
 upsert_dotenv_key() {
   local file="$1" key="$2" value="$3"
   python3 - "$file" "$key" "$value" <<'PY'
@@ -265,8 +277,8 @@ KV_NAME_OUT="${KV_NAME_OUT:-$KEY_VAULT_NAME}"
 APP_CONFIG_OUT="${APP_CONFIG_OUT:-$APP_CONFIG_NAME}"
 APP_INSIGHTS_NAME_OUT="${APP_INSIGHTS_NAME_OUT:-ssd-pocpk-appi-dev-ae}"
 
-database_url="$(read_dotenv_value "$ENV_FILE" DATABASE_URL 2>/dev/null || true)"
-database_url_unpooled="$(read_dotenv_value "$ENV_FILE" DATABASE_URL_UNPOOLED 2>/dev/null || true)"
+database_url="$(assert_postgres_url DATABASE_URL "$(read_dotenv_value "$ENV_FILE" DATABASE_URL 2>/dev/null || true)")"
+database_url_unpooled="$(assert_postgres_url DATABASE_URL_UNPOOLED "$(read_dotenv_value "$ENV_FILE" DATABASE_URL_UNPOOLED 2>/dev/null || true)")"
 
 step 'Writing local .env (gitignored)'
 umask 077
@@ -307,6 +319,10 @@ if [[ -f "$ENV_FILE" ]]; then
     DATABASE_URL DATABASE_URL_UNPOOLED; do
     if existing="$(read_dotenv_value "$ENV_FILE" "$key" 2>/dev/null)"; then
       [[ -n "$existing" ]] || continue
+      if [[ "$key" == DATABASE_URL || "$key" == DATABASE_URL_UNPOOLED ]]; then
+        existing="$(assert_postgres_url "$key" "$existing")"
+        [[ -n "$existing" ]] || continue
+      fi
       python3 - "$tmp_env" "$key" "$existing" <<'PY'
 import pathlib, re, sys
 path = pathlib.Path(sys.argv[1])
@@ -338,8 +354,8 @@ if [[ -n "${sb_cs:-}" ]]; then
 fi
 
 # Re-read Neon URLs after preserve (may have been restored from prior .env)
-database_url="$(read_dotenv_value "$ENV_FILE" DATABASE_URL 2>/dev/null || true)"
-database_url_unpooled="$(read_dotenv_value "$ENV_FILE" DATABASE_URL_UNPOOLED 2>/dev/null || true)"
+database_url="$(assert_postgres_url DATABASE_URL "$(read_dotenv_value "$ENV_FILE" DATABASE_URL 2>/dev/null || true)")"
+database_url_unpooled="$(assert_postgres_url DATABASE_URL_UNPOOLED "$(read_dotenv_value "$ENV_FILE" DATABASE_URL_UNPOOLED 2>/dev/null || true)")"
 
 step "Upserting secrets into Key Vault $KV_NAME_OUT (names only logged)"
 if [[ -n "${database_url:-}" ]]; then

@@ -73,8 +73,7 @@ database_url="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$
 step "Reading Key Vault secret $UNPOOLED_SECRET_NAME (Prisma directUrl; value not logged)"
 database_url_unpooled="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$UNPOOLED_SECRET_NAME" --query value -o tsv 2>/dev/null || true)"
 if [[ -z "${database_url_unpooled:-}" ]]; then
-  echo "  warning: $UNPOOLED_SECRET_NAME missing — falling back to pooled URL for migrate (prefer a direct Neon endpoint)"
-  database_url_unpooled="$database_url"
+  die "Failed to read $UNPOOLED_SECRET_NAME from Key Vault (required for Prisma directUrl / migrate; do not use the pooled URL)"
 fi
 
 if [[ "$WHAT_IF" -eq 1 ]]; then

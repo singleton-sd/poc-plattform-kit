@@ -214,11 +214,14 @@ az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
 **Neon `database-url` pattern (human-set):**
 
 ```bash
-./scripts/neon-env-pull.sh   # writes DATABASE_URL / DATABASE_URL_UNPOOLED locally
+./scripts/neon-env-pull.sh   # writes DATABASE_URL / DATABASE_URL_UNPOOLED to repo-root .env
 az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url --file <(printenv DATABASE_URL)
 # or: az keyvault secret set --vault-name … --name database-url --value "$DATABASE_URL"
 az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url-unpooled --value "$DATABASE_URL_UNPOOLED"
+# Prisma Migrate / packages/db scripts read packages/db/.env — use migrate-db.sh to pull KV → that file
 ```
+
+`deploy.sh` only upserts local `DATABASE_URL*` when the scheme is `postgresql://` / `postgres://` (rejects leftover `sqlserver://` values from older deploys). `migrate-db.sh` fails closed if `database-url-unpooled` is missing.
 
 App Service continues to resolve `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Do not recreate `sql-admin-password` — Azure SQL is out of IaC; live server deletion is #292.
 
