@@ -39,7 +39,7 @@ Repo-adapted from the greenfield checklist (Karbon-style CodeTable / System / Sh
 pnpm --filter @poc-plattform-kit/db exec prisma migrate deploy
 ```
 
-CI validates/generates with dummy `postgresql://ci:ci@localhost:5432/ci` URLs (no live DB). Live migrate uses Key Vault via `pwsh ./infra/migrate-db.ps1`.
+CI validates/generates with dummy `postgresql://ci:ci@localhost:5432/ci` URLs (no live DB). Live migrate uses Key Vault via `pwsh ./infra/migrate-db.ps1` (writes both `DATABASE_URL` and `DATABASE_URL_UNPOOLED` into `packages/db/.env`; see [#298](https://github.com/singleton-sd/poc-plattform-kit/pull/298)).
 
 ### Moving between Neon and Azure Flexible Server
 

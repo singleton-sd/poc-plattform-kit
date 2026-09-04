@@ -102,7 +102,7 @@ the outbox pattern.
 
 API PR previews are the one deliberate exception: they run against an
 isolated, disposable **SQLite** database seeded from named scenarios,
-never the shared Neon database — see
+never the shared PostgreSQL database — see
 [ADR 0003](../adr/0003-sqlite-seeded-preview-databases.md) and
 [`docs/preview-scenarios.md`](../preview-scenarios.md) for the full
 mechanism, and [`docs/development/testing-strategy.md`](../development/testing-strategy.md)
