@@ -500,7 +500,7 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 - ACA auth: OIDC Variables only - `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
 - Local checks: pre-commit runs Prettier + ESLint on staged files only via `lint-staged` (never bypass with `--no-verify` for format/lint). Full-repo `pnpm format:check` / `pnpm lint` remain for humans/CI; also `pnpm test`, `pnpm build`. Manual staged check: `pnpm lint:staged`.
 - Humans only merge; agents open PRs linking their GitHub issue (`Closes #N`) and run `pnpm pr:gate -- --pr <n>` to apply the `ready-for-human` label once mergeable/CI-green/feedback-clear (legacy ClickUp-tracked tickets still hand off via `./scripts/clickup.sh handoff` — see the "Legacy ClickUp workflow" section of `AGENTS.md`). Review bots provide PR feedback; humans validate the test plan and decide when the work is ready to merge.
-- Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API deploy needs **Website Contributor** on the App Service for the OIDC SP.
+- Production deploys use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). API ACA deploy needs **Contributor** on the RG plus **roleAssignments/write** at Key Vault / App Configuration scope for `container-apps-api-prod.bicep` (see SETUP.md); optional **Website Contributor** only while App Service dual-run remains.
 
 ## Skills
 

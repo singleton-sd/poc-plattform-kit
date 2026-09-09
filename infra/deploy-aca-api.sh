@@ -147,7 +147,7 @@ az deployment group create \
   --name "$DEPLOYMENT_NAME" \
   --template-file "$BICEP_FILE" \
   --parameters "${PARAMS[@]}" \
-  -o json >"/tmp/${DEPLOYMENT_NAME}-out.json"
+  -o none
 
 FQDN="$(az deployment group show -g "$RESOURCE_GROUP" -n "$DEPLOYMENT_NAME" --query 'properties.outputs.containerAppFqdn.value' -o tsv)"
 PRINCIPAL="$(az deployment group show -g "$RESOURCE_GROUP" -n "$DEPLOYMENT_NAME" --query 'properties.outputs.containerAppPrincipalId.value' -o tsv)"
