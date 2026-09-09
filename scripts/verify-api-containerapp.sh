@@ -20,6 +20,10 @@ CURL_MAX_TIME="${VERIFY_CURL_MAX_TIME:-30}"
 RG="${AZURE_RESOURCE_GROUP:-}"
 APP="${AZURE_CONTAINER_APP_NAME:-}"
 
+HEALTH_BODY="$(mktemp)"
+DB_BODY="$(mktemp)"
+trap 'rm -f "$HEALTH_BODY" "$DB_BODY"' EXIT
+
 echo "==> Verify Container App API: $BASE (timeout ${TIMEOUT_SEC}s)"
 
 http_code() {
@@ -38,15 +42,15 @@ attempt=0
 
 while [[ "$(date +%s)" -lt "$deadline" ]]; do
   attempt=$((attempt + 1))
-  code_health="$(http_code "$BASE/health" /tmp/aca-api-health.json)"
-  code_db="$(http_code "$BASE/health/db" /tmp/aca-api-health-db.json)"
+  code_health="$(http_code "$BASE/health" "$HEALTH_BODY")"
+  code_db="$(http_code "$BASE/health/db" "$DB_BODY")"
   echo "attempt $attempt: /health=$code_health /health/db=$code_db"
   # Both endpoints must be 200 in the same poll — no sticky cross-attempt OK.
   if [[ "$code_health" == "200" && "$code_db" == "200" ]]; then
     echo "OK — /health and /health/db returned 200"
-    cat /tmp/aca-api-health.json 2>/dev/null || true
+    cat "$HEALTH_BODY" 2>/dev/null || true
     echo
-    cat /tmp/aca-api-health-db.json 2>/dev/null || true
+    cat "$DB_BODY" 2>/dev/null || true
     echo
     exit 0
   fi
