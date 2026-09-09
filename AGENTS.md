@@ -492,7 +492,7 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 | Change set | CI | Preview (PR) | Production (`main`) |
 | --- | --- | --- | --- |
 | `apps/web/**` | `ci-web.yml`; also `chromatic.yml` + `playwright.yml` when web/packages paths hit | Path B ACA (`preview-web.yml`) via OIDC -> KV (`ssd-pocpk-aca-web-pr-<n>-ae`) | `deploy-web.yml` -> SWA production |
-| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC -> KV | `deploy-api.yml` -> App Service B1 |
+| `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC -> KV | `deploy-api.yml` -> ACA Consumption (`ssd-pocpk-aca-api-dev-ae`) |
 | `apps/marketing/**` | `ci-web.yml` (marketing filter) | SWA PR preview (`preview-marketing.yml`, Free) via OIDC -> KV | `deploy-marketing.yml` -> marketing SWA (`apps/marketing/dist`) |
 | `packages/**` | both CI workflows; Chromatic + Playwright when web deps change | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 

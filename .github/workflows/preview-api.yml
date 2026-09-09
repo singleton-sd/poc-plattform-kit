@@ -151,7 +151,7 @@ jobs:
           ACR_PASS=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-password --query value -o tsv)
           echo "::add-mask::$ACR_PASS"
           echo "$ACR_PASS" | docker login "${{ steps.acr.outputs.login_server }}" -u "$ACR_USER" --password-stdin
-          docker build -f apps/api/Dockerfile \
+          docker build -f apps/api/Dockerfile --target preview \
             --build-arg "PREVIEW_SEED_SCENARIOS=$PREVIEW_SEED_SCENARIOS" \
             -t "${{ steps.acr.outputs.image }}" \
             -t "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}" \

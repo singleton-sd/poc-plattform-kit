@@ -13,7 +13,7 @@
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `@poc-plattform-kit/web@*` tag push (also manual `workflow_dispatch`) | SWA **production** via OIDC → Key Vault |
 | `deploy-marketing.yml` | `apps/marketing/**` on **`main`** (content); `@poc-plattform-kit/marketing@*` tag (versioned release) | Marketing SWA **production** via OIDC → Key Vault (`apps/marketing/dist` after Astro build) |
-| `deploy-api.yml` | `@poc-plattform-kit/api@*` tag push (also manual `workflow_dispatch`) | Nest zip → App Service **B1** via OIDC |
+| `deploy-api.yml` | `@poc-plattform-kit/api@*` tag push (also manual `workflow_dispatch`) | Nest Docker `--target production` → ACR → Container Apps **Consumption** (`ssd-pocpk-aca-api-dev-ae`) via OIDC |
 | `release.yml` | push to **`main`** (skipped for release-bot / `[skip ci]` / `chore: Release` commits) | Path-aware bumps; `[skip ci]` commit + tags on `main`; `gh release create` per tag |
 
 **Shared packages:** changes under `packages/**` run **both** `ci-web` and `ci-api`. FE-only PRs skip API CI; API/pillar-only PRs skip web CI. On **`main`**, `release.yml` bumps versions for changed packages (conventional commits: `fix`→patch, `feat`→minor, `BREAKING CHANGE`→major; cascades api/web when `packages/**` / `pillars/**` change). It pushes `chore: Release package versions [skip ci]` directly to **`main`** using the org-wide platform automation PAT from devtools Key Vault (`ssd-devtools-kv-prod-ae` / `github-automation-pat`; PAT owner on the main ruleset bypass list — see `SETUP.md`), pushes per-package semver tags, publishes a **GitHub Release** per tag, and lets **deploy-*** workflows run on **tag push** (PAT pushes trigger downstream workflows; `GITHUB_TOKEN` pushes do not). `ci-api` / `ci-web` skip release commits (`[skip ci]` and explicit job guards).
@@ -33,7 +33,7 @@ Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use 
 
 If OIDC Variables are missing, `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` and `preview-web.yml` **fail fast** with a clear error until Variables + RBAC are configured.
 
-`deploy-api.yml` also needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Website Contributor** on `pocpk-api-si5fhs6dvxiha` (SWA production uses the KV deploy token only).
+`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Website Contributor on the legacy App Service is only needed while dual-run zip deploys remain; after [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) cutover it can be removed. Optional Variable `API_PRODUCTION_BASE_URL` overrides smoke-test host (defaults to the ACA FQDN).
 
 ### OIDC subject forms (Entra FIC)
 
@@ -183,12 +183,14 @@ Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: the "Pe
 | Workflow | Host | Auth |
 | --- | --- | --- |
 | `deploy-web.yml` | SWA Free production (`kind-rock-0f409fe00.7.azurestaticapps.net`) | OIDC → KV `swa-deployment-token` |
-| `deploy-api.yml` | App Service (`pocpk-api-si5fhs6dvxiha.azurewebsites.net`) | OIDC → `az webapp deploy --type zip` (needs **Website Contributor**) |
+| `deploy-api.yml` | Container Apps Consumption (`ssd-pocpk-aca-api-dev-ae`) | OIDC → KV `acr-admin-*` → Docker push → `deploy-aca-api.sh` |
 
 - Triggers: `@poc-plattform-kit/api@*` / `@poc-plattform-kit/web@*` tag push after release (and manual `workflow_dispatch`). Marketing also deploys on `main` content merges; versioned marketing releases use `@poc-plattform-kit/marketing@*` tag push.
-- Builds in the job (web → `apps/web/out`; API → staged `.deploy/api` with `dist/` + prod `node_modules`).
-- API startup: `node dist/main.js` (set each deploy; staged `package.json` `"start"` matches).
-- **API must not Oryx-build on App Service:** keep `SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` in Bicep / app settings (set once — **not** in the deploy job). Mutating app settings right before zip restarts SCM and aborts OneDeploy. `deploy-api.yml` runs [`scripts/stage-api-deploy.sh --kudu`](../scripts/stage-api-deploy.sh) then `az webapp deploy --type zip --async true --track-status false` (absolute deploy dir + `node-linker=hoisted` + `prisma generate`; no `rsync -aL`; no remote `nest build`; avoid full monorepo `node_modules` — Kudu **504**). Do **not** use `--track-status true` — it waits indefinitely on "Starting the site…" while Nest crash-loops. Startup is verified by [`scripts/verify-api-appservice.sh`](../scripts/verify-api-appservice.sh) (`/health` + App Service log download, fail-fast on recent container exit/Nest errors).
+- API image: `docker build -f apps/api/Dockerfile --target production` → `pocpk-api:<sha>` (+ `:latest`) on ACR `ssdpocpkacrdevae`.
+- API runtime: Nest listens on `PORT=3001`; ACA ingress target port 3001; scale min **0** / max **2** (scale to zero).
+- Neon + secrets: App Configuration + managed identity (never set preview SQLite `DATABASE_URL` on production).
+- Startup verified by [`scripts/verify-api-containerapp.sh`](../scripts/verify-api-containerapp.sh) (`/health` + `/health/db`). Dual-run / DNS cutover: [`docs/aca-api-cutover-303.md`](./aca-api-cutover-303.md).
+- Legacy zip / App Service path (`stage-api-deploy.sh`, `verify-api-appservice.sh`) remains in-repo only for rollback until App Service is deleted.
 - No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
 ## Pre-push gate

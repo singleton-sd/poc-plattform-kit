@@ -1,23 +1,18 @@
-# Nest API image for Azure Container Apps (Consumption) — PREVIEW ONLY.
-# Exposes PORT (default 3001). Build from repo root:
-#   docker build -f apps/api/Dockerfile -t api-preview \
-#     --build-arg PREVIEW_SEED_SCENARIOS=demo .
+# Nest API image for Azure Container Apps (Consumption).
+# Build from repo root. Two targets share the same Dockerfile:
 #
-# Production/App Service deploys use scripts/stage-api-deploy.sh (zip
-# deploy), never this Dockerfile, and always generate the canonical
-# PostgreSQL Prisma client from prisma/schema.prisma unchanged.
+#   Production (Neon PostgreSQL Prisma client):
+#     docker build -f apps/api/Dockerfile --target production -t pocpk-api:local .
 #
-# This image instead derives a SQLite-compatible preview schema at build
-# time (scripts/generate-preview-schema.mjs), generates a SQLite Prisma
-# client from it, seeds the named PREVIEW_SEED_SCENARIOS (build-time
-# seeding for deterministic cold starts — see scripts/seed.mjs), and
-# materialises the result as an immutable SQLite database template baked
-# into the image. docker-entrypoint.sh copies that template to a writable
-# runtime path on every container start, so a preview always resets to the
-# same deterministic seeded state and never resolves or mutates the shared
-# PostgreSQL database — see AGENTS.md and docs/preview-scenarios.md.
+#   PR preview (SQLite template + reset entrypoint):
+#     docker build -f apps/api/Dockerfile --target preview -t api-preview \
+#       --build-arg PREVIEW_SEED_SCENARIOS=demo .
 #
-# Runtime packaging otherwise mirrors scripts/stage-api-deploy.sh:
+# Default final stage is `preview` so accidental untagged builds never ship a
+# production image missing the SQLite isolation path. Production deploys must
+# pass --target production.
+#
+# Runtime packaging mirrors scripts/stage-api-deploy.sh:
 #   - hoisted pnpm deploy --prod
 #   - copy flat dist/main.js (tsconfig.build.json rootDir + cleared paths)
 
@@ -37,23 +32,51 @@ FROM deps AS build
 COPY apps/api ./apps/api
 RUN pnpm --filter @poc-plattform-kit/api build
 
-# Named preview scenarios to bake into the immutable template (comma
-# separated — see docs/preview-scenarios.md). preview-api.yml passes the
-# scenarios declared by the PR; "demo" is the default baseline.
-ARG PREVIEW_SEED_SCENARIOS=demo
+# ---------------------------------------------------------------------------
+# Production package — canonical PostgreSQL Prisma client (Neon at runtime)
+# ---------------------------------------------------------------------------
+FROM build AS prod-package
+RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index.js' | head -n 1)" \
+  && test -n "$PRISMA_JS" \
+  && printf '%s\n' \
+      'inject-workspace-packages=true' \
+      'node-linker=hoisted' \
+      'shamefully-hoist=true' \
+      > /app/.npmrc \
+  && pnpm --filter @poc-plattform-kit/api deploy --prod /out \
+  && rm -rf /out/dist \
+  && cp -r /app/apps/api/dist /out/dist \
+  && test -f /out/dist/main.js \
+  && mkdir -p /out/prisma \
+  && cp /app/packages/db/prisma/schema.prisma /out/prisma/schema.prisma \
+  && node /app/packages/db/scripts/pin-generator-output.mjs \
+      /out/prisma/schema.prisma \
+      ../node_modules/.prisma/client \
+  && cd /out \
+  && DATABASE_URL="postgresql://ci:ci@localhost:5432/ci?schema=public" \
+     DATABASE_URL_UNPOOLED="postgresql://ci:ci@localhost:5432/ci?schema=public" \
+     node "$PRISMA_JS" generate --schema=/out/prisma/schema.prisma \
+  && test -f /out/node_modules/.prisma/client/index.js
 
-# Derive the SQLite preview schema from the canonical PostgreSQL schema.
-# Fails the build with an actionable diagnostic (not a silently broken
-# preview) when the canonical schema uses a construct the SQLite connector
-# can't represent.
+FROM node:20-alpine AS production
+RUN apk add --no-cache openssl \
+  && addgroup -S app && adduser -S app -G app
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3001
+COPY --from=prod-package /out ./
+USER app
+EXPOSE 3001
+CMD ["node", "dist/main.js"]
+
+# ---------------------------------------------------------------------------
+# Preview package — SQLite template baked in; never the shared Neon database
+# ---------------------------------------------------------------------------
+FROM build AS preview-package
+ARG PREVIEW_SEED_SCENARIOS=demo
 RUN node /app/packages/db/scripts/generate-preview-schema.mjs \
       /app/packages/db/prisma/schema.prisma \
       /app/packages/db/prisma/schema.preview.prisma
-
-# Match App Service staging shape (hoisted deploy tree), but generate a
-# SQLite client + an immutable SQLite database template instead of the
-# production PostgreSQL client.
-# Resolve prisma via node (pnpm .bin shims can vanish after re-linking for deploy).
 RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index.js' | head -n 1)" \
   && test -n "$PRISMA_JS" \
   && printf '%s\n' \
@@ -85,20 +108,18 @@ RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index
   && mkdir -p /out/preview-scripts \
   && cp -r /app/packages/db/scripts /out/preview-scripts/db-scripts
 
-FROM node:20-alpine AS runner
+FROM node:20-alpine AS preview
 RUN apk add --no-cache openssl \
   && addgroup -S app && adduser -S app -G app
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
-
-COPY --from=build /out ./
+COPY --from=preview-package /out ./
 COPY apps/api/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh \
   && mkdir -p /app/data \
   && chown app:app /app/data \
   && chmod 0444 /app/prisma/preview-template.db
-
 USER app
 EXPOSE 3001
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

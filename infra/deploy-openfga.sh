@@ -4,7 +4,8 @@
 # Idempotent bootstrap for ssd-pocpk-openfga-dev-ae:
 #   1. Deploy infra/openfga.bicep (ACA + Neon PostgreSQL datastore on existing CAE)
 #   2. Ensure Entra app registration api://{tenantId}/ssd-pocpk-openfga (assignment-required)
-#   3. Assign the Nest API App Service managed identity as the sole app-role assignee
+#   3. Assign the Nest API managed identity as the sole app-role assignee
+#      (Container Apps production ssd-pocpk-aca-api-dev-ae when present; else App Service)
 #   4. Create/reuse OpenFGA store, push infra/openfga/model.json
 #   5. Seed App Configuration app:openfga:* keys read by apps/api
 #
@@ -15,7 +16,11 @@
 #   ./infra/deploy-openfga.sh --what-if
 #   ./infra/deploy-openfga.sh
 #   ./infra/deploy-openfga.sh --skip-entra --skip-bootstrap
-
+#   ./infra/deploy-openfga.sh --api-identity containerapp   # after ACA cutover
+#   ./infra/deploy-openfga.sh --api-identity webapp         # dual-run / legacy App Service
+#
+# During App Service ↔ ACA dual-run, keep --api-identity webapp until DNS
+# points at the production Container App, then switch to containerapp.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,6 +39,9 @@ NEON_BRANCH="${NEON_BRANCH:-production}"
 NEON_OPENFGA_DATABASE="${NEON_OPENFGA_DATABASE:-openfga}"
 APP_CONFIG_NAME="${APP_CONFIG_NAME:-ssd-pocpk-appcs-dev-ae}"
 API_WEBAPP_NAME="${API_WEBAPP_NAME:-pocpk-api-si5fhs6dvxiha}"
+API_CONTAINER_APP_NAME="${API_CONTAINER_APP_NAME:-ssd-pocpk-aca-api-dev-ae}"
+# Dual-run default: webapp (custom domain still on App Service). Cutover flips to containerapp.
+API_IDENTITY_SOURCE="${API_IDENTITY_SOURCE:-webapp}"
 OPENFGA_IMAGE_TAG="${OPENFGA_IMAGE_TAG:-v1.18.3}"
 OPENFGA_AUDIENCE="${OPENFGA_AUDIENCE:-api://9a0e57d7-e58e-4e8b-814d-037cd7d9015c/ssd-pocpk-openfga}"
 OPENFGA_APP_DISPLAY_NAME="${OPENFGA_APP_DISPLAY_NAME:-ssd-pocpk-openfga}"
@@ -283,12 +291,22 @@ print(new_id)
   az ad sp update --id "$sp_object_id" --set appRoleAssignmentRequired=true -o none
   assert_az 'az ad sp update appRoleAssignmentRequired'
 
-  step "Assigning API App Service MI ($API_WEBAPP_NAME) as sole OpenFGA client"
-  api_identity_json="$(az webapp identity show --name "$API_WEBAPP_NAME" --resource-group "$RESOURCE_GROUP" -o json)"
-  assert_az 'az webapp identity show'
+  step "Assigning Nest API managed identity ($API_IDENTITY_SOURCE) as sole OpenFGA client"
+  local api_identity_label
+  if [[ "$API_IDENTITY_SOURCE" == "containerapp" ]]; then
+    api_identity_label="Container App $API_CONTAINER_APP_NAME"
+    api_identity_json="$(az containerapp identity show --name "$API_CONTAINER_APP_NAME" --resource-group "$RESOURCE_GROUP" -o json)"
+    assert_az 'az containerapp identity show'
+  elif [[ "$API_IDENTITY_SOURCE" == "webapp" ]]; then
+    api_identity_label="App Service $API_WEBAPP_NAME"
+    api_identity_json="$(az webapp identity show --name "$API_WEBAPP_NAME" --resource-group "$RESOURCE_GROUP" -o json)"
+    assert_az 'az webapp identity show'
+  else
+    die "API_IDENTITY_SOURCE must be containerapp or webapp (got: $API_IDENTITY_SOURCE)"
+  fi
   api_principal_id="$(printf '%s' "$api_identity_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("principalId") or "")')"
-  [[ -n "$api_principal_id" ]] || die "App Service $API_WEBAPP_NAME has no system-assigned managed identity."
-
+  [[ -n "$api_principal_id" ]] || die "$api_identity_label has no system-assigned managed identity."
+  echo "Using $api_identity_label principal $api_principal_id"
   assignments_json="$(az rest --method GET \
     --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp_object_id/appRoleAssignedTo" \
     -o json)"
@@ -423,8 +441,20 @@ parse_args() {
       --what-if) WHAT_IF=1; shift ;;
       --skip-entra) SKIP_ENTRA=1; shift ;;
       --skip-bootstrap) SKIP_BOOTSTRAP=1; shift ;;
+      --api-identity)
+        API_IDENTITY_SOURCE="${2:?}"
+        shift 2
+        ;;
+      --api-container-app)
+        API_CONTAINER_APP_NAME="${2:?}"
+        shift 2
+        ;;
+      --api-webapp)
+        API_WEBAPP_NAME="${2:?}"
+        shift 2
+        ;;
       -h|--help)
-        sed -n '2,17p' "$0"
+        sed -n '2,24p' "$0"
         exit 0
         ;;
       *) die "Unknown argument: $1 (try --help)" ;;
@@ -564,9 +594,13 @@ AppConfig          : $APP_CONFIG_NAME
 ModelDsl           : $MODEL_FGA_FILE
 
 Next:
-  1. Restart Nest API so it reloads App Config (az webapp restart -n $API_WEBAPP_NAME -g $RESOURCE_GROUP).
+  1. Restart Nest API so it reloads App Config:
+       - ACA: az containerapp revision restart -n $API_CONTAINER_APP_NAME -g $RESOURCE_GROUP --revision <latest>
+         (or wait for the next deploy-api.yml revision)
+       - App Service (dual-run): az webapp restart -n $API_WEBAPP_NAME -g $RESOURCE_GROUP
   2. PermissionsService acquires MI tokens for api://{tenantId}/ssd-pocpk-openfga/.default.
-  3. Grant/Revoke + tuple sync remain separate tickets.
+  3. After custom-domain cutover, re-run: ./infra/deploy-openfga.sh --api-identity containerapp
+  4. Grant/Revoke + tuple sync remain separate tickets.
 
 OIDC CI note: run this script from a principal logged in via the same GitHub OIDC
 Variables as preview-api.yml (AZURE_CLIENT_ID / TENANT_ID / SUBSCRIPTION_ID). Never
