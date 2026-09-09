@@ -64,17 +64,17 @@ pnpm --filter @poc-plattform-kit/api start:dev
 
 Deploy alerts:
 
-```powershell
-pwsh ./infra/deploy.ps1  # after adding -alertEmail or Bicep param alertEmail=you@example.com
+```bash
+./infra/deploy.sh --alert-email you@example.com
 ```
 
 Pass `alertEmail` via:
 
-```powershell
+```bash
 az deployment group create ... --parameters alertEmail=you@example.com
 ```
 
-(or extend `deploy.ps1` with an `-AlertEmail` switch).
+(or pass `--alert-email` to `./infra/deploy.sh`).
 
 ## Out of scope / phase 2
 

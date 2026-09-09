@@ -43,7 +43,7 @@ pnpm --filter @poc-plattform-kit/db exec prisma migrate deploy
 - **Neon:** pooled hostnames include `-pooler`; direct/migrate URLs omit it.
 - **Azure Database for PostgreSQL Flexible Server:** optional built-in PgBouncer uses the same server FQDN on port **6432**; direct/migrate uses **5432**. Omitting the port defaults to 5432 and bypasses PgBouncer.
 
-CI validates/generates with dummy `postgresql://ci:ci@localhost:5432/ci` URLs (no live DB). Live migrate uses Key Vault via `pwsh ./infra/migrate-db.ps1` (writes both `DATABASE_URL` and `DATABASE_URL_UNPOOLED` into `packages/db/.env`; see [#298](https://github.com/singleton-sd/poc-plattform-kit/pull/298)).
+CI validates/generates with dummy `postgresql://ci:ci@localhost:5432/ci` URLs (no live DB). Live migrate uses Key Vault via `./infra/migrate-db.sh` (writes both `DATABASE_URL` and `DATABASE_URL_UNPOOLED` into `packages/db/.env`).
 
 ### Moving between Neon and Azure Flexible Server
 
@@ -107,7 +107,7 @@ Avoid a new schema per feature unless packaging/ownership truly needs it.
 
 - Prisma only — no parallel hand-script track unless deliberately documented.
 - Schema in git; same path for local/dev/stage/prod.
-- Apply to PostgreSQL with `pwsh ./infra/migrate-db.ps1` (OIDC/CLI → Key Vault `database-url` + `database-url-unpooled` → `packages/db/.env` → `prisma migrate deploy`). Do not use `migrate dev` against shared deployed databases.
+- Apply to PostgreSQL with `./infra/migrate-db.sh` (OIDC/CLI → Key Vault `database-url` + `database-url-unpooled` → `packages/db/.env` → `prisma migrate deploy`). Do not use `migrate dev` against shared deployed databases.
 ### Data classification
 
 Label sensitive tables/columns (docs or comments): public / internal / confidential / secret; PII / financial / credentials. Drive retention, encryption, redaction, and backup access from that.

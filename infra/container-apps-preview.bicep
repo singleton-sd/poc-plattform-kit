@@ -1,5 +1,5 @@
 // API PR previews — Azure Container Apps Consumption + ACR Basic (cheapest that works).
-// Deploy: powershell -File ./infra/deploy-aca-preview.ps1
+// Deploy: ./infra/deploy-aca-preview.sh
 // Ephemeral per-PR apps are created/deleted by .github/workflows/preview-api.yml (not here).
 // ACR admin creds are upserted to Key Vault by the deploy script (never git).
 

@@ -170,7 +170,7 @@ Do not file new engineering work in ClickUp Delivery.
 **Subscription:** **ssd-poc-plattform-kit** / `7b8343d7-969f-4b71-8864-b7925e7fae30`  
 **Tenant:** `9a0e57d7-e58e-4e8b-814d-037cd7d9015c`  
 **Resource group:** `rg-poc-plattform-kit` (region `australiaeast`; SWA Free in `eastasia`)  
-**IaC:** [`infra/`](./infra/) - `powershell -File ./infra/deploy.ps1`
+**IaC:** [`infra/`](./infra/) - `./infra/deploy.sh`
 
 ### Locked: cost + naming
 

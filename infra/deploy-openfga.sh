@@ -474,10 +474,10 @@ EOF
   done
 
   [[ "$(az group exists --name "$RESOURCE_GROUP" -o tsv)" == 'true' ]] \
-    || die "Resource group $RESOURCE_GROUP missing. Run ./infra/deploy.ps1 first."
+    || die "Resource group $RESOURCE_GROUP missing. Run ./infra/deploy.sh first."
 
   if ! az containerapp env show -n "$CONTAINER_APPS_ENVIRONMENT_NAME" -g "$RESOURCE_GROUP" -o none 2>/dev/null; then
-    die "CAE $CONTAINER_APPS_ENVIRONMENT_NAME missing. Run ./infra/deploy-aca-preview.ps1 first."
+    die "CAE $CONTAINER_APPS_ENVIRONMENT_NAME missing. Run ./infra/deploy-aca-preview.sh first."
   fi
 
   [[ -f "$BICEP_FILE" ]] || die "Missing $BICEP_FILE"

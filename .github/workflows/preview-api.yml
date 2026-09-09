@@ -5,7 +5,7 @@
 # FE SWA previews stay in preview-web.yml.
 #
 # Requires (human):
-#   - infra/deploy-aca-preview.ps1 already run (CAE + ACR Basic + KV acr-admin-*)
+#   - infra/deploy-aca-preview.sh already run (CAE + ACR Basic + KV acr-admin-*)
 #   - GitHub Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
 #     (AZURE_CREDENTIALS / SP-JSON is not supported; never GitHub Secrets for tokens)
 #   - Identity: Contributor on rg-poc-plattform-kit
