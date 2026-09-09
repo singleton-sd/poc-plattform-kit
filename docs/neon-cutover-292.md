@@ -25,7 +25,9 @@ Completed 2026-09-09 against subscription `ssd-poc-plattform-kit` / RG `rg-poc-p
 - `GET /health/db` → 200 after redeploy (500 while App Service still ran the Aug SQL Server build against a Postgres URL).
 - App Service `DATABASE_URL` remains `@Microsoft.KeyVault(.../secrets/database-url/)` (unversioned).
 
-## Follow-ups
+## Closeout (2026-09-09)
 
-- Purge `database-url-rollback-azure-sql` after a short observation window (audit artifact only).
-- Close epic #288 once human confirms billing / App Insights look healthy.
+- Re-checked production: `GET /health` and `GET /health/db` → 200.
+- Purged Key Vault `database-url-rollback-azure-sql` (historical backup only).
+- Live database secrets remain `database-url` + `database-url-unpooled` (plus OpenFGA Neon URLs); see the [infrastructure secret inventory](../infra/README.md#key-vault-secret-names-values-never-in-git) for the complete Key Vault contents.
+- Epic [#288](https://github.com/singleton-sd/poc-plattform-kit/issues/288) closed.
