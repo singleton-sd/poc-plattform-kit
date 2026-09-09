@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "9206496046528424941"
+      "templateHash": "4161295020829273846"
     }
   },
   "parameters": {
@@ -176,14 +176,6 @@
                 {
                   "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
                   "value": "[reference(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName')), '2020-02-02').ConnectionString]"
-                },
-                {
-                  "name": "CORS_ORIGINS",
-                  "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com,https://kind-rock-0f409fe00*.azurestaticapps.net,https://purple-field-05048bf00*.azurestaticapps.net"
-                },
-                {
-                  "name": "NEXT_PUBLIC_API_BASE_URL",
-                  "value": "https://api.plattform-kit.poc.singletonsd.com"
                 }
               ],
               "probes": [

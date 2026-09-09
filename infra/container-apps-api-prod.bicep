@@ -142,14 +142,6 @@ resource apiApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: applicationInsights.properties.ConnectionString
             }
-            {
-              name: 'CORS_ORIGINS'
-              value: 'https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com,https://kind-rock-0f409fe00*.azurestaticapps.net,https://purple-field-05048bf00*.azurestaticapps.net'
-            }
-            {
-              name: 'NEXT_PUBLIC_API_BASE_URL'
-              value: 'https://api.plattform-kit.poc.singletonsd.com'
-            }
           ]
           probes: [
             {
