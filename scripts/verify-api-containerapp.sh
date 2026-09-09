@@ -22,6 +22,17 @@ APP="${AZURE_CONTAINER_APP_NAME:-}"
 
 echo "==> Verify Container App API: $BASE (timeout ${TIMEOUT_SEC}s)"
 
+http_code() {
+  local url="$1"
+  local out="$2"
+  local code
+  if code="$(curl -sS -o "$out" -w '%{http_code}' --max-time "$CURL_MAX_TIME" "$url")"; then
+    printf '%s' "$code"
+  else
+    printf '000'
+  fi
+}
+
 deadline=$(( $(date +%s) + TIMEOUT_SEC ))
 attempt=0
 health_ok=0
@@ -29,10 +40,8 @@ db_ok=0
 
 while [[ "$(date +%s)" -lt "$deadline" ]]; do
   attempt=$((attempt + 1))
-  code_health="$(curl -sS -o /tmp/aca-api-health.json -w '%{http_code}' --max-time "$CURL_MAX_TIME" \
-    "$BASE/health" || echo 000)"
-  code_db="$(curl -sS -o /tmp/aca-api-health-db.json -w '%{http_code}' --max-time "$CURL_MAX_TIME" \
-    "$BASE/health/db" || echo 000)"
+  code_health="$(http_code "$BASE/health" /tmp/aca-api-health.json)"
+  code_db="$(http_code "$BASE/health/db" /tmp/aca-api-health-db.json)"
   echo "attempt $attempt: /health=$code_health /health/db=$code_db"
   if [[ "$code_health" == "200" ]]; then
     health_ok=1

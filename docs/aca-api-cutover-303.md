@@ -35,8 +35,8 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
    curl -sS "https://$FQDN/health/db"
    ```
 4. Validate Entra login, Service Bus outbox, App Insights against the ACA URL.
-5. Keep OpenFGA on App Service MI until DNS cutover:
-   `./infra/deploy-openfga.sh --api-identity webapp`
+5. Keep OpenFGA usable from both hosts during dual-run:
+   `./infra/deploy-openfga.sh --api-identity both`
 6. Production deploys: tag `@poc-plattform-kit/api@*` or `workflow_dispatch` on
    **Deploy API (Container Apps)** — builds `--target production`, pushes
    `pocpk-api:<sha>`, updates the Container App, smoke-tests `/health` + `/health/db`.

@@ -6,6 +6,7 @@ pnpm-lock.yaml
 *.md
 .worktrees
 infra/main.json
+infra/container-apps-api-prod.json
 packages/api-client/src/generated
 packages/api-client/openapi.json
 apps/web/public/mockServiceWorker.js
