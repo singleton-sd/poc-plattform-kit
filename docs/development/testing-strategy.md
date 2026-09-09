@@ -54,15 +54,24 @@ standard" section).
   test at the appropriate layer above — the preview fixture makes the bug
   reviewable, the test makes the fix durable.
 
-## Known gap: SQL Server-specific behavior
+## Known gap: PostgreSQL-specific behavior
 
 Preview scenarios run on SQLite (see
 [ADR 0003](../adr/0003-sqlite-seeded-preview-databases.md)), so they cannot
-prove SQL Server-specific behavior: native `@db.*` types, raw SQL, collation,
+prove PostgreSQL-specific behavior: native `@db.*` types, raw SQL, collation,
 locking, or concurrency/performance characteristics. A change that relies on
-any of those still needs real Azure SQL integration validation as a
-separate step, and the PR should say explicitly what the SQLite preview
-could not prove (the PR template has a field for this).
+any of those still needs real PostgreSQL integration validation (Neon or
+local Postgres) as a separate step, and the PR should say explicitly what the
+SQLite preview could not prove (the PR template has a field for this).
+
+**When to use which database in tests:**
+
+| Surface | Engine |
+| --- | --- |
+| Unit / pillar Jest | usually mocked or in-memory |
+| `packages/db` preview / seed integration | SQLite file DB |
+| `prisma validate` / `generate` in CI | dummy `postgresql://` URLs (no live server) |
+| `migrate deploy` / smoke against shared data | Neon (or Azure Flexible Server) via Key Vault |
 
 ## Local commands
 

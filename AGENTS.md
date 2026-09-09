@@ -451,7 +451,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 
 - Messaging: Azure Service Bus (topics = events, queues = jobs)
 - Mutations: same transaction -> entity + **local Audit** + **Outbox** (when others must be notified)
-- DB: Azure SQL + Prisma `sqlserver`
+- DB: **PostgreSQL** + Prisma `postgresql` (PoC host: **Neon**; shared/always-on: Azure Database for PostgreSQL Flexible Server)
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) - see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); SWA Free `ssd-pocpk-mkt-dev-ae`
 - **Marketing connectors (locked):** Decap `/admin` GitHub login uses shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md) (`https://auth.singletonsd.com`). Brochure Contact posts to shared [`PostKit`](https://github.com/singleton-sd/post-kit) via `PUBLIC_POSTKIT_API_BASE_URL`. This repo does not host OAuth or email Functions.
@@ -463,7 +463,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - **Secrets:** Azure Key Vault only (`ssd-pocpk-kv-dev-ae`)
 - **App configuration:** Azure App Configuration (`ssd-pocpk-appcs-dev-ae`) with **Key Vault references** for secret values
 - **CI/CD:** GitHub Actions **OIDC** -> Azure -> Key Vault / App Config (no deploy tokens or connection strings in GitHub Secrets)
-- **Cost + naming (locked):** cheapest working SKUs (SQL Basic, App **B1** for custom-domain HTTPS, SWA Free x2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
+- **Cost + naming (locked):** cheapest working SKUs (Neon Free/Launch for PoC Postgres, App **B1** for custom-domain HTTPS, SWA Free x2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
 - **Public hostnames (locked):** `plattform-kit.poc.singletonsd.com` (marketing), `app.plattform-kit.poc.singletonsd.com` (web), `api.plattform-kit.poc.singletonsd.com` (API). DNS in AWS Route53 -> Azure CNAMEs.
 - **Telemetry:** Application Insights + Log Analytics - see [docs/telemetry.md](docs/telemetry.md)
 
@@ -476,7 +476,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 | Secrets (passwords, connection strings, SWA deploy token, ACR admin, Entra secrets, notification provider keys) | Key Vault `ssd-pocpk-kv-dev-ae` |
 | Non-secret app settings + KV references | App Configuration `ssd-pocpk-appcs-dev-ae` |
 
-Secret **names** (not values): `sql-admin-password`, `database-url`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`.
+Secret **names** (not values): `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`.
 
 Decap `/admin` uses [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md). Marketing Contact email uses [`PostKit`](https://github.com/singleton-sd/post-kit).
 
@@ -552,7 +552,7 @@ Preview scenarios: not-applicable - CI workflow tweak only, no data model or end
 
 - **Feature / pillar work:** add or extend a `pillar/<pillar>/<scenario>` (or `feature/<slug>/<scenario>`) scenario covering the meaningful states needed for acceptance - representative happy path plus applicable empty, permission/tenant-boundary, lifecycle, and error states. See `pillar/tenant/*` in `packages/db/scripts/scenarios/fixtures/tenant.mjs` for the pattern (multiple composable scenarios sharing a base via `dependsOn`, each with its own `verify()`).
 - **A reproducible, data-dependent bug fix:** add a minimal `bug/<issue-number>/<scenario>` scenario (legacy ClickUp-tracked fixes may still use `bug/<clickup-task-id>/<scenario>`) that reproduces the pre-fix state, and keep it in the catalog after the fix lands as a regression fixture (its `verify()` should assert the corrected behavior). A preview scenario complements automated tests - it never replaces a regression/integration/contract/unit test.
-- **SQL Server-specific changes** (native types, raw SQL, provider-specific migrations): still require SQL Server integration validation. Document in the PR what the SQLite preview cannot prove (see "Known SQLite vs SQL Server limitations" in the PR template).
+- **PostgreSQL-specific changes** (native types, raw SQL, provider-specific migrations): still require PostgreSQL integration validation (Neon or local Postgres). Document in the PR what the SQLite preview cannot prove (see "Known SQLite vs PostgreSQL limitations" in the PR template).
 - **Retiring a scenario:** remove it from `catalog.mjs` and its fixture module once nothing depends on it and it's no longer a meaningful regression/demo asset - don't leave dead scenarios registered "just in case."
 
 Existing PRs/branches don't need a historical migration - the requirement applies going forward from when `validate-preview-scenarios.yml` is enabled.
@@ -568,7 +568,7 @@ pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scri
 - **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. No DB/Prisma wiring yet, so it runs without live Azure resources.
 - **Web:** `pnpm dev:web` - Next.js PWA SPA (see `apps/web`).
 - **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (GitHub login via shared `cms-oauth-kit` at `https://auth.singletonsd.com`). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
-- **Prisma needs `DATABASE_URL`:** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without it. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root, so the gitignored placeholder lives at `packages/db/.env` (created by the update script). Real value is in Azure Key Vault (`ssd-pocpk-kv-dev-ae`); the placeholder only covers schema validate/generate, not live queries.
+- **Prisma needs `DATABASE_URL` (+ `DATABASE_URL_UNPOOLED` for migrate):** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without them. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root — use `./scripts/neon-env-pull.sh` or copy placeholders. Real Neon values live in Key Vault (`database-url` / `database-url-unpooled`); CI uses dummy PostgreSQL URLs for validate/generate only.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
 - **`pnpm skills:install:pin`** pulls from GitHub (`singleton-sd/ai-plattform-skills`) into
   multi-agent skill folders. Cloud agents should use committed pinned skills when present;
