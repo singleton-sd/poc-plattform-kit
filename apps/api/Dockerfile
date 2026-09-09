@@ -52,7 +52,7 @@ RUN node /app/packages/db/scripts/generate-preview-schema.mjs \
 
 # Match App Service staging shape (hoisted deploy tree), but generate a
 # SQLite client + an immutable SQLite database template instead of the
-# production PostgreSQL client.# Server client production deploys use.
+# production PostgreSQL client.
 # Resolve prisma via node (pnpm .bin shims can vanish after re-linking for deploy).
 RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index.js' | head -n 1)" \
   && test -n "$PRISMA_JS" \
