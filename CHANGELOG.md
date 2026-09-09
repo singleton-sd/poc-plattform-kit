@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-09-09
+
+- **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.24.0` → `0.24.1` (patch)
 ## 2026-09-01
 
 - **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.23.2` → `0.24.0` (minor)

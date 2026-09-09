@@ -2,6 +2,12 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.24.1 — 2026-09-09
+
+### Fixed
+
+- repair mangled Dockerfile Postgres comment
+
 ## 0.24.0 — 2026-09-01
 
 ### New

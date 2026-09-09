@@ -2,6 +2,16 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.24.1",
+      "date": "2026-09-09",
+      "changes": [
+        {
+          "type": "Fixed",
+          "summary": "repair mangled Dockerfile Postgres comment"
+        }
+      ]
+    },
+    {
       "version": "0.24.0",
       "date": "2026-09-01",
       "changes": [
