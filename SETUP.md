@@ -217,7 +217,7 @@ Copy the JSON config to onboard another domain later (see `docs/dns-route53.md`)
 
 | Kind | Name | URL / notes | SKU |
 | --- | --- | --- | --- |
-| Neon PostgreSQL (PoC; IaC no longer provisions Azure SQL — see [#291](https://github.com/singleton-sd/poc-plattform-kit/issues/291) / [#298](https://github.com/singleton-sd/poc-plattform-kit/pull/298); live server delete is [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292)) | project `round-union-05852948` / `neondb` | Key Vault `database-url` (+ `database-url-unpooled`) | Neon |
+| Neon PostgreSQL (PoC) | project `round-union-05852948` / `neondb` | Key Vault `database-url` (+ `database-url-unpooled`); Azure SQL removed ([#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292)) | Neon |
 | App Service Plan + API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | https://api.plattform-kit.poc.singletonsd.com (default: `....azurewebsites.net`) | **B1** |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | https://app.plattform-kit.poc.singletonsd.com (default: `....azurestaticapps.net`) | Free |
 | Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | https://plattform-kit.poc.singletonsd.com (PR previews need `stagingEnvironmentPolicy=Enabled`) | Free |

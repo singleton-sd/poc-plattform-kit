@@ -69,7 +69,7 @@ We use providers that may process data to operate the Service:
 | Service | Purpose | Data shared |
 | --- | --- | --- |
 | Microsoft Entra ID | Authentication | Identity claims, session data |
-| Azure SQL | Application data storage | Service records |
+| Neon PostgreSQL | Application data storage | Service records |
 | Azure App Configuration / Key Vault | Configuration and secrets | App settings (secrets in Key Vault) |
 | Azure Service Bus | Events and jobs | Message payloads for domain events |
 | Azure Application Insights | Traces, exceptions, performance diagnostics | Request/telemetry events, browser diagnostics, errors |

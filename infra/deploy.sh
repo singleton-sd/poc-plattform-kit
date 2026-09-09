@@ -510,6 +510,6 @@ Next steps:
   6. Wire App Service / SWA / ACA to App Configuration provider + managed identity
   7. ./infra/migrate-db.sh against Neon (Prisma postgresql)
   8. Never store deploy tokens or connection strings in GitHub Secrets
-  9. After cutover validation, delete legacy Azure SQL (#292)
+  9. Neon cutover + Azure SQL decommission recorded in docs/neon-cutover-292.md (#292)
 
 EOF

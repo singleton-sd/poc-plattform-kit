@@ -4,8 +4,8 @@
 #     --build-arg PREVIEW_SEED_SCENARIOS=demo .
 #
 # Production/App Service deploys use scripts/stage-api-deploy.sh (zip
-# deploy), never this Dockerfile, and always generate the canonical SQL
-# Server Prisma client from prisma/schema.prisma unchanged.
+# deploy), never this Dockerfile, and always generate the canonical
+# PostgreSQL Prisma client from prisma/schema.prisma unchanged.
 #
 # This image instead derives a SQLite-compatible preview schema at build
 # time (scripts/generate-preview-schema.mjs), generates a SQLite Prisma
@@ -15,7 +15,7 @@
 # into the image. docker-entrypoint.sh copies that template to a writable
 # runtime path on every container start, so a preview always resets to the
 # same deterministic seeded state and never resolves or mutates the shared
-# Azure SQL database — see AGENTS.md and docs/preview-scenarios.md.
+# PostgreSQL database — see AGENTS.md and docs/preview-scenarios.md.
 #
 # Runtime packaging otherwise mirrors scripts/stage-api-deploy.sh:
 #   - hoisted pnpm deploy --prod
@@ -42,7 +42,7 @@ RUN pnpm --filter @poc-plattform-kit/api build
 # scenarios declared by the PR; "demo" is the default baseline.
 ARG PREVIEW_SEED_SCENARIOS=demo
 
-# Derive the SQLite preview schema from the canonical SQL Server schema.
+# Derive the SQLite preview schema from the canonical PostgreSQL schema.
 # Fails the build with an actionable diagnostic (not a silently broken
 # preview) when the canonical schema uses a construct the SQLite connector
 # can't represent.
@@ -51,8 +51,8 @@ RUN node /app/packages/db/scripts/generate-preview-schema.mjs \
       /app/packages/db/prisma/schema.preview.prisma
 
 # Match App Service staging shape (hoisted deploy tree), but generate a
-# SQLite client + an immutable SQLite database template instead of the SQL
-# Server client production deploys use.
+# SQLite client + an immutable SQLite database template instead of the
+# production PostgreSQL client.
 # Resolve prisma via node (pnpm .bin shims can vanish after re-linking for deploy).
 RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index.js' | head -n 1)" \
   && test -n "$PRISMA_JS" \
