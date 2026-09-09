@@ -104,7 +104,6 @@ Avoid a new schema per feature unless packaging/ownership truly needs it.
 - Prisma only — no parallel hand-script track unless deliberately documented.
 - Schema in git; same path for local/dev/stage/prod.
 - Apply to PostgreSQL with `pwsh ./infra/migrate-db.ps1` (OIDC/CLI → Key Vault `database-url` + `database-url-unpooled` → `packages/db/.env` → `prisma migrate deploy`). Do not use `migrate dev` against shared deployed databases.
-
 ### Data classification
 
 Label sensitive tables/columns (docs or comments): public / internal / confidential / secret; PII / financial / credentials. Drive retention, encryption, redaction, and backup access from that.
