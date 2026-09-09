@@ -24,7 +24,7 @@ cp "$TEMPLATE_DB" "$RUNTIME_DB"
 chmod 0644 "$RUNTIME_DB"
 
 # Explicit and set before Nest (and app-configuration.ts) start, so the
-# shared Azure SQL App Configuration value is never resolved for previews —
+# shared PostgreSQL App Configuration value is never resolved for previews —
 # see apps/api/src/config/app-configuration.ts (explicit env vars win).
 export DATABASE_URL="file:${RUNTIME_DB}"
 

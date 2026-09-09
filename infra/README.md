@@ -36,7 +36,7 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | env | `dev` |
 | region | `ae` = australiaeast; SWA Free may stay `eastasia` |
 
-**Existing resources (legacy — do not rename):** `pocpk-{resource}-{uniqueString}` from first deploy. Renaming would recreate API/SWA/SB. Keep them; map in docs. Legacy Azure SQL (`pocpk-sql-…`) was deleted in #292 after Neon cutover.
+**Existing resources (legacy — do not rename):** `pocpk-{resource}-{uniqueString}` from first deploy. Renaming would recreate API/SWA/SB. Keep them; map in docs. Legacy Azure SQL (`pocpk-sql-…`) was deleted in [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292) after Neon cutover.
 
 ## Resources (live)
 
@@ -237,7 +237,7 @@ az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url-unpo
 
 `deploy.sh` only upserts local `DATABASE_URL*` when the scheme is `postgresql://` / `postgres://` (rejects leftover `sqlserver://` values from older deploys). `migrate-db.sh` fails closed if `database-url-unpooled` is missing.
 
-App Service continues to resolve `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Azure SQL server/DB and `sql-admin-password` were removed in the #292 cutover (see [`docs/neon-cutover-292.md`](../docs/neon-cutover-292.md)).
+App Service continues to resolve `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Azure SQL server/DB and `sql-admin-password` were removed in the [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292) cutover (see [`docs/neon-cutover-292.md`](../docs/neon-cutover-292.md)).
 
 ```bash
 ./infra/migrate-db.sh --what-if

@@ -113,7 +113,7 @@ The context is immutable after guards/interceptors establish it. Domain services
 
 ### Assets and trust boundaries
 
-Assets are tenant data, customer identity, support grants, active-ticket evidence, session credentials, audit history, and customer trust. Trust boundaries exist between browser and API, Entra and API, API and OpenFGA, API and Azure SQL, Support and other pillars, and runtime telemetry/exporters.
+Assets are tenant data, customer identity, support grants, active-ticket evidence, session credentials, audit history, and customer trust. Trust boundaries exist between browser and API, Entra and API, API and OpenFGA, API and PostgreSQL, Support and other pillars, and runtime telemetry/exporters.
 
 | Threat | Example attack | Required control / verification |
 | --- | --- | --- |

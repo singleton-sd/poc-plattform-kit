@@ -91,7 +91,7 @@ var jobQueues = [
 // Relational database: Neon PostgreSQL (not provisioned in this template).
 // Human sets Key Vault secrets `database-url` (pooled) and `database-url-unpooled`
 // (direct) — App Service resolves DATABASE_URL via the KV reference below.
-// Azure SQL live resources removed in #292 after Neon cutover validation.
+// Azure SQL removal from live subscription is #292 after cutover validation.
 
 resource appPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appPlanName
