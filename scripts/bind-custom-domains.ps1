@@ -107,10 +107,10 @@ foreach ($b in $config.bindings) {
       }
       $wantCert = (-not $SkipManagedCert) -and ($b.managedCert -eq $true)
       if ($wantCert) {
-        Write-Host "==> Attempt managed certificate bind for $hostName (ACA)"
-        az containerapp hostname bind -n $name -g $rg --hostname $hostName --validation-method CNAME 2>&1 | Write-Host
+        Write-Host "==> Managed certificate bind for $hostName (ACA)"
+        az containerapp hostname bind -n $name -g $rg --hostname $hostName --validation-method CNAME
         if ($LASTEXITCODE -ne 0) {
-          Write-Warning "ACA hostname bind/cert may need Portal completion — see docs/aca-api-cutover-303.md"
+          throw "ACA hostname/certificate bind failed for $hostName. Fix DNS validation and re-run (or pass -SkipManagedCert). See docs/aca-api-cutover-303.md"
         }
       }
     }
