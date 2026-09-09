@@ -29,5 +29,5 @@ Completed 2026-09-09 against subscription `ssd-poc-plattform-kit` / RG `rg-poc-p
 
 - Re-checked production: `GET /health` and `GET /health/db` → 200.
 - Purged Key Vault `database-url-rollback-azure-sql` (historical backup only).
-- Live secrets remain `database-url` + `database-url-unpooled` (plus OpenFGA Neon URLs).
+- Live database secrets remain `database-url` + `database-url-unpooled` (plus OpenFGA Neon URLs); see the [infrastructure secret inventory](../infra/README.md#key-vault-secret-names-values-never-in-git) for the complete Key Vault contents.
 - Epic [#288](https://github.com/singleton-sd/poc-plattform-kit/issues/288) closed.
