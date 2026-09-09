@@ -35,21 +35,14 @@ http_code() {
 
 deadline=$(( $(date +%s) + TIMEOUT_SEC ))
 attempt=0
-health_ok=0
-db_ok=0
 
 while [[ "$(date +%s)" -lt "$deadline" ]]; do
   attempt=$((attempt + 1))
   code_health="$(http_code "$BASE/health" /tmp/aca-api-health.json)"
   code_db="$(http_code "$BASE/health/db" /tmp/aca-api-health-db.json)"
   echo "attempt $attempt: /health=$code_health /health/db=$code_db"
-  if [[ "$code_health" == "200" ]]; then
-    health_ok=1
-  fi
-  if [[ "$code_db" == "200" ]]; then
-    db_ok=1
-  fi
-  if [[ "$health_ok" -eq 1 && "$db_ok" -eq 1 ]]; then
+  # Both endpoints must be 200 in the same poll — no sticky cross-attempt OK.
+  if [[ "$code_health" == "200" && "$code_db" == "200" ]]; then
     echo "OK — /health and /health/db returned 200"
     cat /tmp/aca-api-health.json 2>/dev/null || true
     echo

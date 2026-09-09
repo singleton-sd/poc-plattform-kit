@@ -52,8 +52,8 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
    - Validation TXT as prompted
 4. Update [`infra/custom-domains.pocpk.json`](../infra/custom-domains.pocpk.json)
    record value + binding `kind` to `containerapp` (cutover PR).
-5. Optional repo Variable `API_PRODUCTION_BASE_URL=https://api.plattform-kit.poc.singletonsd.com`
-   so `deploy-api.yml` smokes the custom host.
+5. Manually smoke the custom host (`curl …/health` and `/health/db`). Deploy
+   workflow always smokes the ACA FQDN only (avoids dual-run false positives).
 6. Reassign OpenFGA:
    ```bash
    ./infra/deploy-openfga.sh --api-identity containerapp

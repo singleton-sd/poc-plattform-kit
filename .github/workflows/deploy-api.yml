@@ -7,9 +7,10 @@
 # Host: ssd-pocpk-aca-api-dev-ae on shared CAE ssd-pocpk-cae-dev-ae (same as PR previews).
 # ACR push uses OIDC → Key Vault acr-admin-* (same pattern as preview-api.yml).
 #
-# During dual-run cutover, App Service may still serve the custom domain; this
-# workflow deploys/smoke-tests the ACA default hostname. After DNS cutover, set
-# repo Variable API_PRODUCTION_BASE_URL to https://api.plattform-kit.poc.singletonsd.com.
+# Always smoke-tests the ACA default hostname (never the custom domain) so dual-run
+# deploys cannot pass against legacy App Service. After DNS cutover, verify the
+# custom domain separately (docs/aca-api-cutover-303.md); optional Variable
+# API_PRODUCTION_BASE_URL is documentation-only for operators, not used here.
 #
 # If OIDC Variables are missing, deploy SKIP (job succeeds). See SETUP.md / docs/pr-pipelines.md.
 name: Deploy API (Container Apps)
@@ -73,10 +74,16 @@ jobs:
       - name: Resolve image tags
         if: steps.oidc.outputs.configured == 'true'
         id: img
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
         run: |
           set -euo pipefail
+          SHA="$RELEASE_SHA"
+          if ! [[ "$SHA" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "::error::release_sha must be a git commit SHA (got: ${SHA:0:64})"
+            exit 1
+          fi
           LOGIN_SERVER=$(az acr show -n "$ACR_NAME" -g "$AZURE_RESOURCE_GROUP" --query loginServer -o tsv)
-          SHA="${{ inputs.release_sha || github.sha }}"
           echo "login_server=$LOGIN_SERVER" >> "$GITHUB_OUTPUT"
           echo "sha_tag=$LOGIN_SERVER/$IMAGE_REPO:$SHA" >> "$GITHUB_OUTPUT"
           echo "latest_tag=$LOGIN_SERVER/$IMAGE_REPO:latest" >> "$GITHUB_OUTPUT"
@@ -109,16 +116,13 @@ jobs:
         id: url
         run: |
           set -euo pipefail
-          if [ -n "${{ vars.API_PRODUCTION_BASE_URL }}" ]; then
-            echo "base=${{ vars.API_PRODUCTION_BASE_URL }}" >> "$GITHUB_OUTPUT"
-          else
-            FQDN=$(az containerapp show \
-              -n "$AZURE_CONTAINER_APP_NAME" \
-              -g "$AZURE_RESOURCE_GROUP" \
-              --query "properties.configuration.ingress.fqdn" -o tsv)
-            echo "base=https://$FQDN" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Smoke base: $(cat "$GITHUB_OUTPUT" | grep base=)"
+          # Always hit the ACA ingress FQDN so dual-run cannot green-light App Service.
+          FQDN=$(az containerapp show \
+            -n "$AZURE_CONTAINER_APP_NAME" \
+            -g "$AZURE_RESOURCE_GROUP" \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "base=https://$FQDN" >> "$GITHUB_OUTPUT"
+          echo "Smoke base: https://$FQDN"
 
       - name: Verify /health + /health/db
         if: steps.oidc.outputs.configured == 'true'

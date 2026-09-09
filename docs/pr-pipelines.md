@@ -33,7 +33,7 @@ Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use 
 
 If OIDC Variables are missing, `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` and `preview-web.yml` **fail fast** with a clear error until Variables + RBAC are configured.
 
-`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Website Contributor on the legacy App Service is only needed while dual-run zip deploys remain; after [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) cutover it can be removed. Optional Variable `API_PRODUCTION_BASE_URL` overrides smoke-test host (defaults to the ACA FQDN).
+`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Website Contributor on the legacy App Service is only needed while dual-run zip deploys remain; after [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) cutover it can be removed. Deploy smoke always uses the ACA ingress FQDN (never the custom domain) so dual-run cannot pass against legacy App Service; verify the custom domain separately after DNS cutover.
 
 ### OIDC subject forms (Entra FIC)
 
