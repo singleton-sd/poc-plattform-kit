@@ -174,7 +174,7 @@ Do not file new engineering work in ClickUp Delivery.
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work - Neon (PoC) / Azure Database for PostgreSQL Flexible Server (shared), Container Apps **Consumption** for production API (`ssd-pocpk-aca-api-dev-ae`, minReplicas **0** / max 2 — scale to zero; see [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303)), App Service **B1** only while dual-run/custom-domain cutover remains, SWA **Free** x2 (app + marketing production), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API + web PR previews + OpenFGA).
+- **Cost:** cheapest SKUs that still work - Neon (PoC) / Azure Database for PostgreSQL Flexible Server (shared), Container Apps **Consumption** for production API (`ssd-pocpk-aca-api-dev-ae`, minReplicas **0** / max 2 — scale to zero), SWA **Free** x2 (app + marketing production), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API + web PR previews + OpenFGA).
 - **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` -> e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`, `ssd-pocpk-mkt-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
 
@@ -186,7 +186,7 @@ Public hostnames under `singletonsd.com` (DNS stays in **AWS**; Azure only gets 
 | --- | --- | --- |
 | `plattform-kit.poc.singletonsd.com` | Marketing | SWA `ssd-pocpk-mkt-dev-ae` (Free) |
 | `app.plattform-kit.poc.singletonsd.com` | Web app (PWA/SPA) | SWA `pocpk-web-si5fhs6dvxiha` (Free) |
-| `api.plattform-kit.poc.singletonsd.com` | Nest API | Container Apps `ssd-pocpk-aca-api-dev-ae` (Consumption; dual-run App Service `pocpk-api-si5fhs6dvxiha` until DNS cutover — [`docs/aca-api-cutover-303.md`](./docs/aca-api-cutover-303.md)) |
+| `api.plattform-kit.poc.singletonsd.com` | Nest API | Container Apps `ssd-pocpk-aca-api-dev-ae` (Consumption; see [`docs/aca-api-cutover-303.md`](./docs/aca-api-cutover-303.md)) |
 
 PR / preview URLs stay on Azure defaults (`*.azurestaticapps.net` for marketing SWA and production web, `*.azurecontainerapps.io` for API and web PR previews) - no custom preview domains. API CORS / Auth.js redirects allow this repo's SWA instance prefixes (`https://kind-rock-0f409fe00*.azurestaticapps.net`, marketing SWA likewise) plus ACA web preview hosts (`ssd-pocpk-aca-web-pr-<n>-ae`) via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Entra Auth.js callback stays on the API host; MSAL SPA redirect URIs need exact preview origins (no Entra wildcard).
 
@@ -198,10 +198,10 @@ After Azure default hostnames are known (see provisioned table / `az` outputs):
 | --- | --- | --- |
 | `plattform-kit.poc` | CNAME | marketing SWA default hostname |
 | `app.plattform-kit.poc` | CNAME | web SWA default hostname (e.g. `kind-rock-....azurestaticapps.net`) |
-| `api.plattform-kit.poc` | CNAME | ACA FQDN for `ssd-pocpk-aca-api-dev-ae` (during dual-run may still be `pocpk-api-si5fhs6dvxiha.azurewebsites.net`) |
-| (as prompted by Azure) | TXT | SWA / ACA / App Service domain validation |
+| `api.plattform-kit.poc` | CNAME | ACA FQDN for `ssd-pocpk-aca-api-dev-ae` |
+| (as prompted by Azure) | TXT | SWA / ACA domain validation |
 
-Then bind custom domains + managed certs in Azure (`az staticwebapp hostname set`, App Service managed certificate). Do not move the zone to Azure DNS.
+Then bind custom domains + managed certs in Azure (`az staticwebapp hostname set`, Container App hostname bind). Do not move the zone to Azure DNS.
 
 Exact live CNAME/TXT values and reusable apply scripts:
 [`docs/dns-route53.md`](./docs/dns-route53.md) / [`infra/custom-domains.pocpk.json`](./infra/custom-domains.pocpk.json).
@@ -218,8 +218,7 @@ Copy the JSON config to onboard another domain later (see `docs/dns-route53.md`)
 | Kind | Name | URL / notes | SKU |
 | --- | --- | --- | --- |
 | Neon PostgreSQL (PoC) | project `round-union-05852948` / `neondb` | Key Vault `database-url` (+ `database-url-unpooled`); Azure SQL removed ([#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292)) | Neon |
-| App Service Plan + API (dual-run) | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | custom domain until cutover (`....azurewebsites.net`) | **B1** |
-| Container App (API production) | `ssd-pocpk-aca-api-dev-ae` | ACA default hostname; custom domain after cutover | Consumption min0/max2 |
+| Container App (API production) | `ssd-pocpk-aca-api-dev-ae` | https://api.plattform-kit.poc.singletonsd.com | Consumption min0/max2 |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | https://app.plattform-kit.poc.singletonsd.com (default: `....azurestaticapps.net`) | Free |
 | Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | https://plattform-kit.poc.singletonsd.com (PR previews need `stagingEnvironmentPolicy=Enabled`) | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
@@ -266,7 +265,7 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID (app resources; OIDC login default) |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (marketing SWA preview), **Contributor** on RG (ACA API production + API/web preview deploy), optional **Website Contributor** on `pocpk-api-si5fhs6dvxiha` only while App Service dual-run remains, **Key Vault Secrets User** on `ssd-pocpk-kv-dev-ae` (app runtime + `acr-admin-*`), **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (org CI secrets — cross-subscription), **App Configuration Data Reader**. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (marketing SWA preview), **Contributor** on RG (ACA API production + API/web preview deploy), **Key Vault Secrets User** on `ssd-pocpk-kv-dev-ae` (app runtime + `acr-admin-*`), **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (org CI secrets — cross-subscription), **App Configuration Data Reader**. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 

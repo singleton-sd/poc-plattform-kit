@@ -12,7 +12,6 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Resource | PoC SKU | Notes |
 | --- | --- | --- |
 | Neon PostgreSQL | Neon Free / Launch | PoC relational DB (`neondb`); not provisioned by this Bicep — set KV `database-url*` |
-| App Service Plan | **B1** | **Dual-run / legacy** until [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) cutover — custom domain may still point here |
 | Static Web Apps | **Free** ×2 | App (`pocpk-web-…`) + marketing (`ssd-pocpk-mkt-dev-ae`); region often `eastasia` for Free |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
@@ -47,7 +46,6 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Key Vault | `ssd-pocpk-kv-dev-ae` | (CAF) | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | (CAF) | Free |
 | Neon PostgreSQL | project `round-union-05852948` / DB `neondb` | — | Neon (outside Azure) |
-| App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | legacy until [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) DNS cutover | **B1** |
 | Container App (API production) | `ssd-pocpk-aca-api-dev-ae` | (CAF) | Consumption (min 0 / max 2) |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
 | Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | (CAF) | Free |
@@ -130,7 +128,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | --- | --- |
 | `plattform-kit.poc.singletonsd.com` | Marketing SWA `ssd-pocpk-mkt-dev-ae` |
 | `app.plattform-kit.poc.singletonsd.com` | App SWA `pocpk-web-si5fhs6dvxiha` |
-| `api.plattform-kit.poc.singletonsd.com` | App Service `pocpk-api-…` during dual-run; cut over to `ssd-pocpk-aca-api-dev-ae` per [`docs/aca-api-cutover-303.md`](../docs/aca-api-cutover-303.md) |
+| `api.plattform-kit.poc.singletonsd.com` | Container App `ssd-pocpk-aca-api-dev-ae` (see [`docs/aca-api-cutover-303.md`](../docs/aca-api-cutover-303.md)) |
 
 DNS: AWS Route53 CNAMEs (+ Azure validation TXT). See `SETUP.md`.
 
@@ -192,7 +190,7 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 | --- | --- |
 | Image | `openfga/openfga:v1.18.3` (pin in `infra/openfga.bicep`) |
 | Datastore | **PostgreSQL** on **Neon** (`openfga` database on branch `production`). Deploy script upserts pooled + direct URIs into Key Vault (`openfga-database-url`, `openfga-database-url-unpooled`) and passes them to ACA as secrets. Init container runs `openfga migrate`; runtime uses pooled URI. Single replica (`minReplicas=1` / `maxReplicas=1`) for PoC. Portable to Azure Database for PostgreSQL Flexible Server by swapping the connection string. |
-| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://{tenantId}/ssd-pocpk-openfga` (assignment-required; bare `api://ssd-pocpk-openfga` is blocked by verified-domain URI policy). Nest API production MI is the sole `OpenFga.Access` assignee — App Service during dual-run (`./infra/deploy-openfga.sh --api-identity webapp`); Container App `ssd-pocpk-aca-api-dev-ae` after cutover (`--api-identity containerapp`). Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
+| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://{tenantId}/ssd-pocpk-openfga` (assignment-required; bare `api://ssd-pocpk-openfga` is blocked by verified-domain URI policy). Nest API production Container App MI (`ssd-pocpk-aca-api-dev-ae`) is the sole `OpenFga.Access` assignee (`./infra/deploy-openfga.sh --api-identity containerapp`). Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
 | Model | `infra/openfga/model.fga` (+ `model.json` for API push) — `user` (`manager` direct + `in_manager_chain` transitive), `tenant` roles/actions as `[user, user with not_yet_expired]`, `one_time_grant` marker, condition `not_yet_expired` |
 | Bootstrap | `./infra/deploy-openfga.sh` (idempotent: Bicep + Entra + store/model + App Config `app:openfga:*`) |
 
@@ -251,7 +249,7 @@ az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url-unpo
 
 `deploy.sh` only upserts local `DATABASE_URL*` when the scheme is `postgresql://` / `postgres://` (rejects leftover `sqlserver://` values from older deploys). `migrate-db.sh` fails closed if `database-url-unpooled` is missing.
 
-Production Container App resolves Neon via App Configuration `secret:database-url` + managed identity (do **not** set preview SQLite `DATABASE_URL` on prod). App Service (dual-run) still resolves `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Azure SQL server/DB and `sql-admin-password` were removed in the [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292) cutover (see [`docs/neon-cutover-292.md`](../docs/neon-cutover-292.md)).
+Production Container App resolves Neon via App Configuration `secret:database-url` + managed identity (do **not** set preview SQLite `DATABASE_URL` on prod). Azure SQL server/DB and `sql-admin-password` were removed in the [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292) cutover (see [`docs/neon-cutover-292.md`](../docs/neon-cutover-292.md)). App Service B1 was removed from IaC in [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303).
 
 ```bash
 ./infra/migrate-db.sh --what-if
@@ -265,13 +263,12 @@ Production Container App resolves Neon via App Configuration `secret:database-ur
 | --- | --- |
 | Local | `az keyvault secret show` / App Config (optional `.env` cache) |
 | GitHub Actions | OIDC → Azure login → Key Vault / App Config / ACR / ACA at runtime |
-| App Service / SWA / ACA | App Configuration provider + `@Microsoft.KeyVault(...)` / KV refs via MI |
+| SWA / ACA | App Configuration provider + KV refs via MI |
 
-**App Service secret app settings (IaC only):** `DATABASE_URL` is set in `main.bicep` as
-`@Microsoft.KeyVault(SecretUri=https://{keyVaultName}.vault.azure.net/secrets/database-url/)`
-so the platform injects the value via the web app’s system-assigned identity (Key Vault
-Secrets User). Never write this in `deploy-api.yml` (appsettings changes restart SCM and
-abort OneDeploy). Apply one-off live updates with `az webapp config appsettings set`
-outside the zip-deploy job, then keep Bicep in sync.
+**Production API secrets:** Nest loads App Configuration with the Container App
+system-assigned identity (Key Vault Secrets User + App Configuration Data Reader
+from `container-apps-api-prod.bicep`). Do not set `DATABASE_URL` in the container
+env for production — let `secret:database-url` resolve. Preview apps override
+`DATABASE_URL` to SQLite explicitly.
 
 Do not paste secrets into ClickUp, GitHub Secrets, or git.

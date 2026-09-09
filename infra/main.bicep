@@ -31,10 +31,6 @@ param appConfigSku string = 'Free'
 @description('Object ID of deployer/user to grant Key Vault Administrator (empty skips role)')
 param deployerObjectId string = ''
 
-@description('App Service Plan SKU — B1 required for custom-domain managed TLS + always-on')
-@allowed(['F1', 'B1'])
-param appServiceSku string = 'B1'
-
 @description('Static Web Apps SKU')
 @allowed(['Free', 'Standard'])
 param staticWebAppSku string = 'Free'
@@ -63,12 +59,9 @@ var roleKeyVaultAdministrator = '00482a5a-887f-4fb3-b363-3b7fe8e74483'
 var roleKeyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
-var appPlanName = '${namePrefix}-plan'
-var webAppName = '${namePrefix}-api-${uniqueSuffix}'
 var swaName = '${namePrefix}-web-${uniqueSuffix}'
 var serviceBusName = '${namePrefix}-sb-${uniqueSuffix}'
 var deployAlerts = !empty(alertEmail)
-var enableAlwaysOn = appServiceSku == 'B1'
 
 // Aligns with packages/events topicForPillar(): `{pillar}.events`
 var eventTopics = [
@@ -90,20 +83,8 @@ var jobQueues = [
 
 // Relational database: Neon PostgreSQL (not provisioned in this template).
 // Human sets Key Vault secrets `database-url` (pooled) and `database-url-unpooled`
-// (direct) — App Service resolves DATABASE_URL via the KV reference below.
-// Azure SQL removal from live subscription is #292 after cutover validation.
-
-resource appPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: appPlanName
-  location: location
-  sku: {
-    name: appServiceSku
-  }
-  kind: 'linux'
-  properties: {
-    reserved: true
-  }
-}
+// (direct). Production Nest API on Container Apps resolves them via App Configuration
+// + managed identity (see infra/container-apps-api-prod.bicep / #303).
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logAnalyticsWorkspaceName
@@ -215,70 +196,6 @@ resource failedRequestAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' 
   }
 }
 
-resource webApp 'Microsoft.Web/sites@2023-12-01' = {
-  name: webAppName
-  location: location
-  kind: 'app,linux'
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    serverFarmId: appPlan.id
-    httpsOnly: true
-    siteConfig: {
-      linuxFxVersion: 'NODE|20-lts'
-      // Prebuilt zip from deploy-api.yml (CI builds dist). Oryx remote nest
-      // build fails without tsconfig in the package — keep this false.
-      appCommandLine: 'node dist/main.js'
-      alwaysOn: enableAlwaysOn
-      ftpsState: 'Disabled'
-      minTlsVersion: '1.2'
-      appSettings: [
-        {
-          name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~20'
-        }
-        {
-          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'false'
-        }
-        {
-          // Belt-and-suspenders with SCM_DO_BUILD_DURING_DEPLOYMENT — set in IaC only.
-          // Never flip these in deploy-api.yml right before zip (SCM restart aborts deploy).
-          name: 'ENABLE_ORYX_BUILD'
-          value: 'false'
-        }
-        {
-          name: 'AZURE_SERVICEBUS_NAMESPACE'
-          value: serviceBusName
-        }
-        {
-          name: 'AZURE_APPCONFIGURATION_ENDPOINT'
-          value: appConfig.properties.endpoint
-        }
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: applicationInsights.properties.ConnectionString
-        }
-        {
-          // Resolved by App Service via system-assigned MI (Key Vault Secrets User).
-          // Do not set this in deploy-api.yml — appsettings writes restart SCM and abort zip deploy.
-          name: 'DATABASE_URL'
-          value: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}.vault.azure.net/secrets/database-url/)'
-        }
-        {
-          name: 'CORS_ORIGINS'
-          value: 'https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com,https://kind-rock-0f409fe00*.azurestaticapps.net,https://purple-field-05048bf00*.azurestaticapps.net'
-        }
-        {
-          name: 'NEXT_PUBLIC_API_BASE_URL'
-          value: 'https://api.plattform-kit.poc.singletonsd.com'
-        }
-      ]
-    }
-  }
-}
-
 resource staticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
   name: swaName
   location: swaLocation
@@ -381,15 +298,8 @@ resource kvAdminRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (
   }
 }
 
-resource kvApiSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, webApp.id, roleKeyVaultSecretsUser)
-  scope: keyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleKeyVaultSecretsUser)
-    principalId: webApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Nest API production MI (Container App) is granted KV + App Config roles in
+// container-apps-api-prod.bicep — not here.
 
 // CAF App Configuration — non-secret config + Key Vault references for secret values.
 // Free SKU for PoC. Apps load via managed identity + App Configuration provider.
@@ -408,18 +318,7 @@ resource appConfig 'Microsoft.AppConfiguration/configurationStores@2024-05-01' =
   }
 }
 
-var roleAppConfigDataReader = '516239f1-63e1-4d78-a4de-a74fb236a071'
 var roleAppConfigDataOwner = '5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b'
-
-resource appConfigApiDataReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(appConfig.id, webApp.id, roleAppConfigDataReader)
-  scope: appConfig
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAppConfigDataReader)
-    principalId: webApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
 
 resource kvAppConfigSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(keyVault.id, appConfig.id, roleKeyVaultSecretsUser)
@@ -444,16 +343,12 @@ resource appConfigDeployerOwner 'Microsoft.Authorization/roleAssignments@2022-04
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output swaLocation string = swaLocation
-output webAppName string = webApp.name
-output webAppHostname string = webApp.properties.defaultHostName
-output webAppPrincipalId string = webApp.identity.principalId
 output staticWebAppName string = staticWebApp.name
 output staticWebAppHostname string = staticWebApp.properties.defaultHostname
 output marketingStaticWebAppName string = marketingStaticWebApp.name
 output marketingStaticWebAppHostname string = marketingStaticWebApp.properties.defaultHostname
 output serviceBusNamespaceName string = serviceBusNamespace.name
 output serviceBusTopics array = eventTopics
-output appServicePlanName string = appPlan.name
 output subscriptionModuleName string = topicSubs.name
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
@@ -464,3 +359,4 @@ output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
 output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.id
 output applicationInsightsName string = applicationInsights.name
 output applicationInsightsId string = applicationInsights.id
+output apiContainerAppNameHint string = 'ssd-pocpk-aca-api-dev-ae'

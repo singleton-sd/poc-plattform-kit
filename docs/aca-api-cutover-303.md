@@ -51,7 +51,7 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
    - `api.plattform-kit.poc` CNAME → ACA FQDN (not `*.azurewebsites.net`)
    - Validation TXT as prompted
 4. Update [`infra/custom-domains.pocpk.json`](../infra/custom-domains.pocpk.json)
-   record value + binding `kind` to `containerapp` (cutover PR).
+   CNAME/TXT placeholders with the live ACA FQDN and verification id.
 5. Optional repo Variable `API_PRODUCTION_BASE_URL=https://api.plattform-kit.poc.singletonsd.com`
    so `deploy-api.yml` smokes the custom host.
 6. Reassign OpenFGA:
@@ -59,8 +59,21 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
    ./infra/deploy-openfga.sh --api-identity containerapp
    ```
 7. Confirm `https://api.plattform-kit.poc.singletonsd.com/health` and `/health/db`.
-8. Only then delete live App Service + B1 plan (`pocpk-api-si5fhs6dvxiha` /
-   `pocpk-plan`) and merge the IaC removal PR.
+
+## Human delete of live App Service (after DNS cutover)
+
+IaC no longer provisions App Service. After custom domain works on ACA:
+
+```bash
+# Confirm custom domain first!
+curl -sS https://api.plattform-kit.poc.singletonsd.com/health
+curl -sS https://api.plattform-kit.poc.singletonsd.com/health/db
+
+az webapp delete -g rg-poc-plattform-kit -n pocpk-api-si5fhs6dvxiha --yes
+az appservice plan delete -g rg-poc-plattform-kit -n pocpk-plan --yes
+```
+
+Do **not** run those deletes until Route53 + ACA hostname bind are verified.
 
 ## Files
 

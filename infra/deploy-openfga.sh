@@ -40,8 +40,8 @@ NEON_OPENFGA_DATABASE="${NEON_OPENFGA_DATABASE:-openfga}"
 APP_CONFIG_NAME="${APP_CONFIG_NAME:-ssd-pocpk-appcs-dev-ae}"
 API_WEBAPP_NAME="${API_WEBAPP_NAME:-pocpk-api-si5fhs6dvxiha}"
 API_CONTAINER_APP_NAME="${API_CONTAINER_APP_NAME:-ssd-pocpk-aca-api-dev-ae}"
-# Dual-run default: webapp (custom domain still on App Service). Cutover flips to containerapp.
-API_IDENTITY_SOURCE="${API_IDENTITY_SOURCE:-webapp}"
+# Dual-run default was webapp; after App Service removal, default to containerapp.
+API_IDENTITY_SOURCE="${API_IDENTITY_SOURCE:-containerapp}"
 OPENFGA_IMAGE_TAG="${OPENFGA_IMAGE_TAG:-v1.18.3}"
 OPENFGA_AUDIENCE="${OPENFGA_AUDIENCE:-api://9a0e57d7-e58e-4e8b-814d-037cd7d9015c/ssd-pocpk-openfga}"
 OPENFGA_APP_DISPLAY_NAME="${OPENFGA_APP_DISPLAY_NAME:-ssd-pocpk-openfga}"

@@ -248,7 +248,6 @@ deploy_out="$(
       "appConfigName=$APP_CONFIG_NAME" \
       "appConfigSku=Free" \
       "deployerObjectId=${deployer_object_id:-}" \
-      "appServiceSku=B1" \
       "alertEmail=$ALERT_EMAIL" \
     --output json
 )"
@@ -268,17 +267,16 @@ def val(name):
     v = node.get("value")
     return "" if v is None else str(v)
 mapping = {
-    "API_HOST": "webAppHostname",
     "SWA_HOST": "staticWebAppHostname",
     "MARKETING_SWA_HOST": "marketingStaticWebAppHostname",
     "SB_NS": "serviceBusNamespaceName",
-    "WEB_APP_NAME": "webAppName",
     "SWA_NAME": "staticWebAppName",
     "MARKETING_SWA_NAME": "marketingStaticWebAppName",
     "KV_NAME_OUT": "keyVaultName",
     "APP_CONFIG_OUT": "appConfigName",
     "APP_CONFIG_ENDPOINT": "appConfigEndpoint",
     "APP_INSIGHTS_NAME_OUT": "applicationInsightsName",
+    "API_CONTAINER_APP_HINT": "apiContainerAppNameHint",
 }
 for var, key in mapping.items():
     print(f"{var}={shlex.quote(val(key))}")
@@ -288,6 +286,12 @@ PY
 KV_NAME_OUT="${KV_NAME_OUT:-$KEY_VAULT_NAME}"
 APP_CONFIG_OUT="${APP_CONFIG_OUT:-$APP_CONFIG_NAME}"
 APP_INSIGHTS_NAME_OUT="${APP_INSIGHTS_NAME_OUT:-ssd-pocpk-appi-dev-ae}"
+WEB_APP_NAME="${API_CONTAINER_APP_HINT:-ssd-pocpk-aca-api-dev-ae}"
+API_HOST="$(az containerapp show -n "$WEB_APP_NAME" -g "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null || true)"
+if [[ -z "$API_HOST" ]]; then
+  echo "note: Container App $WEB_APP_NAME not found yet — run ./infra/deploy-aca-api.sh after this deploy"
+  API_HOST='(pending-aca-api)'
+fi
 
 database_url="$(assert_postgres_url DATABASE_URL "$(read_dotenv_value "$ENV_FILE" DATABASE_URL 2>/dev/null || true)")"
 database_url_unpooled="$(assert_postgres_url DATABASE_URL_UNPOOLED "$(read_dotenv_value "$ENV_FILE" DATABASE_URL_UNPOOLED 2>/dev/null || true)")"
@@ -482,9 +486,9 @@ SubscriptionId:            $SUBSCRIPTION_ID
 ResourceGroup:             $RESOURCE_GROUP
 Location:                  $LOCATION
 Database:                  Neon PostgreSQL (Key Vault database-url)
-AppService:                $WEB_APP_NAME
-AppServiceUrl:             $PUBLIC_API_URL
-AppServiceDefaultHost:     https://$API_HOST
+AppContainerApp:           $WEB_APP_NAME
+ApiCustomUrl:              $PUBLIC_API_URL
+ApiDefaultHost:            https://$API_HOST
 StaticWebApp:              $SWA_NAME
 StaticWebAppUrl:           $PUBLIC_APP_URL
 StaticWebAppDefaultHost:   https://$SWA_HOST
@@ -503,13 +507,13 @@ cat <<'EOF'
 
 Next steps:
   1. AWS Route53: CNAME marketing/app/api hostnames → Azure defaults (+ TXT validation)
-  2. Bind custom domains + managed certs on SWAs and App Service (B1)
+  2. Bind custom domains + managed certs on SWAs; API custom domain on Container App (see docs/aca-api-cutover-303.md)
   3. Entra app registration (SPA + API) — secrets in Key Vault; config in App Config
   4. Neon: ./scripts/neon-env-pull.sh then upsert DATABASE_URL* into Key Vault (database-url / database-url-unpooled)
   5. Confirm GitHub Variables AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID (OIDC)
-  6. Wire App Service / SWA / ACA to App Configuration provider + managed identity
+  6. Wire SWA / ACA to App Configuration provider + managed identity
   7. ./infra/migrate-db.sh against Neon (Prisma postgresql)
   8. Never store deploy tokens or connection strings in GitHub Secrets
-  9. Neon cutover + Azure SQL decommission recorded in docs/neon-cutover-292.md (#292)
+  9. Production API: ./infra/deploy-aca-api.sh + deploy-api.yml (Container Apps Consumption)
 
 EOF

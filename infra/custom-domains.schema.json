@@ -36,12 +36,12 @@
         "type": "object",
         "required": ["kind", "resourceName", "hostname"],
         "properties": {
-          "kind": { "type": "string", "enum": ["swa", "appservice"] },
+          "kind": { "type": "string", "enum": ["swa", "appservice", "containerapp"] },
           "resourceName": { "type": "string" },
           "hostname": { "type": "string" },
           "managedCert": {
             "type": "boolean",
-            "description": "App Service only — create + bind managed cert (SNI)"
+            "description": "App Service or Container Apps — create + bind managed cert when supported"
           },
           "resourceGroup": { "type": "string" }
         }
