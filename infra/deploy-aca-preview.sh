@@ -83,6 +83,9 @@ step 'Ensuring Microsoft.App / ContainerRegistry providers are registered'
 for ns in Microsoft.App Microsoft.ContainerRegistry Microsoft.OperationalInsights; do
   state="$(az provider show -n "$ns" --query registrationState -o tsv 2>/dev/null || echo Unknown)"
   if [[ "$state" != "Registered" ]]; then
+    if [[ "$WHAT_IF" -eq 1 ]]; then
+      die "$ns is not registered. Register it before running --what-if (az provider register -n $ns --wait)."
+    fi
     echo "Registering $ns (current: $state)..."
     az provider register -n "$ns" --wait >/dev/null
   else
@@ -148,12 +151,23 @@ PY
 
 set_kv_secret() {
   local name="$1" value="$2"
-  [[ -n "${value:-}" ]] || return 0
-  if az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$name" --value "$value" -o none; then
+  local tmp
+  [[ -n "${value:-}" ]] || die "Missing required value for $name."
+  tmp="$(mktemp "${TMPDIR:-/tmp}/pocpk-kv.XXXXXX")"
+  # shellcheck disable=SC2064
+  trap "rm -f '$tmp'" RETURN
+  umask 077
+  printf '%s' "$value" >"$tmp"
+  chmod 600 "$tmp"
+  if az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$name" --file "$tmp" -o none; then
     echo "  set $name"
   else
-    echo "  warning: Failed to set $name (check RBAC)" >&2
+    rm -f "$tmp"
+    trap - RETURN
+    die "Failed to set $name in Key Vault $KEY_VAULT_NAME."
   fi
+  rm -f "$tmp"
+  trap - RETURN
 }
 
 set_kv_secret 'acr-admin-username' "$acr_user"

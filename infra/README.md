@@ -215,8 +215,22 @@ az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
 
 ```bash
 ./scripts/neon-env-pull.sh   # writes DATABASE_URL / DATABASE_URL_UNPOOLED to repo-root .env
-az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url --file <(printenv DATABASE_URL)
-# or: az keyvault secret set --vault-name … --name database-url --value "$DATABASE_URL"
+# Parse .env without sourcing (passwords may contain $ / spaces); reject empty values:
+DATABASE_URL="$(python3 - <<'PY'
+import pathlib, re, sys
+text = pathlib.Path(".env").read_text(encoding="utf-8", errors="replace")
+m = re.search(r"(?m)^\s*DATABASE_URL\s*=\s*(.*)\s*$", text)
+sys.exit(1) if not m or not m.group(1).strip() else print(m.group(1).strip().strip("'\""))
+PY
+)"
+DATABASE_URL_UNPOOLED="$(python3 - <<'PY'
+import pathlib, re, sys
+text = pathlib.Path(".env").read_text(encoding="utf-8", errors="replace")
+m = re.search(r"(?m)^\s*DATABASE_URL_UNPOOLED\s*=\s*(.*)\s*$", text)
+sys.exit(1) if not m or not m.group(1).strip() else print(m.group(1).strip().strip("'\""))
+PY
+)"
+az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url --value "$DATABASE_URL"
 az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url-unpooled --value "$DATABASE_URL_UNPOOLED"
 # Prisma Migrate / packages/db scripts read packages/db/.env — use migrate-db.sh to pull KV → that file
 ```

@@ -78,14 +78,18 @@ fi
 
 if [[ "$WHAT_IF" -eq 1 ]]; then
   echo "WhatIf: would write gitignored packages/db/.env (DATABASE_URL length=${#database_url}; UNPOOLED length=${#database_url_unpooled})"
-  echo 'WhatIf: would run: pnpm exec prisma migrate deploy (cwd packages/db)'
+  if [[ "$STATUS_ONLY" -eq 1 ]]; then
+    echo 'WhatIf: would run: pnpm exec prisma migrate status (cwd packages/db)'
+  else
+    echo 'WhatIf: would run: pnpm exec prisma migrate deploy (cwd packages/db)'
+  fi
   unset database_url database_url_unpooled
   exit 0
 fi
 
 step 'Writing gitignored packages/db/.env (values not logged)'
 umask 077
-tmp_env="$(mktemp)"
+tmp_env="$(mktemp "${TMPDIR:-/tmp}/pocpk-db-env.XXXXXX")"
 trap 'rm -f "$tmp_env"' EXIT
 printf 'DATABASE_URL=%s\nDATABASE_URL_UNPOOLED=%s\n' "$database_url" "$database_url_unpooled" >"$tmp_env"
 chmod 600 "$tmp_env"

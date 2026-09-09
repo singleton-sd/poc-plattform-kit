@@ -64,13 +64,13 @@ pnpm --filter @poc-plattform-kit/api start:dev
 
 Deploy alerts:
 
-```powershell
+```bash
 ./infra/deploy.sh --alert-email you@example.com
 ```
 
 Pass `alertEmail` via:
 
-```powershell
+```bash
 az deployment group create ... --parameters alertEmail=you@example.com
 ```
 
