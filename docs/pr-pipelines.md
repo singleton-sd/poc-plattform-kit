@@ -33,8 +33,7 @@ Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use 
 
 If OIDC Variables are missing, `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` and `preview-web.yml` **fail fast** with a clear error until Variables + RBAC are configured.
 
-`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Optional Variable `API_PRODUCTION_BASE_URL` overrides smoke-test host (defaults to the ACA FQDN; set to `https://api.plattform-kit.poc.singletonsd.com` after custom-domain cutover).
-
+`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Deploy smoke always uses the ACA ingress FQDN (never the custom domain); verify the custom domain separately after DNS cutover.
 ### OIDC subject forms (Entra FIC)
 
 GitHub may emit **ID-form** OIDC subjects such as `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` (and the matching `:ref:refs/heads/main` form). The Entra federated identity credential **subject must match that `sub` claim exactly**. Classic subjects (`repo:org/repo:pull_request`) can remain on the app registration for compatibility when tokens still use them.

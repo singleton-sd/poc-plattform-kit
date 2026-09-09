@@ -51,9 +51,15 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
    - `api.plattform-kit.poc` CNAME → ACA FQDN (not `*.azurewebsites.net`)
    - Validation TXT as prompted
 4. Update [`infra/custom-domains.pocpk.json`](../infra/custom-domains.pocpk.json)
+<<<<<<< HEAD
    CNAME/TXT placeholders with the live ACA FQDN and verification id.
 5. Optional repo Variable `API_PRODUCTION_BASE_URL=https://api.plattform-kit.poc.singletonsd.com`
    so `deploy-api.yml` smokes the custom host.
+=======
+   record value + binding `kind` to `containerapp` (cutover PR).
+5. Manually smoke the custom host (`curl …/health` and `/health/db`). Deploy
+   workflow always smokes the ACA FQDN only (avoids dual-run false positives).
+>>>>>>> e965889580e445d80989542ced40dbcefc365206
 6. Reassign OpenFGA:
    ```bash
    ./infra/deploy-openfga.sh --api-identity containerapp
