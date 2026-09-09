@@ -286,7 +286,8 @@ PY
 KV_NAME_OUT="${KV_NAME_OUT:-$KEY_VAULT_NAME}"
 APP_CONFIG_OUT="${APP_CONFIG_OUT:-$APP_CONFIG_NAME}"
 APP_INSIGHTS_NAME_OUT="${APP_INSIGHTS_NAME_OUT:-ssd-pocpk-appi-dev-ae}"
-WEB_APP_NAME="${API_CONTAINER_APP_HINT:-ssd-pocpk-aca-api-dev-ae}"
+# Prefer explicit env (must match deploy-aca-api.sh --app-name if overridden), then Bicep hint.
+WEB_APP_NAME="${API_CONTAINER_APP_NAME:-${API_CONTAINER_APP_HINT:-ssd-pocpk-aca-api-dev-ae}}"
 API_HOST="$(az containerapp show -n "$WEB_APP_NAME" -g "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null || true)"
 if [[ -z "$API_HOST" ]]; then
   echo "note: Container App $WEB_APP_NAME not found yet — run ./infra/deploy-aca-api.sh after this deploy"
