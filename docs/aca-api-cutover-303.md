@@ -22,7 +22,9 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
 ## Human steps (dual-run)
 
 1. Ensure CAE + ACR exist: `./infra/deploy-aca-preview.sh`
-2. Build once locally or via Actions, then provision the prod app:
+2. Ensure Application Insights `ssd-pocpk-appi-dev-ae` exists (workspace-based on
+   `ssd-pocpk-law-dev-ae`) — production ACA Bicep references it as `existing`.
+3. Build once locally or via Actions, then provision the prod app:
    ```bash
    # After an image exists in ACR (or let deploy-api.yml create it):
    ./infra/deploy-aca-api.sh --image ssdpocpkacrdevae.azurecr.io/pocpk-api:<sha>

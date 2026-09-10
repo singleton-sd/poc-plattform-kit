@@ -107,8 +107,14 @@ foreach ($b in $config.bindings) {
       }
       $wantCert = (-not $SkipManagedCert) -and ($b.managedCert -eq $true)
       if ($wantCert) {
-        Write-Host "==> Managed certificate bind for $hostName (ACA)"
-        az containerapp hostname bind -n $name -g $rg --hostname $hostName --validation-method CNAME
+        $envName = if ($b.PSObject.Properties['environmentName'] -and $b.environmentName) {
+          [string]$b.environmentName
+        } else {
+          'ssd-pocpk-cae-dev-ae'
+        }
+        Write-Host "==> Managed certificate bind for $hostName (ACA env $envName)"
+        # Managed certs require --environment; without it az fails with "specify --certificate and --environment".
+        az containerapp hostname bind -n $name -g $rg --hostname $hostName --environment $envName --validation-method CNAME
         if ($LASTEXITCODE -ne 0) {
           throw "ACA hostname/certificate bind failed for $hostName. Fix DNS validation and re-run (or pass -SkipManagedCert). See docs/aca-api-cutover-303.md"
         }
