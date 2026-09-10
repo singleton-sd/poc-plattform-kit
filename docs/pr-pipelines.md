@@ -36,7 +36,7 @@ If OIDC Variables are missing, `preview-marketing.yml` / `deploy-web.yml` / `dep
 <<<<<<< Updated upstream
 `deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Deploy smoke always uses the ACA ingress FQDN (never the custom domain); verify the custom domain separately after DNS cutover.
 =======
-`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Deploy smoke always uses the ACA ingress FQDN (never the custom domain) so dual-run cannot pass against legacy App Service; verify the custom domain separately after DNS cutover.
+`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Deploy smoke always uses the ACA ingress FQDN (never the custom domain); verify the custom domain separately after DNS changes.
 
 >>>>>>> Stashed changes
 ### OIDC subject forms (Entra FIC)
