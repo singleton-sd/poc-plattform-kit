@@ -2,6 +2,20 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.25.0 — 2026-09-10
+
+### New
+
+- add production API Container Apps alongside App Service
+
+  Introduce ssd-pocpk-aca-api-dev-ae on the shared CAE/ACR, multi-target
+
+### Fixed
+
+- add missing reason on 0.24.1 changelog entry
+
+  ChangelogController tests require a reason on the latest release change.
+
 ## 0.24.1 — 2026-09-09
 
 ### Fixed

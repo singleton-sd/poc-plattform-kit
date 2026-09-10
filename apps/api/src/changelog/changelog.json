@@ -2,6 +2,22 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.25.0",
+      "date": "2026-09-10",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "add production API Container Apps alongside App Service",
+          "reason": "Introduce ssd-pocpk-aca-api-dev-ae on the shared CAE/ACR, multi-target"
+        },
+        {
+          "type": "Fixed",
+          "summary": "add missing reason on 0.24.1 changelog entry",
+          "reason": "ChangelogController tests require a reason on the latest release change."
+        }
+      ]
+    },
+    {
       "version": "0.24.1",
       "date": "2026-09-09",
       "changes": [
