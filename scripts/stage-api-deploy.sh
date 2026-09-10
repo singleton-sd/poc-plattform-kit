@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Stage the App Service API zip the same way deploy-api.yml does.
+# Stage the Nest API deploy tree the same way the legacy App Service zip path did.
+# Production now uses apps/api/Dockerfile --target production (Container Apps).
+# Keep this script for local packaging / emergency App Service rollback until
+# pocpk-api-si5fhs6dvxiha is decommissioned (#303).
 # Run from repo root (Git Bash / WSL / Ubuntu CI). Not PowerShell.
 #
 # Usage:

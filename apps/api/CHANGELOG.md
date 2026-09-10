@@ -8,6 +8,8 @@ Release history for **@poc-plattform-kit/api**, generated from conventional comm
 
 - repair mangled Dockerfile Postgres comment
 
+  Keep the production PostgreSQL client comment intact after Neon cutover wording edits.
+
 ## 0.24.0 — 2026-09-01
 
 ### New

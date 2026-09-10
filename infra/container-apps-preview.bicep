@@ -12,8 +12,8 @@ param logAnalyticsName string = 'ssd-pocpk-law-dev-ae'
 @description('CAF Container Apps Environment name')
 param containerAppsEnvironmentName string = 'ssd-pocpk-cae-dev-ae'
 
-@description('Optional base Container App (placeholder until Nest image exists)')
-param baseContainerAppName string = 'ssd-pocpk-aca-api-dev-ae'
+@description('Optional placeholder Container App (do NOT use the production name ssd-pocpk-aca-api-dev-ae — that is owned by container-apps-api-prod.bicep)')
+param baseContainerAppName string = 'ssd-pocpk-aca-api-placeholder-dev-ae'
 
 @description('ACR name — alphanumeric only (Azure rule); CAF without hyphens')
 @minLength(5)

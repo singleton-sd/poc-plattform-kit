@@ -12,13 +12,14 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Resource | PoC SKU | Notes |
 | --- | --- | --- |
 | Neon PostgreSQL | Neon Free / Launch | PoC relational DB (`neondb`); not provisioned by this Bicep — set KV `database-url*` |
-| App Service Plan | **B1** | Required for custom-domain managed TLS + Nest always-on |
+| App Service Plan | **B1** | **Dual-run / legacy** until [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) cutover — custom domain may still point here |
 | Static Web Apps | **Free** ×2 | App (`pocpk-web-…`) + marketing (`ssd-pocpk-mkt-dev-ae`); region often `eastasia` for Free |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
 | App Configuration | **Free** | Non-secret config + KV references |
-| ACR | **Basic** | API PR images; alphanumeric name only |
-| Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero |
+| ACR | **Basic** | Production + API PR images; alphanumeric name only |
+| Container Apps (API production) | **Consumption** | Persistent `ssd-pocpk-aca-api-dev-ae`; 0.25/0.5Gi; **minReplicas 0** (scale to zero) / max 2 — see [`docs/aca-api-cutover-303.md`](../docs/aca-api-cutover-303.md) |
+| Container Apps (API previews) | **Consumption** | Ephemeral `ssd-pocpk-aca-pr-<n>-ae`; scale to zero; max 1 |
 | Container Apps (OpenFGA) | **Consumption** | `ssd-pocpk-openfga-dev-ae`; PostgreSQL on Neon (`openfga` database) |
 | Log Analytics | **PerGB2018** | 30-day retention; shared by CAE + App Insights |
 | Application Insights | **Workspace-based** | Shared BE+FE sink |
@@ -46,7 +47,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Key Vault | `ssd-pocpk-kv-dev-ae` | (CAF) | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | (CAF) | Free |
 | Neon PostgreSQL | project `round-union-05852948` / DB `neondb` | — | Neon (outside Azure) |
-| App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | `ssd-pocpk-plan-dev-ae` / `ssd-pocpk-api-dev-ae` | **B1** |
+| App Service Plan / API | `pocpk-plan` / `pocpk-api-si5fhs6dvxiha` | legacy until [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) DNS cutover | **B1** |
+| Container App (API production) | `ssd-pocpk-aca-api-dev-ae` | (CAF) | Consumption (min 0 / max 2) |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
 | Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | (CAF) | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `ssd-pocpk-sb-dev-ae` | Standard |
@@ -128,7 +130,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | --- | --- |
 | `plattform-kit.poc.singletonsd.com` | Marketing SWA `ssd-pocpk-mkt-dev-ae` |
 | `app.plattform-kit.poc.singletonsd.com` | App SWA `pocpk-web-si5fhs6dvxiha` |
-| `api.plattform-kit.poc.singletonsd.com` | App Service `pocpk-api-si5fhs6dvxiha` (B1) |
+| `api.plattform-kit.poc.singletonsd.com` | App Service `pocpk-api-…` during dual-run; cut over to `ssd-pocpk-aca-api-dev-ae` per [`docs/aca-api-cutover-303.md`](../docs/aca-api-cutover-303.md) |
 
 DNS: AWS Route53 CNAMEs (+ Azure validation TXT). See `SETUP.md`.
 
@@ -137,6 +139,18 @@ Also: non-secret notification provider URLs / WhatsApp phone-number-id / Graph A
 **How apps load config:** use the Azure App Configuration provider (or SDK) with **managed identity**. Resolve Key Vault references with the same (or app) identity that has **Key Vault Secrets User**. Do not embed secret values in App Config.
 
 **How CI loads secrets:** GitHub Actions OIDC (`azure/login` + Variables `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`) → `az keyvault secret show`. Never GitHub Secrets for tokens/passwords.
+
+### Production API (Container Apps)
+
+```bash
+az account set --subscription 7b8343d7-969f-4b71-8864-b7925e7fae30
+./infra/deploy-aca-api.sh --what-if --image ssdpocpkacrdevae.azurecr.io/pocpk-api:<sha>
+./infra/deploy-aca-api.sh --image ssdpocpkacrdevae.azurecr.io/pocpk-api:<sha>
+```
+
+Bicep: `container-apps-api-prod.bicep`. Workflow: `.github/workflows/deploy-api.yml` (`Dockerfile --target production`). Cutover: [`docs/aca-api-cutover-303.md`](../docs/aca-api-cutover-303.md).
+
+**Cost:** keep `minReplicas=0` (scale to zero). `minReplicas=1` is intentional always-on spend.
 
 ### API PR previews (Container Apps)
 
@@ -178,7 +192,7 @@ Fine-grained authZ lives in the **Permissions** pillar. PoC engine: **OpenFGA** 
 | --- | --- |
 | Image | `openfga/openfga:v1.18.3` (pin in `infra/openfga.bicep`) |
 | Datastore | **PostgreSQL** on **Neon** (`openfga` database on branch `production`). Deploy script upserts pooled + direct URIs into Key Vault (`openfga-database-url`, `openfga-database-url-unpooled`) and passes them to ACA as secrets. Init container runs `openfga migrate`; runtime uses pooled URI. Single replica (`minReplicas=1` / `maxReplicas=1`) for PoC. Portable to Azure Database for PostgreSQL Flexible Server by swapping the connection string. |
-| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://{tenantId}/ssd-pocpk-openfga` (assignment-required; bare `api://ssd-pocpk-openfga` is blocked by verified-domain URI policy). Nest API App Service system MI (`pocpk-api-si5fhs6dvxiha`) is the sole `OpenFga.Access` assignee. Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
+| AuthN | `OPENFGA_AUTHN_METHOD=oidc` → Entra app `api://{tenantId}/ssd-pocpk-openfga` (assignment-required; bare `api://ssd-pocpk-openfga` is blocked by verified-domain URI policy). Nest API production MI is the `OpenFga.Access` assignee — dual-run assigns **both** App Service + ACA (`./infra/deploy-openfga.sh --api-identity both`); after cutover use `--api-identity containerapp` for `ssd-pocpk-aca-api-dev-ae` only. Ephemeral PR ACA identities (`ssd-pocpk-aca-pr-<n>-ae`) are intentionally **not** assigned — preview `Check()` stays fail-closed until a follow-up widens that allowlist. |
 | Model | `infra/openfga/model.fga` (+ `model.json` for API push) — `user` (`manager` direct + `in_manager_chain` transitive), `tenant` roles/actions as `[user, user with not_yet_expired]`, `one_time_grant` marker, condition `not_yet_expired` |
 | Bootstrap | `./infra/deploy-openfga.sh` (idempotent: Bicep + Entra + store/model + App Config `app:openfga:*`) |
 
@@ -237,7 +251,7 @@ az keyvault secret set --vault-name ssd-pocpk-kv-dev-ae --name database-url-unpo
 
 `deploy.sh` only upserts local `DATABASE_URL*` when the scheme is `postgresql://` / `postgres://` (rejects leftover `sqlserver://` values from older deploys). `migrate-db.sh` fails closed if `database-url-unpooled` is missing.
 
-App Service continues to resolve `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Azure SQL server/DB and `sql-admin-password` were removed in the [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292) cutover (see [`docs/neon-cutover-292.md`](../docs/neon-cutover-292.md)).
+Production Container App resolves Neon via App Configuration `secret:database-url` + managed identity (do **not** set preview SQLite `DATABASE_URL` on prod). App Service (dual-run) still resolves `DATABASE_URL` from `@Microsoft.KeyVault(.../secrets/database-url/)`. Azure SQL server/DB and `sql-admin-password` were removed in the [#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292) cutover (see [`docs/neon-cutover-292.md`](../docs/neon-cutover-292.md)).
 
 ```bash
 ./infra/migrate-db.sh --what-if

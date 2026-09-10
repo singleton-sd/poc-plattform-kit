@@ -1,10 +1,14 @@
 #!/bin/sh
-# Preview-image entrypoint (see apps/api/Dockerfile). The image ships an
-# immutable, build-time-generated SQLite database template — this script
-# copies it to a writable runtime path on every container start, so a
-# redeploy (or a fresh cold start after scale-to-zero) always resets the
-# preview database back to its deterministic seeded state, and mutations
-# made during one container's lifetime never persist across restarts.
+# Preview-target entrypoint only (`docker build --target preview`).
+# Production (`--target production`) runs `node dist/main.js` directly and
+# never uses this script.
+#
+# The preview image ships an immutable, build-time-generated SQLite database
+# template — this script copies it to a writable runtime path on every
+# container start, so a redeploy (or a fresh cold start after scale-to-zero)
+# always resets the preview database back to its deterministic seeded state,
+# and mutations made during one container's lifetime never persist across
+# restarts.
 set -eu
 
 TEMPLATE_DB="/app/prisma/preview-template.db"
