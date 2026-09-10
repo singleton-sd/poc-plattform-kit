@@ -29,17 +29,17 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
    # After an image exists in ACR (or let deploy-api.yml create it):
    ./infra/deploy-aca-api.sh --image ssdpocpkacrdevae.azurecr.io/pocpk-api:<sha>
    ```
-3. Smoke the **ACA default hostname** (custom domain still on App Service):
+4. Smoke the **ACA default hostname** (custom domain still on App Service):
    ```bash
    FQDN=$(az containerapp show -n ssd-pocpk-aca-api-dev-ae -g rg-poc-plattform-kit \
      --query properties.configuration.ingress.fqdn -o tsv)
    curl -sS "https://$FQDN/health"
    curl -sS "https://$FQDN/health/db"
    ```
-4. Validate Entra login, Service Bus outbox, App Insights against the ACA URL.
-5. Keep OpenFGA usable from both hosts during dual-run:
+5. Validate Entra login, Service Bus outbox, App Insights against the ACA URL.
+6. Keep OpenFGA usable from both hosts during dual-run:
    `./infra/deploy-openfga.sh --api-identity both`
-6. Production deploys: tag `@poc-plattform-kit/api@*` or `workflow_dispatch` on
+7. Production deploys: tag `@poc-plattform-kit/api@*` or `workflow_dispatch` on
    **Deploy API (Container Apps)** — builds `--target production`, pushes
    `pocpk-api:<sha>`, updates the Container App, smoke-tests `/health` + `/health/db`.
 
