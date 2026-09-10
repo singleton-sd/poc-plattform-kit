@@ -33,8 +33,12 @@ Flow: **Azure Login (OIDC)** → `az keyvault secret show` / App Config → use 
 
 If OIDC Variables are missing, `preview-marketing.yml` / `deploy-web.yml` / `deploy-marketing.yml` / `deploy-api.yml` **skip** deploy (job succeeds) so CI is not blocked forever. `preview-api.yml` and `preview-web.yml` **fail fast** with a clear error until Variables + RBAC are configured.
 
-`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Website Contributor on the legacy App Service is only needed while dual-run zip deploys remain; after [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) cutover it can be removed. Deploy smoke always uses the ACA ingress FQDN (never the custom domain) so dual-run cannot pass against legacy App Service; verify the custom domain separately after DNS cutover.
+<<<<<<< Updated upstream
+`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Deploy smoke always uses the ACA ingress FQDN (never the custom domain); verify the custom domain separately after DNS cutover.
+=======
+`deploy-api.yml` needs the OIDC app registration (`ssd-pocpk-gha-oidc-dev`) to have **Contributor** on `rg-poc-plattform-kit` (same as ACA previews) plus **Key Vault Secrets User** for `acr-admin-*`. Deploy smoke always uses the ACA ingress FQDN (never the custom domain) so dual-run cannot pass against legacy App Service; verify the custom domain separately after DNS cutover.
 
+>>>>>>> Stashed changes
 ### OIDC subject forms (Entra FIC)
 
 GitHub may emit **ID-form** OIDC subjects such as `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` (and the matching `:ref:refs/heads/main` form). The Entra federated identity credential **subject must match that `sub` claim exactly**. Classic subjects (`repo:org/repo:pull_request`) can remain on the app registration for compatibility when tokens still use them.
@@ -189,8 +193,8 @@ Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: the "Pe
 - API image: `docker build -f apps/api/Dockerfile --target production` → `pocpk-api:<sha>` (+ `:latest`) on ACR `ssdpocpkacrdevae`.
 - API runtime: Nest listens on `PORT=3001`; ACA ingress target port 3001; scale min **0** / max **2** (scale to zero).
 - Neon + secrets: App Configuration + managed identity (never set preview SQLite `DATABASE_URL` on production).
-- Startup verified by [`scripts/verify-api-containerapp.sh`](../scripts/verify-api-containerapp.sh) (`/health` + `/health/db`). Dual-run / DNS cutover: [`docs/aca-api-cutover-303.md`](./aca-api-cutover-303.md).
-- Legacy zip / App Service path (`stage-api-deploy.sh`, `verify-api-appservice.sh`) remains in-repo only for rollback until App Service is deleted.
+- Startup verified by [`scripts/verify-api-containerapp.sh`](../scripts/verify-api-containerapp.sh) (`/health` + `/health/db`). Cutover notes: [`docs/aca-api-cutover-303.md`](./aca-api-cutover-303.md).
+- Legacy zip packaging (`stage-api-deploy.sh`) remains for local experiments only — production is Docker → ACA.
 - No secrets in GitHub Secrets. Missing OIDC Variables → skip (non-blocking).
 
 ## Pre-push gate

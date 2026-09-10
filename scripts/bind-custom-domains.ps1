@@ -4,9 +4,9 @@
 
 .DESCRIPTION
   Reads bindings[] from infra/custom-domains.*.json:
-    - kind=swa        -> az staticwebapp hostname set
-    - kind=appservice -> az webapp config hostname add
-                        (+ managed cert create/bind when managedCert=true)
+    - kind=swa           -> az staticwebapp hostname set
+    - kind=appservice    -> az webapp config hostname add (+ managed cert)
+    - kind=containerapp  -> az containerapp hostname add (+ optional bind)
 
   SWA hostname set waits for Azure validation (can take several minutes).
 
@@ -98,8 +98,24 @@ foreach ($b in $config.bindings) {
         if ($LASTEXITCODE -ne 0) { throw "SSL bind failed for $hostName" }
       }
     }
+    'containerapp' {
+      Write-Host "==> Container App hostname $hostName on $name"
+      # Validation TXT / CNAME must already match Azure's requirements (see docs/aca-api-cutover-303.md).
+      az containerapp hostname add -n $name -g $rg --hostname $hostName
+      if ($LASTEXITCODE -ne 0) {
+        throw "Container App hostname add failed for $hostName. Ensure DNS validation is in place, then re-run."
+      }
+      $wantCert = (-not $SkipManagedCert) -and ($b.managedCert -eq $true)
+      if ($wantCert) {
+        Write-Host "==> Managed certificate bind for $hostName (ACA)"
+        az containerapp hostname bind -n $name -g $rg --hostname $hostName --validation-method CNAME
+        if ($LASTEXITCODE -ne 0) {
+          throw "ACA hostname/certificate bind failed for $hostName. Fix DNS validation and re-run (or pass -SkipManagedCert). See docs/aca-api-cutover-303.md"
+        }
+      }
+    }
     default {
-      throw "Unknown binding.kind '$kind' (expected swa|appservice)"
+      throw "Unknown binding.kind '$kind' (expected swa|appservice|containerapp)"
     }
   }
 }

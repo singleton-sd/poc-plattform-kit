@@ -463,7 +463,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - **Secrets:** Azure Key Vault only (`ssd-pocpk-kv-dev-ae`)
 - **App configuration:** Azure App Configuration (`ssd-pocpk-appcs-dev-ae`) with **Key Vault references** for secret values
 - **CI/CD:** GitHub Actions **OIDC** -> Azure -> Key Vault / App Config (no deploy tokens or connection strings in GitHub Secrets)
-- **Cost + naming (locked):** cheapest working SKUs (Neon Free/Launch for PoC Postgres, App **B1** for custom-domain HTTPS, SWA Free x2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, ACA Consumption for API previews + OpenFGA, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
+- **Cost + naming (locked):** cheapest working SKUs (Neon Free/Launch for PoC Postgres, ACA Consumption for production API minReplicas 0 / max 2 + API/web PR previews + OpenFGA, SWA Free x2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
 - **Public hostnames (locked):** `plattform-kit.poc.singletonsd.com` (marketing), `app.plattform-kit.poc.singletonsd.com` (web), `api.plattform-kit.poc.singletonsd.com` (API). DNS in AWS Route53 -> Azure CNAMEs.
 - **Telemetry:** Application Insights + Log Analytics - see [docs/telemetry.md](docs/telemetry.md)
 

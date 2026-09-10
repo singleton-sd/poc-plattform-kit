@@ -47,8 +47,8 @@ section and `infra/README.md`'s "Secrets & config surfaces" section.
 ## Cheapest working SKU, CAF naming for anything new
 
 Infrastructure choices default to the cheapest SKU that still satisfies the
-requirement (e.g. SQL Basic, App Service B1 only because custom-domain
-HTTPS + always-on need it, SWA Free, Container Apps Consumption for
+requirement (e.g. Neon Free/Launch for PoC Postgres, SWA Free, Container Apps
+Consumption for production API with minReplicas 0 / max 2 plus PR previews,
 anything that can scale to zero). New Azure resources follow CAF naming
 (`ssd-pocpk-{resource}-dev-ae`); existing pre-CAF resource names are kept as
 legacy aliases rather than renamed (renaming several of them would recreate

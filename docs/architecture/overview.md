@@ -132,7 +132,7 @@ DTOs.
 | --- | --- | --- |
 | Web | SWA Free (custom domain) | SWA Free PR preview (`*.azurestaticapps.net`) |
 | Marketing | SWA Free (custom domain) | SWA Free PR preview |
-| API | Azure Container Apps Consumption (`ssd-pocpk-aca-api-dev-ae`, scale-to-zero; dual-run App Service until [#303](https://github.com/singleton-sd/poc-plattform-kit/issues/303) DNS cutover) | Azure Container Apps Consumption, ephemeral, scale-to-zero |
+| API | Azure Container Apps Consumption (`ssd-pocpk-aca-api-dev-ae`, 0.25/0.5Gi, min 0 / max 2, scale-to-zero) | Azure Container Apps Consumption, ephemeral, scale-to-zero |
 | OpenFGA | Azure Container Apps Consumption | shares the dev store; see ADR 0002 |
 
 Public hostnames sit under `singletonsd.com`, with DNS in AWS Route53

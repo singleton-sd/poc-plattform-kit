@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "4509879579250556870"
+      "templateHash": "436844701633205331"
     }
   },
   "parameters": {
@@ -64,17 +64,6 @@
       "defaultValue": "",
       "metadata": {
         "description": "Object ID of deployer/user to grant Key Vault Administrator (empty skips role)"
-      }
-    },
-    "appServiceSku": {
-      "type": "string",
-      "defaultValue": "B1",
-      "allowedValues": [
-        "F1",
-        "B1"
-      ],
-      "metadata": {
-        "description": "App Service Plan SKU — B1 required for custom-domain managed TLS + always-on"
       }
     },
     "staticWebAppSku": {
@@ -138,12 +127,9 @@
     "roleKeyVaultAdministrator": "00482a5a-887f-4fb3-b363-3b7fe8e74483",
     "roleKeyVaultSecretsUser": "4633458b-17de-408a-b874-0445c86b69e6",
     "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
-    "appPlanName": "[format('{0}-plan', parameters('namePrefix'))]",
-    "webAppName": "[format('{0}-api-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "swaName": "[format('{0}-web-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "serviceBusName": "[format('{0}-sb-{1}', parameters('namePrefix'), variables('uniqueSuffix'))]",
     "deployAlerts": "[not(empty(parameters('alertEmail')))]",
-    "enableAlwaysOn": "[equals(parameters('appServiceSku'), 'B1')]",
     "eventTopics": [
       "tenant.events",
       "single-sign-on.events",
@@ -158,23 +144,9 @@
     "jobQueues": [
       "notifications.send"
     ],
-    "roleAppConfigDataReader": "516239f1-63e1-4d78-a4de-a74fb236a071",
     "roleAppConfigDataOwner": "5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b"
   },
   "resources": [
-    {
-      "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2023-12-01",
-      "name": "[variables('appPlanName')]",
-      "location": "[parameters('location')]",
-      "sku": {
-        "name": "[parameters('appServiceSku')]"
-      },
-      "kind": "linux",
-      "properties": {
-        "reserved": true
-      }
-    },
     {
       "type": "Microsoft.OperationalInsights/workspaces",
       "apiVersion": "2022-10-01",
@@ -305,70 +277,6 @@
       ]
     },
     {
-      "type": "Microsoft.Web/sites",
-      "apiVersion": "2023-12-01",
-      "name": "[variables('webAppName')]",
-      "location": "[parameters('location')]",
-      "kind": "app,linux",
-      "identity": {
-        "type": "SystemAssigned"
-      },
-      "properties": {
-        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appPlanName'))]",
-        "httpsOnly": true,
-        "siteConfig": {
-          "linuxFxVersion": "NODE|20-lts",
-          "appCommandLine": "node dist/main.js",
-          "alwaysOn": "[variables('enableAlwaysOn')]",
-          "ftpsState": "Disabled",
-          "minTlsVersion": "1.2",
-          "appSettings": [
-            {
-              "name": "WEBSITE_NODE_DEFAULT_VERSION",
-              "value": "~20"
-            },
-            {
-              "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-              "value": "false"
-            },
-            {
-              "name": "ENABLE_ORYX_BUILD",
-              "value": "false"
-            },
-            {
-              "name": "AZURE_SERVICEBUS_NAMESPACE",
-              "value": "[variables('serviceBusName')]"
-            },
-            {
-              "name": "AZURE_APPCONFIGURATION_ENDPOINT",
-              "value": "[reference(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), '2024-05-01').endpoint]"
-            },
-            {
-              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName')), '2020-02-02').ConnectionString]"
-            },
-            {
-              "name": "DATABASE_URL",
-              "value": "[format('@Microsoft.KeyVault(SecretUri=https://{0}.vault.azure.net/secrets/database-url/)', parameters('keyVaultName'))]"
-            },
-            {
-              "name": "CORS_ORIGINS",
-              "value": "https://app.plattform-kit.poc.singletonsd.com,https://plattform-kit.poc.singletonsd.com,https://kind-rock-0f409fe00*.azurestaticapps.net,https://purple-field-05048bf00*.azurestaticapps.net"
-            },
-            {
-              "name": "NEXT_PUBLIC_API_BASE_URL",
-              "value": "https://api.plattform-kit.poc.singletonsd.com"
-            }
-          ]
-        }
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
-        "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]",
-        "[resourceId('Microsoft.Web/serverfarms', variables('appPlanName'))]"
-      ]
-    },
-    {
       "type": "Microsoft.Web/staticSites",
       "apiVersion": "2022-09-01",
       "name": "[variables('swaName')]",
@@ -478,21 +386,6 @@
       ]
     },
     {
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2022-04-01",
-      "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
-      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), resourceId('Microsoft.Web/sites', variables('webAppName')), variables('roleKeyVaultSecretsUser'))]",
-      "properties": {
-        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleKeyVaultSecretsUser'))]",
-        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2023-12-01', 'full').identity.principalId]",
-        "principalType": "ServicePrincipal"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
-        "[resourceId('Microsoft.Web/sites', variables('webAppName'))]"
-      ]
-    },
-    {
       "type": "Microsoft.AppConfiguration/configurationStores",
       "apiVersion": "2024-05-01",
       "name": "[parameters('appConfigName')]",
@@ -507,21 +400,6 @@
         "publicNetworkAccess": "Enabled",
         "disableLocalAuth": false
       }
-    },
-    {
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2022-04-01",
-      "scope": "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
-      "name": "[guid(resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName')), resourceId('Microsoft.Web/sites', variables('webAppName')), variables('roleAppConfigDataReader'))]",
-      "properties": {
-        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleAppConfigDataReader'))]",
-        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2023-12-01', 'full').identity.principalId]",
-        "principalType": "ServicePrincipal"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.AppConfiguration/configurationStores', parameters('appConfigName'))]",
-        "[resourceId('Microsoft.Web/sites', variables('webAppName'))]"
-      ]
     },
     {
       "type": "Microsoft.Authorization/roleAssignments",
@@ -711,18 +589,6 @@
       "type": "string",
       "value": "[parameters('swaLocation')]"
     },
-    "webAppName": {
-      "type": "string",
-      "value": "[variables('webAppName')]"
-    },
-    "webAppHostname": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2023-12-01').defaultHostName]"
-    },
-    "webAppPrincipalId": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2023-12-01', 'full').identity.principalId]"
-    },
     "staticWebAppName": {
       "type": "string",
       "value": "[variables('swaName')]"
@@ -746,10 +612,6 @@
     "serviceBusTopics": {
       "type": "array",
       "value": "[variables('eventTopics')]"
-    },
-    "appServicePlanName": {
-      "type": "string",
-      "value": "[variables('appPlanName')]"
     },
     "subscriptionModuleName": {
       "type": "string",
@@ -790,6 +652,10 @@
     "applicationInsightsId": {
       "type": "string",
       "value": "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]"
+    },
+    "apiContainerAppNameHint": {
+      "type": "string",
+      "value": "ssd-pocpk-aca-api-dev-ae"
     }
   }
 }
