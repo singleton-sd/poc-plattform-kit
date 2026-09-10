@@ -43,6 +43,10 @@
             "type": "boolean",
             "description": "App Service or Container Apps — create + bind managed cert when supported"
           },
+          "environmentName": {
+            "type": "string",
+            "description": "Container Apps Environment name for managed-cert bind (kind=containerapp). Optional — when omitted, bind-custom-domains.ps1 resolves it from the Container App's managedEnvironmentId."
+          },
           "resourceGroup": { "type": "string" }
         }
       }

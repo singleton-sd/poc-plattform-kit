@@ -107,10 +107,14 @@ foreach ($b in $config.bindings) {
       }
       $wantCert = (-not $SkipManagedCert) -and ($b.managedCert -eq $true)
       if ($wantCert) {
-        $envName = if ($b.PSObject.Properties['environmentName'] -and $b.environmentName) {
-          [string]$b.environmentName
+        if ($b.PSObject.Properties['environmentName'] -and -not [string]::IsNullOrWhiteSpace([string]$b.environmentName)) {
+          $envName = [string]$b.environmentName
         } else {
-          'ssd-pocpk-cae-dev-ae'
+          $envId = az containerapp show -n $name -g $rg --query 'properties.managedEnvironmentId' -o tsv
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($envId)) {
+            throw "Could not resolve Container Apps Environment for $name in $rg; set bindings[].environmentName or fix az login/RBAC."
+          }
+          $envName = ($envId.TrimEnd('/') -split '/')[-1]
         }
         Write-Host "==> Managed certificate bind for $hostName (ACA env $envName)"
         # Managed certs require --environment; without it az fails with "specify --certificate and --environment".

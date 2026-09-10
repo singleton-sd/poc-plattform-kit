@@ -45,7 +45,7 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
 
 ## Custom domain cutover (human DNS — no automatic Route53 mutation)
 
-1. Note the ACA FQDN from step 3.
+1. Note the ACA FQDN from step 4.
 2. Add / bind the custom hostname on the Container App (Azure Portal or
    `az containerapp hostname add` + managed certificate when available for the
    environment). Capture the validation TXT Azure shows.
