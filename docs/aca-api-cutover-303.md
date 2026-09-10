@@ -22,28 +22,30 @@ Setting production `minReplicas` to `1` intentionally keeps a warm replica
 ## Human steps (dual-run)
 
 1. Ensure CAE + ACR exist: `./infra/deploy-aca-preview.sh`
-2. Build once locally or via Actions, then provision the prod app:
+2. Ensure Application Insights `ssd-pocpk-appi-dev-ae` exists (workspace-based on
+   `ssd-pocpk-law-dev-ae`) — production ACA Bicep references it as `existing`.
+3. Build once locally or via Actions, then provision the prod app:
    ```bash
    # After an image exists in ACR (or let deploy-api.yml create it):
    ./infra/deploy-aca-api.sh --image ssdpocpkacrdevae.azurecr.io/pocpk-api:<sha>
    ```
-3. Smoke the **ACA default hostname** (custom domain still on App Service):
+4. Smoke the **ACA default hostname** (custom domain still on App Service):
    ```bash
    FQDN=$(az containerapp show -n ssd-pocpk-aca-api-dev-ae -g rg-poc-plattform-kit \
      --query properties.configuration.ingress.fqdn -o tsv)
    curl -sS "https://$FQDN/health"
    curl -sS "https://$FQDN/health/db"
    ```
-4. Validate Entra login, Service Bus outbox, App Insights against the ACA URL.
-5. Keep OpenFGA usable from both hosts during dual-run:
+5. Validate Entra login, Service Bus outbox, App Insights against the ACA URL.
+6. Keep OpenFGA usable from both hosts during dual-run:
    `./infra/deploy-openfga.sh --api-identity both`
-6. Production deploys: tag `@poc-plattform-kit/api@*` or `workflow_dispatch` on
+7. Production deploys: tag `@poc-plattform-kit/api@*` or `workflow_dispatch` on
    **Deploy API (Container Apps)** — builds `--target production`, pushes
    `pocpk-api:<sha>`, updates the Container App, smoke-tests `/health` + `/health/db`.
 
 ## Custom domain cutover (human DNS — no automatic Route53 mutation)
 
-1. Note the ACA FQDN from step 3.
+1. Note the ACA FQDN from step 4.
 2. Add / bind the custom hostname on the Container App (Azure Portal or
    `az containerapp hostname add` + managed certificate when available for the
    environment). Capture the validation TXT Azure shows.

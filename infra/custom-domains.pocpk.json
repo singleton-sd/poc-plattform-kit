@@ -1,6 +1,6 @@
 {
   "$schema": "./custom-domains.schema.json",
-  "comment": "poc-plattform-kit custom domains under singletonsd.com. After #303 cutover, api CNAME must target the ACA FQDN (replace PLACEHOLDER after first hostname bind).",
+  "comment": "poc-plattform-kit custom domains under singletonsd.com. API CNAME targets production ACA after #303 cutover.",
   "zoneDomain": "singletonsd.com",
   "resourceGroup": "rg-poc-plattform-kit",
   "ttlSeconds": 300,
@@ -18,12 +18,12 @@
     {
       "name": "api.plattform-kit.poc",
       "type": "CNAME",
-      "value": "ssd-pocpk-aca-api-dev-ae.REPLACE-WITH-ACA-DEFAULT-DOMAIN.azurecontainerapps.io"
+      "value": "ssd-pocpk-aca-api-dev-ae.victoriouscliff-509c369b.australiaeast.azurecontainerapps.io"
     },
     {
       "name": "asuid.api.plattform-kit.poc",
       "type": "TXT",
-      "value": "REPLACE-WITH-ACA-CUSTOM-DOMAIN-VERIFICATION-ID"
+      "value": "57B0B845C0477561D54FB97248C6B216A009F60CD996BC5613C024A2EE4E58F9"
     }
   ],
   "bindings": [

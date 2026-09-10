@@ -107,8 +107,18 @@ foreach ($b in $config.bindings) {
       }
       $wantCert = (-not $SkipManagedCert) -and ($b.managedCert -eq $true)
       if ($wantCert) {
-        Write-Host "==> Managed certificate bind for $hostName (ACA)"
-        az containerapp hostname bind -n $name -g $rg --hostname $hostName --validation-method CNAME
+        if ($b.PSObject.Properties['environmentName'] -and -not [string]::IsNullOrWhiteSpace([string]$b.environmentName)) {
+          $envName = [string]$b.environmentName
+        } else {
+          $envId = az containerapp show -n $name -g $rg --query 'properties.managedEnvironmentId' -o tsv
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($envId)) {
+            throw "Could not resolve Container Apps Environment for $name in $rg; set bindings[].environmentName or fix az login/RBAC."
+          }
+          $envName = ($envId.TrimEnd('/') -split '/')[-1]
+        }
+        Write-Host "==> Managed certificate bind for $hostName (ACA env $envName)"
+        # Managed certs require --environment; without it az fails with "specify --certificate and --environment".
+        az containerapp hostname bind -n $name -g $rg --hostname $hostName --environment $envName --validation-method CNAME
         if ($LASTEXITCODE -ne 0) {
           throw "ACA hostname/certificate bind failed for $hostName. Fix DNS validation and re-run (or pass -SkipManagedCert). See docs/aca-api-cutover-303.md"
         }
