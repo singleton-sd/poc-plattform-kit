@@ -1,0 +1,49 @@
+# Daily / on-demand cleanup of marketing GitHub Pages PR preview folders
+# on gh-pages (pr-preview/pr-<n>/) that are not tied to an open pull request.
+# Does not touch Azure product-app SWA or ACA previews
+# (see sweep-preview-orphans.yml).
+name: Sweep marketing Pages previews
+
+on:
+  schedule:
+    - cron: '20 6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Log deletes only (no gh-pages push)'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  sweep:
+    name: Sweep orphan marketing Pages previews
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Sweep orphan pr-preview directories
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/sweep-pages-preview-orphans.sh
+          if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
+            export DRY_RUN=1
+            echo "Running in dry-run mode"
+          else
+            export DRY_RUN=0
+          fi
+          ./scripts/sweep-pages-preview-orphans.sh

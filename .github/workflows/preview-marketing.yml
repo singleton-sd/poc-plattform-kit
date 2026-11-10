@@ -3,6 +3,11 @@
 # onto gh-pages, PREVIEW_BASE_PATH so Astro assets resolve under the subpath).
 # Fork PRs are not published (no write access to gh-pages).
 #
+# Build runs with read-only token (no persisted credentials). Publish is a
+# separate trusted job with contents: write that only deploys the artifact.
+# Close handling lives in preview-marketing-close.yml (no path filter) so a
+# later commit that reverts marketing files still removes the preview.
+#
 # Secrets: none. Optional Variable PUBLIC_POSTKIT_API_BASE_URL overrides the
 # Contact form's baked-in PostKit default. Product app SWA previews stay on
 # Container Apps (preview-web.yml).
@@ -10,10 +15,15 @@ name: Preview Marketing (GitHub Pages)
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, closed]
+    types: [opened, reopened, synchronize]
     paths:
       - 'apps/marketing/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
       - '.github/workflows/preview-marketing.yml'
+      - '.github/workflows/preview-marketing-close.yml'
       - '.github/workflows/pages.yml'
 
 concurrency:
@@ -21,19 +31,18 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
-  preview:
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(fromJSON('["opened","reopened","synchronize"]'), github.event.action)
+  build:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    name: Build + GitHub Pages preview
+    name: Build marketing preview
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           submodules: true
           lfs: false
 
@@ -58,8 +67,35 @@ jobs:
       - name: Check asset paths (preview)
         run: node apps/marketing/scripts/check-asset-paths.mjs --dir apps/marketing/dist --base /pr-preview/pr-${{ github.event.number }}/
 
-      # pr-preview-action is composite; retry once when parallel gh-pages
-      # pushes race against production or another preview.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marketing-preview-dist
+          path: apps/marketing/dist
+          retention-days: 1
+
+  publish:
+    needs: build
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    name: Build + GitHub Pages preview
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
+    steps:
+      # Trusted base ref only — do not execute PR-head build scripts here.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketing-preview-dist
+          path: apps/marketing/dist
+
       - name: Deploy preview
         id: preview
         continue-on-error: true
@@ -69,6 +105,7 @@ jobs:
           preview-branch: gh-pages
           pages-base-url: https://plattform-kit.poc.singletonsd.com
           umbrella-dir: pr-preview
+          action: deploy
           comment: false
 
       - name: Retry deploy preview
@@ -79,9 +116,10 @@ jobs:
           preview-branch: gh-pages
           pages-base-url: https://plattform-kit.poc.singletonsd.com
           umbrella-dir: pr-preview
+          action: deploy
           comment: false
 
-      - name: Add preview URL to PR body once
+      - name: Add preview URL comment once
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: https://plattform-kit.poc.singletonsd.com/pr-preview/pr-${{ github.event.number }}/
@@ -89,7 +127,7 @@ jobs:
           script: |
             const marker = '<!-- pages-preview-marketing -->';
             const previewUrl = process.env.PREVIEW_URL;
-            const previewSection = [
+            const body = [
               marker,
               '### Marketing preview (GitHub Pages)',
               '',
@@ -98,50 +136,19 @@ jobs:
               `- Preview URL: ${previewUrl}`,
               '- Production host: `https://plattform-kit.poc.singletonsd.com`',
               '',
-              '_Astro `base` for this build is `/pr-preview/pr-<number>/`. Decap `/admin` keeps production-absolute paths and is not a preview surface._',
+              '_Astro `base` for this build is `/pr-preview/pr-<number>/`. Decap `/admin` is production-only; do not browse untrusted PR previews while signed into `/admin` (same origin)._',
             ].join('\n');
-
-            const { data: pull } = await github.rest.pulls.get({
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number,
+              issue_number: context.issue.number,
             });
-            if (!pull.body?.includes(marker)) {
-              const body = [pull.body?.trim(), previewSection].filter(Boolean).join('\n\n');
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                body,
-              });
+            if (comments.some((comment) => comment.body?.includes(marker))) {
+              return;
             }
-
-  close_preview:
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close GitHub Pages preview
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Remove preview
-        id: remove_preview
-        continue-on-error: true
-        uses: rossjrw/pr-preview-action@v1.8.1
-        with:
-          source-dir: apps/marketing/dist
-          preview-branch: gh-pages
-          pages-base-url: https://plattform-kit.poc.singletonsd.com
-          umbrella-dir: pr-preview
-          comment: false
-
-      - name: Retry remove preview
-        if: steps.remove_preview.outcome == 'failure'
-        uses: rossjrw/pr-preview-action@v1.8.1
-        with:
-          source-dir: apps/marketing/dist
-          preview-branch: gh-pages
-          pages-base-url: https://plattform-kit.poc.singletonsd.com
-          umbrella-dir: pr-preview
-          comment: false
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

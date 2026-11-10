@@ -1,12 +1,14 @@
 # GitHub Pages — marketing production deploy on merge to main (content
-# changes) or manual dispatch. Custom domain: plattform-kit.poc.singletonsd.com.
+# changes), after a successful Release (changelog.json in skip-ci commits),
+# or manual dispatch. Custom domain: plattform-kit.poc.singletonsd.com.
 # Follows the house pattern in singleton-sd/poc-inkads-marketing (gh-pages
 # branch + CNAME + clean-exclude pr-preview). Do not enable a second Pages
 # site in this repo — GitHub allows only one.
 #
-# Secrets: none. Optional Variable PUBLIC_POSTKIT_API_BASE_URL overrides the
-# Contact form's baked-in PostKit default. Product app SWA and the API are
-# unchanged (deploy-web.yml / deploy-api.yml).
+# Auth: GITHUB_TOKEN only. GitHub Pages is not an Azure resource, so the
+# OIDC → Key Vault production pattern does not apply (product app SWA and
+# API still use OIDC). Optional Variable PUBLIC_POSTKIT_API_BASE_URL
+# overrides the Contact form's baked-in PostKit default.
 name: Deploy Marketing (GitHub Pages)
 
 on:
@@ -14,12 +16,20 @@ on:
     branches: [main]
     paths:
       - 'apps/marketing/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
       - '.github/workflows/pages.yml'
       - '.github/workflows/preview-marketing.yml'
+      - '.github/workflows/preview-marketing-close.yml'
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
-  group: pages-publish
+  group: gh-pages
   cancel-in-progress: false
 
 permissions:
@@ -29,6 +39,8 @@ jobs:
   build-and-deploy:
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'push' &&
        !contains(github.event.head_commit.message, '[skip ci]') &&
        !startsWith(github.event.head_commit.message, 'chore: Release'))
@@ -37,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
           submodules: true
           lfs: false
 
@@ -62,11 +74,25 @@ jobs:
         run: node apps/marketing/scripts/check-asset-paths.mjs --dir apps/marketing/dist --base /
 
       - name: Deploy production site
+        id: deploy
+        continue-on-error: true
         uses: JamesIves/github-pages-deploy-action@v4.8.0
         with:
+          token: ${{ github.token }}
           branch: gh-pages
           folder: apps/marketing/dist
           clean: true
           clean-exclude: pr-preview
           # Emit .nojekyll so Pages does not hide Astro `_astro/` assets.
+          jekyll: true
+
+      - name: Retry production deploy
+        if: steps.deploy.outcome == 'failure'
+        uses: JamesIves/github-pages-deploy-action@v4.8.0
+        with:
+          token: ${{ github.token }}
+          branch: gh-pages
+          folder: apps/marketing/dist
+          clean: true
+          clean-exclude: pr-preview
           jekyll: true

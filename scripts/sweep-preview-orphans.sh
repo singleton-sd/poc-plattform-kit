@@ -8,7 +8,8 @@
 #   4. Entra SPA redirect URIs for closed SWA and ACA web PR preview origins
 #
 # Marketing PR previews live on GitHub Pages (gh-pages /pr-preview/pr-<n>/)
-# and are removed by preview-marketing.yml on PR close — not here.
+# and are removed by preview-marketing-close.yml on PR close, with a daily
+# reconciliation in sweep-pages-preview-orphans.sh — not here.
 #
 # Requires: az (logged in), gh, node (for Entra helper).
 # Usage:

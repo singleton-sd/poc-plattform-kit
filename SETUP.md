@@ -239,7 +239,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 | --- | --- | --- |
 | **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, ACR admin, Entra client secrets, notification provider keys. Never in git or GitHub Actions secrets. |
 | **App configuration** | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | Non-secret settings + **Key Vault references** for secret values (not inline secrets). |
-| **CI/CD** | GitHub Actions **OIDC** -> Azure | Workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. |
+| **CI/CD** | GitHub Actions **OIDC** -> Azure (web/API); **GitHub Pages** `GITHUB_TOKEN` (marketing) | Azure-hosted workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. Marketing Pages (`pages.yml`) is not an Azure resource and deploys with `GITHUB_TOKEN` to `gh-pages`. |
 
 | Layer | Choice |
 | --- | --- |

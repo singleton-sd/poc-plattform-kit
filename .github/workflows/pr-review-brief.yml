@@ -9,6 +9,7 @@ on:
       - CI API
       - Preview Web (Container Apps)
       - Preview Marketing (GitHub Pages)
+      - Close Marketing Pages preview
       - Preview API (Container Apps)
     types: [completed]
 

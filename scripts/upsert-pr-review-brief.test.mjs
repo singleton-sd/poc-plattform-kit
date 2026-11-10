@@ -93,6 +93,10 @@ assert.match(again, /### Infra blockers\n- None/);
 const comments = [
   { id: 1, body: '<!-- swa-preview-web --> https://preview.example/' },
   { id: 2, body: `${BRIEF_MARKER}\n## Human Review Brief` },
+  {
+    id: 3,
+    body: '<!-- pages-preview-marketing --> https://comment-only-preview.example/',
+  },
 ];
 assert.deepEqual(
   previewUrlsFromSources(
@@ -107,6 +111,7 @@ assert.deepEqual(
     'https://api-preview.example/',
     'https://marketing-preview.example/',
     'https://preview.example/',
+    'https://comment-only-preview.example/',
   ],
 );
 assert.equal(findBriefComment(comments)?.id, 2);

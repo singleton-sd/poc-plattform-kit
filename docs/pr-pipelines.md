@@ -9,10 +9,11 @@
 | `preview-web.yml` | `apps/web/**`, `packages/**` (skips deploy when only generated api-client OpenAPI/Orval files change) | **Container Apps** ephemeral web preview (Consumption) |
 | `chromatic.yml` | `apps/web/**`, `packages/**` | Storybook publish/capture (Actions); visual review is Chromatic **UI Tests** (pending until accept) via OIDC → Key Vault |
 | `playwright.yml` | `apps/web/**`, `packages/**` | Chromium public journeys against a local production-like static export; failure artifacts retained 7 days |
-| `preview-marketing.yml` | `apps/marketing/**` | Marketing **GitHub Pages PR preview** at `/pr-preview/pr-<n>/` (`apps/marketing/dist`, Astro `PREVIEW_BASE_PATH`) |
+| `preview-marketing.yml` | `apps/marketing/**`, root `package.json` / lockfile / workspace, `.npmrc` | Marketing **GitHub Pages PR preview** at `/pr-preview/pr-<n>/` (`apps/marketing/dist`, Astro `PREVIEW_BASE_PATH`); build is read-only, publish is a separate `contents: write` job |
+| `preview-marketing-close.yml` | PR `closed` (no path filter) | Removes `pr-preview/pr-<n>/` from `gh-pages` |
 | `preview-api.yml` | `apps/api/**`, `pillars/**`, `packages/**` | **Container Apps** ephemeral preview (Consumption) |
 | `deploy-web.yml` | `@poc-plattform-kit/web@*` tag push (also manual `workflow_dispatch`) | SWA **production** via OIDC → Key Vault |
-| `pages.yml` | `apps/marketing/**` on **`main`** (content) | Marketing **GitHub Pages** production (`gh-pages` branch, custom domain `plattform-kit.poc.singletonsd.com`) |
+| `pages.yml` | `apps/marketing/**` on **`main`**, root lockfile/workspace, successful **Release** `workflow_run` | Marketing **GitHub Pages** production (`gh-pages` branch, custom domain `plattform-kit.poc.singletonsd.com`) |
 | `deploy-api.yml` | `@poc-plattform-kit/api@*` tag push (also manual `workflow_dispatch`) | Nest Docker `--target production` → ACR → Container Apps **Consumption** (`ssd-pocpk-aca-api-dev-ae`) via OIDC |
 | `release.yml` | push to **`main`** (skipped for release-bot / `[skip ci]` / `chore: Release` commits) | Path-aware bumps; `[skip ci]` commit + tags on `main`; `gh release create` per tag |
 
@@ -65,24 +66,30 @@ Web **PR** previews run on **Azure Container Apps Consumption** (same Path B pat
 
 **Marketing**
 
-- Workflows: `.github/workflows/preview-marketing.yml` (PRs) and `.github/workflows/pages.yml` (`main`)
+- Workflows: `.github/workflows/preview-marketing.yml` (PR build + publish), `.github/workflows/preview-marketing-close.yml` (PR `closed`), and `.github/workflows/pages.yml` (`main` + successful Release)
 - Host: **GitHub Pages** from the `gh-pages` branch (this repo has one Pages site; the product app stays on SWA)
 - Production URL: `https://plattform-kit.poc.singletonsd.com` (CNAME `singleton-sd.github.io` — see [`docs/dns-route53.md`](./dns-route53.md))
 - PR preview URL: `https://plattform-kit.poc.singletonsd.com/pr-preview/pr-<n>/`
 - App location: `apps/marketing/dist` after Astro build. PR builds set `PREVIEW_BASE_PATH=/pr-preview/pr-<n>/` so CSS/JS/image hrefs resolve under that subpath
-- Auth: `GITHUB_TOKEN` (`contents: write`). No SWA deploy token, no Azure OIDC
+- Auth: `GITHUB_TOKEN`. Preview **build** is `contents: read` with `persist-credentials: false`; preview **publish** / production / close use `contents: write`. No SWA deploy token, no Azure OIDC (Pages is not an Azure resource)
 - Action: `rossjrw/pr-preview-action` onto `gh-pages` under `pr-preview/` (same house pattern as `poc-inkads-marketing`). Production deploy uses `JamesIves/github-pages-deploy-action` with `clean-exclude: pr-preview`
-- Close job on PR `closed` removes that PR’s preview folder
+- All `gh-pages` publishers share concurrency group `gh-pages` (`cancel-in-progress: false`)
+- Close workflow has **no path filter** and sets `action: remove`. Daily reconciliation: `sweep-pages-previews.yml`
+- Preview URL is posted as a PR **comment** (`<!-- pages-preview-marketing -->`), not by rewriting the PR body
 - Fork PRs are not published
+- **Gap:** previews share the production origin (one Pages site), including Decap `/admin`. Do not browse untrusted PR previews while signed into `/admin`
 - Cutover (Pages settings, DNS, then delete marketing SWA) is **manual** — agents must not change DNS, repo Pages settings, or Azure resources; follow [`docs/dns-route53.md`](./dns-route53.md)
 
 ### Preview orphan sweep (daily)
 
-Close hooks can miss leftovers (shared concurrency races, path-filtered `closed`
-events, Graph soft-fails). Workflow:
+Close hooks can miss leftovers (shared concurrency races, Graph soft-fails).
+Azure leftovers:
 [`.github/workflows/sweep-preview-orphans.yml`](../.github/workflows/sweep-preview-orphans.yml)
 runs daily (06:15 UTC) and on `workflow_dispatch` via
 [`scripts/sweep-preview-orphans.sh`](../scripts/sweep-preview-orphans.sh).
+Marketing Pages leftovers:
+[`.github/workflows/sweep-pages-previews.yml`](../.github/workflows/sweep-pages-previews.yml)
+(06:20 UTC) via [`scripts/sweep-pages-preview-orphans.sh`](../scripts/sweep-pages-preview-orphans.sh).
 
 | Target | Action when PR number is not open |
 | --- | --- |
@@ -91,13 +98,16 @@ runs daily (06:15 UTC) and on `workflow_dispatch` via
 | SWA staging builds (product app SWA only), except `default` | `az staticwebapp environment delete` |
 | ACR tags `pocpk-api:pr-<n>` / `pocpk-web:pr-<n>` (and `pr-<n>-<sha>`) | `az acr repository delete` |
 | Entra SPA redirect URIs matching SWA or ACA web PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
+| `gh-pages` `pr-preview/pr-<n>/` | `sweep-pages-previews.yml` (not this Azure sweep) |
 
 Manual dry-run:
 
 ```bash
 gh workflow run sweep-preview-orphans.yml -f dry_run=true
-# or locally (az + gh logged in):
-./scripts/sweep-preview-orphans.sh --dry-run
+gh workflow run sweep-pages-previews.yml -f dry_run=true
+# or locally:
+./scripts/sweep-preview-orphans.sh --dry-run   # needs az + gh
+./scripts/sweep-pages-preview-orphans.sh --dry-run  # needs gh + git
 ```
 
 OIDC uses the **main** federated credential (schedule / `workflow_dispatch` on
@@ -184,7 +194,7 @@ Bicep: `infra/openfga.bicep`. Model: `infra/openfga/model.fga`. Details: the "Pe
 | `pages.yml` | GitHub Pages (`gh-pages`, custom domain `plattform-kit.poc.singletonsd.com`) | `GITHUB_TOKEN` |
 | `deploy-api.yml` | Container Apps Consumption (`ssd-pocpk-aca-api-dev-ae`) | OIDC → KV `acr-admin-*` → Docker push → `deploy-aca-api.sh` |
 
-- Triggers: `@poc-plattform-kit/api@*` / `@poc-plattform-kit/web@*` tag push after release (and manual `workflow_dispatch`). Marketing deploys on `main` content merges via `pages.yml` (not a package tag).
+- Triggers: `@poc-plattform-kit/api@*` / `@poc-plattform-kit/web@*` tag push after release (and manual `workflow_dispatch`). Marketing deploys on `main` content merges via `pages.yml`, and again after a successful **Release** workflow (`workflow_run`) so `apps/marketing/src/data/changelog.json` from the skip-ci release commit is published.
 - API image: `docker build -f apps/api/Dockerfile --target production` → `pocpk-api:<sha>` (+ `:latest`) on ACR `ssdpocpkacrdevae`.
 - API runtime: Nest listens on `PORT=3001`; ACA ingress target port 3001; scale min **0** / max **2** (scale to zero).
 - Neon + secrets: App Configuration + managed identity (never set preview SQLite `DATABASE_URL` on production).

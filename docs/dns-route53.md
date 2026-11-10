@@ -150,9 +150,9 @@ powershell -File ./scripts/bind-custom-domains.ps1 -ConfigPath ./infra/custom-do
 | `responseOverrides` 404 → `/404.html` | Pages serves `/404.html` for unknown paths at the site root (Astro emits that file) |
 | Trailing-slash duplicate routes rejected | Not applicable — no `staticwebapp.config.json` on marketing |
 | Custom response headers | **Gap:** Pages cannot set SWA-style global headers. Marketing SWA did not set any beyond the 404 rewrite |
-| PR preview on `*.azurestaticapps.net` | `/pr-preview/pr-<n>/` on the custom domain |
+| PR preview on `*.azurestaticapps.net` | `/pr-preview/pr-<n>/` on the custom domain (**same origin** as `/admin`) |
 | Preview 404 | **Gap:** Pages uses the **site-root** `/404.html` (production). A missing preview URL does not serve the PR’s `404.html` |
-| Decap `/admin` on a preview host | **Gap:** `public/admin` keeps production-absolute `/admin/…` URLs. Use the production custom domain for CMS login |
+| Decap `/admin` on a preview host | **Gap:** this repo can host only one Pages site, so PR-built JS shares the CMS origin. Fork PRs are not published. Do not browse untrusted PR previews while signed into `/admin`. Use production `/admin` for CMS login |
 
 Contact form behaviour is unchanged: the browser posts to PostKit
 (`PUBLIC_POSTKIT_API_BASE_URL`, default
