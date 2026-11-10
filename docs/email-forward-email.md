@@ -151,7 +151,7 @@ If `EMAIL_PROVIDER` is unset and `NODE_ENV=production`, the factory still prefer
 
 Mail domain (PoC default): **`mail.plattform-kit.poc.singletonsd.com`** under hosted zone **`singletonsd.com`**.
 
-Marketing stays on **`plattform-kit.poc.singletonsd.com`** (CNAME → Azure SWA). That hostname cannot carry MX/TXT (RFC 1034), so mail uses the dedicated `mail.` hostname instead. From address: **`noreply@mail.plattform-kit.poc.singletonsd.com`**.
+Marketing stays on **`plattform-kit.poc.singletonsd.com`** (CNAME → `singleton-sd.github.io`, GitHub Pages). That hostname cannot carry MX/TXT (RFC 1034), so mail uses the dedicated `mail.` hostname instead. From address: **`noreply@mail.plattform-kit.poc.singletonsd.com`**.
 
 | Record | Purpose |
 | --- | --- |
@@ -389,7 +389,7 @@ Re-run the script with `-Alias` / `-AliasRecipient`, or `POST /v1/domains/{domai
 
 ## Mail topology (marketing CNAME vs Forward Email)
 
-**Locked choice (Path B):** keep marketing on `plattform-kit.poc.singletonsd.com` (CNAME → SWA) and provision Forward Email on **`mail.plattform-kit.poc.singletonsd.com`**.
+**Locked choice (Path B):** keep marketing on `plattform-kit.poc.singletonsd.com` (CNAME → `singleton-sd.github.io`, GitHub Pages) and provision Forward Email on **`mail.plattform-kit.poc.singletonsd.com`**.
 
 | Host | Role |
 | --- | --- |

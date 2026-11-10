@@ -130,14 +130,15 @@ DTOs.
 
 | Component | Prod/dev host | PR preview host |
 | --- | --- | --- |
-| Web | SWA Free (custom domain) | SWA Free PR preview (`*.azurestaticapps.net`) |
-| Marketing | SWA Free (custom domain) | SWA Free PR preview |
+| Web | SWA Free (custom domain) | Container Apps PR preview (`ssd-pocpk-aca-web-pr-<n>-ae`) |
+| Marketing | GitHub Pages (custom domain `plattform-kit.poc.singletonsd.com`) | GitHub Pages `/pr-preview/pr-<n>/` |
 | API | Azure Container Apps Consumption (`ssd-pocpk-aca-api-dev-ae`, 0.25/0.5Gi, min 0 / max 2, scale-to-zero) | Azure Container Apps Consumption, ephemeral, scale-to-zero |
 | OpenFGA | Azure Container Apps Consumption | shares the dev store; see ADR 0002 |
 
-Public hostnames sit under `singletonsd.com`, with DNS in AWS Route53
-pointing CNAMEs at Azure. Path-filtered GitHub Actions (OIDC → Azure, no
-long-lived deploy secrets) run CI and deploy per change area. Full detail:
+Public hostnames sit under `singletonsd.com`, with DNS in AWS Route53.
+Marketing CNAMEs to `singleton-sd.github.io` (GitHub Pages); the product app
+and API still CNAME to Azure. Path-filtered GitHub Actions run CI and deploy
+per change area. Full detail:
 [`docs/pr-pipelines.md`](../pr-pipelines.md), `infra/README.md`,
 [`docs/dns-route53.md`](../dns-route53.md).
 

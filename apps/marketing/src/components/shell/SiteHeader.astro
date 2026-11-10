@@ -2,6 +2,7 @@
 import Button from '../ui/Button.astro';
 import Icon from '../ui/Icon.astro';
 import { appCta, primaryNav } from '../../lib/nav';
+import { stripBase, withBase } from '../../lib/with-base.mjs';
 
 interface Props {
   currentPath?: string;
@@ -16,14 +17,16 @@ const {
 } = Astro.props;
 
 function isActive(href: string) {
-  if (href === '/') return currentPath === '/';
-  return currentPath === href || currentPath.startsWith(`${href}/`);
+  const path = stripBase(currentPath);
+  const target = stripBase(href);
+  if (target === '/') return path === '/';
+  return path === target || path.startsWith(`${target}/`);
 }
 ---
 
 <header class="sticky top-0 z-40 border-b border-border bg-bg">
   <div class="mx-auto flex h-14 max-w-content items-center justify-between px-5 md:h-16 md:px-10">
-    <a href="/" class="flex items-center gap-2 text-body-sm no-underline">
+    <a href={withBase('/')} class="flex items-center gap-2 text-body-sm no-underline">
       <span class="font-bold text-fg">{brand}</span>
       <span class="size-1.5 rounded-full bg-accent" aria-hidden="true"></span>
       <span class="hidden text-caption text-fg-muted sm:inline">{tagline}</span>
@@ -35,7 +38,7 @@ function isActive(href: string) {
           const active = isActive(link.href);
           return (
             <a
-              href={link.href}
+              href={withBase(link.href)}
               class:list={[
                 'relative text-body-sm no-underline transition',
                 active
@@ -81,7 +84,7 @@ function isActive(href: string) {
     <div class="flex h-full flex-col justify-between p-6">
       <div class="flex flex-col gap-8">
         <div class="flex items-center justify-between">
-          <a href="/" class="font-bold text-fg no-underline">{brand}</a>
+          <a href={withBase('/')} class="font-bold text-fg no-underline">{brand}</a>
           <button
             type="button"
             class="inline-flex size-10 items-center justify-center rounded-md text-fg"
@@ -96,7 +99,7 @@ function isActive(href: string) {
               const active = isActive(link.href);
               return (
                 <a
-                  href={link.href}
+                  href={withBase(link.href)}
                   class:list={[
                     'font-heading text-[1.625rem] leading-tight no-underline',
                     active ? 'text-accent' : 'text-fg',

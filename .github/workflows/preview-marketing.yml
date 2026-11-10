@@ -1,34 +1,48 @@
-# Azure Static Web Apps PR preview for marketing (Free SKU — no extra cost).
-# Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-marketing-deployment-token`.
-# Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
-# If those Variables are missing, deploy steps SKIP (job succeeds) so CI is not blocked forever.
-# See SETUP.md / docs/pr-pipelines.md. Touching this file retriggers previews.
-name: Preview Marketing (SWA)
+# GitHub Pages PR preview for marketing at /pr-preview/pr-<number>/.
+# House pattern: singleton-sd/poc-inkads-marketing (rossjrw/pr-preview-action
+# onto gh-pages, PREVIEW_BASE_PATH so Astro assets resolve under the subpath).
+# Fork PRs are not published (no write access to gh-pages).
+#
+# Build runs with read-only token (no persisted credentials). Publish is a
+# separate trusted job with contents: write that only deploys the artifact.
+# Close handling lives in preview-marketing-close.yml (no path filter) so a
+# later commit that reverts marketing files still removes the preview.
+#
+# Secrets: none. Optional Variable PUBLIC_POSTKIT_API_BASE_URL overrides the
+# Contact form's baked-in PostKit default. Product app SWA previews stay on
+# Container Apps (preview-web.yml).
+name: Preview Marketing (GitHub Pages)
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, reopened, synchronize]
     paths:
       - 'apps/marketing/**'
-      - 'scripts/validate-staticwebapp-config.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
       - '.github/workflows/preview-marketing.yml'
+      - '.github/workflows/preview-marketing-close.yml'
+      - '.github/workflows/pages.yml'
 
 concurrency:
   group: preview-marketing-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  build_and_preview:
-    if: github.event.action != 'closed'
+  build:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    name: Build + marketing SWA preview
-    permissions:
-      contents: read
-      id-token: write
-      pull-requests: write
+    name: Build marketing preview
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           submodules: true
           lfs: false
 
@@ -44,146 +58,97 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build marketing
+      - name: Build marketing (preview base)
         env:
-          PUBLIC_MARKETING_API_BASE_URL: ${{ vars.PUBLIC_MARKETING_API_BASE_URL || 'https://ssd-pocpk-decap-oauth-dev-ae.azurewebsites.net' }}
+          PREVIEW_BASE_PATH: /pr-preview/pr-${{ github.event.number }}/
+          PUBLIC_POSTKIT_API_BASE_URL: ${{ vars.PUBLIC_POSTKIT_API_BASE_URL }}
         run: pnpm --filter @poc-plattform-kit/marketing... run build
 
-      # SWA rejects trailing-slash duplicate routes (e.g. /admin + /admin/).
-      - name: Validate SWA config (dist)
-        run: node scripts/validate-staticwebapp-config.mjs apps/marketing/dist/staticwebapp.config.json
+      - name: Check asset paths (preview)
+        run: node apps/marketing/scripts/check-asset-paths.mjs --dir apps/marketing/dist --base /pr-preview/pr-${{ github.event.number }}/
 
-      - name: Check OIDC Variables
-        id: oidc
-        run: |
-          set -euo pipefail
-          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "OIDC Variables not set (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID) — skipping marketing SWA deploy."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Azure login (OIDC)
-        if: steps.oidc.outputs.configured == 'true'
-        uses: azure/login@v2
+      - uses: actions/upload-artifact@v4
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          name: marketing-preview-dist
+          path: apps/marketing/dist
+          retention-days: 1
 
-      - name: Read marketing SWA deploy token from Key Vault
-        if: steps.oidc.outputs.configured == 'true'
-        run: |
-          set -euo pipefail
-          token=$(az keyvault secret show \
-            --vault-name ssd-pocpk-kv-dev-ae \
-            --name swa-marketing-deployment-token \
-            --query value -o tsv)
-          echo "::add-mask::$token"
-          echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
-
-      - name: Deploy marketing SWA preview
-        id: deploy
-        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
-        uses: Azure/static-web-apps-deploy@v1
-        env:
-          SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+  publish:
+    needs: build
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    name: Build + GitHub Pages preview
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
+    steps:
+      # Trusted base ref only — do not execute PR-head build scripts here.
+      - uses: actions/checkout@v4
         with:
-          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-          action: upload
-          # Astro static build emits the site under apps/marketing/dist
-          app_location: apps/marketing/dist
-          skip_app_build: true
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: true
 
-      - name: Add preview URL to PR body once
-        if: steps.oidc.outputs.configured == 'true' && steps.deploy.outcome == 'success'
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketing-preview-dist
+          path: apps/marketing/dist
+
+      - name: Deploy preview
+        id: preview
+        continue-on-error: true
+        uses: rossjrw/pr-preview-action@v1.8.1
+        with:
+          source-dir: apps/marketing/dist
+          preview-branch: gh-pages
+          pages-base-url: https://plattform-kit.poc.singletonsd.com
+          umbrella-dir: pr-preview
+          action: deploy
+          comment: false
+
+      - name: Retry deploy preview
+        if: steps.preview.outcome == 'failure'
+        uses: rossjrw/pr-preview-action@v1.8.1
+        with:
+          source-dir: apps/marketing/dist
+          preview-branch: gh-pages
+          pages-base-url: https://plattform-kit.poc.singletonsd.com
+          umbrella-dir: pr-preview
+          action: deploy
+          comment: false
+
+      - name: Add preview URL comment once
         uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: https://plattform-kit.poc.singletonsd.com/pr-preview/pr-${{ github.event.number }}/
         with:
           script: |
-            const marker = '<!-- swa-preview-marketing -->';
-            const pr = context.issue.number;
-            const previewHost = `https://purple-field-05048bf00-${pr}.eastasia.7.azurestaticapps.net`;
-            const previewSection = [
+            const marker = '<!-- pages-preview-marketing -->';
+            const previewUrl = process.env.PREVIEW_URL;
+            const body = [
               marker,
-              '### Marketing preview (SWA Free)',
+              '### Marketing preview (GitHub Pages)',
               '',
-              'Static Web Apps created a **PR preview environment** for `apps/marketing`.',
+              'Published under the shared `gh-pages` branch (this repo has one Pages site).',
               '',
-              `- Preview URL: ${previewHost}`,
-              '- Production SWA: `ssd-pocpk-mkt-dev-ae` (Free) — requires `stagingEnvironmentPolicy=Enabled`.',
-              '- Deploy token loaded at runtime via **OIDC → Key Vault** (`swa-marketing-deployment-token`).',
+              `- Preview URL: ${previewUrl}`,
+              '- Production host: `https://plattform-kit.poc.singletonsd.com`',
               '',
-              '_Production host: `https://plattform-kit.poc.singletonsd.com`._',
+              '_Astro `base` for this build is `/pr-preview/pr-<number>/`. Decap `/admin` is production-only; do not browse untrusted PR previews while signed into `/admin` (same origin)._',
             ].join('\n');
-
-            const { data: pull } = await github.rest.pulls.get({
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number,
+              issue_number: context.issue.number,
             });
-            if (!pull.body?.includes(marker)) {
-              const body = [pull.body?.trim(), previewSection].filter(Boolean).join('\n\n');
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                body,
-              });
+            if (comments.some((comment) => comment.body?.includes(marker))) {
+              return;
             }
-
-      - name: Skip notice (OIDC not configured)
-        if: steps.oidc.outputs.configured != 'true'
-        run: |
-          echo "Marketing SWA preview skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC IDs only; token stays in Key Vault)."
-
-  close_preview:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close marketing SWA preview
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Check OIDC Variables
-        id: oidc
-        run: |
-          set -euo pipefail
-          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "OIDC Variables not set — skipping marketing SWA preview close."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Azure login (OIDC)
-        if: steps.oidc.outputs.configured == 'true'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Read marketing SWA deploy token from Key Vault
-        if: steps.oidc.outputs.configured == 'true'
-        run: |
-          set -euo pipefail
-          token=$(az keyvault secret show \
-            --vault-name ssd-pocpk-kv-dev-ae \
-            --name swa-marketing-deployment-token \
-            --query value -o tsv)
-          echo "::add-mask::$token"
-          echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
-
-      - name: Close Static Web App preview
-        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
-        uses: Azure/static-web-apps-deploy@v1
-        env:
-          SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-        with:
-          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-          action: close
-
-      - name: Skip notice (OIDC not configured)
-        if: steps.oidc.outputs.configured != 'true'
-        run: echo "Marketing SWA preview close skipped — OIDC Variables not configured."
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

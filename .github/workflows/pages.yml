@@ -1,0 +1,98 @@
+# GitHub Pages — marketing production deploy on merge to main (content
+# changes), after a successful Release (changelog.json in skip-ci commits),
+# or manual dispatch. Custom domain: plattform-kit.poc.singletonsd.com.
+# Follows the house pattern in singleton-sd/poc-inkads-marketing (gh-pages
+# branch + CNAME + clean-exclude pr-preview). Do not enable a second Pages
+# site in this repo — GitHub allows only one.
+#
+# Auth: GITHUB_TOKEN only. GitHub Pages is not an Azure resource, so the
+# OIDC → Key Vault production pattern does not apply (product app SWA and
+# API still use OIDC). Optional Variable PUBLIC_POSTKIT_API_BASE_URL
+# overrides the Contact form's baked-in PostKit default.
+name: Deploy Marketing (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/marketing/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/preview-marketing.yml'
+      - '.github/workflows/preview-marketing-close.yml'
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'push' &&
+       !contains(github.event.head_commit.message, '[skip ci]') &&
+       !startsWith(github.event.head_commit.message, 'chore: Release'))
+    runs-on: ubuntu-latest
+    name: Build + GitHub Pages production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: true
+          lfs: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build marketing
+        env:
+          PUBLIC_POSTKIT_API_BASE_URL: ${{ vars.PUBLIC_POSTKIT_API_BASE_URL }}
+        run: pnpm --filter @poc-plattform-kit/marketing... run build
+
+      - name: Check asset paths (root)
+        run: node apps/marketing/scripts/check-asset-paths.mjs --dir apps/marketing/dist --base /
+
+      - name: Deploy production site
+        id: deploy
+        continue-on-error: true
+        uses: JamesIves/github-pages-deploy-action@v4.8.0
+        with:
+          token: ${{ github.token }}
+          branch: gh-pages
+          folder: apps/marketing/dist
+          clean: true
+          clean-exclude: pr-preview
+          # Emit .nojekyll so Pages does not hide Astro `_astro/` assets.
+          jekyll: true
+
+      - name: Retry production deploy
+        if: steps.deploy.outcome == 'failure'
+        uses: JamesIves/github-pages-deploy-action@v4.8.0
+        with:
+          token: ${{ github.token }}
+          branch: gh-pages
+          folder: apps/marketing/dist
+          clean: true
+          clean-exclude: pr-preview
+          jekyll: true

@@ -12,7 +12,7 @@ Idempotent Bicep for the PoC stack. **No secrets in git.**
 | Resource | PoC SKU | Notes |
 | --- | --- | --- |
 | Neon PostgreSQL | Neon Free / Launch | PoC relational DB (`neondb`); not provisioned by this Bicep — set KV `database-url*` |
-| Static Web Apps | **Free** ×2 | App (`pocpk-web-…`) + marketing (`ssd-pocpk-mkt-dev-ae`); region often `eastasia` for Free |
+| Static Web Apps | **Free** ×1 | Product app (`pocpk-web-…`); region often `eastasia` for Free. Marketing is GitHub Pages. |
 | Service Bus | **Standard** | Topics required — Basic is queues-only; never Premium |
 | Key Vault | **Standard** | No Premium HSM |
 | App Configuration | **Free** | Non-secret config + KV references |
@@ -48,7 +48,8 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | Neon PostgreSQL | project `round-union-05852948` / DB `neondb` | — | Neon (outside Azure) |
 | Container App (API production) | `ssd-pocpk-aca-api-dev-ae` | (CAF) | Consumption (min 0 / max 2) |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | `ssd-pocpk-swa-dev-ae` | Free |
-| Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | (CAF) | Free |
+| GitHub Pages (marketing) | `gh-pages` branch | — | Free |
+| Static Web App (marketing, leftover) | `ssd-pocpk-mkt-dev-ae` | (CAF) | Free — delete after Pages cutover |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `ssd-pocpk-sb-dev-ae` | Standard |
 | Container Apps Env | `ssd-pocpk-cae-dev-ae` | (CAF) | Consumption |
 | Log Analytics | `ssd-pocpk-law-dev-ae` | (CAF) | PerGB2018 (CAE + App Insights) |
@@ -66,7 +67,7 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `database-url-unpooled` | `DATABASE_URL_UNPOOLED` (Neon direct — Prisma migrate / schema) |
 | `servicebus-connection-string` | `AZURE_SERVICEBUS_CONNECTION_STRING` |
 | `swa-deployment-token` | (from `az staticwebapp secrets list` — app SWA) |
-| `swa-marketing-deployment-token` | (from marketing SWA `ssd-pocpk-mkt-dev-ae`) |
+| `swa-marketing-deployment-token` | leftover until marketing SWA `ssd-pocpk-mkt-dev-ae` is deleted |
 | `acr-admin-username` | (from `az acr credential show`) |
 | `acr-admin-password` | (from `az acr credential show`) |
 | `acr-login-server` | e.g. `ssdpocpkacrdevae.azurecr.io` |
@@ -99,7 +100,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:web:baseUrl` | plain — `https://app.plattform-kit.poc.singletonsd.com` |
 | `app:marketing:baseUrl` | plain — `https://plattform-kit.poc.singletonsd.com` |
 | `app:web:swaName` | plain |
-| `app:marketing:swaName` | plain — `ssd-pocpk-mkt-dev-ae` |
+| `app:marketing:swaName` | leftover — marketing is GitHub Pages; delete after SWA removal |
 | `app:cors:origins` | plain — comma-separated allowed browser origins; use `https://{swaName}*.azurestaticapps.net` for this repo’s SWA Free hosts (not open `https://*.azurestaticapps.net`). Web **PR** previews are ACA (`ssd-pocpk-aca-web-pr-<n>-ae`); Nest also allows those hosts in code even when this list is overridden. |
 | `app:auth:url` | plain — Auth.js `AUTH_URL` (API public origin) |
 | `app:auth:cookieDomain` | plain — Auth.js cookie Domain (Option B; e.g. `.plattform-kit.poc.singletonsd.com`) |
@@ -111,7 +112,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `secret:database-url` | Key Vault reference (Neon pooled) |
 | `secret:servicebus-connection-string` | Key Vault reference |
 | `secret:swa-deployment-token` | Key Vault reference |
-| `secret:swa-marketing-deployment-token` | Key Vault reference |
+| `secret:swa-marketing-deployment-token` | leftover Key Vault reference — delete after marketing SWA removal |
 | `secret:appinsights-connection-string` | Key Vault reference |
 | `secret:auth-secret` | Key Vault reference → `AUTH_SECRET` |
 | `secret:azure-ad-client-secret` | Key Vault reference → `AZURE_AD_CLIENT_SECRET` |
@@ -126,7 +127,7 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 
 | Hostname | Resource |
 | --- | --- |
-| `plattform-kit.poc.singletonsd.com` | Marketing SWA `ssd-pocpk-mkt-dev-ae` |
+| `plattform-kit.poc.singletonsd.com` | GitHub Pages (`singleton-sd.github.io`) |
 | `app.plattform-kit.poc.singletonsd.com` | App SWA `pocpk-web-si5fhs6dvxiha` |
 | `api.plattform-kit.poc.singletonsd.com` | Container App `ssd-pocpk-aca-api-dev-ae` (see [`docs/aca-api-cutover-303.md`](../docs/aca-api-cutover-303.md)) |
 

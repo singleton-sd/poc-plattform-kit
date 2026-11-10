@@ -52,13 +52,8 @@ test('production deploy workflows trigger on package tags', async () => {
     new URL('../.github/workflows/deploy-web.yml', import.meta.url),
     'utf8',
   );
-  const deployMarketing = await readFile(
-    new URL('../.github/workflows/deploy-marketing.yml', import.meta.url),
-    'utf8',
-  );
   assert.match(deployApi, /'@poc-plattform-kit\/api@\*'/);
   assert.match(deployWeb, /'@poc-plattform-kit\/web@\*'/);
-  assert.match(deployMarketing, /'@poc-plattform-kit\/marketing@\*'/);
   assert.doesNotMatch(deployApi, /branches: \[main\]/);
   assert.doesNotMatch(deployWeb, /branches: \[main\]/);
 });
@@ -73,7 +68,7 @@ test('SETUP documents devtools vault, PAT permissions, and copy-paste setup', as
 });
 
 test('production deploy workflows disable checkout credential persistence', async () => {
-  for (const name of ['deploy-api.yml', 'deploy-web.yml', 'deploy-marketing.yml']) {
+  for (const name of ['deploy-api.yml', 'deploy-web.yml']) {
     const workflow = await readFile(
       new URL(`../.github/workflows/${name}`, import.meta.url),
       'utf8',

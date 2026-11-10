@@ -174,7 +174,7 @@ Do not file new engineering work in ClickUp Delivery.
 
 ### Locked: cost + naming
 
-- **Cost:** cheapest SKUs that still work - Neon (PoC) / Azure Database for PostgreSQL Flexible Server (shared), Container Apps **Consumption** for production API (`ssd-pocpk-aca-api-dev-ae`, minReplicas **0** / max 2 — scale to zero), SWA **Free** x2 (app + marketing production), Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API + web PR previews + OpenFGA).
+- **Cost:** cheapest SKUs that still work - Neon (PoC) / Azure Database for PostgreSQL Flexible Server (shared), Container Apps **Consumption** for production API (`ssd-pocpk-aca-api-dev-ae`, minReplicas **0** / max 2 — scale to zero), SWA **Free** for the product app, GitHub Pages for marketing, Service Bus **Standard** (topics; not Premium), Key Vault **Standard**, App Configuration **Free**, ACR **Basic**, Container Apps **Consumption** (API + web PR previews + OpenFGA).
 - **Naming (new resources):** CAF `{org}-{app}-{resource}-{env}-{region}` -> e.g. `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`, `ssd-pocpk-mkt-dev-ae`. ACR is alphanumeric-only: `ssdpocpkacrdevae`.
 - **Legacy live names** (`pocpk-*-si5fhs6dvxiha`) stay as-is (renames recreate). See alias table in [`infra/README.md`](./infra/README.md).
 
@@ -182,13 +182,13 @@ Do not file new engineering work in ClickUp Delivery.
 
 Public hostnames under `singletonsd.com` (DNS stays in **AWS**; Azure only gets CNAMEs / validation TXT):
 
-| Hostname | Surface | Azure target |
+| Hostname | Surface | Target |
 | --- | --- | --- |
-| `plattform-kit.poc.singletonsd.com` | Marketing | SWA `ssd-pocpk-mkt-dev-ae` (Free) |
+| `plattform-kit.poc.singletonsd.com` | Marketing | GitHub Pages (`singleton-sd.github.io`) |
 | `app.plattform-kit.poc.singletonsd.com` | Web app (PWA/SPA) | SWA `pocpk-web-si5fhs6dvxiha` (Free) |
 | `api.plattform-kit.poc.singletonsd.com` | Nest API | Container Apps `ssd-pocpk-aca-api-dev-ae` (Consumption; see [`docs/aca-api-cutover-303.md`](./docs/aca-api-cutover-303.md)) |
 
-PR / preview URLs stay on Azure defaults (`*.azurestaticapps.net` for marketing SWA and production web, `*.azurecontainerapps.io` for API and web PR previews) - no custom preview domains. API CORS / Auth.js redirects allow this repo's SWA instance prefixes (`https://kind-rock-0f409fe00*.azurestaticapps.net`, marketing SWA likewise) plus ACA web preview hosts (`ssd-pocpk-aca-web-pr-<n>-ae`) via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Entra Auth.js callback stays on the API host; MSAL SPA redirect URIs need exact preview origins (no Entra wildcard).
+PR / preview URLs: marketing is `/pr-preview/pr-<n>/` on the Pages custom domain; production web stays on `*.azurestaticapps.net`; API and web PR previews stay on `*.azurecontainerapps.io`. API CORS / Auth.js redirects allow this repo's **app** SWA instance prefix (`https://kind-rock-0f409fe00*.azurestaticapps.net`) plus ACA web preview hosts (`ssd-pocpk-aca-web-pr-<n>-ae`) via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Entra Auth.js callback stays on the API host; MSAL SPA redirect URIs need exact preview origins (no Entra wildcard). Marketing Pages previews do not need Entra redirects.
 
 #### Route53 checklist (zone `singletonsd.com` or delegated `poc.singletonsd.com`)
 
@@ -196,12 +196,12 @@ After Azure default hostnames are known (see provisioned table / `az` outputs):
 
 | Record | Type | Value |
 | --- | --- | --- |
-| `plattform-kit.poc` | CNAME | marketing SWA default hostname |
+| `plattform-kit.poc` | CNAME | `singleton-sd.github.io` (GitHub Pages — see [`docs/dns-route53.md`](./docs/dns-route53.md)) |
 | `app.plattform-kit.poc` | CNAME | web SWA default hostname (e.g. `kind-rock-....azurestaticapps.net`) |
 | `api.plattform-kit.poc` | CNAME | ACA FQDN for `ssd-pocpk-aca-api-dev-ae` |
 | (as prompted by Azure) | TXT | SWA / ACA domain validation |
 
-Then bind custom domains + managed certs in Azure (`az staticwebapp hostname set`, Container App hostname bind). Do not move the zone to Azure DNS.
+Then bind custom domains + managed certs in Azure for **app SWA and API only** (`az staticwebapp hostname set`, Container App hostname bind). Marketing TLS is GitHub Pages. Do not move the zone to Azure DNS.
 
 Exact live CNAME/TXT values and reusable apply scripts:
 [`docs/dns-route53.md`](./docs/dns-route53.md) / [`infra/custom-domains.pocpk.json`](./infra/custom-domains.pocpk.json).
@@ -220,7 +220,8 @@ Copy the JSON config to onboard another domain later (see `docs/dns-route53.md`)
 | Neon PostgreSQL (PoC) | project `round-union-05852948` / `neondb` | Key Vault `database-url` (+ `database-url-unpooled`); Azure SQL removed ([#292](https://github.com/singleton-sd/poc-plattform-kit/issues/292)) | Neon |
 | Container App (API production) | `ssd-pocpk-aca-api-dev-ae` | https://api.plattform-kit.poc.singletonsd.com | Consumption min0/max2 |
 | Static Web App (app) | `pocpk-web-si5fhs6dvxiha` | https://app.plattform-kit.poc.singletonsd.com (default: `....azurestaticapps.net`) | Free |
-| Static Web App (marketing) | `ssd-pocpk-mkt-dev-ae` | https://plattform-kit.poc.singletonsd.com (PR previews need `stagingEnvironmentPolicy=Enabled`) | Free |
+| GitHub Pages (marketing) | `gh-pages` branch in this repo | https://plattform-kit.poc.singletonsd.com (PR previews: `/pr-preview/pr-<n>/`) | Free |
+| Static Web App (marketing, leftover) | `ssd-pocpk-mkt-dev-ae` | Delete **after** Pages DNS/TLS cutover — see [`docs/dns-route53.md`](./docs/dns-route53.md) | Free |
 | Service Bus | `pocpk-sb-si5fhs6dvxiha` | `pocpk-sb-si5fhs6dvxiha.servicebus.windows.net` | Standard |
 | Key Vault | `ssd-pocpk-kv-dev-ae` | https://ssd-pocpk-kv-dev-ae.vault.azure.net/ | Standard |
 | App Configuration | `ssd-pocpk-appcs-dev-ae` | https://ssd-pocpk-appcs-dev-ae.azconfig.io | Free |
@@ -238,7 +239,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 | --- | --- | --- |
 | **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, ACR admin, Entra client secrets, notification provider keys. Never in git or GitHub Actions secrets. |
 | **App configuration** | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | Non-secret settings + **Key Vault references** for secret values (not inline secrets). |
-| **CI/CD** | GitHub Actions **OIDC** -> Azure | Workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. |
+| **CI/CD** | GitHub Actions **OIDC** -> Azure (web/API); **GitHub Pages** `GITHUB_TOKEN` (marketing) | Azure-hosted workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. Marketing Pages (`pages.yml`) is not an Azure resource and deploys with `GITHUB_TOKEN` to `gh-pages`. |
 
 | Layer | Choice |
 | --- | --- |
@@ -249,7 +250,7 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events -> Audit.
 
-**Key Vault secret names (not values):** `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`
+**Key Vault secret names (not values):** `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `swa-marketing-deployment-token` may remain until the marketing SWA is deleted (manual).
 
 **Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): `github-automation-pat` (org-wide platform automation PAT). See **Platform GitHub automation PAT** above.
 
@@ -265,7 +266,7 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID (app resources; OIDC login default) |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Reader** on RG (marketing SWA preview), **Contributor** on RG (ACA API production + API/web preview deploy), **Key Vault Secrets User** on `ssd-pocpk-kv-dev-ae` (app runtime + `acr-admin-*`), **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (org CI secrets — cross-subscription), **App Configuration Data Reader**. Production ACA Bicep (`infra/container-apps-api-prod.bicep`) also creates MI role assignments on Key Vault + App Configuration — grant the OIDC SP **Role Based Access Control Administrator** (or **User Access Administrator**) scoped to those two resources (Contributor alone cannot `Microsoft.Authorization/roleAssignments/write`), or create those assignments once with a bootstrap Owner identity. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Contributor** on RG (ACA API production + API/web preview deploy), **Key Vault Secrets User** on `ssd-pocpk-kv-dev-ae` (app runtime + `acr-admin-*`), **Key Vault Secrets User** on `ssd-devtools-kv-prod-ae` (org CI secrets — cross-subscription), **App Configuration Data Reader**. Production ACA Bicep (`infra/container-apps-api-prod.bicep`) also creates MI role assignments on Key Vault + App Configuration — grant the OIDC SP **Role Based Access Control Administrator** (or **User Access Administrator**) scoped to those two resources (Contributor alone cannot `Microsoft.Authorization/roleAssignments/write`), or create those assignments once with a bootstrap Owner identity. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 

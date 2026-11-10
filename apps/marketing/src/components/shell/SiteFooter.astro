@@ -1,6 +1,7 @@
 ---
 import Icon from '../ui/Icon.astro';
 import { footerColumns } from '../../lib/nav';
+import { withBase } from '../../lib/with-base.mjs';
 
 interface Props {
   brand?: string;
@@ -37,7 +38,7 @@ const year = new Date().getFullYear();
                 {column.links.map((link) => (
                   <li>
                     <a
-                      href={link.href}
+                      href={withBase(link.href)}
                       class="text-caption text-fg-subtle no-underline transition hover:text-accent"
                     >
                       {link.label}

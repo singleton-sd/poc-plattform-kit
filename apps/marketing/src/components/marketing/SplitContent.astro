@@ -1,6 +1,7 @@
 ---
 import Icon from '../ui/Icon.astro';
 import PageContainer from '../shell/PageContainer.astro';
+import { withBase } from '../../lib/with-base.mjs';
 
 interface Props {
   eyebrow?: string;
@@ -61,7 +62,7 @@ const {
         {
           link ? (
             <a
-              href={link.href}
+              href={withBase(link.href)}
               class="inline-flex items-center gap-2 text-body-sm font-bold text-accent transition hover:text-accent-hover"
             >
               {link.label}
@@ -79,7 +80,7 @@ const {
             {
               imageSrc ? (
                 <img
-                  src={imageSrc}
+                  src={withBase(imageSrc)}
                   alt={imageAlt}
                   width={600}
                   height={360}

@@ -1,6 +1,6 @@
 {
   "$schema": "./custom-domains.schema.json",
-  "comment": "poc-plattform-kit custom domains under singletonsd.com. API CNAME targets production ACA after #303 cutover.",
+  "comment": "poc-plattform-kit custom domains under singletonsd.com. Marketing CNAME targets GitHub Pages after the Pages cutover (docs/dns-route53.md). API CNAME targets production ACA after #303 cutover. Do not apply the marketing CNAME until Pages custom domain + TLS are configured — DNS is owned by the infrastructure owner.",
   "zoneDomain": "singletonsd.com",
   "resourceGroup": "rg-poc-plattform-kit",
   "ttlSeconds": 300,
@@ -8,7 +8,7 @@
     {
       "name": "plattform-kit.poc",
       "type": "CNAME",
-      "value": "purple-field-05048bf00.7.azurestaticapps.net"
+      "value": "singleton-sd.github.io"
     },
     {
       "name": "app.plattform-kit.poc",
@@ -33,23 +33,10 @@
       "hostname": "app.plattform-kit.poc.singletonsd.com"
     },
     {
-      "kind": "swa",
-      "resourceName": "ssd-pocpk-mkt-dev-ae",
-      "hostname": "plattform-kit.poc.singletonsd.com"
-    },
-    {
       "kind": "containerapp",
       "resourceName": "ssd-pocpk-aca-api-dev-ae",
       "hostname": "api.plattform-kit.poc.singletonsd.com",
       "managedCert": true
-    }
-  ],
-  "deploys": [
-    {
-      "name": "marketing",
-      "vaultName": "ssd-pocpk-kv-dev-ae",
-      "secretName": "swa-marketing-deployment-token",
-      "appLocation": "apps/marketing/dist"
     }
   ]
 }

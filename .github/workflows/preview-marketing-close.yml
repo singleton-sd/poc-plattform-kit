@@ -1,0 +1,52 @@
+# Remove the marketing GitHub Pages PR preview when the PR closes.
+# No path filter: a later commit can revert every marketing file and still
+# leave `pr-preview/pr-<n>/` on gh-pages; close must still run.
+#
+# Product app SWA / ACA previews are unchanged (preview-web.yml / preview-api.yml).
+name: Close Marketing Pages preview
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  close_preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    name: Close GitHub Pages preview
+    steps:
+      # Trusted base ref — do not check out PR-head code to remove a preview.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: true
+
+      - name: Remove preview
+        id: remove_preview
+        continue-on-error: true
+        uses: rossjrw/pr-preview-action@v1.8.1
+        with:
+          source-dir: apps/marketing/dist
+          preview-branch: gh-pages
+          pages-base-url: https://plattform-kit.poc.singletonsd.com
+          umbrella-dir: pr-preview
+          action: remove
+          comment: false
+
+      - name: Retry remove preview
+        if: steps.remove_preview.outcome == 'failure'
+        uses: rossjrw/pr-preview-action@v1.8.1
+        with:
+          source-dir: apps/marketing/dist
+          preview-branch: gh-pages
+          pages-base-url: https://plattform-kit.poc.singletonsd.com
+          umbrella-dir: pr-preview
+          action: remove
+          comment: false
