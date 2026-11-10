@@ -1,4 +1,6 @@
 ---
+import { withBase } from '../../lib/with-base.mjs';
+
 interface Props {
   href?: string;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
@@ -48,11 +50,13 @@ const classes = [
 ]
   .filter(Boolean)
   .join(' ');
+
+const resolvedHref = href ? withBase(href) : undefined;
 ---
 
 {
   href ? (
-    <a class={classes} href={disabled ? undefined : href} aria-disabled={disabled || undefined}>
+    <a class={classes} href={disabled ? undefined : resolvedHref} aria-disabled={disabled || undefined}>
       <slot />
     </a>
   ) : (

@@ -8,7 +8,7 @@ on:
       - CI Web
       - CI API
       - Preview Web (Container Apps)
-      - Preview Marketing (SWA)
+      - Preview Marketing (GitHub Pages)
       - Preview API (Container Apps)
     types: [completed]
 

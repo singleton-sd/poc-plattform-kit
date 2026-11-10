@@ -98,7 +98,7 @@ assert.deepEqual(
   previewUrlsFromSources(
     [
       'Test plan: https://not-a-preview.example/',
-      '<!-- swa-preview-marketing --> https://marketing-preview.example/',
+      '<!-- pages-preview-marketing --> https://marketing-preview.example/',
       '<!-- api-preview-aca --> https://api-preview.example/',
     ].join('\n'),
     comments,

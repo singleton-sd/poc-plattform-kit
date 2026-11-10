@@ -3,9 +3,12 @@
 #
 # Targets:
 #   1. Ephemeral ACA apps ssd-pocpk-aca-pr-<n>-ae and ssd-pocpk-aca-web-pr-<n>-ae
-#   2. SWA staging environments (web + marketing) except "default"
+#   2. SWA staging environments (product app SWA only) except "default"
 #   3. ACR tags pocpk-api:pr-<n> / pocpk-web:pr-<n> (and pr-<n>-<sha>) for closed PRs
 #   4. Entra SPA redirect URIs for closed SWA and ACA web PR preview origins
+#
+# Marketing PR previews live on GitHub Pages (gh-pages /pr-preview/pr-<n>/)
+# and are removed by preview-marketing.yml on PR close — not here.
 #
 # Requires: az (logged in), gh, node (for Entra helper).
 # Usage:
@@ -23,7 +26,6 @@ ACR_NAME="${ACR_NAME:-ssdpocpkacrdevae}"
 IMAGE_REPO="${IMAGE_REPO:-pocpk-api}"
 WEB_IMAGE_REPO="${WEB_IMAGE_REPO:-pocpk-web}"
 WEB_SWA_NAME="${WEB_SWA_NAME:-pocpk-web-si5fhs6dvxiha}"
-MKT_SWA_NAME="${MKT_SWA_NAME:-ssd-pocpk-mkt-dev-ae}"
 ACA_PREFIX="${ACA_PREFIX:-ssd-pocpk-aca-pr-}"
 ACA_WEB_PREFIX="${ACA_WEB_PREFIX:-ssd-pocpk-aca-web-pr-}"
 ACA_SUFFIX="${ACA_SUFFIX:--ae}"
@@ -190,7 +192,6 @@ sweep_swa() {
 }
 
 sweep_swa "$WEB_SWA_NAME" "web"
-sweep_swa "$MKT_SWA_NAME" "marketing"
 
 # --- 3. ACR image tags -----------------------------------------------------
 sweep_acr_repo() {

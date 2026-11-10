@@ -2,7 +2,7 @@
 #
 # Cleans:
 #   - Orphan ACA apps ssd-pocpk-aca-pr-<n>-ae and ssd-pocpk-aca-web-pr-<n>-ae
-#   - Orphan SWA staging environments (web + marketing)
+#   - Orphan SWA staging environments (product app SWA only)
 #   - Orphan ACR tags pocpk-api:pr-<n>* and pocpk-web:pr-<n>*
 #   - Orphan Entra SPA redirect URIs for closed SWA and ACA web PR preview origins
 #
@@ -41,7 +41,6 @@ env:
   ACR_NAME: ssdpocpkacrdevae
   IMAGE_REPO: pocpk-api
   WEB_SWA_NAME: pocpk-web-si5fhs6dvxiha
-  MKT_SWA_NAME: ssd-pocpk-mkt-dev-ae
 
 jobs:
   sweep:

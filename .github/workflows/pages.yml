@@ -1,0 +1,72 @@
+# GitHub Pages — marketing production deploy on merge to main (content
+# changes) or manual dispatch. Custom domain: plattform-kit.poc.singletonsd.com.
+# Follows the house pattern in singleton-sd/poc-inkads-marketing (gh-pages
+# branch + CNAME + clean-exclude pr-preview). Do not enable a second Pages
+# site in this repo — GitHub allows only one.
+#
+# Secrets: none. Optional Variable PUBLIC_POSTKIT_API_BASE_URL overrides the
+# Contact form's baked-in PostKit default. Product app SWA and the API are
+# unchanged (deploy-web.yml / deploy-api.yml).
+name: Deploy Marketing (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/marketing/**'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/preview-marketing.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       !contains(github.event.head_commit.message, '[skip ci]') &&
+       !startsWith(github.event.head_commit.message, 'chore: Release'))
+    runs-on: ubuntu-latest
+    name: Build + GitHub Pages production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          submodules: true
+          lfs: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build marketing
+        env:
+          PUBLIC_POSTKIT_API_BASE_URL: ${{ vars.PUBLIC_POSTKIT_API_BASE_URL }}
+        run: pnpm --filter @poc-plattform-kit/marketing... run build
+
+      - name: Check asset paths (root)
+        run: node apps/marketing/scripts/check-asset-paths.mjs --dir apps/marketing/dist --base /
+
+      - name: Deploy production site
+        uses: JamesIves/github-pages-deploy-action@v4.8.0
+        with:
+          branch: gh-pages
+          folder: apps/marketing/dist
+          clean: true
+          clean-exclude: pr-preview
+          # Emit .nojekyll so Pages does not hide Astro `_astro/` assets.
+          jekyll: true

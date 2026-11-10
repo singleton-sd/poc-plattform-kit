@@ -1,6 +1,6 @@
 # Marketing site — Astro + Decap
 
-Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-mkt-dev-ae`).
+Locked stack for `plattform-kit.poc.singletonsd.com` (GitHub Pages; house pattern matches [`poc-inkads-marketing`](https://github.com/singleton-sd/poc-inkads-marketing)).
 
 ## Stack
 
@@ -12,13 +12,23 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (Azure SWA Free `ssd-pocpk-
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
 | OAuth login | Shared org service **`cms-oauth-kit`** (`https://auth.singletonsd.com`). See [`singleton-sd/cms-oauth-kit` AGENTS.md](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md). This repo is **not** the org Decap OAuth provider. |
 | Contact email | Shared [`PostKit`](https://github.com/singleton-sd/post-kit) API via `PUBLIC_POSTKIT_API_BASE_URL` |
-| Deploy site | `deploy-marketing.yml` → OIDC → Key Vault → SWA upload of `apps/marketing/dist` |
+| Deploy site | `pages.yml` → `gh-pages` branch (GitHub Pages). PRs: `preview-marketing.yml` at `/pr-preview/pr-<n>/` |
 
 No WordPress, Gatsby, or always-on CMS server for the site itself.
 
-### SWA routes
+### GitHub Pages routes
 
-`public/staticwebapp.config.json` must not list trailing-slash duplicates (e.g. both `/admin` and `/admin/` rewrites) — Azure rejects the upload. Prefer a single `/admin` → `/admin/` redirect and let SWA serve `admin/index.html` for the directory. CI/deploy run `scripts/validate-staticwebapp-config.mjs` to catch duplicate routes before SWA.
+Astro emits directory URLs (`features/index.html`) and `/404.html`. GitHub Pages
+serves `/features` and `/features/` from the directory index, and unknown paths
+at the **site root** from `/404.html`. There is no marketing
+`staticwebapp.config.json`. Product-app SWA config (`apps/web/public/staticwebapp.config.json`)
+is unchanged.
+
+PR previews set `PREVIEW_BASE_PATH=/pr-preview/pr-<n>/` so bundled `_astro/`
+assets and in-app links resolve under that subpath. Decap `/admin` keeps
+production-absolute `/admin/…` URLs — use the custom domain for CMS login, not
+a preview URL. See [`docs/dns-route53.md`](./dns-route53.md) for cutover and
+documented Pages gaps.
 
 ## How Decap fits Astro
 
@@ -26,7 +36,7 @@ No WordPress, Gatsby, or always-on CMS server for the site itself.
 2. `admin/index.html` sets `rel="cms-config-url"` to `/admin/config.yml` (needed when the URL has no trailing slash) and loads Decap at the end of `<body>` so `document.body` exists.
 3. Login with GitHub via the **shared** OAuth proxy (`base_url: https://auth.singletonsd.com` in `config.yml`).
 4. Decap reads/writes Markdown in git via the **GitHub API** (editorial workflow → PRs).
-5. Merge to `main` runs Astro build; SWA serves the new HTML.
+5. Merge to `main` runs Astro build; GitHub Pages serves the new HTML from `gh-pages`.
 6. Decap does **not** talk to Astro at runtime.
 
 ## Admin UI customization
@@ -63,9 +73,9 @@ Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
 
 | Piece | Extra host? |
 | --- | --- |
-| Decap UI `/admin` | No — same SWA Free |
+| Decap UI `/admin` | No — same GitHub Pages site |
 | Markdown content | No — GitHub |
-| Astro site | No — CI build + SWA |
+| Astro site | No — CI build + GitHub Pages |
 | GitHub OAuth login | **Yes** — shared org Function `https://auth.singletonsd.com` (`singleton-sd/cms-oauth-kit`) |
 | Marketing Contact HTTP | **Yes** — shared PostKit API |
 
@@ -75,7 +85,7 @@ PK consumes [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit). Do
 
 GitHub OAuth App: [Singleton SD CMS OAuth](https://github.com/settings/applications/3783537) (callback `https://auth.singletonsd.com/callback`). Do **not** create a Platform Kit OAuth App.
 
-Open `/admin` only on a hostname allowed by the shared ORIGINS list. Do **not** test GitHub login on raw `*.azurestaticapps.net` default hosts.
+Open `/admin` only on a hostname allowed by the shared ORIGINS list. Do **not** test GitHub login on a PR preview path (`/pr-preview/pr-<n>/`) — Decap’s `/admin` URLs are production-absolute.
 
 `config.yml`:
 
@@ -109,8 +119,8 @@ Editors need **write** access to `singleton-sd/poc-plattform-kit`.
 Decap **Pages** collection allows creating new Markdown entries (`create: true`).
 Home stays on `/` via `src/pages/index.astro`; every other slug is built by
 `src/pages/[slug].astro` (e.g. `/privacy`, `/terms`, or a new `/about`).
-Unknown paths hit `src/pages/404.astro` (`404.html`) via SWA
-`responseOverrides` — not the homepage SPA fallback.
+Unknown paths hit `src/pages/404.astro` (`404.html`) via GitHub Pages’
+root 404 handler — not a homepage SPA fallback.
 
 | File | Purpose |
 | --- | --- |
@@ -125,7 +135,7 @@ Unknown paths hit `src/pages/404.astro` (`404.html`) via SWA
 - Admin: `apps/marketing/public/admin/`
 - Shared Decap OAuth: [`singleton-sd/cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit)
 - Shared Contact email: [`singleton-sd/post-kit`](https://github.com/singleton-sd/post-kit)
-- Deploy site: `.github/workflows/deploy-marketing.yml`
+- Deploy site: `.github/workflows/pages.yml` (production) / `.github/workflows/preview-marketing.yml` (PR previews)
 - Local marketing: `pnpm dev:marketing`
 
 ## ClickUp

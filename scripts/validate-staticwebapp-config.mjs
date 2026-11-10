@@ -114,10 +114,7 @@ const isDirectRun = process.argv[1]
 if (isDirectRun) {
   const scriptDir = dirname(fileURLToPath(import.meta.url));
   const repoRoot = resolve(scriptDir, '..');
-  const defaults = [
-    resolve(repoRoot, 'apps/marketing/public/staticwebapp.config.json'),
-    resolve(repoRoot, 'apps/web/public/staticwebapp.config.json'),
-  ];
+  const defaults = [resolve(repoRoot, 'apps/web/public/staticwebapp.config.json')];
   const targets = process.argv.slice(2).length > 0 ? process.argv.slice(2) : defaults;
 
   let failed = false;

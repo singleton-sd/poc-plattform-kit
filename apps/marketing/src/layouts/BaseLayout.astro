@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import SiteFooter from '../components/shell/SiteFooter.astro';
 import SiteHeader from '../components/shell/SiteHeader.astro';
+import { stripBase } from '../lib/with-base.mjs';
 
 interface Props {
   title: string;
@@ -19,7 +20,7 @@ const {
   showShell = true,
 } = Astro.props;
 
-const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+const currentPath = stripBase(Astro.url.pathname);
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url).href;
 const resolvedOgImage = ogImage
   ? new URL(ogImage, Astro.site ?? Astro.url).href

@@ -11,7 +11,7 @@ const requiredCi = new Set(['Lint / test / build (api)', 'Lint / format / build 
 const previewMarkers = [
   '<!-- swa-preview-web -->',
   '<!-- api-preview-aca -->',
-  '<!-- swa-preview-marketing -->',
+  '<!-- pages-preview-marketing -->',
 ];
 
 export function nextAction({

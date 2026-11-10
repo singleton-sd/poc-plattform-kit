@@ -68,7 +68,7 @@ Do **not** upgrade app SWA to Standard solely for `/api` linking unless cost loc
 
 ## Web PR previews
 
-Production web stays on SWA Free (`app.plattform-kit.poc.singletonsd.com` and the SWA default hostname). **PR** previews for `apps/web` run on Container Apps (`ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io`). Marketing PR previews stay on SWA Free staging.
+Production web stays on SWA Free (`app.plattform-kit.poc.singletonsd.com` and the SWA default hostname). **PR** previews for `apps/web` run on Container Apps (`ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io`). Marketing PR previews are GitHub Pages paths (`/pr-preview/pr-<n>/`) and do not participate in Auth.js / MSAL.
 
 Preview hosts **cannot** share the PoC cookie Domain, and Auth.js CSRF (`__Host-…; SameSite=Lax`) fails cross-site (`MissingCSRF`).
 

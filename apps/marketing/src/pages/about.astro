@@ -7,6 +7,7 @@ import ContactStrip from '../components/marketing/ContactStrip.astro';
 import CtaBanner from '../components/marketing/CtaBanner.astro';
 import PageContainer from '../components/shell/PageContainer.astro';
 import { appCta } from '../lib/nav';
+import { withBase } from '../lib/with-base.mjs';
 import type { FeatureItem } from '../lib/marketing-types';
 
 const values: FeatureItem[] = [
@@ -72,7 +73,7 @@ const values: FeatureItem[] = [
         class="overflow-hidden rounded-xl border border-border bg-bg"
       >
         <img
-          src="/images/about/platform-overview.png"
+          src={withBase('/images/about/platform-overview.png')}
           alt="Isometric circuit-board illustration of Platform Kit architecture"
           width={1536}
           height={672}

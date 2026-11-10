@@ -453,7 +453,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - Mutations: same transaction -> entity + **local Audit** + **Outbox** (when others must be notified)
 - DB: **PostgreSQL** + Prisma `postgresql` (PoC host: **Neon**; shared/always-on: Azure Database for PostgreSQL Flexible Server)
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
-- Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) - see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); SWA Free `ssd-pocpk-mkt-dev-ae`
+- Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) - see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); GitHub Pages (`plattform-kit.poc.singletonsd.com`)
 - **Marketing connectors (locked):** Decap `/admin` GitHub login uses shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md) (`https://auth.singletonsd.com`). Brochure Contact posts to shared [`PostKit`](https://github.com/singleton-sd/post-kit) via `PUBLIC_POSTKIT_API_BASE_URL`. This repo does not host OAuth or email Functions.
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest -> committed `packages/api-client/openapi.json` -> Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
@@ -463,8 +463,8 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - **Secrets:** Azure Key Vault only (`ssd-pocpk-kv-dev-ae`)
 - **App configuration:** Azure App Configuration (`ssd-pocpk-appcs-dev-ae`) with **Key Vault references** for secret values
 - **CI/CD:** GitHub Actions **OIDC** -> Azure -> Key Vault / App Config (no deploy tokens or connection strings in GitHub Secrets)
-- **Cost + naming (locked):** cheapest working SKUs (Neon Free/Launch for PoC Postgres, ACA Consumption for production API minReplicas 0 / max 2 + API/web PR previews + OpenFGA, SWA Free x2 app+marketing, SB Standard, KV Standard, App Config Free, ACR Basic, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
-- **Public hostnames (locked):** `plattform-kit.poc.singletonsd.com` (marketing), `app.plattform-kit.poc.singletonsd.com` (web), `api.plattform-kit.poc.singletonsd.com` (API). DNS in AWS Route53 -> Azure CNAMEs.
+- **Cost + naming (locked):** cheapest working SKUs (Neon Free/Launch for PoC Postgres, ACA Consumption for production API minReplicas 0 / max 2 + API/web PR previews + OpenFGA, SWA Free for the product app, GitHub Pages for marketing, SB Standard, KV Standard, App Config Free, ACR Basic, LAW PerGB2018, App Insights workspace-based); new resources use CAF `ssd-pocpk-{resource}-dev-ae` - see `SETUP.md` / `infra/README.md`
+- **Public hostnames (locked):** `plattform-kit.poc.singletonsd.com` (marketing, GitHub Pages), `app.plattform-kit.poc.singletonsd.com` (web, SWA), `api.plattform-kit.poc.singletonsd.com` (API, ACA). DNS in AWS Route53 (marketing CNAME → `singleton-sd.github.io`; app/API still Azure CNAMEs).
 - **Telemetry:** Application Insights + Log Analytics - see [docs/telemetry.md](docs/telemetry.md)
 
 ## Secrets + configuration (locked)
@@ -476,7 +476,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 | Secrets (passwords, connection strings, SWA deploy token, ACR admin, Entra secrets, notification provider keys) | Key Vault `ssd-pocpk-kv-dev-ae` |
 | Non-secret app settings + KV references | App Configuration `ssd-pocpk-appcs-dev-ae` |
 
-Secret **names** (not values): `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `swa-marketing-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`.
+Secret **names** (not values): `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `swa-marketing-deployment-token` may remain in Key Vault until the marketing SWA is deleted (manual; see [`docs/dns-route53.md`](docs/dns-route53.md)).
 
 Decap `/admin` uses [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md). Marketing Contact email uses [`PostKit`](https://github.com/singleton-sd/post-kit).
 
@@ -493,7 +493,7 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 | --- | --- | --- | --- |
 | `apps/web/**` | `ci-web.yml`; also `chromatic.yml` + `playwright.yml` when web/packages paths hit | Path B ACA (`preview-web.yml`) via OIDC -> KV (`ssd-pocpk-aca-web-pr-<n>-ae`) | `deploy-web.yml` -> SWA production |
 | `apps/api/**`, `pillars/**` | `ci-api.yml` | Path B ACA (`preview-api.yml`) via OIDC -> KV | `deploy-api.yml` -> ACA Consumption (`ssd-pocpk-aca-api-dev-ae`) |
-| `apps/marketing/**` | `ci-web.yml` (marketing filter) | SWA PR preview (`preview-marketing.yml`, Free) via OIDC -> KV | `deploy-marketing.yml` -> marketing SWA (`apps/marketing/dist`) |
+| `apps/marketing/**` | `ci-web.yml` (marketing filter) | GitHub Pages PR preview (`preview-marketing.yml`, `/pr-preview/pr-<n>/`) | `pages.yml` -> GitHub Pages (`apps/marketing/dist` on `gh-pages`) |
 | `packages/**` | both CI workflows; Chromatic + Playwright when web deps change | web preview if web deps change; ACA preview if api/pillars touch packages | matching deploy workflows when paths hit |
 
 - **Path B locked:** per-PR API previews (`ssd-pocpk-aca-pr-<n>-ae`) and web PR previews (`ssd-pocpk-aca-web-pr-<n>-ae`) on Container Apps Consumption, scale to zero. Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host. Production web stays SWA Free.
