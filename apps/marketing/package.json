@@ -8,7 +8,7 @@
     "build": "node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro build",
     "preview": "astro preview",
     "lint": "node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check",
-    "test": "node --test ../../scripts/validate-staticwebapp-config.test.mjs && node --test scripts/token-consumption.test.mjs && node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check"
+    "test": "node --test ../../scripts/validate-staticwebapp-config.test.mjs && node --test scripts/token-consumption.test.mjs && node --test src/lib/contact-form.test.mjs && node ../../scripts/validate-staticwebapp-config.mjs public/staticwebapp.config.json && astro check"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

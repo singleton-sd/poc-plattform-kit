@@ -8,6 +8,9 @@ interface Props {
   error?: string;
   rows?: number;
   required?: boolean;
+  maxlength?: number;
+  minlength?: number;
+  showCount?: boolean;
   class?: string;
 }
 
@@ -20,10 +23,17 @@ const {
   error,
   rows = 5,
   required = false,
+  maxlength,
+  minlength,
+  showCount = false,
   class: className = '',
 } = Astro.props;
 
-const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
+const countId = showCount && maxlength ? `${id}-count` : undefined;
+const describedBy =
+  [error ? `${id}-error` : null, helper ? `${id}-helper` : null, countId]
+    .filter(Boolean)
+    .join(' ') || undefined;
 ---
 
 <div class:list={['flex w-full flex-col gap-2', className]}>
@@ -44,6 +54,9 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
     rows={rows}
     placeholder={placeholder}
     required={required}
+    maxlength={maxlength}
+    minlength={minlength}
+    aria-required={required || undefined}
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={describedBy}
     class:list={[
@@ -51,7 +64,7 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
       'focus:border-2 focus:border-accent',
       error ? 'border-status-error' : 'border-border',
     ]}
-  ><slot /></textarea>
+  ></textarea>
   {
     error ? (
       <p id={`${id}-error`} class="m-0 text-caption text-status-error">
@@ -60,6 +73,13 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
     ) : helper ? (
       <p id={`${id}-helper`} class="m-0 text-caption text-fg-muted">
         {helper}
+      </p>
+    ) : null
+  }
+  {
+    countId ? (
+      <p id={countId} class="m-0 text-caption text-fg-muted">
+        0/{maxlength}
       </p>
     ) : null
   }
