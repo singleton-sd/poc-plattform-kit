@@ -32,7 +32,9 @@ const {
   class: className = '',
 } = Astro.props;
 
-const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
+const describedBy = [error ? `${id}-error` : null, helper ? `${id}-helper` : null]
+  .filter(Boolean)
+  .join(' ') || undefined;
 ---
 
 <div class:list={['flex w-full flex-col gap-2', className]}>
@@ -52,6 +54,7 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
       id={id}
       name={name}
       required={required}
+      aria-required={required || undefined}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={describedBy}
       class:list={[
@@ -62,7 +65,7 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
     >
       {
         placeholder ? (
-          <option value="" disabled selected={!value}>
+          <option value="" disabled={required} selected={!value}>
             {placeholder}
           </option>
         ) : null

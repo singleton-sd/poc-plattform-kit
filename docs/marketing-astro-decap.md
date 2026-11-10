@@ -94,7 +94,18 @@ backend:
 | --- | --- |
 | `/contact` | Anonymous marketing Contact form (`POST` / `OPTIONS`) → PostKit |
 
-Astro Contact posts to `{PUBLIC_POSTKIT_API_BASE_URL}/contact`. PostKit owns validation, rate limiting, tenant/host profiles, and email delivery.
+Astro Contact posts JSON `{ name, email, subject, message }` to
+`{PUBLIC_POSTKIT_API_BASE_URL}/contact`. PostKit owns validation, rate
+limiting, tenant/host profiles, and email delivery.
+
+`subject` must be one of `general`, `sales`, `support`, `partnership`. The
+brochure form treats inquiry type as optional and defaults an empty value to
+`general`. Sales / demo CTAs may preselect via `/contact?subject=sales`
+(or `?subject=demo`). Optional company and phone, plus a fixed
+`Submitted via: Platform Kit contact form` tag, are composed into `message`
+because PostKit `/contact` does not yet accept those fields. The form does
+not collect a visitor-facing source / “how did you hear about us” answer and
+does not post to Twenty or any CRM.
 
 ### Human bootstrap (once)
 
