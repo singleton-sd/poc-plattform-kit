@@ -2,6 +2,14 @@
 
 Release history for **@poc-plattform-kit/marketing**, generated from conventional commits by the release-it workflow.
 
+## 0.9.1 — 2026-11-11
+
+### Fixed
+
+- Point Decap CMS login at api gateway
+
+  Retarget marketing /admin GitHub OAuth to the cms-auth
+
 ## 0.9.0 — 2026-08-23
 
 ### New

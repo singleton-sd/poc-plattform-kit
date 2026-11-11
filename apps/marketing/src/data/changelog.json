@@ -2,6 +2,17 @@
   "product": "@poc-plattform-kit/marketing",
   "releases": [
     {
+      "version": "0.9.1",
+      "date": "2026-11-11",
+      "changes": [
+        {
+          "type": "Fixed",
+          "summary": "Point Decap CMS login at api gateway",
+          "reason": "Retarget marketing /admin GitHub OAuth to the cms-auth"
+        }
+      ]
+    },
+    {
       "version": "0.9.0",
       "date": "2026-08-23",
       "changes": [
