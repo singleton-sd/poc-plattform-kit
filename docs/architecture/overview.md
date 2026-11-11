@@ -124,7 +124,7 @@ DTOs.
 | --- | --- | --- |
 | Web app | Next.js PWA SPA + Tailwind + Singleton SD design tokens | `apps/web`; consumes the generated API client |
 | Marketing | Astro SSG + Tailwind + tokens + Markdown + Decap CMS (`/admin`) | `apps/marketing`; see [`docs/marketing-astro-decap.md`](../marketing-astro-decap.md) |
-| Marketing connectors | Shared services | Contact uses [`PostKit`](https://github.com/singleton-sd/post-kit); Decap `/admin` login uses [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit). Platform Kit hosts neither Function. |
+| Marketing connectors | Shared services | Contact uses [`PostKit`](https://github.com/singleton-sd/post-kit); Decap `/admin` login uses the cms-auth gateway at `https://api.singletonsd.com`. Platform Kit hosts neither the OAuth gateway nor email Functions. |
 
 ## Deployment topology
 

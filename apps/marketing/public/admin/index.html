@@ -17,7 +17,7 @@
   <body>
     <!--
       Decap is a static admin SPA. It talks to GitHub, not Astro at runtime.
-      GitHub OAuth requires the Azure Function proxy before non-dev login works.
+      GitHub OAuth uses the org cms-auth gateway at https://api.singletonsd.com.
       Script must load after body exists — Decap mounts onto document.body.
       Pin exact Decap version: CSS overrides target Emotion class labels that
       drift across releases (see docs/marketing-astro-decap.md).

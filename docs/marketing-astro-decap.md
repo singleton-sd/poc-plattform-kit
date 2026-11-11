@@ -10,7 +10,7 @@ Locked stack for `plattform-kit.poc.singletonsd.com` (GitHub Pages; house patter
 | Styling | **Tailwind 3** + `@singleton-sd/tokens` (`--ssd-*` CSS; npm, not the token CDN) |
 | Content | Markdown collections under `apps/marketing/src/content/pages/` |
 | Non-dev editor | **Decap CMS** static UI at `/admin` (GitHub backend) |
-| OAuth login | Shared org service **`cms-oauth-kit`** (`https://auth.singletonsd.com`). See [`singleton-sd/cms-oauth-kit` AGENTS.md](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md). This repo is **not** the org Decap OAuth provider. |
+| OAuth login | Shared org **cms-auth** gateway (`https://api.singletonsd.com`, `auth_endpoint: v1/cms-auth/auth`). This repo is **not** the org Decap OAuth provider. |
 | Contact email | Shared [`PostKit`](https://github.com/singleton-sd/post-kit) API via `PUBLIC_POSTKIT_API_BASE_URL` |
 | Deploy site | `pages.yml` → `gh-pages` branch (GitHub Pages). PRs: `preview-marketing.yml` at `/pr-preview/pr-<n>/` |
 
@@ -34,7 +34,7 @@ documented Pages gaps.
 
 1. Editors open `/admin` (static SPA shipped in `public/admin/`).
 2. `admin/index.html` sets `rel="cms-config-url"` to `/admin/config.yml` (needed when the URL has no trailing slash) and loads Decap at the end of `<body>` so `document.body` exists.
-3. Login with GitHub via the **shared** OAuth proxy (`base_url: https://auth.singletonsd.com` in `config.yml`).
+3. Login with GitHub via the **shared** cms-auth gateway (`base_url: https://api.singletonsd.com` in `config.yml`).
 4. Decap reads/writes Markdown in git via the **GitHub API** (editorial workflow → PRs).
 5. Merge to `main` runs Astro build; GitHub Pages serves the new HTML from `gh-pages`.
 6. Decap does **not** talk to Astro at runtime.
@@ -76,16 +76,18 @@ Pin the Decap version when changing overrides. Do not float `@^3.0.0`.
 | Decap UI `/admin` | No — same GitHub Pages site |
 | Markdown content | No — GitHub |
 | Astro site | No — CI build + GitHub Pages |
-| GitHub OAuth login | **Yes** — shared org Function `https://auth.singletonsd.com` (`singleton-sd/cms-oauth-kit`) |
+| GitHub OAuth login | **Yes** — shared org gateway `https://api.singletonsd.com/v1/cms-auth` |
 | Marketing Contact HTTP | **Yes** — shared PostKit API |
 
 ### Decap OAuth (shared)
 
-PK consumes [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit). Do not add `/auth` or `/callback` in this repo. Shared `ORIGINS` already covers `*.singletonsd.com` (including `plattform-kit.poc.singletonsd.com`).
+PK consumes the org cms-auth gateway at `https://api.singletonsd.com`. Do not add `/auth` or `/callback` in this repo. The OAuth callback (`https://api.singletonsd.com/v1/cms-auth/callback`) is configured on the gateway and GitHub OAuth App.
 
-GitHub OAuth App: [Singleton SD CMS OAuth](https://github.com/settings/applications/3783537) (callback `https://auth.singletonsd.com/callback`). Do **not** create a Platform Kit OAuth App.
+The gateway allowlist currently includes `https://plattform-kit.poc.singletonsd.com`. OAuth scope is `public_repo`. Do not assume other hosts (localhost, `*.azurestaticapps.net`, or `*.github.io`) are allowed.
 
-Open `/admin` only on a hostname allowed by the shared ORIGINS list. Do **not** test GitHub login on a PR preview path (`/pr-preview/pr-<n>/`) — Decap’s `/admin` URLs are production-absolute.
+GitHub OAuth App: [Singleton SD CMS OAuth](https://github.com/settings/applications/3783537) (callback `https://api.singletonsd.com/v1/cms-auth/callback`). Do **not** create a Platform Kit OAuth App.
+
+Open `/admin` only on a hostname allowed by the gateway origin list. Do **not** test GitHub login on a PR preview path (`/pr-preview/pr-<n>/`) — Decap’s `/admin` URLs are production-absolute.
 
 `config.yml`:
 
@@ -94,8 +96,8 @@ backend:
   name: github
   repo: singleton-sd/poc-plattform-kit
   branch: main
-  base_url: https://auth.singletonsd.com
-  auth_endpoint: auth
+  base_url: https://api.singletonsd.com
+  auth_endpoint: v1/cms-auth/auth
 ```
 
 ### Contact email (PostKit)
@@ -108,7 +110,7 @@ Astro Contact posts to `{PUBLIC_POSTKIT_API_BASE_URL}/contact`. PostKit owns val
 
 ### Human bootstrap (once)
 
-1. Confirm shared health: `https://auth.singletonsd.com/health` returns 200. Consumer contract: [`cms-oauth-kit` AGENTS.md](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md).
+1. Confirm the gateway auth route: opening `/admin` starts a popup to `https://api.singletonsd.com/v1/cms-auth/auth`.
 2. Confirm PostKit `/health` returns 200 and its origin allowlist includes `plattform-kit.poc.singletonsd.com`.
 3. Open `https://plattform-kit.poc.singletonsd.com/admin` → Login with GitHub (custom domain only).
 
@@ -133,7 +135,7 @@ root 404 handler — not a homepage SPA fallback.
 
 - App: `apps/marketing`
 - Admin: `apps/marketing/public/admin/`
-- Shared Decap OAuth: [`singleton-sd/cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit)
+- Shared Decap OAuth: `https://api.singletonsd.com/v1/cms-auth` (org cms-auth gateway)
 - Shared Contact email: [`singleton-sd/post-kit`](https://github.com/singleton-sd/post-kit)
 - Deploy site: `.github/workflows/pages.yml` (production) / `.github/workflows/preview-marketing.yml` (PR previews)
 - Local marketing: `pnpm dev:marketing`

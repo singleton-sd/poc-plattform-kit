@@ -454,7 +454,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - DB: **PostgreSQL** + Prisma `postgresql` (PoC host: **Neon**; shared/always-on: Azure Database for PostgreSQL Flexible Server)
 - Web: Next.js PWA SPA + Tailwind + [Singleton SD tokens](https://tokens.design.singletonsd.com/)
 - Marketing: Astro SSG + Tailwind + Singleton SD tokens + Markdown + Decap (`/admin`) - see [docs/marketing-astro-decap.md](docs/marketing-astro-decap.md); GitHub Pages (`plattform-kit.poc.singletonsd.com`)
-- **Marketing connectors (locked):** Decap `/admin` GitHub login uses shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md) (`https://auth.singletonsd.com`). Brochure Contact posts to shared [`PostKit`](https://github.com/singleton-sd/post-kit) via `PUBLIC_POSTKIT_API_BASE_URL`. This repo does not host OAuth or email Functions.
+- **Marketing connectors (locked):** Decap `/admin` GitHub login uses the shared cms-auth gateway (`https://api.singletonsd.com`, `auth_endpoint: v1/cms-auth/auth`). Brochure Contact posts to shared [`PostKit`](https://github.com/singleton-sd/post-kit) via `PUBLIC_POSTKIT_API_BASE_URL`. This repo does not host OAuth or email Functions.
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest -> committed `packages/api-client/openapi.json` -> Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
 - AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` - public allowlist in `docs/sso.md`
@@ -478,7 +478,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 
 Secret **names** (not values): `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `swa-marketing-deployment-token` may remain in Key Vault until the marketing SWA is deleted (manual; see [`docs/dns-route53.md`](docs/dns-route53.md)).
 
-Decap `/admin` uses [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md). Marketing Contact email uses [`PostKit`](https://github.com/singleton-sd/post-kit).
+Decap `/admin` uses the shared cms-auth gateway at `https://api.singletonsd.com`. Marketing Contact email uses [`PostKit`](https://github.com/singleton-sd/post-kit).
 
 - **Local:** pull from KV / App Config. Never commit secrets. `.env` only as optional gitignored cache.
 - **CI (GitHub Actions):** OIDC login using repo **Variables** `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (IDs only) -> `az keyvault secret show` or App Config at job runtime. **Never** put `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, or other secrets in GitHub Secrets.
@@ -567,7 +567,7 @@ pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scri
 
 - **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. No DB/Prisma wiring yet, so it runs without live Azure resources.
 - **Web:** `pnpm dev:web` - Next.js PWA SPA (see `apps/web`).
-- **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (GitHub login via shared `cms-oauth-kit` at `https://auth.singletonsd.com`). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
+- **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (GitHub login via `https://api.singletonsd.com/v1/cms-auth/auth`). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
 - **Prisma needs `DATABASE_URL` (+ `DATABASE_URL_UNPOOLED` for migrate):** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without them. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root — use `./scripts/neon-env-pull.sh` or copy placeholders. Real Neon values live in Key Vault (`database-url` / `database-url-unpooled`); CI uses dummy PostgreSQL URLs for validate/generate only.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.
 - **`pnpm skills:install:pin`** pulls from GitHub (`singleton-sd/ai-plattform-skills`) into
