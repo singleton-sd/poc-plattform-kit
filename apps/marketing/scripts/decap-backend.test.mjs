@@ -11,7 +11,22 @@ const configPath = join(marketingRoot, 'public/admin/config.yml');
 const retiredAuthHost = ['auth', 'singletonsd.com'].join('.');
 const retiredOauthKit = ['cms', 'oauth', 'kit'].join('-');
 
-const skipDirNames = new Set(['.git', 'node_modules', 'dist', '.astro', 'coverage']);
+const skipDirNames = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  '.astro',
+  'coverage',
+  '.agents',
+  '.claude',
+  '.codex',
+  '.worktrees',
+  '.pnpm-store',
+  '.turbo',
+  '.next',
+  'out',
+  'storybook-static',
+]);
 const skipFileNames = new Set(['CHANGELOG.md', 'changelog.json']);
 const textExtensions = new Set([
   '.md',
@@ -24,6 +39,7 @@ const textExtensions = new Set([
   '.ts',
   '.tsx',
   '.json',
+  '.astro',
 ]);
 
 function unquoteYamlScalar(value) {
@@ -37,13 +53,16 @@ function unquoteYamlScalar(value) {
 }
 
 function parseBackendFields(yaml) {
-  const match = yaml.match(/^backend:\n((?:[ \t].*\n)+)/m);
+  const normalized = String(yaml).replaceAll('\r\n', '\n');
+  const match = normalized.match(/^backend:\n((?: {2}.*\n)+)/m);
   assert.ok(match, 'config.yml is missing a backend block');
   const fields = {};
   for (const line of match[1].split('\n')) {
-    const field = line.match(/^[ \t]+([A-Za-z0-9_]+):\s*(.+?)\s*$/);
+    // Only the backend mapping's own keys (two-space indent). Nested
+    // mappings must not overwrite name/base_url.
+    const field = line.match(/^ {2}([A-Za-z0-9_]+):\s+(\S.*)$/);
     if (field) {
-      fields[field[1]] = unquoteYamlScalar(field[2]);
+      fields[field[1]] = unquoteYamlScalar(field[2].trimEnd());
     }
   }
   return fields;
@@ -91,6 +110,22 @@ test('parseBackendFields treats quoted YAML scalars as unquoted strings', () => 
   assert.equal(fields.auth_endpoint, 'v1/cms-auth/auth');
   assert.equal(fields.repo, 'singleton-sd/poc-plattform-kit');
   assert.equal(fields.branch, 'main');
+});
+
+test('parseBackendFields accepts CRLF and ignores nested mappings', () => {
+  const yaml = [
+    'backend:',
+    '  name: github',
+    '  extra:',
+    '    name: not-github',
+    '  base_url: https://api.singletonsd.com',
+    '  auth_endpoint: v1/cms-auth/auth',
+    '',
+  ].join('\r\n');
+  const fields = parseBackendFields(yaml);
+  assert.equal(fields.name, 'github');
+  assert.equal(fields.base_url, 'https://api.singletonsd.com');
+  assert.equal(fields.auth_endpoint, 'v1/cms-auth/auth');
 });
 
 test('live docs and config do not send CMS login to the retired OAuth host', () => {
