@@ -26,6 +26,16 @@ const textExtensions = new Set([
   '.json',
 ]);
 
+function unquoteYamlScalar(value) {
+  if (
+    (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
+    (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
 function parseBackendFields(yaml) {
   const match = yaml.match(/^backend:\n((?:[ \t].*\n)+)/m);
   assert.ok(match, 'config.yml is missing a backend block');
@@ -33,7 +43,7 @@ function parseBackendFields(yaml) {
   for (const line of match[1].split('\n')) {
     const field = line.match(/^[ \t]+([A-Za-z0-9_]+):\s*(.+?)\s*$/);
     if (field) {
-      fields[field[1]] = field[2];
+      fields[field[1]] = unquoteYamlScalar(field[2]);
     }
   }
   return fields;
@@ -67,6 +77,20 @@ test('Decap backend points at the api.singletonsd.com cms-auth gateway', () => {
   assert.equal(fields.branch, 'main');
   assert.equal(fields.base_url, 'https://api.singletonsd.com');
   assert.equal(fields.auth_endpoint, 'v1/cms-auth/auth');
+});
+
+test('parseBackendFields treats quoted YAML scalars as unquoted strings', () => {
+  const fields = parseBackendFields(`backend:
+  name: github
+  repo: "singleton-sd/poc-plattform-kit"
+  branch: 'main'
+  base_url: "https://api.singletonsd.com"
+  auth_endpoint: 'v1/cms-auth/auth'
+`);
+  assert.equal(fields.base_url, 'https://api.singletonsd.com');
+  assert.equal(fields.auth_endpoint, 'v1/cms-auth/auth');
+  assert.equal(fields.repo, 'singleton-sd/poc-plattform-kit');
+  assert.equal(fields.branch, 'main');
 });
 
 test('live docs and config do not send CMS login to the retired OAuth host', () => {
