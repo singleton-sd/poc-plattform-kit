@@ -1,13 +1,13 @@
 # Decap CMS — git-backed editor for marketing Markdown.
-# Auth: shared org GitHub OAuth (cms-oauth-kit). Do not point at the PK Function.
+# Auth: org cms-auth gateway at https://api.singletonsd.com
+# (auth_endpoint: v1/cms-auth/auth). Do not host OAuth in this repo.
 # Docs: docs/marketing-astro-decap.md
-# Consumer contract: https://github.com/singleton-sd/cms-oauth-kit/blob/main/AGENTS.md
 backend:
   name: github
   repo: singleton-sd/poc-plattform-kit
   branch: main
-  base_url: https://auth.singletonsd.com
-  auth_endpoint: auth
+  base_url: https://api.singletonsd.com
+  auth_endpoint: v1/cms-auth/auth
 
 # Prefer PRs so human merge still gates production publish.
 publish_mode: editorial_workflow

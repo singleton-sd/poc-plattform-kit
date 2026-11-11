@@ -282,7 +282,7 @@ Consumes domain events + queue `notifications.send`; publishes `notification.sen
 
 ### Marketing connectors (locked)
 
-Decap `/admin` login uses shared [`cms-oauth-kit`](https://github.com/singleton-sd/cms-oauth-kit) at `https://auth.singletonsd.com`. The brochure Contact form uses shared [`PostKit`](https://github.com/singleton-sd/post-kit) through `PUBLIC_POSTKIT_API_BASE_URL`. Platform Kit does not deploy a marketing OAuth or email Function.
+Decap `/admin` login uses the shared cms-auth gateway at `https://api.singletonsd.com` (`auth_endpoint: v1/cms-auth/auth`). The brochure Contact form uses shared [`PostKit`](https://github.com/singleton-sd/post-kit) through `PUBLIC_POSTKIT_API_BASE_URL`. Platform Kit does not deploy a marketing OAuth or email Function.
 
 | Surface | Rule |
 | --- | --- |
