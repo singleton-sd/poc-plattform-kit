@@ -1,7 +1,19 @@
 import { getOidcUserManager, resolveOidcPublicConfig } from './oidc-config';
 
+type OidcUserLike = {
+  access_token?: string;
+  expires_at?: number;
+  expired?: boolean;
+};
+
+type OidcManagerLike = {
+  getUser: () => Promise<OidcUserLike | null>;
+  signinSilent: () => Promise<OidcUserLike | null>;
+};
+
 let cachedAccessToken: string | null = null;
 let cachedAccessTokenExpiresOn: number | null = null;
+let pendingRenewal: Promise<OidcUserLike | null> | null = null;
 
 function cacheAccessToken(accessToken: string | undefined, expiresAt: number | undefined): void {
   if (!accessToken) {
@@ -74,24 +86,16 @@ export async function getBearerAccessToken(): Promise<string | null> {
   return user.access_token;
 }
 
-type OidcUserLike = {
-  access_token?: string;
-  expires_at?: number;
-  expired?: boolean;
-};
-
-type OidcManagerLike = {
-  getUser: () => Promise<OidcUserLike | null>;
-  signinSilent: () => Promise<OidcUserLike | null>;
-};
-
 async function readOrRenewUser(manager: OidcManagerLike): Promise<OidcUserLike | null> {
   const stored = await manager.getUser();
   if (stored?.access_token && !stored.expired) {
     return stored;
   }
   try {
-    const renewed = await manager.signinSilent();
+    const renewal = (pendingRenewal ??= manager.signinSilent().finally(() => {
+      pendingRenewal = null;
+    }));
+    const renewed = await renewal;
     if (renewed?.access_token && !renewed.expired) {
       return renewed;
     }
@@ -117,6 +121,7 @@ export async function signOutWithBearer(): Promise<void> {
 
   cachedAccessToken = null;
   cachedAccessTokenExpiresOn = null;
+  pendingRenewal = null;
 
   const manager = getOidcUserManager();
   const user = await manager.getUser();
@@ -131,4 +136,5 @@ export async function signOutWithBearer(): Promise<void> {
 export function resetBearerTokenCacheForTests(): void {
   cachedAccessToken = null;
   cachedAccessTokenExpiresOn = null;
+  pendingRenewal = null;
 }

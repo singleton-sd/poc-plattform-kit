@@ -86,6 +86,73 @@ describe('bearer-auth', () => {
     expect(signinSilent).toHaveBeenCalled();
   });
 
+  it('renews from getBearerAccessToken without priming the cache', async () => {
+    getUser.mockResolvedValue({
+      access_token: 'expired-tok',
+      expires_at: Math.floor(Date.now() / 1000) - 30,
+      expired: true,
+    });
+    signinSilent.mockResolvedValue({
+      access_token: 'renewed-tok',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      expired: false,
+    });
+
+    await expect(getBearerAccessToken()).resolves.toBe('renewed-tok');
+    expect(signinSilent).toHaveBeenCalledTimes(1);
+    expect(signinRedirectCallback).not.toHaveBeenCalled();
+  });
+
+  it('returns null when silent renewal is rejected', async () => {
+    getUser.mockResolvedValue({
+      access_token: 'expired-tok',
+      expired: true,
+    });
+    signinSilent.mockRejectedValue(new Error('refresh token revoked'));
+
+    await expect(getBearerAccessToken()).resolves.toBeNull();
+  });
+
+  it('returns null when no stored user exists', async () => {
+    getUser.mockResolvedValue(null);
+    signinSilent.mockResolvedValue(null);
+
+    await expect(getBearerAccessToken()).resolves.toBeNull();
+  });
+
+  it('shares one silent renewal across overlapping callers', async () => {
+    getUser.mockResolvedValue({
+      access_token: 'expired-tok',
+      expired: true,
+    });
+    let resolveSilent: (user: {
+      access_token: string;
+      expires_at: number;
+      expired: boolean;
+    }) => void = () => undefined;
+    signinSilent.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSilent = resolve;
+        }),
+    );
+
+    const first = getBearerAccessToken();
+    const second = getBearerAccessToken();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(signinSilent).toHaveBeenCalledTimes(1);
+    resolveSilent({
+      access_token: 'renewed-tok',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      expired: false,
+    });
+    await expect(first).resolves.toBe('renewed-tok');
+    await expect(second).resolves.toBe('renewed-tok');
+    expect(signinSilent).toHaveBeenCalledTimes(1);
+  });
+
   it('logs out via redirect when a user exists', async () => {
     getUser.mockResolvedValue({ access_token: 'tok', expired: false });
     signoutRedirect.mockResolvedValue(undefined);
