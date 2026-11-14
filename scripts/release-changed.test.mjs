@@ -25,6 +25,7 @@ test('deriveIncrement maps conventional commits to semver bumps', () => {
     'major',
   );
   assert.equal(deriveIncrement(['chore: Release package versions [skip ci]']), null);
+  assert.equal(deriveIncrement(['chore(release): Release package versions [skip ci]']), null);
   assert.equal(deriveIncrement(['docs: update readme']), null);
   assert.equal(deriveIncrement(['fix: a', 'feat: b']), 'minor');
 });
@@ -130,7 +131,10 @@ test('collectTagsToReconcile unions extras, HEAD tags, and latest tags', () => {
 
 test('release-changed.mjs bumps, changelogs, commits, and pushes HEAD:main', async () => {
   const script = await readFile(scriptUrl, 'utf8');
-  assert.match(script, /RELEASE_SUBJECT = 'chore: Release package versions \[skip ci\]'/);
+  assert.match(
+    script,
+    /RELEASE_SUBJECT = 'chore\(release\): Release package versions \[skip ci\]'/,
+  );
   assert.match(script, /RELEASE_TAGS=/);
   assert.match(script, /RELEASE_SHA=/);
   assert.match(script, /Release commit and tags pushed/);
@@ -159,7 +163,11 @@ test('release.yml authenticates with the singleton-release App, not a PAT', asyn
   assert.match(workflow, /Require singleton-release App credentials/);
   assert.match(workflow, /Do not fall back to GITHUB_TOKEN/);
   assert.match(workflow, /!contains\(github\.event\.head_commit\.message, '\[skip ci\]'\)/);
-  assert.match(workflow, /!startsWith\(github\.event\.head_commit\.message, 'chore: Release'\)/);
+  assert.match(workflow, /!startsWith\(github\.event\.head_commit\.message, 'chore\(release\):'\)/);
+  assert.match(workflow, /persist-credentials: false/);
+  assert.doesNotMatch(workflow, /persist-credentials: true/);
+  assert.match(workflow, /git remote set-url origin/);
+  assert.match(workflow, /x-access-token:\$\{GH_TOKEN\}/);
   assert.match(workflow, /Reconcile GitHub Releases/);
   assert.match(workflow, /gh release create/);
   assert.match(workflow, /--reconcile-tags/);

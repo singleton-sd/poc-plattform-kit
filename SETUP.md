@@ -25,7 +25,7 @@ This is a solo GitHub identity repo. GitHub forbids self-approve, so do not requ
 Protected default branches block `GITHUB_TOKEN` pushes on Free orgs (GitHub
 Actions integration bypass is unavailable). `release.yml` bumps per-package
 `package.json` versions, updates `CHANGELOG.md`, commits
-`chore: Release package versions [skip ci]`, tags, and pushes that commit to
+`chore(release): Release package versions [skip ci]`, tags, and pushes that commit to
 `main`. Authentication is a **dedicated GitHub App** (`singleton-release`)
 whose installation is on the default-branch ruleset **bypass list**. It
 replaces the `github-automation-pat` machine-user bypass. After this
@@ -40,14 +40,15 @@ Key Vault Secrets User on that vault for release.
 | GitHub App | `singleton-release` | Installed on `singleton-sd`; **Contents** read/write (commits, tags, Releases), **Actions** read/write (`workflow_dispatch`), **Metadata** read |
 | Variable | `RELEASE_APP_ID` | Numeric GitHub App id (repository or org Variable) |
 | Secret | `RELEASE_APP_PRIVATE_KEY` | App private key (PEM). Exception to “no secrets in GitHub Secrets”; never a PAT; never loaded from Key Vault |
-| Loop skip | commit message | Skip `[skip ci]` / `chore: Release` only — **not** by `github.actor` |
+| Loop skip | commit message | Skip `[skip ci]` / `chore(release):` only — **not** by `github.actor` |
 | Deploy version | git tag + bumped `package.json` | `deploy-api.yml` / `deploy-web.yml` set `APP_VERSION` / `NEXT_PUBLIC_APP_VERSION` from the tag and check out that commit |
 
 Missing `RELEASE_APP_ID` or `RELEASE_APP_PRIVATE_KEY` fails the job with a
 clear error. The workflow **never** falls back to `GITHUB_TOKEN` for the
-push to `main`. Tag pushes may use `GITHUB_TOKEN` so they do not start
-other workflows; production deploys are `workflow_dispatch`ed for tagged
-packages only.
+push to `main`. Checkout uses `persist-credentials: false`; the App token
+authenticates `origin` only in the release push step. Tag pushes may use
+`GITHUB_TOKEN` so they do not start other workflows; production deploys
+are `workflow_dispatch`ed for tagged packages only.
 
 **One-time App + ruleset setup:**
 

@@ -28,7 +28,7 @@ import { CLIENT_CHANGELOG_TARGETS, updateClientChangelogs } from './client-chang
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
 const RECONCILE_TAGS = process.argv.includes('--reconcile-tags');
-const RELEASE_SUBJECT = 'chore: Release package versions [skip ci]';
+const RELEASE_SUBJECT = 'chore(release): Release package versions [skip ci]';
 const API_PACKAGE = '@poc-plattform-kit/api';
 /** Paths refreshed when the API package version bumps (Swagger reads package.json). */
 const OPENAPI_CLIENT_PATHS = [
@@ -234,7 +234,9 @@ export function deriveIncrement(messages) {
 
   for (const message of messages) {
     const subject = message.split('\n')[0] ?? '';
-    if (subject.startsWith('chore: Release')) continue;
+    if (subject.startsWith('chore: Release') || subject.startsWith('chore(release):')) {
+      continue;
+    }
 
     const lower = message.toLowerCase();
     if (
@@ -379,10 +381,11 @@ function syncToOriginMain() {
 }
 
 /**
- * Push the release commit to main. Requires checkout credentials from the
- * singleton-release GitHub App (ruleset bypass — see SETUP.md). Retries after
- * rebase when concurrent main updates cause rejection. Never uses
- * GITHUB_TOKEN for this push.
+ * Push the release commit to main. Requires origin to be authenticated with
+ * the singleton-release GitHub App token (set in the workflow push step,
+ * not persisted through checkout — see SETUP.md). Retries after rebase when
+ * concurrent main updates cause rejection. Never uses GITHUB_TOKEN for this
+ * push.
  */
 function pushReleaseCommit() {
   const gitEnv = { ...process.env, HUSKY: '0' };
@@ -424,7 +427,7 @@ function createAndPushTags(tags) {
   // is never used as a fallback when App credentials are missing.
   const tagToken = process.env.GITHUB_TOKEN;
   if (tagToken) {
-    // Clear checkout's App-token extraheader, then push tags as GITHUB_TOKEN.
+    // Override origin's App-token URL with GITHUB_TOKEN for the tag push.
     run(
       'git',
       [

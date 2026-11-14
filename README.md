@@ -56,7 +56,7 @@ See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md),
 Merging to `main` runs
 [`.github/workflows/release.yml`](./.github/workflows/release.yml), which
 bumps each changed workspace package, updates `CHANGELOG.md`, commits
-`chore: Release package versions [skip ci]`, tags, and pushes that commit
+`chore(release): Release package versions [skip ci]`, tags, and pushes that commit
 to `main` as the **`singleton-release` GitHub App** (on the default-branch
 ruleset bypass list). It then opens a GitHub Release per tag.
 
@@ -66,7 +66,7 @@ ruleset bypass list). It then opens a GitHub Release per tag.
   `secrets.RELEASE_APP_PRIVATE_KEY`. Missing credentials fail the job;
   there is no `GITHUB_TOKEN` fallback for the push to `main`. The
   `github-automation-pat` bypass can be removed after this lands.
-- Loop skip is by commit message (`[skip ci]` / `chore: Release`), not by
+- Loop skip is by commit message (`[skip ci]` / `chore(release):`), not by
   actor.
 - Production deploys are `workflow_dispatch`ed only for packages that
   run actually tagged, with `release_tag` and `release_sha`. Tagless
