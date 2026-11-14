@@ -1,8 +1,8 @@
 # NestJS → Azure Container Apps Consumption — production deploy on package tag
-# push, after a successful Release (`workflow_run`; GITHUB_TOKEN tag pushes do
-# not start other workflows), or manual workflow_dispatch. Version is derived
-# from the `@poc-plattform-kit/api@*` tag at build time (`APP_VERSION`) and is
-# not committed to main.
+# push, or workflow_dispatch with release_tag + release_sha (Release dispatches
+# only when it actually tagged this package). Version is derived from the
+# `@poc-plattform-kit/api@*` tag at build time (`APP_VERSION`) and is not
+# committed to main. Always checks out the tagged commit.
 #
 # Auth: OIDC Variables only (no publish profile / AZURE_CREDENTIALS in GitHub Secrets).
 # Image: apps/api/Dockerfile --target production → ACR pocpk-api:<sha> (+ :latest).
@@ -21,13 +21,10 @@ on:
   push:
     tags:
       - '@poc-plattform-kit/api@*'
-  workflow_run:
-    workflows: [Release]
-    types: [completed]
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Commit SHA to deploy (manual dispatch)
+        description: Commit SHA the tag points at (resolved from release_tag when omitted)
         required: false
         type: string
       release_tag:
@@ -50,9 +47,6 @@ env:
 
 jobs:
   build_and_deploy:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     name: Build + Container Apps deploy
     permissions:
@@ -61,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.event.inputs.release_sha || github.sha }}
+          ref: ${{ github.event.inputs.release_tag || github.event.inputs.release_sha || github.sha }}
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
@@ -70,13 +64,32 @@ jobs:
         id: rel
         env:
           RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          RELEASE_SHA: ${{ github.event.inputs.release_sha }}
         run: |
           set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -z "${RELEASE_TAG:-}" ] && [ -z "${RELEASE_SHA:-}" ]; then
+            echo "::error::workflow_dispatch requires release_tag and/or release_sha"
+            exit 1
+          fi
           args=(--package '@poc-plattform-kit/api')
           if [ -n "${RELEASE_TAG:-}" ]; then
             args+=(--tag "$RELEASE_TAG")
           fi
+          if [ -n "${RELEASE_SHA:-}" ]; then
+            args+=(--sha "$RELEASE_SHA")
+          fi
           node scripts/resolve-release-tag.mjs "${args[@]}"
+
+      - name: Check out the tagged commit
+        if: steps.rel.outputs.found == 'true' && steps.rel.outputs.sha != ''
+        run: |
+          set -euo pipefail
+          target=$(git rev-parse --verify "${{ steps.rel.outputs.sha }}^{commit}")
+          current=$(git rev-parse HEAD)
+          if [ "$current" != "$target" ]; then
+            echo "HEAD $current → tagged commit $target"
+            git checkout --detach "$target"
+          fi
 
       - name: Skip notice (no API tag)
         if: steps.rel.outputs.found != 'true'
@@ -106,10 +119,10 @@ jobs:
         if: steps.rel.outputs.found == 'true' && steps.oidc.outputs.configured == 'true'
         id: img
         env:
-          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.event.inputs.release_sha || github.sha }}
+          RELEASE_SHA: ${{ steps.rel.outputs.sha }}
         run: |
           set -euo pipefail
-          SHA="$RELEASE_SHA"
+          SHA="${RELEASE_SHA:-$(git rev-parse HEAD)}"
           if ! [[ "$SHA" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
             echo "::error::release_sha must be a git commit SHA (got: ${SHA:0:64})"
             exit 1

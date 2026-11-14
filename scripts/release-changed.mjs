@@ -15,7 +15,7 @@
  *   node scripts/release-changed.mjs           # dry-run
  *   node scripts/release-changed.mjs --ci      # tag + push tags (no commit)
  */
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -23,22 +23,9 @@ import semver from 'semver';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
+const RECONCILE_TAGS = process.argv.includes('--reconcile-tags');
 
 /** @typedef {'major' | 'minor' | 'patch'} Increment */
-
-/**
- * @param {string} command
- * @param {import('node:child_process').ExecSyncOptions} [options]
- */
-function sh(command, options = {}) {
-  const out = execSync(command, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...options,
-  });
-  return typeof out === 'string' ? out.trim() : '';
-}
 
 /**
  * @param {string} file
@@ -58,7 +45,7 @@ function run(file, args, options = {}) {
  * @returns {{ name: string, path: string, version: string }[]}
  */
 function listWorkspacePackages() {
-  const raw = sh('pnpm m ls --json -r --depth -1');
+  const raw = run('pnpm', ['m', 'ls', '--json', '-r', '--depth', '-1']);
   /** @type {unknown} */
   const parsed = JSON.parse(raw || '[]');
   const list = Array.isArray(parsed) ? parsed : [parsed];
@@ -105,7 +92,7 @@ function isAncestorOfHead(ref) {
  * @returns {string | null}
  */
 export function getLastTag(packageName) {
-  const tags = sh(`git tag -l "${packageName}@*" --sort=-v:refname`)
+  const tags = run('git', ['tag', '--sort=-v:refname', '-l', `${packageName}@*`])
     .split('\n')
     .map((t) => t.trim())
     .filter(Boolean);
@@ -113,6 +100,49 @@ export function getLastTag(packageName) {
     if (isAncestorOfHead(tag)) return tag;
   }
   return null;
+}
+
+/**
+ * Tags that should have a GitHub Release even when this run has nothing new
+ * to tag (retry after `gh release create` failed, or latest package tags
+ * that never got a Release). Never writes CHANGELOG.md.
+ *
+ * @param {string[]} [extraTags]
+ * @param {{ tagsAtHead?: string[], latestTags?: (string | null | undefined)[] }} [options]
+ * @returns {string[]}
+ */
+export function collectTagsToReconcile(extraTags = [], options = {}) {
+  const tags = new Set();
+  for (const tag of extraTags) {
+    if (typeof tag === 'string' && tag.trim()) tags.add(tag.trim());
+  }
+
+  const atHead =
+    options.tagsAtHead ??
+    (() => {
+      try {
+        return run('git', ['tag', '--points-at', 'HEAD', '-l', '@poc-plattform-kit/*'])
+          .split('\n')
+          .map((t) => t.trim())
+          .filter(Boolean);
+      } catch {
+        return [];
+      }
+    })();
+  for (const tag of atHead) tags.add(tag);
+
+  if (options.latestTags) {
+    for (const tag of options.latestTags) {
+      if (typeof tag === 'string' && tag.trim()) tags.add(tag.trim());
+    }
+  } else {
+    for (const pkg of listWorkspacePackages()) {
+      const last = getLastTag(pkg.name);
+      if (last) tags.add(last);
+    }
+  }
+
+  return [...tags].sort();
 }
 
 /**
@@ -341,6 +371,9 @@ function main() {
   }
 
   if (releases.length === 0) {
+    if (CI) {
+      console.log(`RELEASE_SHA=${run('git', ['rev-parse', 'HEAD'])}`);
+    }
     console.log('Nothing to release.');
     return;
   }
@@ -357,10 +390,22 @@ function main() {
 
   const tags = releases.map((r) => r.tag);
   createAndPushTags(tags);
+  console.log(`RELEASE_SHA=${run('git', ['rev-parse', 'HEAD'])}`);
   console.log(`RELEASE_TAGS=${tags.join(',')}`);
   console.log('Release tags pushed.');
 }
 
+function printReconcileTags() {
+  const extra = (process.env.RELEASE_TAGS || '').split(',');
+  for (const tag of collectTagsToReconcile(extra)) {
+    console.log(tag);
+  }
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  main();
+  if (RECONCILE_TAGS) {
+    printReconcileTags();
+  } else {
+    main();
+  }
 }

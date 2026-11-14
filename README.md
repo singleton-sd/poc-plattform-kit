@@ -65,9 +65,12 @@ since then, pushes **only those tags**, and opens a GitHub Release per tag.
   CHANGELOG commits) and uses `GITHUB_TOKEN` only — no PAT and no
   ruleset bypass. Branch rulesets apply to `main`, not to tags; do not
   add a tag ruleset that requires a pull request.
+- Production deploys are `workflow_dispatch`ed only for packages that
+  run actually tagged, with `release_tag` and `release_sha`. Tagless
+  Release runs do not start deploy-api / deploy-web / pages.
 - Build and publish jobs read the version from the git tag (`APP_VERSION`
-  / `NEXT_PUBLIC_APP_VERSION`). Committed `package.json` versions are
-  not the release source of truth.
+  / `NEXT_PUBLIC_APP_VERSION`) and check out the tagged commit.
+  Committed `package.json` versions are not the release source of truth.
 - Live notes live in
   [GitHub Releases](https://github.com/singleton-sd/poc-plattform-kit/releases).
   Root `CHANGELOG.md` is historical.

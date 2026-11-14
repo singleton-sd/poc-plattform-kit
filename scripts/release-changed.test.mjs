@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
+  collectTagsToReconcile,
   deriveIncrement,
   nextVersion,
   resolveNextVersion,
@@ -90,12 +91,38 @@ test('watchPathsFor cascades api/web onto shared packages', () => {
   );
 });
 
+test('getLastTag lists tags via execFile args (no shell interpolation)', async () => {
+  const script = await readFile(scriptUrl, 'utf8');
+  assert.match(script, /run\('git', \['tag', '--sort=-v:refname', '-l',/);
+  assert.doesNotMatch(script, /git tag -l "/);
+  assert.doesNotMatch(script, /git tag -l `/);
+  assert.doesNotMatch(script, /execSync/);
+});
+
+test('collectTagsToReconcile unions extras, HEAD tags, and latest tags', () => {
+  const tags = collectTagsToReconcile(
+    [' @poc-plattform-kit/api@0.26.0 ', '', '@poc-plattform-kit/web@0.18.0'],
+    {
+      tagsAtHead: ['@poc-plattform-kit/api@0.26.0', '@poc-plattform-kit/config@0.3.0'],
+      latestTags: ['@poc-plattform-kit/web@0.17.0', null],
+    },
+  );
+  assert.deepEqual(tags, [
+    '@poc-plattform-kit/api@0.26.0',
+    '@poc-plattform-kit/config@0.3.0',
+    '@poc-plattform-kit/web@0.17.0',
+    '@poc-plattform-kit/web@0.18.0',
+  ]);
+});
+
 test('release-changed.mjs is tag-only (no commit or push to main)', async () => {
   const script = await readFile(scriptUrl, 'utf8');
   assert.match(script, /RELEASE_TAGS=/);
+  assert.match(script, /RELEASE_SHA=/);
   assert.match(script, /Release tags pushed/);
   assert.match(script, /push', 'origin', \.\.\.tags/);
   assert.match(script, /create and push tags only/);
+  assert.match(script, /--reconcile-tags/);
   assert.doesNotMatch(script, /HEAD:main/);
   assert.doesNotMatch(script, /pushReleaseCommit/);
   assert.doesNotMatch(script, /\[skip ci\]/);
@@ -108,13 +135,19 @@ test('release-changed.mjs is tag-only (no commit or push to main)', async () => 
 
 test('release.yml uses GITHUB_TOKEN, tags only, and no PAT / OIDC vault', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
-  assert.match(workflow, /Publish GitHub releases/);
+  assert.match(workflow, /Reconcile GitHub Releases/);
   assert.match(workflow, /gh release create/);
+  assert.match(workflow, /--reconcile-tags/);
   assert.match(workflow, /RELEASE_TAGS=/);
   assert.match(workflow, /Release tags pushed/);
   assert.match(workflow, /contents: write/);
+  assert.match(workflow, /actions: write/);
   assert.match(workflow, /secrets\.GITHUB_TOKEN/);
   assert.match(workflow, /github-actions\[bot\]/);
+  assert.match(workflow, /Dispatch production deploys/);
+  assert.match(workflow, /gh workflow run "\$workflow"/);
+  assert.match(workflow, /release_tag=/);
+  assert.match(workflow, /release_sha=/);
   assert.doesNotMatch(workflow, /github-automation-pat/);
   assert.doesNotMatch(workflow, /SSD_OPS_KEY_VAULT/);
   assert.doesNotMatch(workflow, /id-token: write/);
@@ -122,11 +155,10 @@ test('release.yml uses GITHUB_TOKEN, tags only, and no PAT / OIDC vault', async 
   assert.doesNotMatch(workflow, /vault\.azure\.net/);
   assert.doesNotMatch(workflow, /HEAD:main/);
   assert.doesNotMatch(workflow, /Merge release PR/);
-  assert.doesNotMatch(workflow, /Dispatch production deploys/);
-  assert.doesNotMatch(workflow, /gh workflow run deploy-api/);
+  assert.doesNotMatch(workflow, /workflow_run:/);
 });
 
-test('production deploy workflows trigger on package tags and Release workflow_run', async () => {
+test('production deploys trigger on package tags or tagged dispatch, not every Release', async () => {
   const deployApi = await readFile(
     new URL('../.github/workflows/deploy-api.yml', import.meta.url),
     'utf8',
@@ -135,16 +167,26 @@ test('production deploy workflows trigger on package tags and Release workflow_r
     new URL('../.github/workflows/deploy-web.yml', import.meta.url),
     'utf8',
   );
+  const pages = await readFile(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  for (const workflow of [deployApi, deployWeb, pages]) {
+    assert.doesNotMatch(workflow, /workflow_run:/);
+    assert.match(workflow, /release_tag:/);
+    assert.match(workflow, /release_sha:/);
+  }
   for (const workflow of [deployApi, deployWeb]) {
-    assert.match(workflow, /workflow_run:/);
-    assert.match(workflow, /workflows: \[Release\]/);
     assert.match(workflow, /resolve-release-tag\.mjs/);
+    assert.match(workflow, /Check out the tagged commit/);
     assert.doesNotMatch(workflow, /branches: \[main\]/);
+    assert.match(
+      workflow,
+      /github\.event\.inputs\.release_tag \|\| github\.event\.inputs\.release_sha \|\| github\.sha/,
+    );
   }
   assert.match(deployApi, /'@poc-plattform-kit\/api@\*'/);
   assert.match(deployWeb, /'@poc-plattform-kit\/web@\*'/);
   assert.match(deployApi, /APP_VERSION/);
   assert.match(deployWeb, /NEXT_PUBLIC_APP_VERSION/);
+  assert.match(pages, /@poc-plattform-kit\/marketing@/);
 });
 
 test('SETUP documents tag-only releases with GITHUB_TOKEN and no ruleset bypass', async () => {

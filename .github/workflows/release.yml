@@ -8,9 +8,10 @@
 # Branch rulesets target `refs/heads/main` / ~DEFAULT_BRANCH and do not
 # apply to tags; do not add a tag ruleset that requires a pull request.
 #
-# GITHUB_TOKEN tag pushes do not trigger other workflows, so deploy-api /
-# deploy-web also listen for `workflow_run` of this workflow and derive
-# the version from the tag at build time.
+# GITHUB_TOKEN tag pushes do not trigger other workflows, so this job
+# dispatches deploy-api / deploy-web / pages via workflow_dispatch only
+# for packages it actually tagged, passing release_tag AND release_sha.
+# Tagless runs never enter those deploy concurrency groups.
 name: Release
 
 on:
@@ -34,6 +35,7 @@ jobs:
     name: Tag changed packages
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +73,8 @@ jobs:
           if [ "$status" -ne 0 ]; then
             exit "$status"
           fi
+          sha=$(grep '^RELEASE_SHA=' "$tmp" | tail -1 | cut -d= -f2- || true)
+          echo "release_sha=$sha" >> "$GITHUB_OUTPUT"
           if grep -q 'Nothing to release' "$tmp"; then
             echo "released=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -88,19 +92,22 @@ jobs:
           echo "::error::Unexpected release:ci output (no tag push and not empty)."
           exit 1
 
-      - name: Publish GitHub releases
-        if: steps.release.outputs.released == 'true'
+      - name: Reconcile GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAGS: ${{ steps.release.outputs.release_tags }}
         run: |
           set -euo pipefail
-          IFS=',' read -r -a tags <<< "$RELEASE_TAGS"
+          mapfile -t tags < <(node scripts/release-changed.mjs --reconcile-tags)
+          if [ "${#tags[@]}" -eq 0 ]; then
+            echo "No package tags to reconcile."
+            exit 0
+          fi
           for tag in "${tags[@]}"; do
             tag="${tag#"${tag%%[![:space:]]*}"}"
             tag="${tag%"${tag##*[![:space:]]}"}"
             [ -n "$tag" ] || continue
-            echo "Publishing GitHub release for $tag"
+            echo "Reconciling GitHub Release for $tag"
             if gh release view "$tag" >/dev/null 2>&1; then
               echo "Release $tag already exists — skipping."
               continue
@@ -110,3 +117,39 @@ jobs:
               --generate-notes \
               --title "$tag"
           done
+
+      - name: Dispatch production deploys
+        if: steps.release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAGS: ${{ steps.release.outputs.release_tags }}
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SHA:-}" ]; then
+            echo "::error::RELEASE_SHA missing; cannot dispatch deploys."
+            exit 1
+          fi
+          IFS=',' read -r -a tags <<< "$RELEASE_TAGS"
+          dispatched=0
+          for tag in "${tags[@]}"; do
+            tag="${tag#"${tag%%[![:space:]]*}"}"
+            tag="${tag%"${tag##*[![:space:]]}"}"
+            [ -n "$tag" ] || continue
+            workflow=""
+            case "$tag" in
+              @poc-plattform-kit/api@*) workflow=deploy-api.yml ;;
+              @poc-plattform-kit/web@*) workflow=deploy-web.yml ;;
+              @poc-plattform-kit/marketing@*) workflow=pages.yml ;;
+              *)
+                echo "No production deploy workflow for $tag — GitHub Release only."
+                continue
+                ;;
+            esac
+            echo "Dispatching $workflow for $tag at $RELEASE_SHA"
+            gh workflow run "$workflow" --ref main \
+              -f "release_tag=$tag" \
+              -f "release_sha=$RELEASE_SHA"
+            dispatched=$((dispatched + 1))
+          done
+          echo "Dispatched $dispatched production deploy workflow(s)."

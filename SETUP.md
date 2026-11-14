@@ -29,8 +29,8 @@ default-branch ruleset.
 
 | Artifact | Name | Scope |
 | --- | --- | --- |
-| Workflow | `release.yml` | On merge to `main`, compute next `@poc-plattform-kit/<pkg>@<semver>` from the latest per-package tag + conventional commits, push **tags only**, `gh release create --generate-notes` |
-| Token | `GITHUB_TOKEN` | Job `permissions.contents: write` only — create annotated tags and GitHub Releases |
+| Workflow | `release.yml` | On merge to `main`, compute next `@poc-plattform-kit/<pkg>@<semver>` from the latest per-package tag + conventional commits, push **tags only**, reconcile GitHub Releases, dispatch deploys only for tagged packages |
+| Token | `GITHUB_TOKEN` | `contents: write` (tags + GitHub Releases) and `actions: write` (dispatch deploys for tagged packages only) |
 | Deploy version | git tag | `deploy-api.yml` / `deploy-web.yml` set `APP_VERSION` / `NEXT_PUBLIC_APP_VERSION` from the tag at build time |
 
 This repository **no longer uses `github-automation-pat`**. After this workflow

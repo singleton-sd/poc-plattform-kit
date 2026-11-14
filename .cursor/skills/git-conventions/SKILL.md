@@ -195,7 +195,8 @@ independent, and tag-only** per workspace package; tags look like
 `@poc-plattform-kit/api@0.1.0`. CI computes the next version from the latest
 git tag plus conventional commits, pushes **tags only**, and publishes GitHub
 Releases. Build/publish jobs read the version from the tag. Production deploys
-run from those tags (`workflow_run` after Release, or a human tag push).
+run from those tags (Release `workflow_dispatch` with `release_tag` +
+`release_sha` for packages it tagged, or a human tag push).
 
 ---
 

@@ -1,6 +1,6 @@
 # GitHub Pages — marketing production deploy on merge to main (content
-# changes), after a successful tag-only Release (`workflow_run`; GITHUB_TOKEN
-# tag pushes do not start other workflows), or manual dispatch. Custom
+# changes), after Release dispatches this workflow for a marketing tag
+# (release_tag + release_sha), or manual dispatch. Custom
 # domain: plattform-kit.poc.singletonsd.com.
 # Follows the house pattern in singleton-sd/poc-inkads-marketing (gh-pages
 # branch + CNAME + clean-exclude pr-preview). Do not enable a second Pages
@@ -24,10 +24,16 @@ on:
       - '.github/workflows/pages.yml'
       - '.github/workflows/preview-marketing.yml'
       - '.github/workflows/preview-marketing-close.yml'
-  workflow_run:
-    workflows: [Release]
-    types: [completed]
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Commit SHA the marketing tag points at (optional)
+        required: false
+        type: string
+      release_tag:
+        description: Marketing package tag (e.g. @poc-plattform-kit/marketing@0.10.0)
+        required: false
+        type: string
 
 concurrency:
   group: gh-pages
@@ -40,8 +46,6 @@ jobs:
   build-and-deploy:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'push' &&
        !contains(github.event.head_commit.message, '[skip ci]') &&
        !startsWith(github.event.head_commit.message, 'chore: Release'))
@@ -50,9 +54,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.release_tag || github.event.inputs.release_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
           submodules: true
           lfs: false
+
+      - name: Verify release tag matches SHA
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag && inputs.release_sha
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          RELEASE_SHA: ${{ github.event.inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          tag_sha=$(git rev-parse --verify "${RELEASE_TAG}^{commit}")
+          want=$(git rev-parse --verify "${RELEASE_SHA}^{commit}")
+          if [ "$tag_sha" != "$want" ]; then
+            echo "::error::$RELEASE_TAG points at $tag_sha, not $RELEASE_SHA"
+            exit 1
+          fi
 
       - uses: pnpm/action-setup@v4
         with:

@@ -1,8 +1,8 @@
-# Azure Static Web Apps — production deploy on package tag push, after a
-# successful Release (`workflow_run`; GITHUB_TOKEN tag pushes do not start
-# other workflows), or manual workflow_dispatch. The SWA build embeds
+# Azure Static Web Apps — production deploy on package tag push, or
+# workflow_dispatch with release_tag + release_sha (Release dispatches only
+# when it actually tagged this package). The SWA build embeds
 # NEXT_PUBLIC_APP_VERSION from the `@poc-plattform-kit/web@*` tag (not a
-# committed package.json bump).
+# committed package.json bump). Always checks out the tagged commit.
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
 # If those Variables are missing, deploy steps SKIP (job succeeds) so main CI is not blocked.
@@ -13,13 +13,10 @@ on:
   push:
     tags:
       - '@poc-plattform-kit/web@*'
-  workflow_run:
-    workflows: [Release]
-    types: [completed]
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Commit SHA to deploy (manual dispatch)
+        description: Commit SHA the tag points at (resolved from release_tag when omitted)
         required: false
         type: string
       release_tag:
@@ -33,9 +30,6 @@ concurrency:
 
 jobs:
   build_and_deploy:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     name: Build + SWA production
     permissions:
@@ -44,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.event.inputs.release_sha || github.sha }}
+          ref: ${{ github.event.inputs.release_tag || github.event.inputs.release_sha || github.sha }}
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
@@ -55,13 +49,32 @@ jobs:
         id: rel
         env:
           RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          RELEASE_SHA: ${{ github.event.inputs.release_sha }}
         run: |
           set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -z "${RELEASE_TAG:-}" ] && [ -z "${RELEASE_SHA:-}" ]; then
+            echo "::error::workflow_dispatch requires release_tag and/or release_sha"
+            exit 1
+          fi
           args=(--package '@poc-plattform-kit/web')
           if [ -n "${RELEASE_TAG:-}" ]; then
             args+=(--tag "$RELEASE_TAG")
           fi
+          if [ -n "${RELEASE_SHA:-}" ]; then
+            args+=(--sha "$RELEASE_SHA")
+          fi
           node scripts/resolve-release-tag.mjs "${args[@]}"
+
+      - name: Check out the tagged commit
+        if: steps.rel.outputs.found == 'true' && steps.rel.outputs.sha != ''
+        run: |
+          set -euo pipefail
+          target=$(git rev-parse --verify "${{ steps.rel.outputs.sha }}^{commit}")
+          current=$(git rev-parse HEAD)
+          if [ "$current" != "$target" ]; then
+            echo "HEAD $current → tagged commit $target"
+            git checkout --detach "$target"
+          fi
 
       - name: Skip notice (no web tag)
         if: steps.rel.outputs.found != 'true'

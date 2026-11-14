@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * Resolve a per-package release tag + semver for CI build/publish jobs.
+ * Resolve a per-package release tag + semver + commit SHA for CI build/publish.
  *
  * Prefers `--tag`, then `GITHUB_REF` when it is a matching package tag,
  * then the highest `@scope/name@version` tag pointing at `--sha` (HEAD).
  *
- * Prints `found=`, `tag=`, `version=` lines and appends them to
+ * When both `--tag` and `--sha` are supplied, they must identify the same
+ * commit. A `--tag` for a different package is a hard error.
+ *
+ * Prints `found=`, `tag=`, `version=`, `sha=` lines and appends them to
  * `$GITHUB_OUTPUT` when that env var is set. Exits 0 when no tag matches
  * so deploy workflows can skip instead of failing.
  *
@@ -55,12 +58,38 @@ export function compareSemver(a, b) {
 }
 
 /**
+ * Full or abbreviated SHAs match when they share a prefix of at least 7 hex chars.
+ * @param {string} left
+ * @param {string} right
+ */
+export function shasMatch(left, right) {
+  const a = left.trim().toLowerCase();
+  const b = right.trim().toLowerCase();
+  if (!/^[0-9a-f]{7,40}$/.test(a) || !/^[0-9a-f]{7,40}$/.test(b)) return false;
+  const n = Math.min(a.length, b.length);
+  return a.slice(0, n) === b.slice(0, n);
+}
+
+/**
+ * @param {string} tag
+ * @returns {string}
+ */
+export function commitShaForTag(tag) {
+  try {
+    return git(['rev-parse', `${tag}^{commit}`]);
+  } catch {
+    return '';
+  }
+}
+
+/**
  * @param {string} found
  * @param {string} tag
  * @param {string} version
+ * @param {string} sha
  */
-function emit(found, tag, version) {
-  const lines = [`found=${found}`, `tag=${tag}`, `version=${version}`];
+function emit(found, tag, version, sha) {
+  const lines = [`found=${found}`, `tag=${tag}`, `version=${version}`, `sha=${sha}`];
   for (const line of lines) console.log(line);
   const output = process.env.GITHUB_OUTPUT;
   if (output) {
@@ -112,13 +141,31 @@ function main() {
     process.exit(2);
   }
 
+  if (values.tag && !versionFromPackageTag(values.package, values.tag)) {
+    console.error(`Tag ${values.tag} is not a ${values.package} release tag.`);
+    process.exit(1);
+  }
+
   const tag = resolveTag(values.package, values.tag, values.sha);
   const version = versionFromPackageTag(values.package, tag);
   if (!tag || !version) {
-    emit('false', '', '');
+    emit('false', '', '', '');
     process.exit(0);
   }
-  emit('true', tag, version);
+
+  const tagSha = commitShaForTag(tag);
+  if (values.sha) {
+    if (!tagSha) {
+      console.error(`Could not resolve commit for tag ${tag}.`);
+      process.exit(1);
+    }
+    if (!shasMatch(tagSha, values.sha)) {
+      console.error(`release_tag ${tag} points at ${tagSha}, not ${values.sha}`);
+      process.exit(1);
+    }
+  }
+
+  emit('true', tag, version, tagSha);
 }
 
 if (isCli) {
