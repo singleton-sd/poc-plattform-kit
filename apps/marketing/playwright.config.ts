@@ -25,6 +25,7 @@ export default defineConfig({
     env: {
       ...process.env,
       PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+      PUBLIC_LEAD_INTAKE_URL: 'https://api.singletonsd.com/v1/leads',
     },
   },
   projects: [

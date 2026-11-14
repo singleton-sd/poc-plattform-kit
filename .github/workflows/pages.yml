@@ -7,7 +7,7 @@
 #
 # Auth: GITHUB_TOKEN only. GitHub Pages is not an Azure resource, so the
 # OIDC → Key Vault production pattern does not apply (product app SWA and
-# API still use OIDC). Optional Variable PUBLIC_TURNSTILE_SITE_KEY bakes
+# API still use OIDC). Required Variable PUBLIC_TURNSTILE_SITE_KEY bakes
 # the Cloudflare Turnstile site key into contact/waitlist widgets.
 name: Deploy Marketing (GitHub Pages)
 
@@ -64,6 +64,15 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      - name: Require Turnstile site key
+        env:
+          PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.PUBLIC_TURNSTILE_SITE_KEY }}
+        run: |
+          if [ -z "$PUBLIC_TURNSTILE_SITE_KEY" ]; then
+            echo "::error::PUBLIC_TURNSTILE_SITE_KEY is not set. The lead forms cannot submit without it."
+            exit 1
+          fi
 
       - name: Build marketing
         env:

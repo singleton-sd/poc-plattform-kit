@@ -20,6 +20,7 @@ export const NETWORK_MESSAGE =
   'We could not reach the server. Check your connection and try again.';
 export const TOKEN_REQUIRED_MESSAGE = 'Complete the security check.';
 export const BODY_TOO_LARGE_MESSAGE = 'Your message is too long. Shorten it and try again.';
+export const LEAD_SUBMIT_TIMEOUT_MS = 15_000;
 
 /**
  * @param {unknown} value
@@ -123,11 +124,13 @@ export function mapLeadResponse(status, body) {
  * @param {object} [options]
  * @param {typeof fetch} [options.fetchImpl]
  * @param {string} [options.url]
+ * @param {number} [options.timeoutMs]
  * @returns {Promise<LeadSubmitResult>}
  */
 export async function submitLead(payload, options = {}) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const url = options.url ?? LEAD_INTAKE_URL;
+  const timeoutMs = options.timeoutMs ?? LEAD_SUBMIT_TIMEOUT_MS;
   const body = JSON.stringify(payload);
 
   if (!isLeadBodyWithinLimit(body)) {
@@ -140,17 +143,40 @@ export async function submitLead(payload, options = {}) {
     };
   }
 
-  let response;
-  try {
-    response = await fetchImpl(url, {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller?.abort();
+      reject(Object.assign(new Error('lead intake timed out'), { name: 'AbortError' }));
+    }, timeoutMs);
+  });
+  timeoutPromise.catch(() => undefined);
+
+  const fetchPromise = (async () => {
+    const response = await fetchImpl(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
       credentials: 'omit',
+      signal: controller?.signal,
       body,
     });
+    let parsed = null;
+    try {
+      parsed = await response.json();
+    } catch {
+      parsed = null;
+    }
+    return mapLeadResponse(response.status, parsed);
+  })();
+  fetchPromise.catch(() => undefined);
+
+  try {
+    return await Promise.race([fetchPromise, timeoutPromise]);
   } catch {
     return {
       ok: false,
@@ -158,14 +184,7 @@ export async function submitLead(payload, options = {}) {
       message: NETWORK_MESSAGE,
       resetTurnstile: true,
     };
+  } finally {
+    clearTimeout(timer);
   }
-
-  let parsed = null;
-  try {
-    parsed = await response.json();
-  } catch {
-    parsed = null;
-  }
-
-  return mapLeadResponse(response.status, parsed);
 }

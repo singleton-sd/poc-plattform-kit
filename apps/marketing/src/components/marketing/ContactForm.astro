@@ -37,6 +37,8 @@ const subjects = [
   { value: 'support', label: 'Technical support' },
   { value: 'partnership', label: 'Partnership' },
 ];
+const messageMaxLength =
+  LEAD_MESSAGE_MAX - Math.max(...subjects.map((subject) => `[${subject.label}]\n\n`.length));
 
 const reachItems: ReachItem[] = [
   {
@@ -144,7 +146,7 @@ const intakeUrl =
                 placeholder="How can we help you?"
                 rows={5}
                 required
-                maxLength={LEAD_MESSAGE_MAX}
+                maxLength={messageMaxLength}
               />
               <div class="lead-honeypot" aria-hidden="true">
                 <label for="contact-website">Website</label>

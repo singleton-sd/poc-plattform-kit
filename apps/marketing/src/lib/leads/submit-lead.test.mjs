@@ -126,3 +126,19 @@ test('submitLead maps a mocked 404 function_disabled body', async () => {
   assert.equal(result.kind, 'unavailable');
   assert.equal(result.message, UNAVAILABLE_MESSAGE);
 });
+
+test('submitLead times out as retry', async () => {
+  const result = await submitLead(payload, {
+    timeoutMs: 20,
+    fetchImpl: async (_url, init) => {
+      await new Promise((_, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+        });
+      });
+    },
+  });
+  assert.equal(result.kind, 'retry');
+  assert.equal(result.message, NETWORK_MESSAGE);
+  assert.equal(result.resetTurnstile, true);
+});

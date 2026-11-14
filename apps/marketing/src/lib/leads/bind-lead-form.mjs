@@ -1,5 +1,5 @@
 import { buildLeadPayload, validateLeadValues } from './build-lead-payload.mjs';
-import { createSubmissionId } from './lead-config.mjs';
+import { LEAD_MESSAGE_MAX, createSubmissionId } from './lead-config.mjs';
 import {
   RETRY_MESSAGE,
   TOKEN_REQUIRED_MESSAGE,
@@ -97,6 +97,18 @@ function readValues(form) {
 
 /**
  * Subject is UI-only (not in the lead schema). Fold it into `message`.
+ * @param {string} [label]
+ * @param {string} [message]
+ * @returns {string}
+ */
+export function foldSubjectIntoMessage(label, message) {
+  const text = typeof message === 'string' ? message.trim() : '';
+  const prefixLabel = typeof label === 'string' ? label.trim() : '';
+  if (!prefixLabel) return text;
+  return `[${prefixLabel}]\n\n${text}`;
+}
+
+/**
  * @param {HTMLFormElement} form
  */
 function composeContactMessage(form) {
@@ -107,7 +119,7 @@ function composeContactMessage(form) {
     return message;
   }
   const label = subjectField.selectedOptions[0]?.textContent?.trim() || subjectField.value;
-  return `[${label}]\n\n${message}`;
+  return foldSubjectIntoMessage(label, message);
 }
 
 /**
@@ -230,6 +242,9 @@ export function bindLeadForm(options) {
       if (subject instanceof HTMLSelectElement && !subject.value) {
         errors.subject = 'Select a subject.';
       }
+      if (composeContactMessage(form).length > LEAD_MESSAGE_MAX) {
+        errors.message = 'Shorten your message so it fits with the subject.';
+      }
     }
     return errors;
   }
@@ -283,7 +298,18 @@ export function bindLeadForm(options) {
       sitekey: siteKey,
       callback: (token) => {
         turnstileToken = typeof token === 'string' ? token : '';
-        setFieldError(`${prefix}-turnstile`, null);
+        if (turnstileToken && serverFieldErrors.turnstileToken) {
+          const next = { ...serverFieldErrors };
+          delete next.turnstileToken;
+          serverFieldErrors = next;
+        }
+        paintErrors();
+        if (attemptedSubmit) {
+          formError?.classList.toggle(
+            'hidden',
+            Object.keys({ ...currentErrors(), ...serverFieldErrors }).length === 0,
+          );
+        }
       },
       'expired-callback': () => {
         turnstileToken = '';
