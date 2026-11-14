@@ -1,0 +1,17 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/marketing/Hero.astro';
+import WaitlistForm from '../components/marketing/WaitlistForm.astro';
+---
+
+<BaseLayout
+  title="Waitlist — Platform Kit"
+  description="Join the Platform Kit waitlist for early access and product updates."
+>
+  <Hero
+    eyebrow="Waitlist"
+    headline="Get early access"
+    subheadline="Tell us which Platform Kit capability you want first. We’ll email you when it’s ready."
+  />
+  <WaitlistForm />
+</BaseLayout>

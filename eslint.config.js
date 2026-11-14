@@ -28,4 +28,12 @@ export default [
       },
     },
   },
+  {
+    files: ['apps/marketing/src/lib/leads/bind-lead-form.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
 ];

@@ -37,14 +37,15 @@ const variants = {
     'bg-status-error text-fg-inverse hover:opacity-90 focus-visible:outline-status-error',
 } as const;
 
-const disabledClasses =
+const disabledLinkClasses =
   'pointer-events-none cursor-not-allowed bg-bg-muted text-fg-subtle border border-border hover:bg-bg-muted hover:shadow-none';
 
 const classes = [
   'inline-flex items-center justify-center rounded-md font-semibold transition',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+  href ? '' : 'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60',
   sizes[size],
-  disabled ? disabledClasses : variants[variant],
+  href && disabled ? disabledLinkClasses : variants[variant],
   fullWidth ? 'w-full' : '',
   className,
 ]

@@ -100,6 +100,9 @@ jobs:
           pnpm --filter @poc-plattform-kit/marketing... run build
           pnpm --filter "./packages/**" run build
 
+      - name: Install marketing Playwright Chromium
+        run: pnpm --filter @poc-plattform-kit/marketing exec playwright install --with-deps chromium
+
       - name: Test (web + marketing + packages)
         run: |
           pnpm --filter @poc-plattform-kit/web... run test

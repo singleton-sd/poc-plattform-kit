@@ -165,3 +165,12 @@ body {
 .prose-legal .caps {
   @apply text-xs uppercase leading-relaxed tracking-wide;
 }
+
+.lead-honeypot {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
