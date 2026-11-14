@@ -9,7 +9,7 @@
     "lint:staged": "lint-staged",
     "prepush": "node scripts/pre-push-checks.mjs",
     "test:prepush": "node --test scripts/pre-push-checks.test.mjs",
-    "test": "pnpm -r run test",
+    "test": "pnpm --filter @poc-plattform-kit/db run build && pnpm -r run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev:web": "pnpm --filter @poc-plattform-kit/web dev",

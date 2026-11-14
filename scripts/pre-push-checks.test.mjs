@@ -153,6 +153,14 @@ test('db-dependent pillars do not re-invoke the db package build', () => {
   }
 });
 
+test('root test script builds db once before the recursive test run', () => {
+  const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
+  assert.match(
+    pkg.scripts.test,
+    /^pnpm --filter @poc-plattform-kit\/db run build && pnpm -r run test$/,
+  );
+});
+
 test('runPlannedChecks dry-run lists selected steps only', () => {
   const result = runPlannedChecks(
     { api: true, web: false, paths: ['apps/api/src/main.ts'] },

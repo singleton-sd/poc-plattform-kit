@@ -104,9 +104,9 @@ jobs:
           pnpm --filter "./pillars/**" run lint
           pnpm exec eslint .
 
-      # Build @poc-plattform-kit/db once before dependents. Concurrent
-      # `prisma generate` from pillar prebuild/pretest races on
-      # node_modules/.prisma/client (TS1002 Unterminated string literal).
+      # Serial prerequisite for pillar-scoped test/build: db dist must exist
+      # before tenant/permissions pretest compiles SSO. Do not put this back
+      # in those pretest hooks — they run in parallel and race prisma generate.
       - name: Build db package
         run: pnpm --filter @poc-plattform-kit/db run build
 
