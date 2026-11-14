@@ -1,0 +1,71 @@
+# Decap CMS — git-backed editor for marketing Markdown.
+# Auth: org cms-auth gateway at https://api.singletonsd.com
+# (auth_endpoint: v1/cms-auth/auth). Do not host OAuth in this repo.
+# Docs: docs/marketing-astro-decap.md
+backend:
+  name: github
+  repo: singleton-sd/poc-plattform-kit
+  branch: main
+  base_url: https://api.singletonsd.com
+  auth_endpoint: v1/cms-auth/auth
+
+# Prefer PRs so human merge still gates production publish.
+publish_mode: editorial_workflow
+
+logo:
+  src: /admin/brand-mark.svg
+  show_in_header: true
+
+site_url: https://plattform-kit.poc.singletonsd.com
+display_url: https://plattform-kit.poc.singletonsd.com
+
+media_folder: apps/marketing/public/uploads
+public_folder: /uploads
+
+collections:
+  - name: pages
+    label: Pages
+    folder: apps/marketing/src/content/pages
+    create: true
+    delete: false
+    slug: '{{slug}}'
+    extension: md
+    format: frontmatter
+    # Flat fields stay compatible with Astro content schema (no nested objects).
+    fields:
+      - label: Title
+        name: title
+        widget: string
+        hint: Page title (browser tab / SEO).
+      - label: Description
+        name: description
+        widget: text
+        required: false
+        hint: Short meta description for SEO.
+      - label: Brand
+        name: brand
+        widget: string
+        required: false
+        hint: Hero brand line (e.g. Platform Kit).
+      - label: Headline
+        name: headline
+        widget: string
+        required: false
+        hint: Supporting headline under the brand.
+      - label: CTA label
+        name: ctaLabel
+        widget: string
+        required: false
+      - label: CTA URL
+        name: ctaUrl
+        widget: string
+        required: false
+        hint: Absolute or site-relative URL for the primary button.
+      - label: Last updated
+        name: updated
+        widget: string
+        required: false
+        hint: Display date string (e.g. 8 August 2026).
+      - label: Body
+        name: body
+        widget: markdown
