@@ -59,8 +59,9 @@ export function buildOidcSettings(
     redirect_uri: redirectUri,
     post_logout_redirect_uri: redirectUri,
     response_type: 'code',
-    scope: `openid profile email ${publicConfig.audience}`.trim(),
-    automaticSilentRenew: false,
+    // Audience is a token mapper, not a client scope (Keycloak 26 invalid_scope).
+    scope: 'openid profile email',
+    automaticSilentRenew: true,
     loadUserInfo: false,
     ...(store ? { userStore: store } : {}),
   };

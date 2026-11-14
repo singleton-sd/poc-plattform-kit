@@ -9,6 +9,7 @@ import {
 const signinRedirect = jest.fn();
 const signinRedirectCallback = jest.fn();
 const getUser = jest.fn();
+const signinSilent = jest.fn();
 const signoutRedirect = jest.fn();
 
 jest.mock('./oidc-config', () => ({
@@ -21,6 +22,7 @@ jest.mock('./oidc-config', () => ({
     signinRedirect,
     signinRedirectCallback,
     getUser,
+    signinSilent,
     signoutRedirect,
   })),
 }));
@@ -31,6 +33,7 @@ describe('bearer-auth', () => {
     signinRedirect.mockReset();
     signinRedirectCallback.mockReset();
     getUser.mockReset();
+    signinSilent.mockReset();
     signoutRedirect.mockReset();
   });
 
@@ -63,6 +66,24 @@ describe('bearer-auth', () => {
 
     await expect(completeBearerRedirect()).resolves.toBe(false);
     await expect(getBearerAccessToken()).resolves.toBe('stored-tok');
+  });
+
+  it('silently renews an expired stored token', async () => {
+    signinRedirectCallback.mockRejectedValue(new Error('No state'));
+    getUser.mockResolvedValue({
+      access_token: 'expired-tok',
+      expires_at: Math.floor(Date.now() / 1000) - 30,
+      expired: true,
+    });
+    signinSilent.mockResolvedValue({
+      access_token: 'renewed-tok',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      expired: false,
+    });
+
+    await expect(completeBearerRedirect()).resolves.toBe(false);
+    await expect(getBearerAccessToken()).resolves.toBe('renewed-tok');
+    expect(signinSilent).toHaveBeenCalled();
   });
 
   it('logs out via redirect when a user exists', async () => {

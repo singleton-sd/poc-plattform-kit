@@ -256,6 +256,10 @@ export class AccessRequestService {
       return pending.map(toRecord);
     }
 
+    if (!actor.entraOid) {
+      return [];
+    }
+
     const chainByRequester = new Map<string, string[]>();
     const visible: AccessRequestRecord[] = [];
     for (const row of pending) {

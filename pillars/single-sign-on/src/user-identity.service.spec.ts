@@ -21,9 +21,10 @@ describe('UserIdentityService', () => {
   const findUnique = jest.fn();
   const create = jest.fn();
   const update = jest.fn();
+  const updateMany = jest.fn();
   const findMany = jest.fn();
   const prisma = {
-    user: { findUnique, create, update, findMany },
+    user: { findUnique, create, update, updateMany, findMany },
   } as unknown as PrismaService;
   const service = new UserIdentityService(prisma);
 
@@ -88,20 +89,23 @@ describe('UserIdentityService', () => {
   });
 
   it('backfills keycloakSub onto an existing user by verified email', async () => {
-    findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
-      id: 'local-legacy',
-      entraOid: 'oid-legacy',
-      keycloakSub: null,
-      email: 'agent@example.com',
-      name: 'Legacy',
-    });
-    update.mockResolvedValue({
-      id: 'local-legacy',
-      entraOid: 'oid-legacy',
-      keycloakSub: 'kc-sub-1',
-      email: 'agent@example.com',
-      name: 'Agent',
-    });
+    updateMany.mockResolvedValue({ count: 1 });
+    findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'local-legacy',
+        entraOid: 'oid-legacy',
+        keycloakSub: null,
+        email: 'agent@example.com',
+        name: 'Legacy',
+      })
+      .mockResolvedValueOnce({
+        id: 'local-legacy',
+        entraOid: 'oid-legacy',
+        keycloakSub: 'kc-sub-1',
+        email: 'agent@example.com',
+        name: 'Agent',
+      });
 
     const persisted = await service.persist(identity({ emailVerified: true }));
 
@@ -110,10 +114,26 @@ describe('UserIdentityService', () => {
       keycloakSub: 'kc-sub-1',
       entraOid: 'oid-legacy',
     });
-    expect(update).toHaveBeenCalledWith({
-      where: { id: 'local-legacy' },
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'local-legacy', keycloakSub: null },
       data: { keycloakSub: 'kc-sub-1', name: 'Agent' },
     });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('does not replace an existing keycloakSub during email backfill', async () => {
+    findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: 'local-other',
+      entraOid: 'oid-other',
+      keycloakSub: 'kc-sub-other',
+      email: 'agent@example.com',
+      name: 'Other',
+    });
+
+    await expect(service.persist(identity({ emailVerified: true }))).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(updateMany).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -142,7 +162,7 @@ describe('UserIdentityService', () => {
   });
 
   it('recovers a unique-constraint race on keycloakSub', async () => {
-    findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+    findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValueOnce({
       id: 'local-1',
       entraOid: null,
       keycloakSub: 'kc-sub-1',
@@ -161,6 +181,7 @@ describe('UserIdentityService', () => {
     });
 
     await expect(service.persist(identity())).resolves.toMatchObject({ id: 'local-1' });
+    expect(create).toHaveBeenCalled();
   });
 
   it('resolves durable user display records in deterministic id order', async () => {

@@ -97,7 +97,7 @@ Marketing Pages leftovers:
 | ACA `ssd-pocpk-aca-web-pr-<n>-ae` | `az containerapp delete` |
 | SWA staging builds (product app SWA only), except `default` | `az staticwebapp environment delete` |
 | ACR tags `pocpk-api:pr-<n>` / `pocpk-web:pr-<n>` (and `pr-<n>-<sha>`) | `az acr repository delete` |
-| Entra SPA redirect URIs matching SWA or ACA web PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
+| Keycloak SPA redirect URIs for SWA / ACA web PR preview hosts | Not swept here — Singleton Auth owns Keycloak clients (ADR 0006); no Entra Graph PATCH |
 | `gh-pages` `pr-preview/pr-<n>/` | `sweep-pages-previews.yml` (not this Azure sweep) |
 
 Manual dry-run:

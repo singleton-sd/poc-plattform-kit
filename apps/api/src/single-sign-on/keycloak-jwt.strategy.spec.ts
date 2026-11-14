@@ -21,16 +21,24 @@ describe('buildKeycloakJwtStrategyOptions', () => {
 });
 
 describe('KeycloakJwtStrategy', () => {
-  let strategy: KeycloakJwtStrategy;
+  const env = { ...process.env };
 
-  beforeEach(async () => {
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  async function compileStrategy(): Promise<KeycloakJwtStrategy> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [KeycloakJwtStrategy],
     }).compile();
-    strategy = module.get(KeycloakJwtStrategy);
-  });
+    return module.get(KeycloakJwtStrategy);
+  }
 
-  it('maps valid Keycloak payload to AuthenticatedUser', () => {
+  it('maps valid Keycloak payload to AuthenticatedUser when configured', async () => {
+    process.env.KEYCLOAK_ISSUER = 'https://auth.example.test/realms/singletonsd';
+    process.env.KEYCLOAK_API_AUDIENCE = 'platform-kit-api';
+    const strategy = await compileStrategy();
+
     expect(
       strategy.validate({
         sub: 'kc-sub-1',
@@ -51,7 +59,24 @@ describe('KeycloakJwtStrategy', () => {
     });
   });
 
-  it('rejects invalid claims', () => {
+  it('rejects invalid claims', async () => {
+    process.env.KEYCLOAK_ISSUER = 'https://auth.example.test/realms/singletonsd';
+    process.env.KEYCLOAK_API_AUDIENCE = 'platform-kit-api';
+    const strategy = await compileStrategy();
     expect(() => strategy.validate({ email: 'a@b.com' })).toThrow(UnauthorizedException);
+  });
+
+  it('rejects every payload when Keycloak issuer or audience is missing', async () => {
+    delete process.env.KEYCLOAK_ISSUER;
+    delete process.env.KEYCLOAK_API_AUDIENCE;
+    delete process.env.KEYCLOAK_CLIENT_ID;
+    const strategy = await compileStrategy();
+    expect(() =>
+      strategy.validate({
+        sub: 'kc-sub-1',
+        email: 'agent@example.com',
+        name: 'Agent',
+      }),
+    ).toThrow(/not configured/);
   });
 });

@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import {
@@ -36,20 +37,25 @@ export function buildKeycloakJwtStrategyOptions(env: NodeJS.ProcessEnv = process
 
 @Injectable()
 export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+  private readonly configured: boolean;
+
   constructor() {
     const options = buildKeycloakJwtStrategyOptions();
-    if (!options) {
-      super({
+    super(
+      options ?? {
         jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-        secretOrKey: 'keycloak-jwt-not-configured',
+        // Unpredictable key so a public placeholder cannot mint accepted tokens.
+        secretOrKey: randomBytes(32).toString('hex'),
         algorithms: ['HS256'],
-      });
-      return;
-    }
-    super(options);
+      },
+    );
+    this.configured = Boolean(options);
   }
 
   validate(payload: KeycloakClaims): AuthenticatedUser {
+    if (!this.configured) {
+      throw new UnauthorizedException('Keycloak JWT is not configured');
+    }
     try {
       return mapKeycloakClaims(payload);
     } catch {

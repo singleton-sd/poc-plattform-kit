@@ -61,14 +61,14 @@ function rolesFromRealm(claims: KeycloakClaims): string[] {
   return realmRoles.filter(isNonEmptyString);
 }
 
-function rolesFromResourceAccess(claims: KeycloakClaims): string[] {
+function rolesFromResourceAccess(claims: KeycloakClaims, platformClientIds: string[]): string[] {
   const resourceAccess = claims.resource_access;
-  if (!resourceAccess || typeof resourceAccess !== 'object') {
+  if (!resourceAccess || typeof resourceAccess !== 'object' || platformClientIds.length === 0) {
     return [];
   }
   const collected: string[] = [];
-  for (const entry of Object.values(resourceAccess)) {
-    const roles = entry?.roles;
+  for (const clientId of platformClientIds) {
+    const roles = resourceAccess[clientId]?.roles;
     if (!Array.isArray(roles)) {
       continue;
     }
@@ -77,8 +77,26 @@ function rolesFromResourceAccess(claims: KeycloakClaims): string[] {
   return collected;
 }
 
+/** Client ids whose `resource_access` roles count as platform coarse roles. */
+export function resolvePlatformRoleClientIds(
+  env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
+): string[] {
+  const ids = [
+    env.KEYCLOAK_API_AUDIENCE,
+    env.KEYCLOAK_CLIENT_ID,
+    env.NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE,
+    env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID,
+  ]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+  return [...new Set(ids)];
+}
+
 /** Normalize Keycloak realm/client roles and optional singular `role`. */
-export function normalizeKeycloakRoles(claims: KeycloakClaims): string[] {
+export function normalizeKeycloakRoles(
+  claims: KeycloakClaims,
+  platformClientIds: string[] = resolvePlatformRoleClientIds(),
+): string[] {
   const fromArray = Array.isArray(claims.roles) ? claims.roles.filter(isNonEmptyString) : [];
   const fromSingular = isNonEmptyString(claims.role) ? [claims.role] : [];
   return [
@@ -86,7 +104,7 @@ export function normalizeKeycloakRoles(claims: KeycloakClaims): string[] {
       ...fromArray,
       ...fromSingular,
       ...rolesFromRealm(claims),
-      ...rolesFromResourceAccess(claims),
+      ...rolesFromResourceAccess(claims, platformClientIds),
     ]),
   ];
 }

@@ -8,13 +8,30 @@ import {
 describe('normalizeKeycloakRoles', () => {
   it('unions realm, resource, and claim roles', () => {
     expect(
-      normalizeKeycloakRoles({
-        roles: ['support-agent'],
-        role: 'support-agent',
-        realm_access: { roles: ['tenant-admin'] },
-        resource_access: { 'platform-kit-api': { roles: ['support-agent', 'viewer'] } },
-      }),
+      normalizeKeycloakRoles(
+        {
+          roles: ['support-agent'],
+          role: 'support-agent',
+          realm_access: { roles: ['tenant-admin'] },
+          resource_access: {
+            'platform-kit-api': { roles: ['support-agent', 'viewer'] },
+            'other-app': { roles: ['tenant-admin'] },
+          },
+        },
+        ['platform-kit-api'],
+      ),
     ).toEqual(['support-agent', 'tenant-admin', 'viewer']);
+  });
+
+  it('ignores resource_access roles from unrelated clients', () => {
+    expect(
+      normalizeKeycloakRoles(
+        {
+          resource_access: { 'other-app': { roles: ['tenant-admin'] } },
+        },
+        ['platform-kit-api'],
+      ),
+    ).toEqual([]);
   });
 
   it('returns empty when no roles are present', () => {

@@ -18,11 +18,9 @@ describe('swagger.config', () => {
       ).toBe('platform-kit-api');
     });
 
-    it('falls back to KEYCLOAK_API_AUDIENCE then client id', () => {
-      expect(resolveSwaggerApiScope({ KEYCLOAK_API_AUDIENCE: 'platform-kit-api' })).toBe(
-        'platform-kit-api',
-      );
-      expect(resolveSwaggerApiScope({ KEYCLOAK_CLIENT_ID: 'client-1' })).toBe('client-1');
+    it('does not treat audience or client id as a scope', () => {
+      expect(resolveSwaggerApiScope({ KEYCLOAK_API_AUDIENCE: 'platform-kit-api' })).toBeNull();
+      expect(resolveSwaggerApiScope({ KEYCLOAK_CLIENT_ID: 'client-1' })).toBeNull();
     });
 
     it('returns null when Keycloak ids are missing', () => {
@@ -118,7 +116,7 @@ describe('swagger.config', () => {
         initOAuth: {
           clientId: 'client-1',
           usePkceWithAuthorizationCodeGrant: true,
-          scopes: expect.arrayContaining(['openid', 'platform-kit-api']),
+          scopes: ['openid', 'profile', 'email'],
         },
       });
       expect(options.swaggerOptions?.oauth2RedirectUrl).toBeUndefined();

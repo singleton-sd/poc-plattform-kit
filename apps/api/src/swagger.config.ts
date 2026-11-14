@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { DocumentBuilder, type SwaggerCustomOptions } from '@nestjs/swagger';
 import {
   keycloakAuthorizationUrl,
-  resolveKeycloakApiAudience,
   resolveKeycloakClientId,
   resolveKeycloakIssuer,
 } from './single-sign-on/keycloak-issuer';
@@ -28,15 +27,11 @@ function envTrim(env: EnvBag, key: string): string | undefined {
 }
 
 /**
- * API scope advertised in Swagger OAuth2.
- * Keycloak uses client/audience ids rather than Entra `/.default`.
+ * Optional extra Swagger OAuth2 scope (Keycloak client scope name).
+ * Audience belongs on token mappers, not in the authorize `scope` query.
  */
 export function resolveSwaggerApiScope(env: EnvBag = process.env): string | null {
-  const explicit = envTrim(env, 'KEYCLOAK_SWAGGER_SCOPE') || envTrim(env, 'KEYCLOAK_API_SCOPE');
-  if (explicit) {
-    return explicit;
-  }
-  return resolveKeycloakApiAudience(env) ?? null;
+  return envTrim(env, 'KEYCLOAK_SWAGGER_SCOPE') || envTrim(env, 'KEYCLOAK_API_SCOPE') || null;
 }
 
 /** Keycloak authorize + token endpoints for the configured issuer. */
@@ -85,7 +80,7 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
     authorizationUrl: keycloakAuthorizationUrl(issuer),
     tokenUrl,
   };
-  const apiScope = resolveSwaggerApiScope(env) ?? 'openid';
+  const apiScope = resolveSwaggerApiScope(env);
 
   builder.addOAuth2(
     {
@@ -100,7 +95,7 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
             openid: 'Sign in',
             profile: 'User profile',
             email: 'Email',
-            [apiScope]: 'Access Platform Kit API',
+            ...(apiScope ? { [apiScope]: 'Access Platform Kit API' } : {}),
           },
         },
       },

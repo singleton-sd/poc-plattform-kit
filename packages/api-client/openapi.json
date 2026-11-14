@@ -1717,7 +1717,7 @@
             "authorizationUrl": "https://auth.singletonsd.com/realms/singletonsd/protocol/openid-connect/auth",
             "tokenUrl": "/docs/oauth2/token",
             "scopes": {
-              "openid": "Access Platform Kit API",
+              "openid": "Sign in",
               "profile": "User profile",
               "email": "Email"
             }

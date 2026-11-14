@@ -47,14 +47,30 @@ export class UserIdentityService {
     if (identity.emailVerified) {
       const byEmail = await this.prisma.user.findUnique({ where: { email } });
       if (byEmail) {
-        const linked = await this.prisma.user.update({
-          where: { id: byEmail.id },
+        if (byEmail.keycloakSub && byEmail.keycloakSub !== identity.keycloakSub) {
+          throw new UnauthorizedException('Email already linked to another Keycloak subject');
+        }
+        const linked = await this.prisma.user.updateMany({
+          where: { id: byEmail.id, keycloakSub: null },
           data: {
             keycloakSub: identity.keycloakSub,
             name: identity.name,
           },
         });
-        return this.toAuthenticated(identity, linked);
+        if (linked.count === 0) {
+          const raced = await this.prisma.user.findUnique({
+            where: { keycloakSub: identity.keycloakSub },
+          });
+          if (raced) {
+            return this.refresh(identity, raced, email);
+          }
+          throw new UnauthorizedException('Email already linked to another Keycloak subject');
+        }
+        const updated = await this.prisma.user.findUnique({ where: { id: byEmail.id } });
+        if (!updated) {
+          throw new UnauthorizedException('Keycloak identity could not be linked');
+        }
+        return this.toAuthenticated(identity, updated);
       }
     }
 

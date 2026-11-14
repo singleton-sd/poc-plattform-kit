@@ -32,7 +32,7 @@ Swagger UI at `/docs` exposes an **oauth2** scheme (authorization code + PKCE) i
 | --- | --- |
 | Authorize | `{KEYCLOAK_ISSUER}/protocol/openid-connect/auth` |
 | Client id (prefilled) | `KEYCLOAK_CLIENT_ID` |
-| Default API scope | `KEYCLOAK_SWAGGER_SCOPE` / App Config `app:keycloak:swaggerScope`, else `KEYCLOAK_API_AUDIENCE` / `KEYCLOAK_CLIENT_ID` |
+| Default API scope | `KEYCLOAK_SWAGGER_SCOPE` / `KEYCLOAK_API_SCOPE` / App Config `app:keycloak:swaggerScope` when set; otherwise `openid profile email` only (audience is a token mapper, not a client scope) |
 | Redirect URI | Same-origin `{currentHost}/docs/oauth2-redirect.html` (Swagger UI derives this; optional override `SWAGGER_OAUTH2_REDIRECT_URL`). Do **not** default from prod `AUTH_URL` — that breaks ACA PR previews. |
 | Token URL | Same-origin relative `/docs/oauth2/token` (Nest proxy) |
 

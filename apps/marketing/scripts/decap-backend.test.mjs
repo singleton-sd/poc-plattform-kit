@@ -135,11 +135,26 @@ function mentionsRetiredCmsAuthHost(text) {
   // Keycloak (ADR 0006) issues tokens at auth.singletonsd.com/realms/<realm>.
   // Decap CMS must still not use that host as an OAuth backend.
   const withoutKeycloakIssuer = text.replaceAll(
-    new RegExp(`https?://${retiredAuthHost.replaceAll('.', '\\.')}/realms/[A-Za-z0-9_-]+`, 'g'),
+    new RegExp(`https?://${retiredAuthHost.replaceAll('.', '\\.')}/realms/singletonsd`, 'g'),
     '',
   );
   return withoutKeycloakIssuer.includes(retiredAuthHost);
 }
+
+test('Keycloak issuer exemption is limited to the singletonsd realm', () => {
+  assert.equal(
+    mentionsRetiredCmsAuthHost('issuer: https://auth.singletonsd.com/realms/singletonsd'),
+    false,
+  );
+  assert.equal(
+    mentionsRetiredCmsAuthHost(
+      ['backend:', '  name: github', '  base_url: https://auth.singletonsd.com/realms/cms'].join(
+        '\n',
+      ),
+    ),
+    true,
+  );
+});
 
 test('live docs and config do not send CMS login to the retired OAuth host', () => {
   const hits = [];

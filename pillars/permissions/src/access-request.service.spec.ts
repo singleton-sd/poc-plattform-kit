@@ -245,6 +245,14 @@ describe('AccessRequestService', () => {
     expect(prisma.accessRequest.updateMany).not.toHaveBeenCalled();
   });
 
+  it('skips Graph manager lookup when the actor has no entraOid', async () => {
+    prisma.accessRequest.findMany.mockResolvedValue([pendingRow]);
+    const keycloakOnly = { ...manager, entraOid: null, keycloakSub: 'kc-mgr' };
+
+    await expect(service.listPendingForApprover(keycloakOnly)).resolves.toEqual([]);
+    expect(managerChain.getManagerChain).not.toHaveBeenCalled();
+  });
+
   it.each([
     [PermissionGrantType.Permanent, undefined],
     [PermissionGrantType.Temporary, '2026-08-11T12:00:00.000Z'],

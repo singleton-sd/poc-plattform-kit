@@ -27,6 +27,7 @@ describe('extractKeycloakSessionFields', () => {
     ).toEqual({
       sub: 'kc-sub-1',
       email: 'a@b.com',
+      preferred_username: undefined,
       email_verified: true,
       name: undefined,
       roles: ['tenant-admin'],
@@ -102,6 +103,73 @@ describe('buildAuthConfig', () => {
       email_verified: true,
       roles: ['support-agent'],
       tenant_id: 'tenant-1',
+    });
+  });
+
+  it('copies preferred_username when the ID token has no email', async () => {
+    process.env.AUTH_SECRET = 'test-secret';
+    process.env.KEYCLOAK_CLIENT_ID = 'client';
+    process.env.KEYCLOAK_CLIENT_SECRET = 'secret';
+    process.env.KEYCLOAK_ISSUER = 'https://auth.example.test/realms/singletonsd';
+
+    const config = buildAuthConfig();
+    const token = await config!.callbacks!.jwt!({
+      token: { sub: 'sub-fallback' },
+      profile: {
+        sub: 'kc-sub-1',
+        preferred_username: 'agent@example.com',
+      },
+      account: null,
+    } as never);
+
+    expect(token).toMatchObject({
+      sub: 'kc-sub-1',
+      preferred_username: 'agent@example.com',
+    });
+    expect((token as { email?: unknown } | null)?.email).toBeUndefined();
+
+    const session = await config!.callbacks!.session!({
+      session: { user: {}, expires: '' },
+      token,
+    } as never);
+
+    expect(session.user).toMatchObject({
+      id: 'kc-sub-1',
+      sub: 'kc-sub-1',
+      preferred_username: 'agent@example.com',
+    });
+  });
+
+  it('propagates realm_access.roles from an ID-token-shaped profile', async () => {
+    process.env.AUTH_SECRET = 'test-secret';
+    process.env.KEYCLOAK_CLIENT_ID = 'client';
+    process.env.KEYCLOAK_CLIENT_SECRET = 'secret';
+    process.env.KEYCLOAK_ISSUER = 'https://auth.example.test/realms/singletonsd';
+
+    const config = buildAuthConfig();
+    const token = await config!.callbacks!.jwt!({
+      token: { sub: 'sub-fallback' },
+      profile: {
+        sub: 'kc-sub-1',
+        email: 'a@b.com',
+        realm_access: { roles: ['tenant-admin', 'support-agent'] },
+      },
+      account: null,
+    } as never);
+
+    expect(token).toMatchObject({
+      roles: ['tenant-admin', 'support-agent'],
+      realm_access: { roles: ['tenant-admin', 'support-agent'] },
+    });
+
+    const session = await config!.callbacks!.session!({
+      session: { user: { email: 'a@b.com' }, expires: '' },
+      token,
+    } as never);
+
+    expect(session.user).toMatchObject({
+      roles: ['tenant-admin', 'support-agent'],
+      realm_access: { roles: ['tenant-admin', 'support-agent'] },
     });
   });
 

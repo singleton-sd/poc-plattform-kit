@@ -43,8 +43,8 @@ export async function completeBearerRedirect(): Promise<boolean> {
     // No callback params on this load — fall through to a stored user.
   }
 
-  const existing = await manager.getUser();
-  if (existing?.access_token && !existing.expired) {
+  const existing = await readOrRenewUser(manager);
+  if (existing?.access_token) {
     cacheAccessToken(existing.access_token, existing.expires_at);
   }
   return false;
@@ -65,13 +65,40 @@ export async function getBearerAccessToken(): Promise<string | null> {
   }
 
   const manager = getOidcUserManager();
-  const user = await manager.getUser();
-  if (!user?.access_token || user.expired) {
+  const user = await readOrRenewUser(manager);
+  if (!user?.access_token) {
     return null;
   }
 
   cacheAccessToken(user.access_token, user.expires_at);
   return user.access_token;
+}
+
+type OidcUserLike = {
+  access_token?: string;
+  expires_at?: number;
+  expired?: boolean;
+};
+
+type OidcManagerLike = {
+  getUser: () => Promise<OidcUserLike | null>;
+  signinSilent: () => Promise<OidcUserLike | null>;
+};
+
+async function readOrRenewUser(manager: OidcManagerLike): Promise<OidcUserLike | null> {
+  const stored = await manager.getUser();
+  if (stored?.access_token && !stored.expired) {
+    return stored;
+  }
+  try {
+    const renewed = await manager.signinSilent();
+    if (renewed?.access_token && !renewed.expired) {
+      return renewed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 /**

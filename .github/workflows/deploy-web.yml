@@ -49,6 +49,14 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Check Keycloak Variables
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.NEXT_PUBLIC_KEYCLOAK_ISSUER }}" ] || [ -z "${{ vars.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID }}" ]; then
+            echo "::error::NEXT_PUBLIC_KEYCLOAK_ISSUER and NEXT_PUBLIC_KEYCLOAK_CLIENT_ID must be set."
+            exit 1
+          fi
+
       - name: Build web
         env:
           # Baked into the static export; SWA runtime cannot inject this later.

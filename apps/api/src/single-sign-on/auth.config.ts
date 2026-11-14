@@ -10,6 +10,7 @@ import {
 export type KeycloakSessionFields = {
   sub?: string;
   email?: string;
+  preferred_username?: string;
   email_verified?: boolean;
   name?: string;
   roles?: string[];
@@ -47,6 +48,8 @@ export function extractKeycloakSessionFields(
   return {
     sub: typeof source.sub === 'string' ? source.sub : undefined,
     email: typeof source.email === 'string' ? source.email : undefined,
+    preferred_username:
+      typeof source.preferred_username === 'string' ? source.preferred_username : undefined,
     email_verified: emailVerified || undefined,
     name: typeof source.name === 'string' ? source.name : undefined,
     roles: stringArray(source.roles),
@@ -143,14 +146,19 @@ export function buildAuthConfig(): ExpressAuthConfig | null {
         if (fields.email) {
           token.email = fields.email;
         }
+        if (fields.preferred_username) {
+          token.preferred_username = fields.preferred_username;
+        }
         if (fields.email_verified) {
           token.email_verified = true;
         }
         if (fields.name) {
           token.name = fields.name;
         }
-        if (fields.roles) {
-          token.roles = fields.roles;
+        const realmRoles = stringArray(fields.realm_access?.roles);
+        const mergedRoles = [...new Set([...(fields.roles ?? []), ...(realmRoles ?? [])])];
+        if (mergedRoles.length > 0) {
+          token.roles = mergedRoles;
         }
         if (fields.role) {
           token.role = fields.role;
@@ -173,6 +181,9 @@ export function buildAuthConfig(): ExpressAuthConfig | null {
           }
           if (typeof token.email === 'string') {
             user.email = token.email;
+          }
+          if (typeof token.preferred_username === 'string') {
+            user.preferred_username = token.preferred_username;
           }
           if (token.email_verified === true) {
             user.email_verified = true;

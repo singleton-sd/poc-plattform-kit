@@ -47,7 +47,8 @@ describe('oidc-config', () => {
       client_id: 'platform-kit-web',
       redirect_uri: 'https://kind-rock-0f409fe00-76.eastasia.7.azurestaticapps.net',
       response_type: 'code',
-      scope: 'openid profile email platform-kit-api',
+      scope: 'openid profile email',
+      automaticSilentRenew: true,
     });
   });
 });
