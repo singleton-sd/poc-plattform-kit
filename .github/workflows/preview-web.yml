@@ -179,9 +179,9 @@ jobs:
         if: steps.filter.outputs.should_run == 'true' && steps.open.outputs.open == 'true'
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ steps.api_url.outputs.base_url }}
-          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-          NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
-          NEXT_PUBLIC_AZURE_AD_API_SCOPE: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE }}
+          NEXT_PUBLIC_KEYCLOAK_ISSUER: ${{ vars.NEXT_PUBLIC_KEYCLOAK_ISSUER }}
+          NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${{ vars.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID }}
+          NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE: ${{ vars.NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE }}
         run: |
           set -euo pipefail
           ACR_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name acr-admin-username --query value -o tsv)
@@ -190,9 +190,9 @@ jobs:
           echo "$ACR_PASS" | docker login "${{ steps.acr.outputs.login_server }}" -u "$ACR_USER" --password-stdin
           docker build -f apps/web/Dockerfile \
             --build-arg "NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL" \
-            --build-arg "NEXT_PUBLIC_AZURE_AD_CLIENT_ID=$NEXT_PUBLIC_AZURE_AD_CLIENT_ID" \
-            --build-arg "NEXT_PUBLIC_AZURE_AD_TENANT_ID=$NEXT_PUBLIC_AZURE_AD_TENANT_ID" \
-            --build-arg "NEXT_PUBLIC_AZURE_AD_API_SCOPE=$NEXT_PUBLIC_AZURE_AD_API_SCOPE" \
+            --build-arg "NEXT_PUBLIC_KEYCLOAK_ISSUER=$NEXT_PUBLIC_KEYCLOAK_ISSUER" \
+            --build-arg "NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=$NEXT_PUBLIC_KEYCLOAK_CLIENT_ID" \
+            --build-arg "NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE=$NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE" \
             -t "${{ steps.acr.outputs.image }}" \
             -t "${{ steps.acr.outputs.login_server }}/$IMAGE_REPO:pr-${{ github.event.pull_request.number }}-${{ github.sha }}" \
             .
@@ -312,7 +312,7 @@ jobs:
               '- Production web remains SWA Free via `deploy-web.yml`',
               '- Cleanup runs when this PR is closed',
               '',
-              'Auth on this host is MSAL Bearer (see `docs/sso.md`). Entra SPA redirect is registered after deploy.',
+              'Auth on this host is Keycloak OIDC Bearer (see `docs/sso.md`). Redirect URIs are owned by Singleton Auth (ADR 0006).',
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
@@ -344,82 +344,12 @@ jobs:
       needs.build_and_preview.outputs.should_run == 'true' &&
       needs.build_and_preview.outputs.preview_url != ''
     needs: build_and_preview
-    concurrency:
-      group: entra-spa-preview-redirects
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     name: Register Entra redirect
-    permissions:
-      contents: read
-      id-token: write
-      pull-requests: read
     steps:
-      # Use only code from the trusted base on this credentialed runner.
-      - name: Check out trusted redirect helper
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          sparse-checkout: |
-            scripts/entra-spa-preview-redirect.sh
-            scripts/entra-spa-preview-redirect.mjs
-          sparse-checkout-cone-mode: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Check OIDC Variables
-        id: oidc
+      - name: Skip Entra SPA redirect (ADR 0006)
         run: |
-          set -euo pipefail
-          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "OIDC Variables not set — skipping Entra redirect registration."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Confirm PR still open
-        if: steps.oidc.outputs.configured == 'true'
-        id: open
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          state=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .state)
-          if [ "$state" = "open" ]; then
-            echo "open=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "open=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::PR is '$state' — skipping Entra redirect add so a queued register cannot restore a closed PR URI."
-          fi
-
-      - name: Azure login (OIDC)
-        if: steps.oidc.outputs.configured == 'true' && steps.open.outputs.open == 'true'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      # MSAL uses window.location.origin; Entra has no ACA host wildcards.
-      - name: Register Entra SPA redirect URI for preview
-        if: steps.oidc.outputs.configured == 'true' && steps.open.outputs.open == 'true'
-        env:
-          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-        run: |
-          set -euo pipefail
-          if [ ! -f scripts/entra-spa-preview-redirect.sh ]; then
-            echo "warning: trusted base does not contain the redirect helper yet; skipping"
-            exit 0
-          fi
-          chmod +x scripts/entra-spa-preview-redirect.sh
-          origin="${{ needs.build_and_preview.outputs.preview_url }}"
-          args=(add --pr "${{ github.event.pull_request.number }}")
-          if [ -n "$origin" ]; then
-            args+=(--origin "$origin")
-          fi
-          scripts/entra-spa-preview-redirect.sh "${args[@]}"
+          echo skip Keycloak OIDC clients are owned by Singleton Auth ADR-0006
 
   close_preview:
     if: github.event.action == 'closed'
@@ -556,68 +486,14 @@ jobs:
             }
 
   unregister_entra_redirect:
-    # Capture origin in close_preview (per-PR group) first so in-flight deploy
-    # is cancelled immediately; Entra PATCH shares the global group with
-    # register_entra_redirect and the orphan sweep.
     if: >
       always() &&
       github.event.action == 'closed' &&
       needs.close_preview.outputs.preview_origin != ''
     needs: close_preview
-    concurrency:
-      group: entra-spa-preview-redirects
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     name: Remove Entra SPA redirect
-    permissions:
-      contents: read
-      id-token: write
     steps:
-      # Use only code from the trusted base on this credentialed runner.
-      - name: Check out trusted redirect helper
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          sparse-checkout: |
-            scripts/entra-spa-preview-redirect.sh
-            scripts/entra-spa-preview-redirect.mjs
-          sparse-checkout-cone-mode: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Check OIDC Variables
-        id: oidc
+      - name: Skip Entra SPA redirect (ADR 0006)
         run: |
-          set -euo pipefail
-          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ] || [ -z "${{ vars.AZURE_TENANT_ID }}" ] || [ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "OIDC Variables not set — skipping Entra redirect removal."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Azure login (OIDC)
-        if: steps.oidc.outputs.configured == 'true'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Remove Entra SPA redirect URI for preview
-        if: steps.oidc.outputs.configured == 'true'
-        env:
-          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-          ORIGIN: ${{ needs.close_preview.outputs.preview_origin }}
-        run: |
-          set -euo pipefail
-          if [ ! -f scripts/entra-spa-preview-redirect.sh ]; then
-            echo "warning: trusted base does not contain the redirect helper yet; skipping Entra remove"
-            exit 0
-          fi
-          chmod +x scripts/entra-spa-preview-redirect.sh
-          scripts/entra-spa-preview-redirect.sh remove \
-            --pr "${{ github.event.pull_request.number }}" \
-            --origin "$ORIGIN"
+          echo skip Keycloak OIDC clients are owned by Singleton Auth ADR-0006

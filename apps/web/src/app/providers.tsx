@@ -19,13 +19,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     void (async () => {
       try {
-        // Finish Entra redirect before /api/me so the MSAL token is available.
+        // Finish Keycloak redirect before /api/me so the OIDC token is available.
         if (resolveAuthMode() === 'bearer') {
           await completeBearerRedirect();
         }
 
         // If a return target was captured before redirect, consume it exactly once
-        // and navigate there. This covers both MSAL redirect flows and Auth.js
+        // and navigate there. This covers both OIDC redirect flows and Auth.js
         // cookie-form callbacks that return to the SPA.
         const returnTo = getAndClearReturnUrl();
         if (returnTo) {

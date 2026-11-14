@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DocumentBuilder, type SwaggerCustomOptions } from '@nestjs/swagger';
+import {
+  keycloakAuthorizationUrl,
+  resolveKeycloakApiAudience,
+  resolveKeycloakClientId,
+  resolveKeycloakIssuer,
+} from './single-sign-on/keycloak-issuer';
 import { buildSwaggerOauth2BridgeScript } from './swagger-oauth2-redirect';
 import { resolveSwaggerTokenProxyUrl } from './swagger-oauth2-token-proxy';
 
@@ -22,47 +28,29 @@ function envTrim(env: EnvBag, key: string): string | undefined {
 }
 
 /**
- * Entra API scope for Swagger OAuth2 (authorization code + PKCE).
- *
- * Same-app token requests must use the **GUID** App Identifier
- * (`{clientId}/.default`). Hostname App ID URIs trigger AADSTS90009;
- * `api://{clientId}` is not registered on this app (AADSTS500011) — only
- * `api://api.plattform-kit.poc.singletonsd.com` is an identifier URI.
+ * API scope advertised in Swagger OAuth2.
+ * Keycloak uses client/audience ids rather than Entra `/.default`.
  */
 export function resolveSwaggerApiScope(env: EnvBag = process.env): string | null {
-  const explicit = envTrim(env, 'AZURE_AD_SWAGGER_SCOPE') || envTrim(env, 'AZURE_AD_API_SCOPE');
+  const explicit = envTrim(env, 'KEYCLOAK_SWAGGER_SCOPE') || envTrim(env, 'KEYCLOAK_API_SCOPE');
   if (explicit) {
     return explicit;
   }
-
-  const clientId = envTrim(env, 'AZURE_AD_CLIENT_ID');
-  if (clientId) {
-    return `${clientId}/.default`;
-  }
-
-  const audience = envTrim(env, 'AZURE_AD_API_AUDIENCE');
-  if (!audience) {
-    return null;
-  }
-  if (audience.endsWith('/.default')) {
-    return audience;
-  }
-  return `${audience}/.default`;
+  return resolveKeycloakApiAudience(env) ?? null;
 }
 
-/** Entra v2 authorize + token endpoints for the directory tenant. */
+/** Keycloak authorize + token endpoints for the configured issuer. */
 export function resolveSwaggerOAuthUrls(env: EnvBag = process.env): {
   authorizationUrl: string;
   tokenUrl: string;
 } | null {
-  const tenantId = envTrim(env, 'AZURE_AD_TENANT_ID');
-  if (!tenantId) {
+  const issuer = resolveKeycloakIssuer(env);
+  if (!issuer) {
     return null;
   }
-  const base = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0`;
   return {
-    authorizationUrl: `${base}/authorize`,
-    tokenUrl: `${base}/token`,
+    authorizationUrl: keycloakAuthorizationUrl(issuer),
+    tokenUrl: `${issuer}/protocol/openid-connect/token`,
   };
 }
 
@@ -76,6 +64,8 @@ export function resolveSwaggerOAuth2RedirectUrl(env: EnvBag = process.env): stri
   return envTrim(env, 'SWAGGER_OAUTH2_REDIRECT_URL');
 }
 
+const fallbackIssuer = 'https://auth.singletonsd.com/realms/singletonsd';
+
 /** Shared DocumentBuilder config for runtime Swagger UI and offline OpenAPI export. */
 export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
   const builder = new DocumentBuilder()
@@ -86,23 +76,22 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
     .addApiKey({ type: 'apiKey', name: 'x-tenant-id', in: 'header' }, 'x-tenant-id');
 
   // Always publish the oauth2 scheme so offline OpenAPI export stays stable
-  // (CI has no AZURE_AD_*). Runtime initOAuth still prefills clientId when set.
-  // tokenUrl is our Nest proxy (not Entra) so Swagger can exchange codes without
-  // browser CORS / exposing client_secret — Web redirect URIs required on Entra.
-  const tenantId = envTrim(env, 'AZURE_AD_TENANT_ID') ?? 'common';
-  // Same-origin relative URL so ACA PR previews hit their own proxy, not prod AUTH_URL.
+  // (CI has no KEYCLOAK_*). Runtime initOAuth still prefills clientId when set.
+  // tokenUrl is our Nest proxy (not Keycloak) so Swagger can exchange codes
+  // without browser CORS / exposing client_secret.
+  const issuer = resolveKeycloakIssuer(env) ?? fallbackIssuer;
   const tokenUrl = resolveSwaggerTokenProxyUrl(env) ?? '/docs/oauth2/token';
   const oauthUrls = {
-    authorizationUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
+    authorizationUrl: keycloakAuthorizationUrl(issuer),
     tokenUrl,
   };
-  const apiScope = resolveSwaggerApiScope(env) ?? 'platform-kit/.default';
+  const apiScope = resolveSwaggerApiScope(env) ?? 'openid';
 
   builder.addOAuth2(
     {
       type: 'oauth2',
       description:
-        'Microsoft Entra ID (authorization code + PKCE). Register Web redirect URI `/docs/oauth2-redirect.html` on the API app registration. Token exchange is proxied by this API.',
+        'Keycloak (authorization code + PKCE). Register Web redirect URI `/docs/oauth2-redirect.html` on the API OIDC client. Token exchange is proxied by this API.',
       flows: {
         authorizationCode: {
           authorizationUrl: oauthUrls.authorizationUrl,
@@ -110,7 +99,7 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
           scopes: {
             openid: 'Sign in',
             profile: 'User profile',
-            offline_access: 'Refresh token',
+            email: 'Email',
             [apiScope]: 'Access Platform Kit API',
           },
         },
@@ -122,18 +111,17 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
   return builder.build();
 }
 
-/** Swagger UI options — prefill Entra client id and enable PKCE. */
+/** Swagger UI options — prefill Keycloak client id and enable PKCE. */
 export function buildSwaggerUiOptions(env: EnvBag = process.env): SwaggerCustomOptions {
-  const clientId = envTrim(env, 'AZURE_AD_CLIENT_ID');
+  const clientId = resolveKeycloakClientId(env);
   const apiScope = resolveSwaggerApiScope(env);
   const oauth2RedirectUrl = resolveSwaggerOAuth2RedirectUrl(env);
 
   const scopes = apiScope
-    ? ['openid', 'profile', 'offline_access', apiScope]
-    : ['openid', 'profile'];
+    ? ['openid', 'profile', 'email', apiScope]
+    : ['openid', 'profile', 'email'];
 
   return {
-    // Completes Authorize when Entra COOP blocks window.opener on oauth2-redirect.
     customJsStr: buildSwaggerOauth2BridgeScript(),
     swaggerOptions: {
       persistAuthorization: true,

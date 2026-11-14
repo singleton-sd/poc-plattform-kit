@@ -4,19 +4,22 @@ describe('mapAuthJsUserToAuthenticatedUser', () => {
   it('maps Auth.js user profile to AuthenticatedUser', () => {
     expect(
       mapAuthJsUserToAuthenticatedUser({
-        id: 'sub-1',
+        id: 'kc-sub-1',
         email: 'agent@example.com',
         name: 'Agent',
+        email_verified: true,
         roles: ['support-agent'],
         tenant_id: 'tenant-1',
       }),
     ).toEqual({
-      entraOid: 'sub-1',
+      keycloakSub: 'kc-sub-1',
+      entraOid: null,
       email: 'agent@example.com',
       name: 'Agent',
       roles: ['support-agent'],
-      id: 'sub-1',
+      id: 'kc-sub-1',
       tenantId: 'tenant-1',
+      emailVerified: true,
     });
   });
 

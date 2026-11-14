@@ -32,6 +32,8 @@ describe('PermissionsGuard', () => {
 
   const user: AuthenticatedUser = {
     entraOid: 'entra-1',
+    keycloakSub: 'entra-1',
+    emailVerified: true,
     email: 'admin@example.test',
     name: 'Admin',
     roles: ['tenant-admin'],

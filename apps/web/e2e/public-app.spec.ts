@@ -10,7 +10,7 @@ const allowedOrigins = collectAllowedOrigins(resolvePlaywrightBaseUrl());
 
 test.beforeEach(async ({ context, page }) => {
   // The public suite is intentionally signed out. This observes the real app's
-  // 401 handling without introducing an Entra bypass or test credential.
+  // 401 handling without introducing a Keycloak bypass or test credential.
   await page.route('**/api/me', (route) =>
     route.fulfill({
       status: 401,
@@ -34,7 +34,7 @@ test('boots the signed-out application as an installable web app', async ({ page
 
   await expect(page).toHaveTitle('Platform Kit');
   await expect(page.getByTestId('login-page')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign in with Microsoft' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled();
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
     'href',
     '/manifest.webmanifest',

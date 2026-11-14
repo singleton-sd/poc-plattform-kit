@@ -1,32 +1,14 @@
-import type { AccountInfo, AuthenticationResult, SilentRequest } from '@azure/msal-browser';
-import { InteractionRequiredAuthError } from '@azure/msal-browser';
-
-import { getMsalPublicClient, resolveMsalPublicConfig } from './msal-config';
-
-function loginRequestScopes(): string[] {
-  const config = resolveMsalPublicConfig();
-  if (!config) {
-    throw new Error(
-      'MSAL is not configured (set NEXT_PUBLIC_AZURE_AD_CLIENT_ID and NEXT_PUBLIC_AZURE_AD_TENANT_ID)',
-    );
-  }
-  return [config.apiScope];
-}
-
-/** Prefer the active account from the last interactive login. */
-function resolveAccount(app: Awaited<ReturnType<typeof getMsalPublicClient>>): AccountInfo | null {
-  return app.getActiveAccount() ?? app.getAllAccounts()[0] ?? null;
-}
+import { getOidcUserManager, resolveOidcPublicConfig } from './oidc-config';
 
 let cachedAccessToken: string | null = null;
 let cachedAccessTokenExpiresOn: number | null = null;
 
-function cacheAccessToken(result: AuthenticationResult | null | undefined): void {
-  if (!result?.accessToken) {
+function cacheAccessToken(accessToken: string | undefined, expiresAt: number | undefined): void {
+  if (!accessToken) {
     return;
   }
-  cachedAccessToken = result.accessToken;
-  cachedAccessTokenExpiresOn = result.expiresOn ? result.expiresOn.getTime() : null;
+  cachedAccessToken = accessToken;
+  cachedAccessTokenExpiresOn = typeof expiresAt === 'number' ? expiresAt * 1000 : null;
 }
 
 function readCachedAccessToken(): string | null {
@@ -42,37 +24,38 @@ function readCachedAccessToken(): string | null {
 }
 
 /**
- * Complete an in-flight MSAL redirect and set the active account.
- * Safe to call on every cold load (no-op when there is no redirect response).
+ * Complete an in-flight OIDC redirect and cache the access token.
+ * Safe to call on every cold load (no-op when there is no callback).
  */
 export async function completeBearerRedirect(): Promise<boolean> {
-  if (!resolveMsalPublicConfig()) {
+  if (!resolveOidcPublicConfig()) {
     return false;
   }
 
-  const app = await getMsalPublicClient();
-  const result = await app.handleRedirectPromise();
-  if (result?.account) {
-    app.setActiveAccount(result.account);
-    cacheAccessToken(result);
-    return true;
+  const manager = getOidcUserManager();
+  try {
+    const user = await manager.signinRedirectCallback();
+    if (user?.access_token) {
+      cacheAccessToken(user.access_token, user.expires_at);
+      return true;
+    }
+  } catch {
+    // No callback params on this load — fall through to a stored user.
   }
 
-  if (!app.getActiveAccount()) {
-    const existing = app.getAllAccounts()[0];
-    if (existing) {
-      app.setActiveAccount(existing);
-    }
+  const existing = await manager.getUser();
+  if (existing?.access_token && !existing.expired) {
+    cacheAccessToken(existing.access_token, existing.expires_at);
   }
   return false;
 }
 
 /**
- * Silent access-token acquire for Nest Bearer auth.
- * Returns null when signed out or MSAL is not configured (no interactive prompt).
+ * Silent access-token read for Nest Bearer auth.
+ * Returns null when signed out or OIDC is not configured (no interactive prompt).
  */
 export async function getBearerAccessToken(): Promise<string | null> {
-  if (!resolveMsalPublicConfig()) {
+  if (!resolveOidcPublicConfig()) {
     return null;
   }
 
@@ -81,57 +64,40 @@ export async function getBearerAccessToken(): Promise<string | null> {
     return cached;
   }
 
-  const app = await getMsalPublicClient();
-  const account = resolveAccount(app);
-  if (!account) {
+  const manager = getOidcUserManager();
+  const user = await manager.getUser();
+  if (!user?.access_token || user.expired) {
     return null;
   }
 
-  const request: SilentRequest = {
-    account,
-    scopes: loginRequestScopes(),
-  };
-
-  try {
-    const result = await app.acquireTokenSilent(request);
-    cacheAccessToken(result);
-    return result.accessToken || null;
-  } catch (error) {
-    if (error instanceof InteractionRequiredAuthError) {
-      return null;
-    }
-    throw error;
-  }
+  cacheAccessToken(user.access_token, user.expires_at);
+  return user.access_token;
 }
 
 /**
- * Interactive MSAL redirect sign-in for SWA preview hosts.
- * Prefer redirect over popup — Entra sets COOP that blocks `window.closed` polling.
+ * Interactive OIDC redirect sign-in for SWA / ACA preview hosts.
  */
 export async function signInWithBearer(): Promise<void> {
-  const app = await getMsalPublicClient();
-  await app.loginRedirect({
-    scopes: loginRequestScopes(),
-  });
+  const manager = getOidcUserManager();
+  await manager.signinRedirect();
 }
 
-/** Clear MSAL session via redirect logout when an account exists. */
+/** Clear the OIDC session via redirect logout when a user exists. */
 export async function signOutWithBearer(): Promise<void> {
-  if (!resolveMsalPublicConfig()) {
+  if (!resolveOidcPublicConfig()) {
     return;
   }
 
   cachedAccessToken = null;
   cachedAccessTokenExpiresOn = null;
 
-  const app = await getMsalPublicClient();
-  const account = resolveAccount(app);
-  if (!account) {
+  const manager = getOidcUserManager();
+  const user = await manager.getUser();
+  if (!user) {
     return;
   }
 
-  app.setActiveAccount(null);
-  await app.logoutRedirect({ account });
+  await manager.signoutRedirect();
 }
 
 /** Test helper — clear in-memory access-token cache. */

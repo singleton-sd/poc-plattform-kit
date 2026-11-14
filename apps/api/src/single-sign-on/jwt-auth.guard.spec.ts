@@ -42,6 +42,8 @@ describe('SessionOrJwtAuthGuard', () => {
     const authUser = {
       id: 'oid-1',
       entraOid: 'oid-1',
+      keycloakSub: 'oid-1',
+      emailVerified: true,
       email: 'a@b.com',
       name: null,
       roles: [] as string[],
@@ -66,6 +68,8 @@ describe('SessionOrJwtAuthGuard', () => {
       context.switchToHttp().getRequest().user = {
         id: 'oid-1',
         entraOid: 'oid-1',
+        keycloakSub: 'oid-1',
+        emailVerified: true,
         email: 'a@b.com',
       };
       return true;
@@ -73,6 +77,8 @@ describe('SessionOrJwtAuthGuard', () => {
     identities.persist.mockResolvedValue({
       id: 'local-1',
       entraOid: 'oid-1',
+      keycloakSub: 'oid-1',
+      emailVerified: true,
       email: 'a@b.com',
     });
     await expect(guard.canActivate(contextFor(req))).resolves.toBe(true);

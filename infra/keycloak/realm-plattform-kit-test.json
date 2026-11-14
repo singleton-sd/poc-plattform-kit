@@ -1,0 +1,81 @@
+{
+  "id": "plattform-kit-test",
+  "realm": "plattform-kit-test",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "clients": [
+    {
+      "clientId": "platform-kit-web",
+      "name": "Platform Kit web (public SPA, local/CI only)",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:3000/*", "http://127.0.0.1:3000/*"],
+      "webOrigins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
+      "protocolMappers": [
+        {
+          "name": "audience-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "platform-kit-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "platform-kit-api",
+      "name": "Platform Kit API (confidential, local/CI only)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "plattform-kit-test-api-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:3001/api/auth/callback/keycloak",
+        "http://127.0.0.1:3001/api/auth/callback/keycloak",
+        "http://localhost:3001/docs/oauth2-redirect.html",
+        "http://127.0.0.1:3001/docs/oauth2-redirect.html"
+      ],
+      "webOrigins": ["http://localhost:3001", "http://127.0.0.1:3001"],
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"]
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "tenant-admin", "description": "Coarse platform role" },
+      { "name": "support-agent", "description": "Coarse platform role" }
+    ]
+  },
+  "users": [
+    {
+      "username": "testuser",
+      "email": "testuser@example.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testuser-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["tenant-admin"]
+    }
+  ]
+}

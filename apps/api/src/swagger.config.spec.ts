@@ -8,49 +8,42 @@ import {
 
 describe('swagger.config', () => {
   describe('resolveSwaggerApiScope', () => {
-    it('prefers explicit AZURE_AD_SWAGGER_SCOPE', () => {
+    it('prefers explicit KEYCLOAK_SWAGGER_SCOPE', () => {
       expect(
         resolveSwaggerApiScope({
-          AZURE_AD_SWAGGER_SCOPE: 'api://custom/.default',
-          AZURE_AD_API_AUDIENCE: 'api://ignored',
-          AZURE_AD_CLIENT_ID: 'ignored',
+          KEYCLOAK_SWAGGER_SCOPE: 'platform-kit-api',
+          KEYCLOAK_API_AUDIENCE: 'ignored',
+          KEYCLOAK_CLIENT_ID: 'ignored',
         }),
-      ).toBe('api://custom/.default');
+      ).toBe('platform-kit-api');
     });
 
-    it('prefers {clientId}/.default over hostname App ID URI (AADSTS90009/500011)', () => {
-      expect(
-        resolveSwaggerApiScope({
-          AZURE_AD_CLIENT_ID: 'be2e487d-9cea-4060-a600-dbb68434e128',
-          AZURE_AD_API_AUDIENCE: 'api://api.plattform-kit.poc.singletonsd.com',
-        }),
-      ).toBe('be2e487d-9cea-4060-a600-dbb68434e128/.default');
-    });
-
-    it('falls back to AZURE_AD_API_AUDIENCE when client id is absent', () => {
-      expect(resolveSwaggerApiScope({ AZURE_AD_API_AUDIENCE: 'api://platform-kit' })).toBe(
-        'api://platform-kit/.default',
+    it('falls back to KEYCLOAK_API_AUDIENCE then client id', () => {
+      expect(resolveSwaggerApiScope({ KEYCLOAK_API_AUDIENCE: 'platform-kit-api' })).toBe(
+        'platform-kit-api',
       );
+      expect(resolveSwaggerApiScope({ KEYCLOAK_CLIENT_ID: 'client-1' })).toBe('client-1');
     });
 
-    it('defaults to {clientId}/.default', () => {
-      expect(resolveSwaggerApiScope({ AZURE_AD_CLIENT_ID: 'client-1' })).toBe('client-1/.default');
-    });
-
-    it('returns null when Entra ids are missing', () => {
+    it('returns null when Keycloak ids are missing', () => {
       expect(resolveSwaggerApiScope({})).toBeNull();
     });
   });
 
   describe('resolveSwaggerOAuthUrls', () => {
-    it('builds Entra v2 endpoints', () => {
-      expect(resolveSwaggerOAuthUrls({ AZURE_AD_TENANT_ID: 'tenant-1' })).toEqual({
-        authorizationUrl: 'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/authorize',
-        tokenUrl: 'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/token',
+    it('builds Keycloak OIDC endpoints', () => {
+      expect(
+        resolveSwaggerOAuthUrls({
+          KEYCLOAK_ISSUER: 'https://auth.example.test/realms/singletonsd/',
+        }),
+      ).toEqual({
+        authorizationUrl:
+          'https://auth.example.test/realms/singletonsd/protocol/openid-connect/auth',
+        tokenUrl: 'https://auth.example.test/realms/singletonsd/protocol/openid-connect/token',
       });
     });
 
-    it('returns null without tenant', () => {
+    it('returns null without issuer', () => {
       expect(resolveSwaggerOAuthUrls({})).toBeNull();
     });
   });
@@ -77,9 +70,9 @@ describe('swagger.config', () => {
   describe('buildOpenApiDocumentConfig', () => {
     it('uses same-origin relative token proxy URL (not AUTH_URL / prod)', () => {
       const doc = buildOpenApiDocumentConfig({
-        AZURE_AD_TENANT_ID: 'tenant-1',
-        AZURE_AD_CLIENT_ID: 'client-1',
-        AZURE_AD_API_AUDIENCE: 'api://platform-kit',
+        KEYCLOAK_ISSUER: 'https://auth.example.test/realms/singletonsd',
+        KEYCLOAK_CLIENT_ID: 'client-1',
+        KEYCLOAK_API_AUDIENCE: 'platform-kit-api',
         AUTH_URL: 'https://api.example.com',
       });
       const schemes = doc.components?.securitySchemes ?? {};
@@ -89,20 +82,22 @@ describe('swagger.config', () => {
         type: 'oauth2',
         flows: {
           authorizationCode: {
-            authorizationUrl: 'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/authorize',
+            authorizationUrl:
+              'https://auth.example.test/realms/singletonsd/protocol/openid-connect/auth',
             tokenUrl: '/docs/oauth2/token',
           },
         },
       });
     });
 
-    it('falls back to common tenant for offline export without AZURE_AD_*', () => {
+    it('falls back to the org issuer for offline export without KEYCLOAK_*', () => {
       const doc = buildOpenApiDocumentConfig({});
       expect(doc.components?.securitySchemes?.oauth2).toMatchObject({
         type: 'oauth2',
         flows: {
           authorizationCode: {
-            authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+            authorizationUrl:
+              'https://auth.singletonsd.com/realms/singletonsd/protocol/openid-connect/auth',
             tokenUrl: '/docs/oauth2/token',
           },
         },
@@ -114,8 +109,8 @@ describe('swagger.config', () => {
   describe('buildSwaggerUiOptions', () => {
     it('enables PKCE and prefills clientId without hardcoding prod redirect', () => {
       const options = buildSwaggerUiOptions({
-        AZURE_AD_CLIENT_ID: 'client-1',
-        AZURE_AD_API_AUDIENCE: 'api://platform-kit',
+        KEYCLOAK_CLIENT_ID: 'client-1',
+        KEYCLOAK_API_AUDIENCE: 'platform-kit-api',
         AUTH_URL: 'https://api.plattform-kit.poc.singletonsd.com',
       });
       expect(options.swaggerOptions).toMatchObject({
@@ -123,7 +118,7 @@ describe('swagger.config', () => {
         initOAuth: {
           clientId: 'client-1',
           usePkceWithAuthorizationCodeGrant: true,
-          scopes: expect.arrayContaining(['openid', 'client-1/.default']),
+          scopes: expect.arrayContaining(['openid', 'platform-kit-api']),
         },
       });
       expect(options.swaggerOptions?.oauth2RedirectUrl).toBeUndefined();

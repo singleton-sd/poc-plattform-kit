@@ -1,33 +1,43 @@
-jest.mock('@auth/express/providers/microsoft-entra-id', () => ({
+jest.mock('@auth/express/providers/keycloak', () => ({
   __esModule: true,
   default: jest.fn(() => ({
-    id: 'microsoft-entra-id',
-    name: 'Microsoft Entra ID',
+    id: 'keycloak',
+    name: 'Keycloak',
   })),
 }));
 
-import { buildAuthConfig, extractEntraSessionFields, isAllowedAuthRedirect } from './auth.config';
+import Keycloak from '@auth/express/providers/keycloak';
+import {
+  buildAuthConfig,
+  extractKeycloakSessionFields,
+  isAllowedAuthRedirect,
+} from './auth.config';
 
-describe('extractEntraSessionFields', () => {
-  it('reads oid, roles, and tenant_id from an Entra profile', () => {
+describe('extractKeycloakSessionFields', () => {
+  it('reads sub, roles, email_verified, and tenant_id from a Keycloak profile', () => {
     expect(
-      extractEntraSessionFields({
-        oid: 'oid-1',
-        sub: 'sub-1',
+      extractKeycloakSessionFields({
+        sub: 'kc-sub-1',
+        email: 'a@b.com',
+        email_verified: true,
         roles: ['tenant-admin'],
         tenant_id: 'tenant-xyz',
+        realm_access: { roles: ['offline_access'] },
       }),
     ).toEqual({
-      oid: 'oid-1',
-      sub: 'sub-1',
+      sub: 'kc-sub-1',
+      email: 'a@b.com',
+      email_verified: true,
+      name: undefined,
       roles: ['tenant-admin'],
       role: undefined,
       tenant_id: 'tenant-xyz',
+      realm_access: { roles: ['offline_access'] },
     });
   });
 
   it('returns empty object for missing profile', () => {
-    expect(extractEntraSessionFields(undefined)).toEqual({});
+    expect(extractKeycloakSessionFields(undefined)).toEqual({});
   });
 });
 
@@ -38,29 +48,35 @@ describe('buildAuthConfig', () => {
     process.env = { ...env };
   });
 
-  it('returns null when Entra env is incomplete', () => {
+  it('returns null when Keycloak env is incomplete', () => {
     delete process.env.AUTH_SECRET;
     expect(buildAuthConfig()).toBeNull();
   });
 
-  it('wires jwt/session callbacks that preserve Entra identity fields', async () => {
+  it('wires the Auth.js Keycloak provider and session callbacks', async () => {
     process.env.AUTH_SECRET = 'test-secret';
-    process.env.AZURE_AD_CLIENT_ID = 'client';
-    process.env.AZURE_AD_CLIENT_SECRET = 'secret';
-    process.env.AZURE_AD_TENANT_ID = 'tenant';
+    process.env.KEYCLOAK_CLIENT_ID = 'client';
+    process.env.KEYCLOAK_CLIENT_SECRET = 'secret';
+    process.env.KEYCLOAK_ISSUER = 'https://auth.example.test/realms/singletonsd';
     delete process.env.AUTH_COOKIE_DOMAIN;
 
     const config = buildAuthConfig();
+    expect(Keycloak).toHaveBeenCalledWith({
+      clientId: 'client',
+      clientSecret: 'secret',
+      issuer: 'https://auth.example.test/realms/singletonsd',
+    });
+    expect(config?.providers).toEqual([expect.objectContaining({ id: 'keycloak' })]);
     expect(config?.callbacks?.jwt).toBeDefined();
     expect(config?.callbacks?.session).toBeDefined();
-    expect(config?.callbacks?.redirect).toBeDefined();
     expect(config?.cookies).toBeUndefined();
 
     const token = await config!.callbacks!.jwt!({
       token: { sub: 'sub-fallback' },
       profile: {
-        oid: 'oid-1',
+        sub: 'kc-sub-1',
         email: 'a@b.com',
+        email_verified: true,
         roles: ['support-agent'],
         tenant_id: 'tenant-1',
       },
@@ -68,7 +84,9 @@ describe('buildAuthConfig', () => {
     } as never);
 
     expect(token).toMatchObject({
-      oid: 'oid-1',
+      sub: 'kc-sub-1',
+      email: 'a@b.com',
+      email_verified: true,
       roles: ['support-agent'],
       tenant_id: 'tenant-1',
     });
@@ -79,8 +97,9 @@ describe('buildAuthConfig', () => {
     } as never);
 
     expect(session.user).toMatchObject({
-      id: 'oid-1',
-      oid: 'oid-1',
+      id: 'kc-sub-1',
+      sub: 'kc-sub-1',
+      email_verified: true,
       roles: ['support-agent'],
       tenant_id: 'tenant-1',
     });
@@ -88,9 +107,9 @@ describe('buildAuthConfig', () => {
 
   it('scopes Auth.js cookies when AUTH_COOKIE_DOMAIN is set', () => {
     process.env.AUTH_SECRET = 'test-secret';
-    process.env.AZURE_AD_CLIENT_ID = 'client';
-    process.env.AZURE_AD_CLIENT_SECRET = 'secret';
-    process.env.AZURE_AD_TENANT_ID = 'tenant';
+    process.env.KEYCLOAK_CLIENT_ID = 'client';
+    process.env.KEYCLOAK_CLIENT_SECRET = 'secret';
+    process.env.KEYCLOAK_ISSUER = 'https://auth.example.test/realms/singletonsd';
     process.env.AUTH_COOKIE_DOMAIN = '.plattform-kit.poc.singletonsd.com';
 
     const config = buildAuthConfig();
@@ -105,9 +124,9 @@ describe('buildAuthConfig', () => {
 
   it('allows redirect callbacks to CORS SPA origins', async () => {
     process.env.AUTH_SECRET = 'test-secret';
-    process.env.AZURE_AD_CLIENT_ID = 'client';
-    process.env.AZURE_AD_CLIENT_SECRET = 'secret';
-    process.env.AZURE_AD_TENANT_ID = 'tenant';
+    process.env.KEYCLOAK_CLIENT_ID = 'client';
+    process.env.KEYCLOAK_CLIENT_SECRET = 'secret';
+    process.env.KEYCLOAK_ISSUER = 'https://auth.example.test/realms/singletonsd';
     process.env.CORS_ORIGINS = 'https://app.plattform-kit.poc.singletonsd.com';
 
     const config = buildAuthConfig();

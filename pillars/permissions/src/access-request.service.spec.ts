@@ -16,6 +16,8 @@ describe('AccessRequestService', () => {
   const requester: AuthenticatedUser = {
     id: 'user-req',
     entraOid: 'oid-req',
+    keycloakSub: 'oid-req',
+    emailVerified: true,
     email: 'req@example.com',
     name: 'Requester',
     roles: [],
@@ -24,6 +26,8 @@ describe('AccessRequestService', () => {
   const manager: AuthenticatedUser = {
     id: 'user-mgr',
     entraOid: 'oid-mgr',
+    keycloakSub: 'oid-mgr',
+    emailVerified: true,
     email: 'mgr@example.com',
     name: 'Manager',
     roles: [],
@@ -32,6 +36,8 @@ describe('AccessRequestService', () => {
   const stranger: AuthenticatedUser = {
     id: 'user-x',
     entraOid: 'oid-x',
+    keycloakSub: 'oid-x',
+    emailVerified: true,
     email: 'x@example.com',
     name: 'Stranger',
     roles: [],
@@ -40,6 +46,8 @@ describe('AccessRequestService', () => {
   const otherTenantManager: AuthenticatedUser = {
     id: 'user-other',
     entraOid: 'oid-mgr',
+    keycloakSub: 'oid-mgr',
+    emailVerified: true,
     email: 'other@example.com',
     name: 'Other',
     roles: [],

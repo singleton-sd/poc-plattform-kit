@@ -21,14 +21,14 @@ export function LoginPanel() {
       // This writes a single-use key to sessionStorage consumed after redirect.
       captureReturnUrl();
       await signIn();
-      // Cookie mode navigates away (form POST). Bearer MSAL redirect navigates away too.
+      // Cookie mode navigates away (form POST). Bearer OIDC redirect navigates away too.
       // invalidateQueries only runs if sign-in returns without navigation (errors / tests).
       await queryClient.invalidateQueries({ queryKey: meKeys.all });
     } catch (error) {
       const detail = error instanceof Error ? error.message : '';
       setSignInError(
-        detail.includes('MSAL is not configured')
-          ? 'Sign-in is not configured for this preview (missing Entra public env).'
+        detail.includes('OIDC is not configured')
+          ? 'Sign-in is not configured for this preview (missing Keycloak public env).'
           : 'Could not start sign-in. Try again.',
       );
     } finally {
@@ -47,7 +47,7 @@ export function LoginPanel() {
         Sign in to continue
       </h1>
       <p className="max-w-md text-base leading-relaxed text-fg-muted">
-        Multi-tenant platform foundations for Singleton SD — use your Microsoft account.
+        Multi-tenant platform foundations for Singleton SD — sign in with your Singleton account.
       </p>
       <button
         type="button"
@@ -56,7 +56,7 @@ export function LoginPanel() {
         disabled={signingIn}
         onClick={() => void onSignIn()}
       >
-        {signingIn ? 'Signing in…' : 'Sign in with Microsoft'}
+        {signingIn ? 'Signing in…' : 'Sign in'}
       </button>
       {signInError ? (
         <p className="text-sm text-fg-muted" data-testid="login-sign-in-error">

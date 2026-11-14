@@ -16,7 +16,7 @@ export interface Me {
  * Client for Nest SingleSignOn `GET /api/me`.
  *
  * - Custom domains: Auth.js httpOnly cookies (`credentials: 'include'`).
- * - SWA / ACA PR preview hosts: MSAL Bearer token (`Authorization`) —
+ * - SWA / ACA PR preview hosts: Keycloak OIDC Bearer token (`Authorization`) —
  *   cookies cannot share `AUTH_COOKIE_DOMAIN` with `*.azurestaticapps.net`
  *   or `*.azurecontainerapps.io`.
  *

@@ -22,7 +22,7 @@ export class MeResponseDto {
   @ApiProperty({
     type: [String],
     example: ['support-agent', 'tenant-admin'],
-    description: 'Coarse Entra app roles from the access token / session.',
+    description: 'Coarse app roles from the access token / session.',
   })
   roles!: string[];
 

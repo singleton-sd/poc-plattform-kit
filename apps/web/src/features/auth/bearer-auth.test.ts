@@ -6,89 +6,71 @@ import {
   signOutWithBearer,
 } from './bearer-auth';
 
-const setActiveAccount = jest.fn();
-const getActiveAccount = jest.fn();
-const getAllAccounts = jest.fn();
-const acquireTokenSilent = jest.fn();
-const loginRedirect = jest.fn();
-const logoutRedirect = jest.fn();
-const handleRedirectPromise = jest.fn();
+const signinRedirect = jest.fn();
+const signinRedirectCallback = jest.fn();
+const getUser = jest.fn();
+const signoutRedirect = jest.fn();
 
-jest.mock('./msal-config', () => ({
-  resolveMsalPublicConfig: jest.fn(() => ({
-    clientId: 'client-1',
-    tenantId: 'tenant-1',
-    apiScope: 'api://client-1/.default',
+jest.mock('./oidc-config', () => ({
+  resolveOidcPublicConfig: jest.fn(() => ({
+    issuer: 'https://auth.example.test/realms/singletonsd',
+    clientId: 'platform-kit-web',
+    audience: 'platform-kit-api',
   })),
-  getMsalPublicClient: jest.fn(async () => ({
-    setActiveAccount,
-    getActiveAccount,
-    getAllAccounts,
-    acquireTokenSilent,
-    loginRedirect,
-    logoutRedirect,
-    handleRedirectPromise,
+  getOidcUserManager: jest.fn(() => ({
+    signinRedirect,
+    signinRedirectCallback,
+    getUser,
+    signoutRedirect,
   })),
 }));
 
 describe('bearer-auth', () => {
   beforeEach(() => {
     resetBearerTokenCacheForTests();
-    setActiveAccount.mockReset();
-    getActiveAccount.mockReset();
-    getAllAccounts.mockReset();
-    acquireTokenSilent.mockReset();
-    loginRedirect.mockReset();
-    logoutRedirect.mockReset();
-    handleRedirectPromise.mockReset();
+    signinRedirect.mockReset();
+    signinRedirectCallback.mockReset();
+    getUser.mockReset();
+    signoutRedirect.mockReset();
   });
 
-  it('starts MSAL redirect sign-in', async () => {
-    loginRedirect.mockResolvedValue(undefined);
+  it('starts OIDC redirect sign-in', async () => {
+    signinRedirect.mockResolvedValue(undefined);
 
     await signInWithBearer();
 
-    expect(loginRedirect).toHaveBeenCalledWith({ scopes: ['api://client-1/.default'] });
+    expect(signinRedirect).toHaveBeenCalled();
   });
 
-  it('completes redirect, sets active account, and caches the access token', async () => {
-    const account = { homeAccountId: 'a1' };
-    handleRedirectPromise.mockResolvedValue({
-      account,
-      accessToken: 'redirect-tok',
-      expiresOn: new Date(Date.now() + 3600_000),
+  it('completes redirect and caches the access token', async () => {
+    signinRedirectCallback.mockResolvedValue({
+      access_token: 'redirect-tok',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
     });
 
     await expect(completeBearerRedirect()).resolves.toBe(true);
-    expect(setActiveAccount).toHaveBeenCalledWith(account);
     await expect(getBearerAccessToken()).resolves.toBe('redirect-tok');
-    expect(acquireTokenSilent).not.toHaveBeenCalled();
+    expect(getUser).not.toHaveBeenCalled();
   });
 
-  it('acquires tokens for the active account', async () => {
-    const account = { homeAccountId: 'active' };
-    getActiveAccount.mockReturnValue(account);
-    getAllAccounts.mockReturnValue([{ homeAccountId: 'other' }]);
-    acquireTokenSilent.mockResolvedValue({
-      accessToken: 'tok',
-      expiresOn: new Date(Date.now() + 3600_000),
+  it('reads a stored user when there is no redirect callback', async () => {
+    signinRedirectCallback.mockRejectedValue(new Error('No state'));
+    getUser.mockResolvedValue({
+      access_token: 'stored-tok',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      expired: false,
     });
 
-    await expect(getBearerAccessToken()).resolves.toBe('tok');
-    expect(acquireTokenSilent).toHaveBeenCalledWith({
-      account,
-      scopes: ['api://client-1/.default'],
-    });
+    await expect(completeBearerRedirect()).resolves.toBe(false);
+    await expect(getBearerAccessToken()).resolves.toBe('stored-tok');
   });
 
-  it('logs out via redirect and clears the active account first', async () => {
-    const account = { homeAccountId: 'active' };
-    getActiveAccount.mockReturnValue(account);
-    logoutRedirect.mockResolvedValue(undefined);
+  it('logs out via redirect when a user exists', async () => {
+    getUser.mockResolvedValue({ access_token: 'tok', expired: false });
+    signoutRedirect.mockResolvedValue(undefined);
 
     await signOutWithBearer();
 
-    expect(setActiveAccount).toHaveBeenCalledWith(null);
-    expect(logoutRedirect).toHaveBeenCalledWith({ account });
+    expect(signoutRedirect).toHaveBeenCalled();
   });
 });
