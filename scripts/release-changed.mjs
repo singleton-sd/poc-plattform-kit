@@ -16,9 +16,10 @@
  * Usage:
  *   node scripts/release-changed.mjs           # dry-run
  *   node scripts/release-changed.mjs --ci      # bump, commit, tag, push main
+ *   node scripts/release-changed.mjs --reconcile-tags
  */
-import { execFileSync, execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import semver from 'semver';
@@ -26,7 +27,8 @@ import { CLIENT_CHANGELOG_TARGETS, updateClientChangelogs } from './client-chang
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
-const RELEASE_SUBJECT = 'chore: Release package versions [skip ci]';
+const RECONCILE_TAGS = process.argv.includes('--reconcile-tags');
+const RELEASE_SUBJECT = 'chore(release): Release package versions [skip ci]';
 const API_PACKAGE = '@poc-plattform-kit/api';
 /** Paths refreshed when the API package version bumps (Swagger reads package.json). */
 const OPENAPI_CLIENT_PATHS = [
@@ -37,11 +39,12 @@ const OPENAPI_CLIENT_PATHS = [
 /** @typedef {'major' | 'minor' | 'patch'} Increment */
 
 /**
- * @param {string} command
- * @param {import('node:child_process').ExecSyncOptions} [options]
+ * @param {string} file
+ * @param {string[]} args
+ * @param {import('node:child_process').ExecFileSyncOptions} [options]
  */
-function sh(command, options = {}) {
-  const out = execSync(command, {
+function run(file, args, options = {}) {
+  const out = execFileSync(file, args, {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -51,24 +54,10 @@ function sh(command, options = {}) {
 }
 
 /**
- * @param {string} file
- * @param {string[]} args
- * @param {import('node:child_process').ExecFileSyncOptions} [options]
- */
-function run(file, args, options = {}) {
-  return execFileSync(file, args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...options,
-  }).trim();
-}
-
-/**
  * @returns {{ name: string, path: string, version: string }[]}
  */
 function listWorkspacePackages() {
-  const raw = sh('pnpm m ls --json -r --depth -1');
+  const raw = run('pnpm', ['m', 'ls', '--json', '-r', '--depth', '-1']);
   /** @type {unknown} */
   const parsed = JSON.parse(raw || '[]');
   const list = Array.isArray(parsed) ? parsed : [parsed];
@@ -114,8 +103,8 @@ function isAncestorOfHead(ref) {
  * @param {string} packageName
  * @returns {string | null}
  */
-function getLastTag(packageName) {
-  const tags = sh(`git tag -l "${packageName}@*" --sort=-v:refname`)
+export function getLastTag(packageName) {
+  const tags = run('git', ['tag', '--sort=-v:refname', '-l', `${packageName}@*`])
     .split('\n')
     .map((t) => t.trim())
     .filter(Boolean);
@@ -126,11 +115,54 @@ function getLastTag(packageName) {
 }
 
 /**
+ * Tags that should have a GitHub Release even when this run has nothing new
+ * to tag (retry after `gh release create` failed, or latest package tags
+ * that never got a Release).
+ *
+ * @param {string[]} [extraTags]
+ * @param {{ tagsAtHead?: string[], latestTags?: (string | null | undefined)[] }} [options]
+ * @returns {string[]}
+ */
+export function collectTagsToReconcile(extraTags = [], options = {}) {
+  const tags = new Set();
+  for (const tag of extraTags) {
+    if (typeof tag === 'string' && tag.trim()) tags.add(tag.trim());
+  }
+
+  const atHead =
+    options.tagsAtHead ??
+    (() => {
+      try {
+        return run('git', ['tag', '--points-at', 'HEAD', '-l', '@poc-plattform-kit/*'])
+          .split('\n')
+          .map((t) => t.trim())
+          .filter(Boolean);
+      } catch {
+        return [];
+      }
+    })();
+  for (const tag of atHead) tags.add(tag);
+
+  if (options.latestTags) {
+    for (const tag of options.latestTags) {
+      if (typeof tag === 'string' && tag.trim()) tags.add(tag.trim());
+    }
+  } else {
+    for (const pkg of listWorkspacePackages()) {
+      const last = getLastTag(pkg.name);
+      if (last) tags.add(last);
+    }
+  }
+
+  return [...tags].sort();
+}
+
+/**
  * @param {string} packageName
- * @param {string | null} tag
+ * @param {string | null | undefined} tag
  * @returns {string | null}
  */
-function versionFromTag(packageName, tag) {
+export function versionFromTag(packageName, tag) {
   if (!tag) return null;
   const prefix = `${packageName}@`;
   if (!tag.startsWith(prefix)) return null;
@@ -141,7 +173,7 @@ function versionFromTag(packageName, tag) {
 /**
  * @param {string} tag
  */
-function tagExists(tag) {
+export function tagExists(tag) {
   try {
     run('git', ['rev-parse', '-q', '--verify', `refs/tags/${tag}`]);
     return true;
@@ -155,7 +187,7 @@ function tagExists(tag) {
  * @param {{ name: string, path: string }} pkg
  * @returns {string[]}
  */
-function watchPathsFor(pkg) {
+export function watchPathsFor(pkg) {
   const rel = relative(ROOT, pkg.path).replace(/\\/g, '/');
   const paths = [rel];
 
@@ -174,7 +206,7 @@ function watchPathsFor(pkg) {
  * @param {string[]} paths
  * @returns {string[]}
  */
-function getCommitMessages(sinceTag, paths) {
+export function getCommitMessages(sinceTag, paths) {
   const range = sinceTag ? `${sinceTag}..HEAD` : 'HEAD';
   const args = ['log', range, '--format=%B%x1e', '--'];
   args.push(...paths);
@@ -195,14 +227,16 @@ function getCommitMessages(sinceTag, paths) {
  * @param {string[]} messages
  * @returns {Increment | null}
  */
-function deriveIncrement(messages) {
+export function deriveIncrement(messages) {
   /** @type {Increment | null} */
   let bump = null;
   const rank = { patch: 1, minor: 2, major: 3 };
 
   for (const message of messages) {
     const subject = message.split('\n')[0] ?? '';
-    if (subject.startsWith('chore: Release')) continue;
+    if (subject.startsWith('chore: Release') || subject.startsWith('chore(release):')) {
+      continue;
+    }
 
     const lower = message.toLowerCase();
     if (
@@ -230,7 +264,7 @@ function deriveIncrement(messages) {
  * @param {string} current
  * @param {Increment} increment
  */
-function nextVersion(current, increment) {
+export function nextVersion(current, increment) {
   const base = semver.valid(current) ? current : '0.0.0';
   const next = semver.inc(base, increment);
   if (!next) {
@@ -243,24 +277,30 @@ function nextVersion(current, increment) {
  * Max of package.json version and last reachable tag, then bump until the
  * target tag name is free (skips orphaned remote tags).
  * @param {string} packageName
- * @param {string} packageVersion
  * @param {string | null} lastTag
  * @param {Increment} increment
+ * @param {string} [packageVersion]
+ * @param {(tag: string) => boolean} [exists]
  * @returns {{ base: string, next: string, tag: string }}
  */
-function resolveNextVersion(packageName, packageVersion, lastTag, increment) {
+export function resolveNextVersion(
+  packageName,
+  lastTag,
+  increment,
+  packageVersion = '0.0.0',
+  exists = tagExists,
+) {
   const tagVersion = versionFromTag(packageName, lastTag);
   const candidates = [packageVersion, tagVersion].filter(
     (v) => typeof v === 'string' && Boolean(semver.valid(v)),
   );
   let base = candidates.length > 0 ? candidates.sort(semver.rcompare)[0] : '0.0.0';
-
   const from = base;
 
   for (let i = 0; i < 50; i += 1) {
     const next = nextVersion(base, increment);
     const tag = `${packageName}@${next}`;
-    if (!tagExists(tag)) {
+    if (!exists(tag)) {
       return { base: from, next, tag };
     }
     console.warn(`Tag ${tag} already exists — skipping to next ${increment}.`);
@@ -309,8 +349,6 @@ function writePackageVersion(packagePath, version) {
 
 /**
  * Write the computed next version into package.json.
- * (release-it is available via `.release-it.json` for manual/single-package use;
- * the orchestrator owns path-filtered increments so versions stay consistent.)
  * @param {{ path: string, next: string }} release
  */
 function bumpPackageVersion(release) {
@@ -324,8 +362,8 @@ function bumpPackageVersion(release) {
  */
 function refreshOpenApiClient() {
   console.log('Refreshing OpenAPI client after API version bump...');
-  sh('pnpm openapi:export', { stdio: 'inherit' });
-  sh('pnpm openapi:generate', { stdio: 'inherit' });
+  run('pnpm', ['openapi:export'], { stdio: 'inherit' });
+  run('pnpm', ['openapi:generate'], { stdio: 'inherit' });
   console.log('OpenAPI client refreshed.');
 }
 
@@ -343,11 +381,11 @@ function syncToOriginMain() {
 }
 
 /**
- * Push the release commit to main. Requires checkout credentials from the
- * platform automation fine-grained PAT (devtools Key Vault
- * `ssd-devtools-kv-prod-ae` / `github-automation-pat`; PAT owner on the
- * main ruleset bypass list — see SETUP.md). Retries after rebase when
- * concurrent main updates cause rejection.
+ * Push the release commit to main. Requires origin to be authenticated with
+ * the singleton-release GitHub App token (set in the workflow push step,
+ * not persisted through checkout — see SETUP.md). Retries after rebase when
+ * concurrent main updates cause rejection. Never uses GITHUB_TOKEN for this
+ * push.
  */
 function pushReleaseCommit() {
   const gitEnv = { ...process.env, HUSKY: '0' };
@@ -381,9 +419,31 @@ function createAndPushTags(tags) {
     }
     run('git', ['tag', '-a', tag, '-m', tag]);
   }
-  if (tags.length > 0) {
-    run('git', ['push', 'origin', ...tags], { env: gitEnv });
+  if (tags.length === 0) return;
+
+  // Tag pushes use GITHUB_TOKEN so GitHub does not start other workflows.
+  // Production deploys are dispatched explicitly for tagged packages. The
+  // App token is reserved for the main-branch push (ruleset bypass) and
+  // is never used as a fallback when App credentials are missing.
+  const tagToken = process.env.GITHUB_TOKEN;
+  if (tagToken) {
+    // Override origin's App-token URL with GITHUB_TOKEN for the tag push.
+    run(
+      'git',
+      [
+        '-c',
+        'http.https://github.com/.extraheader=',
+        '-c',
+        `http.https://github.com/.extraheader=AUTHORIZATION: bearer ${tagToken}`,
+        'push',
+        'origin',
+        ...tags,
+      ],
+      { env: gitEnv },
+    );
+    return;
   }
+  run('git', ['push', 'origin', ...tags], { env: gitEnv });
 }
 
 function main() {
@@ -399,15 +459,18 @@ function main() {
 
   /** @type {{ name: string, path: string, version: string, next: string, increment: Increment, tag: string }[]} */
   const releases = [];
+  /** @type {{ name: string, lastTag: string | null, increment: Increment | null }[]} */
+  const scan = [];
 
   for (const pkg of packages) {
     const lastTag = getLastTag(pkg.name);
     const paths = watchPathsFor(pkg);
     const messages = getCommitMessages(lastTag, paths);
     const increment = deriveIncrement(messages);
+    scan.push({ name: pkg.name, lastTag, increment });
     if (!increment) continue;
 
-    const resolved = resolveNextVersion(pkg.name, pkg.version, lastTag, increment);
+    const resolved = resolveNextVersion(pkg.name, lastTag, increment, pkg.version);
     releases.push({
       name: pkg.name,
       path: pkg.path,
@@ -415,11 +478,23 @@ function main() {
       next: resolved.next,
       increment,
       tag: resolved.tag,
-      messages,
     });
   }
 
+  if (!CI) {
+    console.log('Dry-run — per-package scan (version source = package.json + latest git tag):');
+    for (const row of scan) {
+      const last = row.lastTag ?? 'no tag';
+      const bump = row.increment ?? 'none';
+      console.log(`  ${row.name}: last=${last} bump=${bump}`);
+    }
+    console.log('');
+  }
+
   if (releases.length === 0) {
+    if (CI) {
+      console.log(`RELEASE_SHA=${run('git', ['rev-parse', 'HEAD'])}`);
+    }
     console.log('Nothing to release.');
     return;
   }
@@ -478,10 +553,22 @@ function main() {
   pushReleaseCommit();
   const tags = releases.map((r) => r.tag);
   createAndPushTags(tags);
+  console.log(`RELEASE_SHA=${run('git', ['rev-parse', 'HEAD'])}`);
   console.log(`RELEASE_TAGS=${tags.join(',')}`);
   console.log('Release commit and tags pushed.');
 }
 
+function printReconcileTags() {
+  const extra = (process.env.RELEASE_TAGS || '').split(',');
+  for (const tag of collectTagsToReconcile(extra)) {
+    console.log(tag);
+  }
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  main();
+  if (RECONCILE_TAGS) {
+    printReconcileTags();
+  } else {
+    main();
+  }
 }

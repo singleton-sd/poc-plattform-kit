@@ -13,8 +13,9 @@ editing a release section by hand.
 | App | `apps/web/CHANGELOG.md` | `apps/web/src/content/changelog.json` | `/changelog` |
 | Marketing | `apps/marketing/CHANGELOG.md` | `apps/marketing/src/data/changelog.json` | `/changelog` |
 
-The root `CHANGELOG.md` remains the workspace-level version-bump index. It links to the
-three detailed product histories but is not their source.
+Live notes for new versions are **GitHub Releases**. Root `CHANGELOG.md` is
+the workspace-level version-bump index (CI prepends each release). It links
+to the three detailed product histories but is not their source.
 
 ## Write a client-facing commit
 
@@ -55,13 +56,16 @@ commit can declare a breaking change, which creates a major bump and a public en
 
 1. The release orchestrator finds changed workspaces and reads conventional commits since
    each workspace's latest tag.
-2. It calculates the semantic version bump and uses the same commits to prepend the new
-   API, app, or marketing release to that project's Markdown history.
-3. It regenerates the corresponding JSON projection from the canonical Markdown.
-4. It updates the root version-bump index, commits all release files, and then creates the
-   annotated product tags.
+2. It calculates the next semantic version **in memory** and pushes annotated
+   `@scope/name@version` tags only — it does not commit Markdown, JSON, or
+   `package.json` version bumps.
+3. `.github/workflows/release.yml` publishes a GitHub Release per new tag with
+   generated notes. That is the live changelog.
+4. The committed product Markdown/JSON files remain a historical snapshot.
+   `pnpm changelog:backfill` can still reconstruct them from tags when you
+   intentionally refresh the in-app `/changelog` projection.
 5. CI runs `pnpm changelog:test` and `pnpm changelog:check` to reject malformed, stale, or
-   out-of-order projections.
+   out-of-order projections of those committed files.
 
 Only commits touching a product's watched paths are included. Shared `packages/**` changes
 can appear in both API and app releases; marketing entries come from `apps/marketing/**`.

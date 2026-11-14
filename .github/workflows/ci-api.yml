@@ -18,6 +18,15 @@ on:
       - 'scripts/register-permission.mjs'
       - 'scripts/worktree-paths.mjs'
       - 'scripts/worktree-paths.test.mjs'
+      - 'scripts/release-changed.mjs'
+      - 'scripts/release-changed.test.mjs'
+      - 'scripts/resolve-release-tag.mjs'
+      - 'scripts/resolve-release-tag.test.mjs'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/deploy-api.yml'
+      - '.github/workflows/deploy-web.yml'
+      - '.github/workflows/pages.yml'
+      - 'scripts/pages-workflows.test.mjs'
       - 'infra/openfga/**'
       - 'docs/permissions.md'
       - '.github/workflows/ci-api.yml'
@@ -44,6 +53,15 @@ on:
       - 'scripts/register-permission.mjs'
       - 'scripts/worktree-paths.mjs'
       - 'scripts/worktree-paths.test.mjs'
+      - 'scripts/release-changed.mjs'
+      - 'scripts/release-changed.test.mjs'
+      - 'scripts/resolve-release-tag.mjs'
+      - 'scripts/resolve-release-tag.test.mjs'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/deploy-api.yml'
+      - '.github/workflows/deploy-web.yml'
+      - '.github/workflows/pages.yml'
+      - 'scripts/pages-workflows.test.mjs'
       - 'infra/openfga/**'
       - 'docs/permissions.md'
       - '.github/workflows/ci-api.yml'
@@ -65,7 +83,7 @@ jobs:
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' &&
        !contains(github.event.head_commit.message, '[skip ci]') &&
-       !startsWith(github.event.head_commit.message, 'chore: Release'))
+       !startsWith(github.event.head_commit.message, 'chore(release):'))
     runs-on: ubuntu-latest
     env:
       # prisma validate/generate read schema url; no live DB in CI
@@ -91,6 +109,9 @@ jobs:
 
       - name: Changelog projection drift check
         run: pnpm changelog:test && pnpm changelog:check && pnpm test:worktree-paths
+
+      - name: Release script tests
+        run: pnpm release:test
 
       - name: Permissions catalog drift check
         run: pnpm permissions:check
