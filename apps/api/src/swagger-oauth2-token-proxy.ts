@@ -90,17 +90,17 @@ function readUrlEncodedBody(req: Request): Promise<Record<string, string>> {
 
 /**
  * Browser-safe token endpoint for Swagger Authorize.
- * Swagger UI cannot call Entra's token endpoint (CORS + needs client_secret);
- * this proxy adds the secret server-side and forwards the form body.
+ * Swagger UI cannot call Keycloak's token endpoint with a confidential
+ * client_secret; this proxy adds the secret server-side and forwards the form.
  */
 export function mountSwaggerOauth2TokenProxy(expressApp: Express, env: EnvBag = process.env): void {
   expressApp.post(
     '/docs/oauth2/token',
     async (req: Request, res: Response, _next: NextFunction) => {
-      const tenantId = envTrim(env, 'AZURE_AD_TENANT_ID');
-      const clientId = envTrim(env, 'AZURE_AD_CLIENT_ID');
-      const clientSecret = envTrim(env, 'AZURE_AD_CLIENT_SECRET');
-      if (!tenantId || !clientId || !clientSecret) {
+      const issuer = envTrim(env, 'KEYCLOAK_ISSUER')?.replace(/\/+$/, '');
+      const clientId = envTrim(env, 'KEYCLOAK_CLIENT_ID');
+      const clientSecret = envTrim(env, 'KEYCLOAK_CLIENT_SECRET');
+      if (!issuer || !clientId || !clientSecret) {
         res.status(503).json({ error: 'swagger_oauth_not_configured' });
         return;
       }
@@ -138,7 +138,7 @@ export function mountSwaggerOauth2TokenProxy(expressApp: Express, env: EnvBag = 
         form.set('scope', body.scope);
       }
 
-      const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+      const tokenUrl = `${issuer}/protocol/openid-connect/token`;
       try {
         const upstream = await fetch(tokenUrl, {
           method: 'POST',

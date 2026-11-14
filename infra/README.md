@@ -77,14 +77,14 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `whatsapp-cloud-access-token` | `WHATSAPP_CLOUD_ACCESS_TOKEN` |
 | `appinsights-connection-string` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 | `auth-secret` | `AUTH_SECRET` |
-| `azure-ad-client-secret` | `AZURE_AD_CLIENT_SECRET` |
+| `keycloak-client-secret` | `KEYCLOAK_CLIENT_SECRET` |
 | `chromatic-project-token` | Chromatic project token (OIDC → KV at runtime) |
 | `openfga-database-url` | Neon pooled URI for OpenFGA runtime (`OPENFGA_DATASTORE_URI`) |
 | `openfga-database-url-unpooled` | Neon direct URI for OpenFGA migrate (`OPENFGA_DATASTORE_URI_UNPOOLED`) |
 
 **Org devtools vault** (`ssd-devtools-kv-prod-ae`, not this app vault): `github-automation-pat` — org-wide platform automation PAT for ruleset-bypass git pushes (`SETUP.md`).
 
-Auth.js Option B (Free SWA): set App Config `app:auth:url` + `app:auth:cookieDomain` and wire `AUTH_*` / `AZURE_AD_*` on App Service (secrets from KV). Do **not** require SWA Standard linked backends for SSO cookies — see `docs/sso.md`.
+Auth.js Option B (Free SWA): set App Config `app:auth:url` + `app:auth:cookieDomain` and wire `AUTH_*` / `KEYCLOAK_*` on App Service (secrets from KV). Do **not** require SWA Standard linked backends for SSO cookies — see `docs/sso.md`.
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
 
@@ -106,16 +106,17 @@ Endpoint: `https://ssd-pocpk-appcs-dev-ae.azconfig.io`
 | `app:auth:cookieDomain` | plain — Auth.js cookie Domain (Option B; e.g. `.plattform-kit.poc.singletonsd.com`) |
 | `app:azure:resourceGroup` | plain |
 | `app:azure:keyVaultName` | plain |
-| `app:azureAd:clientId` | plain — Entra SPA/API client ID → `AZURE_AD_CLIENT_ID` |
-| `app:azureAd:tenantId` | plain — Entra tenant ID → `AZURE_AD_TENANT_ID` |
-| `app:azureAd:apiAudience` | plain — API app ID URI → `AZURE_AD_API_AUDIENCE` |
+| `app:keycloak:issuer` | plain — Keycloak realm issuer → `KEYCLOAK_ISSUER` |
+| `app:keycloak:clientId` | plain — confidential API client ID → `KEYCLOAK_CLIENT_ID` |
+| `app:keycloak:apiAudience` | plain — JWT audience → `KEYCLOAK_API_AUDIENCE` |
+| `app:keycloak:swaggerScope` | plain — Swagger OAuth scope → `KEYCLOAK_SWAGGER_SCOPE` |
 | `secret:database-url` | Key Vault reference (Neon pooled) |
 | `secret:servicebus-connection-string` | Key Vault reference |
 | `secret:swa-deployment-token` | Key Vault reference |
 | `secret:swa-marketing-deployment-token` | leftover Key Vault reference — delete after marketing SWA removal |
 | `secret:appinsights-connection-string` | Key Vault reference |
 | `secret:auth-secret` | Key Vault reference → `AUTH_SECRET` |
-| `secret:azure-ad-client-secret` | Key Vault reference → `AZURE_AD_CLIENT_SECRET` |
+| `secret:keycloak-client-secret` | Key Vault reference → `KEYCLOAK_CLIENT_SECRET` |
 | `app:telemetry:cloudRoleName:api` | plain (`api`) |
 | `app:telemetry:cloudRoleName:web` | plain (`web`) |
 | `app:openfga:apiUrl` | plain — OpenFGA HTTPS base URL → `OPENFGA_API_URL` |

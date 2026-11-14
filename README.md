@@ -25,7 +25,7 @@ sequenced, or claimed.
 | API | NestJS + Swagger |
 | DB | PostgreSQL + Prisma (`postgresql`) — Neon PoC; Azure Flexible Server for shared |
 | Messaging | Azure Service Bus |
-| AuthN | Entra + Auth.js cookies (SingleSignOn) |
+| AuthN | Keycloak OIDC + Auth.js cookies (SingleSignOn) |
 | AuthZ | Permissions pillar — OpenFGA (ReBAC) on ACA Consumption |
 | Notifications | Forward Email · android-sms-gateway · Meta WhatsApp Cloud API |
 | Secrets / config | Azure Key Vault · Azure App Configuration (KV refs) |
@@ -44,6 +44,16 @@ pnpm sync:skills
 pnpm dev:api
 pnpm dev:web
 pnpm dev:marketing
+```
+
+Auth is Keycloak OIDC — one realm per product
+(`https://auth.singletonsd.com/realms/<product>`), with `<realm>-web` (public SPA)
+and `<realm>-api` (confidential Auth.js / Swagger) clients. See
+[docs/sso.md](./docs/sso.md). Unit tests use a mock JWT and do not need a live
+IdP. Optional local realm:
+
+```bash
+docker compose -f infra/keycloak/docker-compose.yml up
 ```
 
 See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md),

@@ -2,8 +2,8 @@ import { apiUrl } from './api-base-url';
 import { resolveAuthMode } from './auth-mode';
 import { getBearerAccessToken, signInWithBearer, signOutWithBearer } from './bearer-auth';
 
-/** Auth.js Microsoft Entra ID provider id (`@auth/express/providers/microsoft-entra-id`). */
-export const ENTRA_PROVIDER_ID = 'microsoft-entra-id';
+/** Auth.js Keycloak provider id (`@auth/express/providers/keycloak`). */
+export const KEYCLOAK_PROVIDER_ID = 'keycloak';
 
 /** Prefer the SPA origin so Auth.js redirects back to the web app, not the API host. */
 export function defaultCallbackUrl(): string {
@@ -15,7 +15,7 @@ export function defaultCallbackUrl(): string {
 
 /** Nest Auth.js provider sign-in endpoint (POST + CSRF only — GET is unsupported). */
 export function signInUrl(): string {
-  return apiUrl(`/api/auth/signin/${ENTRA_PROVIDER_ID}`);
+  return apiUrl(`/api/auth/signin/${KEYCLOAK_PROVIDER_ID}`);
 }
 
 export function csrfUrl(): string {
@@ -80,9 +80,9 @@ async function signOutWithCookies(callbackUrl: string): Promise<void> {
 }
 
 /**
- * Start Entra sign-in.
+ * Start Keycloak sign-in.
  * Custom domains: Auth.js CSRF + form POST (cookies).
- * SWA / ACA preview hosts: MSAL redirect + Bearer access token.
+ * SWA / ACA preview hosts: OIDC redirect + Bearer access token.
  */
 export async function signIn(callbackUrl = defaultCallbackUrl()): Promise<void> {
   if (resolveAuthMode() === 'bearer') {
@@ -93,7 +93,7 @@ export async function signIn(callbackUrl = defaultCallbackUrl()): Promise<void> 
 }
 
 /**
- * Sign out via Auth.js cookies or MSAL, depending on host.
+ * Sign out via Auth.js cookies or OIDC, depending on host.
  */
 export async function signOut(callbackUrl = defaultCallbackUrl()): Promise<void> {
   if (resolveAuthMode() === 'bearer') {

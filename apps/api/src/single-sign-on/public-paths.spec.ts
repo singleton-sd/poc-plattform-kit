@@ -8,7 +8,7 @@ describe('isPublicPath', () => {
     '/changelog',
     '/changelog/',
     '/api/auth',
-    '/api/auth/callback/microsoft-entra-id',
+    '/api/auth/callback/keycloak',
     '/docs',
     '/docs/',
     '/docs/oauth2-redirect.html',

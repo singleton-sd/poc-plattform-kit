@@ -1,15 +1,17 @@
-# SingleSignOn (Entra JWT + Auth.js cookies)
+# SingleSignOn (Keycloak OIDC + Auth.js cookies)
 
 ## Runtime contract
 
 | Surface | Behaviour |
 | --- | --- |
-| Nest `/api/auth/*` | Auth.js (`@auth/express`) Microsoft Entra ID provider; httpOnly session cookies |
-| Nest `GET /api/me` | Cookie session **or** Bearer Entra access token to `{ id, email, name, roles: string[] }` |
+| Nest `/api/auth/*` | Auth.js (`@auth/express`) Keycloak provider; httpOnly session cookies |
+| Nest `GET /api/me` | Cookie session **or** Bearer Keycloak access token to `{ id, email, name, roles: string[] }` |
 | Global `APP_GUARD` | `SessionOrJwtAuthGuard` + `RolesGuard` — non-public Nest routes require session or Bearer; `@Roles` passes when **any** user role matches |
-| JWT guard | Validates Entra JWTs via JWKS (`AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE` and/or `AZURE_AD_CLIENT_ID` as `aud`) |
+| JWT guard | Validates Keycloak JWTs via realm JWKS (`KEYCLOAK_ISSUER`, `KEYCLOAK_API_AUDIENCE` and/or `KEYCLOAK_CLIENT_ID` as `aud`) |
 | Web SPA (custom domain) | Auth.js cookies; `fetch(..., { credentials: 'include' })` via `NEXT_PUBLIC_API_BASE_URL` |
-| Web SPA (SWA Free / PR) | MSAL.js popup + `Authorization: Bearer` (no shared cookie Domain) |
+| Web SPA (SWA Free / PR) | `oidc-client-ts` redirect + `Authorization: Bearer` (no shared cookie Domain) |
+
+See [ADR 0006](./adr/0006-platform-kit-multitenancy.md) (org ADR-002). Dual cookie/Bearer transport from [ADR 0004](./adr/0004-cross-subdomain-cookie-auth-swa-free.md) stays; Bearer is public OIDC, not MSAL.
 
 ## Public vs protected
 
@@ -20,35 +22,45 @@
 | `/api/auth/*` (Auth.js) | |
 | `/docs`, `/docs-json`, `/docs/oauth2-redirect.html` (Swagger) | |
 
-Mark additional Nest handlers with `@Public()` when they must stay anonymous. Coarse Entra app roles use `@Roles('tenant-admin' \| 'support-agent')` (e.g. `POST /tenants`, `PATCH /tenants/:id`).
+Mark additional Nest handlers with `@Public()` when they must stay anonymous. Coarse app roles use `@Roles('tenant-admin' \| 'support-agent')` (e.g. `POST /tenants`, `PATCH /tenants/:id`).
 
-## Swagger Authorize (Entra OAuth2)
+## Swagger Authorize (Keycloak OAuth2)
 
 Swagger UI at `/docs` exposes an **oauth2** scheme (authorization code + PKCE) in addition to Bearer paste and `x-tenant-id`.
 
 | Piece | Value |
 | --- | --- |
-| Authorize / token | `https://login.microsoftonline.com/{AZURE_AD_TENANT_ID}/oauth2/v2.0/{authorize\|token}` |
-| Client id (prefilled) | `AZURE_AD_CLIENT_ID` |
-| Default API scope | `AZURE_AD_SWAGGER_SCOPE` / App Config `app:azureAd:swaggerScope`, else `{AZURE_AD_CLIENT_ID}/.default` (bare GUID — required for same-app Swagger; avoids AADSTS90009 / AADSTS500011). |
+| Authorize | `{KEYCLOAK_ISSUER}/protocol/openid-connect/auth` |
+| Client id (prefilled) | `KEYCLOAK_CLIENT_ID` |
+| Default API scope | `KEYCLOAK_SWAGGER_SCOPE` / `KEYCLOAK_API_SCOPE` / App Config `app:keycloak:swaggerScope` when set; otherwise `openid profile email` only (audience is a token mapper, not a client scope) |
 | Redirect URI | Same-origin `{currentHost}/docs/oauth2-redirect.html` (Swagger UI derives this; optional override `SWAGGER_OAUTH2_REDIRECT_URL`). Do **not** default from prod `AUTH_URL` — that breaks ACA PR previews. |
 | Token URL | Same-origin relative `/docs/oauth2/token` (Nest proxy) |
 
-Register that redirect URI on the Entra app registration as a **Web** platform redirect (not SPA — SPA triggers Entra `/reprocess` loops with Swagger). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`. Each ACA PR host also needs its exact Web redirect (Entra has no wildcards). Prefer `{acaHost}/docs/oauth2-redirect.html`; also register `{acaHost}/oauth2-redirect.html` because Swagger UI’s default for path `/docs` (no trailing slash) omits the `/docs` segment.
+Register that redirect URI on the Keycloak confidential API client (Singleton Auth owns production clients). Prod example: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`. Local example: `http://localhost:3001/docs/oauth2-redirect.html`. Each ACA PR host also needs its exact redirect.
 
-Token exchange uses Nest `POST /docs/oauth2/token` (server adds `AZURE_AD_CLIENT_SECRET`) so the browser never calls Entra’s token endpoint. Entra’s login navigation can still break Swagger’s stock `window.opener` handoff; the API serves a custom `/docs/oauth2-redirect.html` plus a one-shot BroadcastChannel bridge on `/docs`.
+Token exchange uses Nest `POST /docs/oauth2/token` (server adds `KEYCLOAK_CLIENT_SECRET`) so the browser never calls Keycloak’s token endpoint. The API serves a custom `/docs/oauth2-redirect.html` plus a one-shot BroadcastChannel bridge on `/docs`.
 
 ## Tenancy
 
-Prefer optional token/session claim `tenant_id` → `AuthenticatedUser.tenantId` over `x-tenant-id`. The header remains a **legacy/dev escape** when the claim is absent; when both are present, the **claim wins** (see `TenancyMiddleware` + `ClaimTenancyInterceptor`). Do not treat Entra directory `tid` as the Platform Kit tenant id.
+Prefer optional token/session claim `tenant_id` → `AuthenticatedUser.tenantId` over `x-tenant-id`. The header remains a **legacy/dev escape** when the claim is absent; when both are present, the **claim wins** (see `TenancyMiddleware` + `ClaimTenancyInterceptor`). Do not treat a Keycloak realm id as the Platform Kit tenant id.
 
 ## Env (see `.env.example`)
 
-Server / Auth.js: `AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, `AZURE_AD_API_AUDIENCE`, `CORS_ORIGINS`
+Server / Auth.js: `AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`, `KEYCLOAK_API_AUDIENCE`, `CORS_ORIGINS`
 
-Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`, `NEXT_PUBLIC_AZURE_AD_TENANT_ID`, optional `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (defaults to `api://{clientId}/.default`). With Entra `requestedAccessTokenVersion: 2`, access-token `aud` is the **client id** (GUID); Nest accepts that plus optional `AZURE_AD_API_AUDIENCE` (App ID URI) for older tokens.
+Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_KEYCLOAK_ISSUER`, `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID`, optional `NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE` (defaults to the SPA client id). Nest accepts `KEYCLOAK_API_AUDIENCE` (fallback: `KEYCLOAK_CLIENT_ID`) as JWT `aud`.
 
-KV secret names (human): `auth-secret`, `azure-ad-client-secret`.
+Production issuer: `https://auth.singletonsd.com/realms/<product>` (one realm per product; ADR-004). Clients are `<realm>-web` and `<realm>-api`, created by Singleton Auth — never hardcode them.
+
+KV secret names (human): `auth-secret`, `keycloak-client-secret`.
+
+Local Keycloak (optional, not required for unit tests):
+
+```bash
+docker compose -f infra/keycloak/docker-compose.yml up
+```
+
+Issuer `http://127.0.0.1:8080/realms/plattform-kit-test`. See [`infra/keycloak/README.md`](../infra/keycloak/README.md). Unit tests sign RS256 JWTs with `jose` against that issuer/audience and never call production Keycloak.
 
 ## Option B — cross-subdomain cookies (locked for PoC)
 
@@ -68,7 +80,7 @@ Do **not** upgrade app SWA to Standard solely for `/api` linking unless cost loc
 
 ## Web PR previews
 
-Production web stays on SWA Free (`app.plattform-kit.poc.singletonsd.com` and the SWA default hostname). **PR** previews for `apps/web` run on Container Apps (`ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io`). Marketing PR previews are GitHub Pages paths (`/pr-preview/pr-<n>/`) and do not participate in Auth.js / MSAL.
+Production web stays on SWA Free (`app.plattform-kit.poc.singletonsd.com` and the SWA default hostname). **PR** previews for `apps/web` run on Container Apps (`ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io`). Marketing PR previews are GitHub Pages paths (`/pr-preview/pr-<n>/`) and do not participate in Auth.js / OIDC.
 
 Preview hosts **cannot** share the PoC cookie Domain, and Auth.js CSRF (`__Host-…; SameSite=Lax`) fails cross-site (`MissingCSRF`).
 
@@ -77,10 +89,10 @@ Preview hosts **cannot** share the PoC cookie Domain, and Auth.js CSRF (`__Host-
 | Host | Mode |
 | --- | --- |
 | `app.plattform-kit.poc.singletonsd.com` (and other custom / localhost hosts) | Auth.js cookies (Option B) |
-| `*.azurestaticapps.net` (production SWA default hostname) | MSAL **redirect** → Entra access token → `Authorization: Bearer` on `/api/me` and Orval `customFetch` (popup is blocked by Entra `Cross-Origin-Opener-Policy`) |
-| `ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io` (web PR previews) | Same MSAL Bearer path as SWA hosts |
+| `*.azurestaticapps.net` (production SWA default hostname) | OIDC **redirect** → Keycloak access token → `Authorization: Bearer` on `/api/me` and Orval `customFetch` |
+| `ssd-pocpk-aca-web-pr-<n>-ae.*.azurecontainerapps.io` (web PR previews) | Same OIDC Bearer path as SWA hosts |
 
-Nest already accepts Bearer via `EntraJwtStrategy` (`AZURE_AD_API_AUDIENCE` / client id). Prod cookie path is unchanged. API preview hosts (`ssd-pocpk-aca-pr-<n>-ae`) are **not** SPA origins.
+Nest accepts Bearer via `KeycloakJwtStrategy` (`KEYCLOAK_API_AUDIENCE` / client id). Prod cookie path is unchanged. API preview hosts (`ssd-pocpk-aca-pr-<n>-ae`) are **not** SPA origins.
 
 ### CORS (locked)
 
@@ -94,23 +106,27 @@ Do **not** use open `https://*.azurestaticapps.net` or `https://*.azurecontainer
 
 Nest resolves wildcards at request time (`isCorsOriginAllowed` / `isAuthRedirectOriginAllowed`). Applies to prod App Service and ACA PR API previews (same Nest bootstrap).
 
-### Entra redirect URIs (approved pattern)
+### Keycloak redirect URIs
+
+Production clients are created by Singleton Auth. Ask that team for:
 
 | Flow | Redirect URI |
 | --- | --- |
-| Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id` (`AUTH_URL`). Preview origins are **not** Entra redirect URIs for this flow. |
-| Swagger UI OAuth2 (PKCE) | **Web** redirects: prod `…/docs/oauth2-redirect.html`, local `http://localhost:3001/docs/oauth2-redirect.html`, and each ACA PR API preview host’s `…/docs/oauth2-redirect.html`. Do **not** use SPA platform for these URIs. |
-| MSAL / Bearer SPA | Entra **does not** accept `*.azurestaticapps.net` or `*.azurecontainerapps.io` wildcards for SPA redirect URIs. `preview-web.yml` registers the **exact** PR preview origin (add after deploy with `--origin https://<fqdn>`; remove on PR close in a job that shares the `entra-spa-preview-redirects` concurrency group with registration and the orphan sweep) via `scripts/entra-spa-preview-redirect.sh` using Graph + the OIDC SP. MSAL uses `window.location.origin` as `redirectUri` and **redirect** (not popup) so Entra COOP cannot break `window.closed`. The nginx preview image sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
+| Auth.js (Option B cookies) | API callback only: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/keycloak` (`AUTH_URL`). Preview origins are **not** redirect URIs for this flow. |
+| Swagger UI OAuth2 (PKCE) | Confidential client: prod `…/docs/oauth2-redirect.html`, local `http://localhost:3001/docs/oauth2-redirect.html`, and each ACA PR API preview host’s `…/docs/oauth2-redirect.html`. |
+| OIDC / Bearer SPA | Public SPA client: exact preview origins (`*.azurestaticapps.net` / `*.azurecontainerapps.io` have no wildcards). `oidc-client-ts` uses `window.location.origin` as `redirect_uri`. The nginx preview image sets `Cross-Origin-Opener-Policy: same-origin-allow-popups`. |
+
+`preview-web.yml` no longer PATCHes Entra `spa.redirectUris` — Keycloak clients are not this repo’s to mutate.
 
 ### Build / GitHub Variables
 
 `preview-web.yml` / `deploy-web.yml` bake (IDs only, no secrets):
 
-- `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`
-- `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
-- `NEXT_PUBLIC_AZURE_AD_API_SCOPE` (optional)
+- `NEXT_PUBLIC_KEYCLOAK_ISSUER`
+- `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID`
+- `NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE` (optional)
 
-Set matching repo **Variables**. Prefer the exposed delegated scope `api://api.plattform-kit.poc.singletonsd.com/access_as_user` (SPA-friendly); `.default` is a fallback for confidential clients. Expect access-token `aud` = Entra app client id when `requestedAccessTokenVersion` is `2` — Nest accepts client id and `AZURE_AD_API_AUDIENCE`.
+Set matching repo **Variables**. Expect access-token `aud` = `KEYCLOAK_API_AUDIENCE` (or the confidential client id).
 
 ### Follow-ups
 
@@ -120,31 +136,14 @@ Set matching repo **Variables**. Prefer the exposed delegated scope `api://api.p
 
 ## Human portal follow-ups
 
-Entra app registration, admin consent, and KV/App Config seeding are tracked as human-only ClickUp tickets (may already be complete). Ensure redirect URIs include:
+Keycloak clients, realm mappers, and KV/App Config seeding are owned by Singleton Auth (human-only). Ensure redirect URIs include:
 
-- Auth.js callback (Web): `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/microsoft-entra-id`
-- Swagger OAuth2 (Web, not SPA): `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`
+- Auth.js callback: `https://api.plattform-kit.poc.singletonsd.com/api/auth/callback/keycloak`
+- Swagger OAuth2: `https://api.plattform-kit.poc.singletonsd.com/docs/oauth2-redirect.html`
 
-Also ensure App Service/App Config expose `AUTH_*` / `AZURE_AD_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. Web PR preview MSAL redirects are registered automatically by `preview-web.yml` (see above). Also set GitHub Variables `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID` (and optional API scope).
+Also ensure App Service/App Config expose `AUTH_*` / `KEYCLOAK_*` / `AUTH_COOKIE_DOMAIN` / `AUTH_URL`. Also set GitHub Variables `NEXT_PUBLIC_KEYCLOAK_ISSUER` / `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID` (and optional API audience).
 
-### OIDC SP Graph permission (preview redirect automation)
-
-GitHub Actions OIDC app `ssd-pocpk-gha-oidc-dev` must be able to PATCH the Entra SPA app’s `spa.redirectUris`:
-
-| Requirement | Notes |
-| --- | --- |
-| Microsoft Graph app role | `Application.ReadWrite.OwnedBy` (admin consented) |
-| Ownership | OIDC SP is an **owner** of Entra app `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` |
-| Soft-fail | Missing Graph rights logs a warning and does **not** fail the web preview deploy |
-
-Manual one-time setup (human / tenant admin) if previews skip registration:
-
-```bash
-# App role on the OIDC app registration + admin consent, then:
-az ad app owner add \
-  --id <entra-spa-app-id> \
-  --owner-object-id <oidc-sp-object-id>
-```
+Microsoft Graph manager-chain resolution remains Entra-only and fail-soft when `User.entraOid` is null (see Permissions access requests).
 
 ## HTTP hardening
 

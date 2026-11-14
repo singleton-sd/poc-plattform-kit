@@ -30,6 +30,8 @@ describe('AccessAdministrationService', () => {
   const actor = {
     id: 'admin-user',
     entraOid: 'admin-oid',
+    keycloakSub: 'admin-oid',
+    emailVerified: true,
     email: 'admin@example.com',
     name: 'Admin',
     roles: ['tenant-admin'],

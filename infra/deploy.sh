@@ -324,10 +324,10 @@ CORS_ORIGINS=
 AUTH_URL=
 AUTH_COOKIE_DOMAIN=.plattform-kit.poc.singletonsd.com
 AUTH_SECRET=
-AZURE_AD_CLIENT_ID=
-AZURE_AD_CLIENT_SECRET=
-AZURE_AD_TENANT_ID=
-AZURE_AD_API_AUDIENCE=
+KEYCLOAK_ISSUER=https://auth.singletonsd.com/realms/<product>
+KEYCLOAK_CLIENT_ID=
+KEYCLOAK_CLIENT_SECRET=
+KEYCLOAK_API_AUDIENCE=
 EOF
 
 # Fill non-secret / known values without shell-expanding URL passwords
@@ -352,10 +352,10 @@ if [[ -n "${database_url_unpooled:-}" ]]; then
   upsert_dotenv_key "$tmp_env" DATABASE_URL_UNPOOLED "$database_url_unpooled"
 fi
 
-# Preserve existing AUTH / Entra / Neon / SB values if present
+# Preserve existing AUTH / Keycloak / Neon / SB values if present
 if [[ -f "$ENV_FILE" ]]; then
-  for key in AUTH_SECRET AUTH_URL AUTH_COOKIE_DOMAIN AZURE_AD_CLIENT_ID AZURE_AD_CLIENT_SECRET \
-    AZURE_AD_TENANT_ID AZURE_AD_API_AUDIENCE AZURE_SERVICEBUS_CONNECTION_STRING \
+  for key in AUTH_SECRET AUTH_URL AUTH_COOKIE_DOMAIN KEYCLOAK_ISSUER KEYCLOAK_CLIENT_ID \
+    KEYCLOAK_CLIENT_SECRET KEYCLOAK_API_AUDIENCE AZURE_SERVICEBUS_CONNECTION_STRING \
     DATABASE_URL DATABASE_URL_UNPOOLED; do
     if existing="$(read_dotenv_value "$ENV_FILE" "$key" 2>/dev/null)"; then
       [[ -n "$existing" ]] || continue
@@ -457,23 +457,23 @@ set_appconfig_plain "$APP_CONFIG_OUT" 'app:telemetry:cloudRoleName:api' 'api'
 set_appconfig_plain "$APP_CONFIG_OUT" 'app:telemetry:cloudRoleName:web' 'web'
 set_appconfig_kv_ref "$APP_CONFIG_OUT" 'secret:swa-marketing-deployment-token' "$KV_NAME_OUT" 'swa-marketing-deployment-token'
 
-set_appconfig_plain "$APP_CONFIG_OUT" 'app:azureAd:clientId' "$(read_dotenv_value "$ENV_FILE" AZURE_AD_CLIENT_ID 2>/dev/null || true)"
-set_appconfig_plain "$APP_CONFIG_OUT" 'app:azureAd:tenantId' "$(read_dotenv_value "$ENV_FILE" AZURE_AD_TENANT_ID 2>/dev/null || true)"
-set_appconfig_plain "$APP_CONFIG_OUT" 'app:azureAd:apiAudience' "$(read_dotenv_value "$ENV_FILE" AZURE_AD_API_AUDIENCE 2>/dev/null || true)"
+set_appconfig_plain "$APP_CONFIG_OUT" 'app:keycloak:issuer' "$(read_dotenv_value "$ENV_FILE" KEYCLOAK_ISSUER 2>/dev/null || true)"
+set_appconfig_plain "$APP_CONFIG_OUT" 'app:keycloak:clientId' "$(read_dotenv_value "$ENV_FILE" KEYCLOAK_CLIENT_ID 2>/dev/null || true)"
+set_appconfig_plain "$APP_CONFIG_OUT" 'app:keycloak:apiAudience' "$(read_dotenv_value "$ENV_FILE" KEYCLOAK_API_AUDIENCE 2>/dev/null || true)"
 
 auth_secret="$(read_dotenv_value "$ENV_FILE" AUTH_SECRET 2>/dev/null || true)"
 if [[ -n "${auth_secret:-}" ]]; then
   set_kv_secret "$KV_NAME_OUT" 'auth-secret' "$auth_secret"
 fi
 unset auth_secret
-ad_client_secret="$(read_dotenv_value "$ENV_FILE" AZURE_AD_CLIENT_SECRET 2>/dev/null || true)"
-if [[ -n "${ad_client_secret:-}" ]]; then
-  set_kv_secret "$KV_NAME_OUT" 'azure-ad-client-secret' "$ad_client_secret"
+keycloak_client_secret="$(read_dotenv_value "$ENV_FILE" KEYCLOAK_CLIENT_SECRET 2>/dev/null || true)"
+if [[ -n "${keycloak_client_secret:-}" ]]; then
+  set_kv_secret "$KV_NAME_OUT" 'keycloak-client-secret' "$keycloak_client_secret"
 fi
-unset ad_client_secret
+unset keycloak_client_secret
 
 set_appconfig_kv_ref_if_secret_exists "$APP_CONFIG_OUT" 'secret:auth-secret' "$KV_NAME_OUT" 'auth-secret'
-set_appconfig_kv_ref_if_secret_exists "$APP_CONFIG_OUT" 'secret:azure-ad-client-secret' "$KV_NAME_OUT" 'azure-ad-client-secret'
+set_appconfig_kv_ref_if_secret_exists "$APP_CONFIG_OUT" 'secret:keycloak-client-secret' "$KV_NAME_OUT" 'keycloak-client-secret'
 
 upsert_dotenv_key "$ENV_FILE" AZURE_APPCONFIGURATION_ENDPOINT "$APP_CONFIG_ENDPOINT"
 

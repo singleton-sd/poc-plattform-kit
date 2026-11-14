@@ -33,6 +33,8 @@ describe('SingleSignOnController', () => {
     const user: AuthenticatedUser = {
       id: '1',
       entraOid: 'oid',
+      keycloakSub: 'oid',
+      emailVerified: true,
       email: 'agent@example.com',
       name: 'Agent',
       roles: ['support-agent', 'tenant-admin'],
@@ -56,6 +58,8 @@ describe('SingleSignOnController', () => {
       controller.me({
         id: '1',
         entraOid: 'oid',
+        keycloakSub: 'oid',
+        emailVerified: true,
         email: 'agent@example.com',
         name: null,
         roles: [],

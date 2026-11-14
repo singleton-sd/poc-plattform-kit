@@ -1,4 +1,4 @@
-import { csrfUrl, ENTRA_PROVIDER_ID, signIn, signInUrl, signOut, signOutUrl } from './auth-urls';
+import { csrfUrl, KEYCLOAK_PROVIDER_ID, signIn, signInUrl, signOut, signOutUrl } from './auth-urls';
 
 jest.mock('./auth-mode', () => ({
   resolveAuthMode: jest.fn(() => 'cookie'),
@@ -33,14 +33,14 @@ describe('auth-urls', () => {
     jest.restoreAllMocks();
   });
 
-  it('builds the Entra Auth.js sign-in URL (same-origin)', () => {
+  it('builds the Keycloak Auth.js sign-in URL (same-origin)', () => {
     delete process.env.NEXT_PUBLIC_API_BASE_URL;
-    expect(signInUrl()).toBe(`/api/auth/signin/${ENTRA_PROVIDER_ID}`);
+    expect(signInUrl()).toBe(`/api/auth/signin/${KEYCLOAK_PROVIDER_ID}`);
   });
 
   it('prefixes sign-in with NEXT_PUBLIC_API_BASE_URL', () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.test';
-    expect(signInUrl()).toBe(`https://api.example.test/api/auth/signin/${ENTRA_PROVIDER_ID}`);
+    expect(signInUrl()).toBe(`https://api.example.test/api/auth/signin/${KEYCLOAK_PROVIDER_ID}`);
   });
 
   it('starts cookie sign-in with CSRF then form POST', async () => {
@@ -79,7 +79,7 @@ describe('auth-urls', () => {
     expect(signInWithBearerMock).not.toHaveBeenCalled();
   });
 
-  it('starts bearer sign-in via MSAL on SWA hosts', async () => {
+  it('starts bearer sign-in via OIDC on SWA hosts', async () => {
     resolveAuthModeMock.mockReturnValue('bearer');
     signInWithBearerMock.mockResolvedValue(undefined);
 
@@ -118,7 +118,7 @@ describe('auth-urls', () => {
     expect(signOutWithBearerMock).not.toHaveBeenCalled();
   });
 
-  it('signs out via MSAL on SWA hosts', async () => {
+  it('signs out via OIDC on SWA hosts', async () => {
     resolveAuthModeMock.mockReturnValue('bearer');
     signOutWithBearerMock.mockResolvedValue(undefined);
 

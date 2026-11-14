@@ -77,6 +77,6 @@ export const HomeAuthGateSignedInSupportAgent: Story = {
 
 /**
  * LoginPanel signing-in / sign-in-error Chromatic stories are intentionally omitted.
- * Those states require mocking `signIn()` (client Entra bootstrap), which is covered
+ * Those states require mocking `signIn()` (client OIDC bootstrap), which is covered
  * by Jest in `login-panel.test.tsx`. Narrow viewport is N/A — global Chromatic is 1280.
  */

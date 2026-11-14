@@ -5,7 +5,7 @@ export type ApiClientConfig = {
   /** Fetch credentials; defaults to `include` for Auth.js session cookies. */
   credentials?: RequestCredentials;
   /**
-   * Optional Bearer token provider (SWA PR preview MSAL).
+   * Optional Bearer token provider (SWA / ACA preview OIDC).
    * Called per request; return null to omit Authorization.
    */
   getAccessToken?: () => Promise<string | null>;
@@ -45,7 +45,7 @@ export function setApiClientTenantId(tenantId: string | null | undefined): void 
 
 /**
  * Set or clear a static `Authorization: Bearer` header.
- * Prefer `getAccessToken` on `createApiClient` when tokens refresh (MSAL).
+ * Prefer `getAccessToken` on `createApiClient` when tokens refresh (OIDC).
  */
 export function setApiClientAccessToken(accessToken: string | null | undefined): void {
   const headers = new Headers(config.headers);

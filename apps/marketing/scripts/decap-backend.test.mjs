@@ -128,11 +128,45 @@ test('parseBackendFields accepts CRLF and ignores nested mappings', () => {
   assert.equal(fields.auth_endpoint, 'v1/cms-auth/auth');
 });
 
+function mentionsRetiredCmsAuthHost(text) {
+  if (text.includes(retiredOauthKit)) {
+    return true;
+  }
+  // Keycloak (ADR-004 / ADR-0006) issues tokens at
+  // auth.singletonsd.com/realms/<product>. Decap CMS must still not use that
+  // host as an OAuth backend.
+  const withoutKeycloakIssuer = text.replaceAll(
+    new RegExp(
+      `https?://${retiredAuthHost.replaceAll('.', '\\.')}/realms/(?:<product>|[A-Za-z0-9._~-]+)`,
+      'g',
+    ),
+    '',
+  );
+  return withoutKeycloakIssuer.includes(retiredAuthHost);
+}
+
+test('Keycloak issuer exemption is limited to /realms/<product> issuers', () => {
+  assert.equal(
+    mentionsRetiredCmsAuthHost('issuer: https://auth.singletonsd.com/realms/<product>'),
+    false,
+  );
+  assert.equal(
+    mentionsRetiredCmsAuthHost('issuer: https://auth.singletonsd.com/realms/plattform-kit'),
+    false,
+  );
+  assert.equal(
+    mentionsRetiredCmsAuthHost(
+      ['backend:', '  name: github', '  base_url: https://auth.singletonsd.com/oauth'].join('\n'),
+    ),
+    true,
+  );
+});
+
 test('live docs and config do not send CMS login to the retired OAuth host', () => {
   const hits = [];
   for (const file of collectLiveFiles(repoRoot)) {
     const text = readFileSync(file, 'utf8');
-    if (text.includes(retiredAuthHost) || text.includes(retiredOauthKit)) {
+    if (mentionsRetiredCmsAuthHost(text)) {
       hits.push(file.slice(repoRoot.length + 1));
     }
   }

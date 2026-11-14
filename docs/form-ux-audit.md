@@ -161,7 +161,7 @@ This field lives **outside** the `UpdateTenantForm`'s `<form>` element but is su
 
 ### F9 — `auth/login-panel.tsx:LoginPanel` / `HomeAuthGate`
 
-**Not applicable across all six rules.** These are OAuth-redirect buttons ("Sign in with Microsoft" / "Sign out"), not data-entry forms — evidence: no `<form>`, no `<input>`, just `onClick` handlers calling `signIn()`/`signOut()` (`login-panel.tsx:49-57,148-156`). Recorded for inventory completeness.
+**Not applicable across all six rules.** These are OAuth-redirect buttons ("Sign in" / "Sign out"), not data-entry forms — evidence: no `<form>`, no `<input>`, just `onClick` handlers calling `signIn()`/`signOut()` (`login-panel.tsx`). Recorded for inventory completeness.
 
 ## Findings summary
 

@@ -4,6 +4,8 @@ import { TenantController } from './tenant.controller';
 
 const user: AuthenticatedUser = {
   entraOid: 'entra-1',
+  keycloakSub: 'entra-1',
+  emailVerified: true,
   email: 'user@example.test',
   name: 'User',
   roles: [],
@@ -39,6 +41,8 @@ describe('TenantController', () => {
     const controller = new TenantController(tenants as never);
     const user: AuthenticatedUser = {
       entraOid: 'entra-1',
+      keycloakSub: 'entra-1',
+      emailVerified: true,
       email: 'admin@example.test',
       name: 'Admin',
       roles: ['tenant-admin'],

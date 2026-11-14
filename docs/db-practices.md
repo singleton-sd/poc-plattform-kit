@@ -127,7 +127,8 @@ Label sensitive tables/columns (docs or comments): public / internal / confident
 | Prisma role | Max length | Examples |
 | --- | --- | --- |
 | `EntityId` | 64 | `id`, `tenantId`, `userId`, `entityId`, `actorId`, `claimId`, seed `seed-*` fixtures, `randomUUID()` audit/outbox rows |
-| `EntraOid` | 36 | `entraOid`, `requesterEntraOid` |
+| `EntraOid` | 36 | leftover `entraOid`, `requesterEntraOid` (manager-chain Graph id) |
+| `KeycloakSub` | 255 | `keycloakSub` |
 | `Email` | 320 | `email` |
 | `Slug` | 100 | `slug` |
 | `Token` | 64 | invitation `token` (`base64url` of 32 bytes) |
