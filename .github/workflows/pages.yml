@@ -1,6 +1,7 @@
 # GitHub Pages — marketing production deploy on merge to main (content
-# changes), after a successful Release (changelog.json in skip-ci commits),
-# or manual dispatch. Custom domain: plattform-kit.poc.singletonsd.com.
+# changes), after a successful tag-only Release (`workflow_run`; GITHUB_TOKEN
+# tag pushes do not start other workflows), or manual dispatch. Custom
+# domain: plattform-kit.poc.singletonsd.com.
 # Follows the house pattern in singleton-sd/poc-inkads-marketing (gh-pages
 # branch + CNAME + clean-exclude pr-preview). Do not enable a second Pages
 # site in this repo — GitHub allows only one.

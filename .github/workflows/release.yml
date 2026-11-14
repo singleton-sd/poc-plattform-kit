@@ -1,11 +1,16 @@
-# Path-aware release: bump workspace package versions on main merge.
-# Skips release-bot pushes (InkAds-style actor guard + [skip ci] release commits).
-# Git push uses the org-wide platform automation PAT from devtools Key Vault
-# (OIDC). Vault: ssd-devtools-kv-prod-ae / secret github-automation-pat.
-# Same vault + secret name across all singleton-sd repos — see SETUP.md.
-# PAT owner must be on the main ruleset bypass list (User, Always bypass).
-# Production deploys run on package tag push (deploy-*.yml); GitHub Releases are
-# published here after tags land.
+# Path-aware tag-only releases on merge to main.
+# Computes the next per-package semver in memory from the latest
+# `@scope/name@version` git tag plus conventional commits since then,
+# pushes ONLY those tags, and publishes a GitHub Release per tag.
+#
+# Never commits or pushes to the default branch (no version-bump or
+# CHANGELOG commits). Uses GITHUB_TOKEN only — no PAT, no ruleset bypass.
+# Branch rulesets target `refs/heads/main` / ~DEFAULT_BRANCH and do not
+# apply to tags; do not add a tag ruleset that requires a pull request.
+#
+# GITHUB_TOKEN tag pushes do not trigger other workflows, so deploy-api /
+# deploy-web also listen for `workflow_run` of this workflow and derive
+# the version from the tag at build time.
 name: Release
 
 on:
@@ -17,12 +22,6 @@ concurrency:
   group: release-main
   cancel-in-progress: false
 
-env:
-  # Org-locked singleton-sd constants — copy release.yml unchanged into other repos.
-  SSD_OPS_KEY_VAULT_NAME: ssd-devtools-kv-prod-ae
-  SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: 01c0bb8b-3770-4765-979a-cb13ae7e3dd2
-  SSD_GITHUB_AUTOMATION_PAT_SECRET: github-automation-pat
-
 jobs:
   release:
     if: >-
@@ -32,82 +31,14 @@ jobs:
        !contains(github.event.head_commit.message, '[skip ci]') &&
        !startsWith(github.event.head_commit.message, 'chore: Release'))
     runs-on: ubuntu-latest
-    name: Bump package versions
-    # Placeholder URLs for Prisma generate during openapi:export (no live DB).
-    env:
-      DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
-      DATABASE_URL_UNPOOLED: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
+    name: Tag changed packages
     permissions:
       contents: write
-      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
-
-      - name: Require Azure OIDC Variables
-        run: |
-          set -euo pipefail
-          missing=0
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::Missing GitHub Variable $name. Release requires OIDC — see SETUP.md."
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
-        env:
-          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Stage platform automation PAT from devtools Key Vault
-        id: automation_pat
-        run: |
-          set -euo pipefail
-          vault_uri="https://${SSD_OPS_KEY_VAULT_NAME}.vault.azure.net"
-          secret_uri="${vault_uri}/secrets/${SSD_GITHUB_AUTOMATION_PAT_SECRET}/?api-version=7.4"
-          # Cross-subscription: OIDC login uses the app subscription. Data-plane REST
-          # + Key Vault Secrets User on the vault avoids needing subscription access.
-          err_file="$RUNNER_TEMP/kv-pat.err"
-          if ! pat=$(az rest \
-            --method GET \
-            --uri "$secret_uri" \
-            --resource "https://vault.azure.net" \
-            --query value \
-            -o tsv 2>"$err_file"); then
-            echo "::error::Failed to read $SSD_GITHUB_AUTOMATION_PAT_SECRET from $SSD_OPS_KEY_VAULT_NAME."
-            if grep -Eiq 'Forbidden|403|AuthorizationFailed|Access denied|KeyVaultAccessForbidden|does not have.*secret get' "$err_file"; then
-              echo "Grant this repo's OIDC service principal Key Vault Secrets User on the devtools vault (cross-subscription RBAC — subscription Reader is not required). See SETUP.md."
-            else
-              echo "Check vault name, secret name, network/firewall, and that $SSD_GITHUB_AUTOMATION_PAT_SECRET exists. See SETUP.md."
-            fi
-            cat "$err_file" >&2
-            exit 1
-          fi
-          if [ -z "$pat" ]; then
-            echo "::error::Key Vault secret $SSD_GITHUB_AUTOMATION_PAT_SECRET in $SSD_OPS_KEY_VAULT_NAME is empty. Follow SETUP.md."
-            exit 1
-          fi
-          echo "::add-mask::$pat"
-          pat_file="$RUNNER_TEMP/github-automation-pat"
-          printf '%s' "$pat" > "$pat_file"
-          chmod 600 "$pat_file"
-          echo "pat_file=$pat_file" >> "$GITHUB_OUTPUT"
-        env:
-          SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: ${{ env.SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID }}
-          SSD_OPS_KEY_VAULT_NAME: ${{ env.SSD_OPS_KEY_VAULT_NAME }}
-          SSD_GITHUB_AUTOMATION_PAT_SECRET: ${{ env.SSD_GITHUB_AUTOMATION_PAT_SECRET }}
+          persist-credentials: true
 
       - uses: pnpm/action-setup@v4
         with:
@@ -121,33 +52,17 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Configure git identity for annotated tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Release changed packages
         id: release
+        env:
+          HUSKY: '0'
         run: |
           set -euo pipefail
-          pat_file="${{ steps.automation_pat.outputs.pat_file }}"
-          origin_url="https://github.com/${{ github.repository }}.git"
-          cleanup() {
-            git remote set-url origin "$origin_url"
-            rm -f "$pat_file"
-          }
-          trap cleanup EXIT
-
-          pat=$(<"$pat_file")
-          user_json=$(curl -sf \
-            -H "Authorization: bearer $pat" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/user)
-          login=$(echo "$user_json" | jq -r '.login')
-          user_id=$(echo "$user_json" | jq -r '.id')
-          if [ -z "$login" ] || [ "$login" = null ] || [ -z "$user_id" ] || [ "$user_id" = null ]; then
-            echo "::error::Could not resolve platform automation user from PAT (check token Metadata + Contents permissions)."
-            exit 1
-          fi
-          git config user.name "$login"
-          git config user.email "${user_id}+${login}@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${pat}@github.com/${{ github.repository }}.git"
           tmp=$(mktemp)
           set +e
           pnpm release:ci 2>&1 | tee "$tmp"
@@ -160,7 +75,7 @@ jobs:
             echo "released=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if grep -q 'Release commit and tags pushed' "$tmp"; then
+          if grep -q 'Release tags pushed' "$tmp"; then
             echo "released=true" >> "$GITHUB_OUTPUT"
             tags=$(grep '^RELEASE_TAGS=' "$tmp" | tail -1 | cut -d= -f2-)
             if [ -z "$tags" ]; then
@@ -170,7 +85,7 @@ jobs:
             echo "release_tags=$tags" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "::error::Unexpected release:ci output (no release push and not empty)."
+          echo "::error::Unexpected release:ci output (no tag push and not empty)."
           exit 1
 
       - name: Publish GitHub releases

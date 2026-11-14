@@ -6,7 +6,14 @@ import { resolveSwaggerTokenProxyUrl } from './swagger-oauth2-token-proxy';
 
 type EnvBag = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
-function readPackageVersion(): string {
+function envTrim(env: EnvBag, key: string): string | undefined {
+  const value = env[key]?.trim();
+  return value || undefined;
+}
+
+function readPackageVersion(env: EnvBag = process.env): string {
+  const fromEnv = envTrim(env, 'APP_VERSION');
+  if (fromEnv) return fromEnv;
   try {
     const pkgPath = join(__dirname, '..', 'package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: string };
@@ -14,11 +21,6 @@ function readPackageVersion(): string {
   } catch {
     return '0.0.0';
   }
-}
-
-function envTrim(env: EnvBag, key: string): string | undefined {
-  const value = env[key]?.trim();
-  return value || undefined;
 }
 
 /**
@@ -81,7 +83,7 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
   const builder = new DocumentBuilder()
     .setTitle('Platform Kit API')
     .setDescription('poc-plattform-kit API')
-    .setVersion(readPackageVersion())
+    .setVersion(readPackageVersion(env))
     .addBearerAuth()
     .addApiKey({ type: 'apiKey', name: 'x-tenant-id', in: 'header' }, 'x-tenant-id');
 

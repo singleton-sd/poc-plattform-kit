@@ -50,3 +50,31 @@ See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md),
 [the client-facing changelog workflow](./docs/client-changelog.md),
 [docs/pr-pipelines.md](./docs/pr-pipelines.md), and
 [docs/marketing-astro-decap.md](./docs/marketing-astro-decap.md).
+
+## Releases
+
+Releases are **tag-only**. Merging to `main` runs
+[`.github/workflows/release.yml`](./.github/workflows/release.yml), which
+computes the next per-package semver from the latest
+`@poc-plattform-kit/<package>@<semver>` git tag plus conventional commits
+since then, pushes **only those tags**, and opens a GitHub Release per tag.
+
+- Tag format stays `@poc-plattform-kit/api@0.25.0` (and the same pattern
+  for every workspace package).
+- The workflow never commits or pushes to `main` (no version-bump or
+  CHANGELOG commits) and uses `GITHUB_TOKEN` only — no PAT and no
+  ruleset bypass. Branch rulesets apply to `main`, not to tags; do not
+  add a tag ruleset that requires a pull request.
+- Build and publish jobs read the version from the git tag (`APP_VERSION`
+  / `NEXT_PUBLIC_APP_VERSION`). Committed `package.json` versions are
+  not the release source of truth.
+- Live notes live in
+  [GitHub Releases](https://github.com/singleton-sd/poc-plattform-kit/releases).
+  Root `CHANGELOG.md` is historical.
+
+Preview the in-memory version computation locally:
+
+```bash
+git fetch origin --tags
+pnpm release
+```

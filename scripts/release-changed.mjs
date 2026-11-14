@@ -2,37 +2,27 @@
 /**
  * Path-aware independent releases for the pnpm monorepo.
  *
- * Bumps each workspace package that has releasable conventional commits since
- * its last `@scope/name@version` tag (reachable from HEAD), cascades web/api
- * when shared paths change, then creates one git commit + per-package tags.
+ * Computes the next semver for each workspace package from the latest
+ * `@scope/name@version` git tag (reachable from HEAD) plus conventional
+ * commits since then. Cascades web/api when shared paths change.
  *
- * Push order is commit-then-tags (never `--follow-tags`): a non-fast-forward
- * race must not publish tags without the release commit on main.
- *
- * When `@poc-plattform-kit/api` is bumped, also runs `pnpm openapi:export` and
- * `pnpm openapi:generate` so committed OpenAPI `info.version` matches the
- * package version (avoids `openapi:check` drift on main).
+ * CI creates and pushes **annotated tags only** — it never commits, never
+ * writes package.json / CHANGELOG.md, and never pushes the default branch.
+ * GitHub Releases are published by `.github/workflows/release.yml` from
+ * those tags. Build/publish jobs derive the version from the tag.
  *
  * Usage:
  *   node scripts/release-changed.mjs           # dry-run
- *   node scripts/release-changed.mjs --ci      # bump, commit, tag, push main
+ *   node scripts/release-changed.mjs --ci      # tag + push tags (no commit)
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import semver from 'semver';
-import { CLIENT_CHANGELOG_TARGETS, updateClientChangelogs } from './client-changelog.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CI = process.argv.includes('--ci');
-const RELEASE_SUBJECT = 'chore: Release package versions [skip ci]';
-const API_PACKAGE = '@poc-plattform-kit/api';
-/** Paths refreshed when the API package version bumps (Swagger reads package.json). */
-const OPENAPI_CLIENT_PATHS = [
-  'packages/api-client/openapi.json',
-  'packages/api-client/src/generated',
-];
 
 /** @typedef {'major' | 'minor' | 'patch'} Increment */
 
@@ -109,12 +99,12 @@ function isAncestorOfHead(ref) {
 
 /**
  * Highest semver tag for the package that is reachable from HEAD.
- * Ignores orphaned tags left behind when a release push rejected the branch
- * but still published tags (`git push --follow-tags` is not atomic).
+ * Ignores orphaned tags left behind when a previous release published tags
+ * that are not on this branch.
  * @param {string} packageName
  * @returns {string | null}
  */
-function getLastTag(packageName) {
+export function getLastTag(packageName) {
   const tags = sh(`git tag -l "${packageName}@*" --sort=-v:refname`)
     .split('\n')
     .map((t) => t.trim())
@@ -127,10 +117,10 @@ function getLastTag(packageName) {
 
 /**
  * @param {string} packageName
- * @param {string | null} tag
+ * @param {string | null | undefined} tag
  * @returns {string | null}
  */
-function versionFromTag(packageName, tag) {
+export function versionFromTag(packageName, tag) {
   if (!tag) return null;
   const prefix = `${packageName}@`;
   if (!tag.startsWith(prefix)) return null;
@@ -141,7 +131,7 @@ function versionFromTag(packageName, tag) {
 /**
  * @param {string} tag
  */
-function tagExists(tag) {
+export function tagExists(tag) {
   try {
     run('git', ['rev-parse', '-q', '--verify', `refs/tags/${tag}`]);
     return true;
@@ -155,7 +145,7 @@ function tagExists(tag) {
  * @param {{ name: string, path: string }} pkg
  * @returns {string[]}
  */
-function watchPathsFor(pkg) {
+export function watchPathsFor(pkg) {
   const rel = relative(ROOT, pkg.path).replace(/\\/g, '/');
   const paths = [rel];
 
@@ -174,7 +164,7 @@ function watchPathsFor(pkg) {
  * @param {string[]} paths
  * @returns {string[]}
  */
-function getCommitMessages(sinceTag, paths) {
+export function getCommitMessages(sinceTag, paths) {
   const range = sinceTag ? `${sinceTag}..HEAD` : 'HEAD';
   const args = ['log', range, '--format=%B%x1e', '--'];
   args.push(...paths);
@@ -195,7 +185,7 @@ function getCommitMessages(sinceTag, paths) {
  * @param {string[]} messages
  * @returns {Increment | null}
  */
-function deriveIncrement(messages) {
+export function deriveIncrement(messages) {
   /** @type {Increment | null} */
   let bump = null;
   const rank = { patch: 1, minor: 2, major: 3 };
@@ -230,7 +220,7 @@ function deriveIncrement(messages) {
  * @param {string} current
  * @param {Increment} increment
  */
-function nextVersion(current, increment) {
+export function nextVersion(current, increment) {
   const base = semver.valid(current) ? current : '0.0.0';
   const next = semver.inc(base, increment);
   if (!next) {
@@ -240,27 +230,32 @@ function nextVersion(current, increment) {
 }
 
 /**
- * Max of package.json version and last reachable tag, then bump until the
- * target tag name is free (skips orphaned remote tags).
+ * Next free `@scope/name@version` from the latest reachable tag.
+ * package.json is only a bootstrap when the package has never been tagged.
  * @param {string} packageName
- * @param {string} packageVersion
  * @param {string | null} lastTag
  * @param {Increment} increment
+ * @param {string} [packageVersion]
+ * @param {(tag: string) => boolean} [exists]
  * @returns {{ base: string, next: string, tag: string }}
  */
-function resolveNextVersion(packageName, packageVersion, lastTag, increment) {
+export function resolveNextVersion(
+  packageName,
+  lastTag,
+  increment,
+  packageVersion = '0.0.0',
+  exists = tagExists,
+) {
   const tagVersion = versionFromTag(packageName, lastTag);
-  const candidates = [packageVersion, tagVersion].filter(
-    (v) => typeof v === 'string' && Boolean(semver.valid(v)),
-  );
-  let base = candidates.length > 0 ? candidates.sort(semver.rcompare)[0] : '0.0.0';
-
+  const fallback =
+    typeof packageVersion === 'string' && semver.valid(packageVersion) ? packageVersion : '0.0.0';
+  let base = tagVersion ?? fallback;
   const from = base;
 
   for (let i = 0; i < 50; i += 1) {
     const next = nextVersion(base, increment);
     const tag = `${packageName}@${next}`;
-    if (!tagExists(tag)) {
+    if (!exists(tag)) {
       return { base: from, next, tag };
     }
     console.warn(`Tag ${tag} already exists — skipping to next ${increment}.`);
@@ -271,67 +266,8 @@ function resolveNextVersion(packageName, packageVersion, lastTag, increment) {
 }
 
 /**
- * @param {{ name: string, version: string, next: string, increment: Increment }[]} releases
- */
-function updateChangelog(releases) {
-  const changelogPath = join(ROOT, 'CHANGELOG.md');
-  const date = new Date().toISOString().slice(0, 10);
-  const section = [
-    `## ${date}`,
-    '',
-    ...releases.map((r) => {
-      const target = CLIENT_CHANGELOG_TARGETS[r.name];
-      const name = target ? `[${r.name}](${target.markdown})` : r.name;
-      return `- **${name}** \`${r.version}\` → \`${r.next}\` (${r.increment})`;
-    }),
-    '',
-  ].join('\n');
-
-  if (existsSync(changelogPath)) {
-    const existing = readFileSync(changelogPath, 'utf8');
-    const withoutHeader = existing.replace(/^# Changelog\r?\n\r?\n?/, '');
-    writeFileSync(changelogPath, `# Changelog\n\n${section}${withoutHeader}`);
-  } else {
-    writeFileSync(changelogPath, `# Changelog\n\n${section}`);
-  }
-}
-
-/**
- * @param {string} packagePath
- * @param {string} version
- */
-function writePackageVersion(packagePath, version) {
-  const pkgJsonPath = join(packagePath, 'package.json');
-  const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
-  pkg.version = version;
-  writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
-}
-
-/**
- * Write the computed next version into package.json.
- * (release-it is available via `.release-it.json` for manual/single-package use;
- * the orchestrator owns path-filtered increments so versions stay consistent.)
- * @param {{ path: string, next: string }} release
- */
-function bumpPackageVersion(release) {
-  writePackageVersion(release.path, release.next);
-}
-
-/**
- * Nest Swagger `info.version` comes from apps/api/package.json. After an API
- * bump, re-export + regenerate so `pnpm openapi:check` stays green on main.
- * Requires DATABASE_URL (placeholder is fine) for Prisma generate during export.
- */
-function refreshOpenApiClient() {
-  console.log('Refreshing OpenAPI client after API version bump...');
-  sh('pnpm openapi:export', { stdio: 'inherit' });
-  sh('pnpm openapi:generate', { stdio: 'inherit' });
-  console.log('OpenAPI client refreshed.');
-}
-
-/**
  * Sync to origin/main before computing bumps so concurrent pushes do not
- * release from a stale tip.
+ * release from a stale tip. Does not push the default branch.
  */
 function syncToOriginMain() {
   run('git', ['fetch', 'origin', 'main', '--tags']);
@@ -343,34 +279,7 @@ function syncToOriginMain() {
 }
 
 /**
- * Push the release commit to main. Requires checkout credentials from the
- * platform automation fine-grained PAT (devtools Key Vault
- * `ssd-devtools-kv-prod-ae` / `github-automation-pat`; PAT owner on the
- * main ruleset bypass list — see SETUP.md). Retries after rebase when
- * concurrent main updates cause rejection.
- */
-function pushReleaseCommit() {
-  const gitEnv = { ...process.env, HUSKY: '0' };
-  const maxAttempts = 3;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      run('git', ['push', 'origin', 'HEAD:main'], { env: gitEnv });
-      return;
-    } catch (error) {
-      if (attempt === maxAttempts) throw error;
-      console.log(
-        `Push rejected (attempt ${attempt}/${maxAttempts}); rebasing onto origin/main...`,
-      );
-      run('git', ['fetch', 'origin', 'main']);
-      run('git', ['pull', '--rebase', '--autostash', 'origin', 'main']);
-    }
-  }
-}
-
-/**
- * Create and push annotated tags only after HEAD is on origin/main.
- * Never use `git push --follow-tags`: git can accept new tags while rejecting
- * a non-fast-forward main update, leaving orphan tags that block later releases.
+ * Create and push annotated tags at HEAD. Never push a branch.
  * @param {string[]} tags
  */
 function createAndPushTags(tags) {
@@ -399,15 +308,18 @@ function main() {
 
   /** @type {{ name: string, path: string, version: string, next: string, increment: Increment, tag: string }[]} */
   const releases = [];
+  /** @type {{ name: string, lastTag: string | null, increment: Increment | null }[]} */
+  const scan = [];
 
   for (const pkg of packages) {
     const lastTag = getLastTag(pkg.name);
     const paths = watchPathsFor(pkg);
     const messages = getCommitMessages(lastTag, paths);
     const increment = deriveIncrement(messages);
+    scan.push({ name: pkg.name, lastTag, increment });
     if (!increment) continue;
 
-    const resolved = resolveNextVersion(pkg.name, pkg.version, lastTag, increment);
+    const resolved = resolveNextVersion(pkg.name, lastTag, increment, pkg.version);
     releases.push({
       name: pkg.name,
       path: pkg.path,
@@ -415,8 +327,17 @@ function main() {
       next: resolved.next,
       increment,
       tag: resolved.tag,
-      messages,
     });
+  }
+
+  if (!CI) {
+    console.log('Dry-run — per-package scan (version source = latest git tag):');
+    for (const row of scan) {
+      const last = row.lastTag ?? 'no tag';
+      const bump = row.increment ?? 'none';
+      console.log(`  ${row.name}: last=${last} bump=${bump}`);
+    }
+    console.log('');
   }
 
   if (releases.length === 0) {
@@ -424,62 +345,20 @@ function main() {
     return;
   }
 
-  console.log(CI ? 'Releasing:' : 'Dry-run — would release:');
+  console.log(CI ? 'Releasing:' : 'Dry-run — would tag:');
   for (const r of releases) {
     console.log(`  ${r.name}: ${r.version} → ${r.next} (${r.increment}) [${r.tag}]`);
   }
 
-  const apiReleased = releases.some((r) => r.name === API_PACKAGE);
-  if (apiReleased) {
-    console.log(
-      CI
-        ? 'API bumped - will refresh OpenAPI client before commit.'
-        : 'Would also refresh OpenAPI client (pnpm openapi:export && pnpm openapi:generate).',
-    );
-  }
-
   if (!CI) {
-    console.log('\nRe-run with --ci to bump, commit, tag, and push.');
+    console.log('\nRe-run with --ci to create and push tags only (no commit to main).');
     return;
   }
 
-  for (const release of releases) {
-    bumpPackageVersion(release);
-  }
-
-  if (apiReleased) {
-    refreshOpenApiClient();
-  }
-
-  updateChangelog(releases);
-  updateClientChangelogs(ROOT, releases, new Date().toISOString().slice(0, 10));
-
-  const body = releases.map((r) => `- ${r.tag}`).join('\n');
-  const message = `${RELEASE_SUBJECT}\n\n${body}\n`;
-
-  for (const release of releases) {
-    run('git', ['add', join(release.path, 'package.json')]);
-  }
-  run('git', ['add', 'CHANGELOG.md']);
-  for (const release of releases) {
-    const targets = CLIENT_CHANGELOG_TARGETS[release.name];
-    if (targets) run('git', ['add', targets.markdown, targets.data]);
-  }
-  if (apiReleased) {
-    run('git', ['add', ...OPENAPI_CLIENT_PATHS]);
-  }
-  // Release commits are auto-generated; bypass hooks (ticket rule / lint-staged).
-  run('git', ['commit', '-m', message], {
-    env: { ...process.env, HUSKY: '0' },
-  });
-
-  // Commit first, then tag. Tagging before a rebase-on-push-failure leaves
-  // tags pointing at a rewritten commit SHA.
-  pushReleaseCommit();
   const tags = releases.map((r) => r.tag);
   createAndPushTags(tags);
   console.log(`RELEASE_TAGS=${tags.join(',')}`);
-  console.log('Release commit and tags pushed.');
+  console.log('Release tags pushed.');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

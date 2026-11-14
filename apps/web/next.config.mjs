@@ -15,7 +15,7 @@ const nextConfig = {
     unoptimized: true, // static export can't use the Next.js Image loader
   },
   env: {
-    NEXT_PUBLIC_APP_VERSION: pkg.version,
+    NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION || pkg.version,
   },
 };
 

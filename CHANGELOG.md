@@ -1,5 +1,10 @@
 # Changelog
 
+Release notes for new versions are published as
+[GitHub Releases](https://github.com/singleton-sd/poc-plattform-kit/releases).
+This file is a historical index of workspace package version bumps from
+before tag-only releases (14 Nov 2026) and is no longer updated by CI.
+
 ## 2026-11-14
 
 - **[@poc-plattform-kit/marketing](apps/marketing/CHANGELOG.md)** `0.9.1` → `0.10.0` (minor)

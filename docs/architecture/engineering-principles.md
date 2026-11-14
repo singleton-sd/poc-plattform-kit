@@ -37,8 +37,9 @@ Passwords, connection strings, deploy tokens, and provider API keys live in
 Azure Key Vault and are referenced — never inlined — from Azure App Configuration
 or GitHub Actions. **App runtime** secrets use the per-project vault
 (`ssd-pocpk-kv-dev-ae`). **CI/provision** secrets shared across org repos use
-the devtools vault (`ssd-devtools-kv-prod-ae` — e.g. org-wide
-`github-automation-pat`). Apps never read devtools KV. GitHub Actions
+the devtools vault (`ssd-devtools-kv-prod-ae`) for org-wide CI/provision
+secrets. This repo’s release workflow uses `GITHUB_TOKEN` only and does
+not read that vault. Apps never read devtools KV. GitHub Actions
 authenticates via OIDC (repository **Variables**, not **Secrets**) and fetches
 secrets at job runtime. Never commit a secret value, and never paste one into
 ClickUp, a PR, or a commit. See `AGENTS.md`'s "Secrets + configuration"

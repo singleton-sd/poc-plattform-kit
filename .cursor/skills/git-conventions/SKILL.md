@@ -84,7 +84,7 @@ chore: SSDOP-99 Update dependencies to latest versions
 | Ticket format | `[A-Z]{1,5}-[0-9]{1,5}` — e.g. `SSDOP-42`, `PROJ-7` |
 | Body separator | Blank line between subject and body (if body is present) |
 | Body line length | Max 72 characters per line |
-| Release commits | Skipped — format is `chore: Release package versions` (auto-generated; body lists `@scope/name@version` tags) |
+| Release commits | Not used — releases are tag-only; do not push `chore: Release package versions` to `main` |
 
 ### Commit body: 72-character lines
 
@@ -189,11 +189,13 @@ Versions follow **semver** and are bumped automatically by `release-it` based on
 | `feat:` | Minor (`1.2.3` → `1.3.0`) |
 | `BREAKING CHANGE:` in footer | Major (`1.2.3` → `2.0.0`) |
 
-Never manually edit the version in `package.json`. Run `pnpm release` (dry-run)
-or `pnpm release:ci` (CI on `main`) instead. Releases are **path-aware and
-independent** per workspace package; tags look like
-`@poc-plattform-kit/api@0.1.0`. Production deploys run from the aggregated
-`chore: Release package versions` commit.
+Never commit a version bump as part of a release. Run `pnpm release` (dry-run)
+or `pnpm release:ci` (CI on `main`) instead. Releases are **path-aware,
+independent, and tag-only** per workspace package; tags look like
+`@poc-plattform-kit/api@0.1.0`. CI computes the next version from the latest
+git tag plus conventional commits, pushes **tags only**, and publishes GitHub
+Releases. Build/publish jobs read the version from the tag. Production deploys
+run from those tags (`workflow_run` after Release, or a human tag push).
 
 ---
 

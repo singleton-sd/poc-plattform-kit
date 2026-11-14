@@ -1,6 +1,8 @@
-# Azure Static Web Apps — production deploy on package tag push (also manual
-# workflow_dispatch). Version bumps land via release.yml so the SWA build embeds
-# apps/web package.json version in the footer.
+# Azure Static Web Apps — production deploy on package tag push, after a
+# successful Release (`workflow_run`; GITHUB_TOKEN tag pushes do not start
+# other workflows), or manual workflow_dispatch. The SWA build embeds
+# NEXT_PUBLIC_APP_VERSION from the `@poc-plattform-kit/web@*` tag (not a
+# committed package.json bump).
 # Secrets: NEVER in GitHub Secrets. OIDC → Key Vault `swa-deployment-token`.
 # Required Variables (IDs only): AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
 # If those Variables are missing, deploy steps SKIP (job succeeds) so main CI is not blocked.
@@ -11,10 +13,17 @@ on:
   push:
     tags:
       - '@poc-plattform-kit/web@*'
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
     inputs:
       release_sha:
         description: Commit SHA to deploy (manual dispatch)
+        required: false
+        type: string
+      release_tag:
+        description: Package tag to deploy (e.g. @poc-plattform-kit/web@0.18.0)
         required: false
         type: string
 
@@ -24,6 +33,9 @@ concurrency:
 
 jobs:
   build_and_deploy:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     name: Build + SWA production
     permissions:
@@ -32,24 +44,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.event.inputs.release_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
           submodules: true
           lfs: false
 
+      - name: Resolve release version
+        id: rel
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          args=(--package '@poc-plattform-kit/web')
+          if [ -n "${RELEASE_TAG:-}" ]; then
+            args+=(--tag "$RELEASE_TAG")
+          fi
+          node scripts/resolve-release-tag.mjs "${args[@]}"
+
+      - name: Skip notice (no web tag)
+        if: steps.rel.outputs.found != 'true'
+        run: echo "No @poc-plattform-kit/web@* tag at this commit — skipping production deploy."
+
       - uses: pnpm/action-setup@v4
+        if: steps.rel.outputs.found == 'true'
         with:
           version: 9.15.0
 
       - uses: actions/setup-node@v4
+        if: steps.rel.outputs.found == 'true'
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install
+        if: steps.rel.outputs.found == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build web
+        if: steps.rel.outputs.found == 'true'
         env:
           # Baked into the static export; SWA runtime cannot inject this later.
           # Option B cookies on custom domains; MSAL Bearer on *.azurestaticapps.net.
@@ -57,9 +91,11 @@ jobs:
           NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
           NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
           NEXT_PUBLIC_AZURE_AD_API_SCOPE: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE }}
+          NEXT_PUBLIC_APP_VERSION: ${{ steps.rel.outputs.version }}
         run: pnpm --filter @poc-plattform-kit/web... run build
 
       - name: Check OIDC Variables
+        if: steps.rel.outputs.found == 'true'
         id: oidc
         run: |
           set -euo pipefail
@@ -71,7 +107,7 @@ jobs:
           fi
 
       - name: Azure login (OIDC)
-        if: steps.oidc.outputs.configured == 'true'
+        if: steps.rel.outputs.found == 'true' && steps.oidc.outputs.configured == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -79,7 +115,7 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Read SWA deploy token from Key Vault
-        if: steps.oidc.outputs.configured == 'true'
+        if: steps.rel.outputs.found == 'true' && steps.oidc.outputs.configured == 'true'
         run: |
           set -euo pipefail
           token=$(az keyvault secret show \
@@ -91,7 +127,7 @@ jobs:
 
       - name: Deploy SWA production
         id: deploy
-        if: steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
+        if: steps.rel.outputs.found == 'true' && steps.oidc.outputs.configured == 'true' && env.SWA_DEPLOYMENT_TOKEN != ''
         uses: Azure/static-web-apps-deploy@v1
         env:
           SWA_DEPLOYMENT_TOKEN: ${{ env.SWA_DEPLOYMENT_TOKEN }}
@@ -105,6 +141,6 @@ jobs:
           production_branch: main
 
       - name: Skip notice (OIDC not configured)
-        if: steps.oidc.outputs.configured != 'true'
+        if: steps.rel.outputs.found == 'true' && steps.oidc.outputs.configured != 'true'
         run: |
           echo "SWA production deploy skipped — set GitHub Variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC IDs only; token stays in Key Vault)."
