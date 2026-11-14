@@ -1,0 +1,1 @@
+import{b as e}from"./bind-lead-form.DMCEeI3X.js";import"./hoisted.mWwhP2mC.js";const t=document.getElementById("contact-form");t instanceof HTMLFormElement&&e({form:t,formType:"contact",siteKey:t.dataset.turnstileSiteKey??"",intakeUrl:t.dataset.intakeUrl});
