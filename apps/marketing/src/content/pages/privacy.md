@@ -48,8 +48,11 @@ we collect:
 1. Name, email address, and optional company and phone
 2. Your message (contact) or the waitlist feature you selected
 3. Required privacy consent and optional marketing opt-in
-4. A Cloudflare Turnstile token used only to confirm the submission is human;
-   the token is verified server-side and is not stored after that check
+4. A Cloudflare Turnstile token used only to confirm the submission is human.
+   Cloudflare also processes the visitor IP address, TLS fingerprint, User-Agent,
+   site key, and origin. The token is verified server-side and is not stored after
+   that check. See Cloudflare's
+   [Turnstile Privacy Addendum](https://www.cloudflare.com/turnstile-privacy-policy/).
 5. Source site and page (`https://plattform-kit.poc.singletonsd.com` and the form path)
 
 Consent is recorded as version `platform-kit-privacy-v1`. Submissions are posted
@@ -89,7 +92,7 @@ We use providers that may process data to operate the Service:
 
 | Service | Purpose | Data shared |
 | --- | --- | --- |
-| Cloudflare Turnstile | Bot protection on public contact/waitlist forms | Turnstile token (not stored after verification) |
+| Cloudflare Turnstile | Bot protection on public contact/waitlist forms | Turnstile token plus visitor IP, TLS fingerprint, User-Agent, site key, and origin ([Turnstile Privacy Addendum](https://www.cloudflare.com/turnstile-privacy-policy/)); token is not stored after verification |
 | Twenty CRM | Lead storage and follow-up | Name, email, company, phone, message, consent, product/feature |
 | Microsoft Entra ID | Authentication | Identity claims, session data |
 | Neon PostgreSQL | Application data storage | Service records |

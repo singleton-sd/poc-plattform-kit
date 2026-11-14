@@ -6,6 +6,7 @@ import {
   NETWORK_MESSAGE,
   RATE_LIMIT_MESSAGE,
   RETRY_MESSAGE,
+  SERVICE_UNAVAILABLE_MESSAGE,
   TURNSTILE_FAILED_MESSAGE,
   UNAVAILABLE_MESSAGE,
   VALIDATION_MESSAGE,
@@ -15,6 +16,7 @@ import {
   readRetryAfterSeconds,
   retryAfterMessage,
   submitLead,
+  unavailableRetryAfterMessage,
 } from './submit-lead.mjs';
 
 const payload = buildLeadPayload({
@@ -97,13 +99,22 @@ test('429 honours Retry-After delta-seconds', () => {
   const headers = { get: (name) => (String(name).toLowerCase() === 'retry-after' ? '12' : null) };
   const result = mapLeadResponse(429, { error: 'rate_limited' }, headers);
   assert.equal(result.kind, 'retry');
-  assert.equal(result.message, 'Too many attempts. Try again in 12 seconds.');
+  assert.equal(result.message, 'Too many requests. Try again in 12 seconds.');
   assert.equal(readRetryAfterSeconds(headers), 12);
   assert.equal(retryAfterMessage(null), RATE_LIMIT_MESSAGE);
 });
 
-test('5xx uses a generic retry message', () => {
-  for (const status of [500, 503]) {
+test('503 honours Retry-After with unavailable copy', () => {
+  const headers = { get: (name) => (String(name).toLowerCase() === 'retry-after' ? '8' : null) };
+  const result = mapLeadResponse(503, { error: 'upstream' }, headers);
+  assert.equal(result.kind, 'retry');
+  assert.equal(result.message, 'Temporarily unavailable, try again in 8 seconds.');
+  assert.equal(unavailableRetryAfterMessage(null), SERVICE_UNAVAILABLE_MESSAGE);
+  assert.equal(result.resetTurnstile, true);
+});
+
+test('5xx other than 503 uses a generic retry message', () => {
+  for (const status of [500, 502, 504]) {
     const result = mapLeadResponse(status, { error: 'upstream' });
     assert.equal(result.kind, 'retry');
     assert.equal(result.message, RETRY_MESSAGE);
@@ -164,7 +175,16 @@ test('submitLead maps 429 Retry-After from response headers', async () => {
     fetchImpl: async () => jsonResponse(429, { error: 'rate_limited' }, { 'retry-after': '5' }),
   });
   assert.equal(result.kind, 'retry');
-  assert.equal(result.message, 'Too many attempts. Try again in 5 seconds.');
+  assert.equal(result.message, 'Too many requests. Try again in 5 seconds.');
+  assert.equal(result.resetTurnstile, true);
+});
+
+test('submitLead maps 503 Retry-After from response headers', async () => {
+  const result = await submitLead(payload, {
+    fetchImpl: async () => jsonResponse(503, { error: 'upstream' }, { 'retry-after': '9' }),
+  });
+  assert.equal(result.kind, 'retry');
+  assert.equal(result.message, 'Temporarily unavailable, try again in 9 seconds.');
   assert.equal(result.resetTurnstile, true);
 });
 

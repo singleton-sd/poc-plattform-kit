@@ -23,7 +23,8 @@ export const TOKEN_EXPIRED_MESSAGE = 'The security check expired. Complete it ag
 export const TOKEN_ERROR_MESSAGE = 'The security check failed. Please try again.';
 export const TURNSTILE_FAILED_MESSAGE =
   'The security check could not be verified. Complete it again and retry.';
-export const RATE_LIMIT_MESSAGE = 'Too many attempts. Please wait and try again.';
+export const RATE_LIMIT_MESSAGE = 'Too many requests. Please wait and try again.';
+export const SERVICE_UNAVAILABLE_MESSAGE = 'Temporarily unavailable. Please try again later.';
 export const BODY_TOO_LARGE_MESSAGE = 'Your message is too long. Shorten it and try again.';
 export const LEAD_SUBMIT_TIMEOUT_MS = 15_000;
 
@@ -42,16 +43,33 @@ export function readRetryAfterSeconds(headers) {
 }
 
 /**
+ * @param {number} seconds
+ * @returns {string}
+ */
+function formatWait(seconds) {
+  if (seconds < 60) {
+    return `${seconds} second${seconds === 1 ? '' : 's'}`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
+/**
  * @param {number | null} seconds
  * @returns {string}
  */
 export function retryAfterMessage(seconds) {
   if (seconds == null || seconds <= 0) return RATE_LIMIT_MESSAGE;
-  if (seconds < 60) {
-    return `Too many attempts. Try again in ${seconds} second${seconds === 1 ? '' : 's'}.`;
-  }
-  const minutes = Math.ceil(seconds / 60);
-  return `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+  return `Too many requests. Try again in ${formatWait(seconds)}.`;
+}
+
+/**
+ * @param {number | null} seconds
+ * @returns {string}
+ */
+export function unavailableRetryAfterMessage(seconds) {
+  if (seconds == null || seconds <= 0) return SERVICE_UNAVAILABLE_MESSAGE;
+  return `Temporarily unavailable, try again in ${formatWait(seconds)}.`;
 }
 
 /**
@@ -92,7 +110,8 @@ export function readErrorCode(value) {
 /**
  * Map job-kit / APISIX status codes to brochure UX.
  * 400 → field paths; 404 function_disabled → unavailable;
- * 403 turnstile_failed → specific copy; 429 honours Retry-After; 5xx → retry.
+ * 403 turnstile_failed → specific copy; 429/503 honour Retry-After with
+ * distinct copy; other 5xx → retry.
  * @param {number} status
  * @param {unknown} body
  * @param {Pick<Headers, 'get'> | null} [headers]
@@ -139,6 +158,15 @@ export function mapLeadResponse(status, body, headers) {
       ok: false,
       kind: 'retry',
       message: retryAfterMessage(readRetryAfterSeconds(headers)),
+      resetTurnstile: true,
+    };
+  }
+
+  if (status === 503) {
+    return {
+      ok: false,
+      kind: 'retry',
+      message: unavailableRetryAfterMessage(readRetryAfterSeconds(headers)),
       resetTurnstile: true,
     };
   }

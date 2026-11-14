@@ -161,6 +161,17 @@ export function serverFieldsToErrors(fields) {
 }
 
 /**
+ * Request-level errors stay visible until the next submit. The validation
+ * summary may hide once field errors are gone.
+ * @param {boolean} requestErrorActive
+ * @param {number} fieldErrorCount
+ * @returns {boolean}
+ */
+export function shouldHideValidationSummary(requestErrorActive, fieldErrorCount) {
+  return !requestErrorActive && fieldErrorCount === 0;
+}
+
+/**
  * @param {HTMLElement} el
  * @param {number} max
  */
@@ -206,6 +217,7 @@ export function bindLeadForm(options) {
   let turnstileToken = '';
   let turnstileWidgetId = null;
   let pending = false;
+  let requestErrorActive = false;
 
   const fieldIds = [`${prefix}-name`, `${prefix}-email`, `${prefix}-consent`];
   if (formType === 'contact') {
@@ -214,14 +226,29 @@ export function bindLeadForm(options) {
     fieldIds.push(`${prefix}-feature`, `${prefix}-company`);
   }
 
-  function showFormError(message) {
+  function showFormError(message, { request = false } = {}) {
+    requestErrorActive = request;
     if (formErrorText) formErrorText.textContent = message;
     formError?.classList.remove('hidden');
   }
 
   function hideFormError() {
+    requestErrorActive = false;
     formError?.classList.add('hidden');
     if (formErrorText) formErrorText.textContent = VALIDATION_MESSAGE;
+  }
+
+  /**
+   * Hide the validation summary when fields are clean. Request-level errors
+   * (404/403/429/5xx/timeout) stay visible until the next submit.
+   */
+  function syncValidationFormError() {
+    if (requestErrorActive || !attemptedSubmit) return;
+    const fieldErrorCount = Object.keys({ ...currentErrors(), ...serverFieldErrors }).length;
+    formError?.classList.toggle(
+      'hidden',
+      shouldHideValidationSummary(requestErrorActive, fieldErrorCount),
+    );
   }
 
   function syncSubmitEnabled() {
@@ -311,12 +338,7 @@ export function bindLeadForm(options) {
         }
         paintErrors();
         syncSubmitEnabled();
-        if (attemptedSubmit) {
-          formError?.classList.toggle(
-            'hidden',
-            Object.keys({ ...currentErrors(), ...serverFieldErrors }).length === 0,
-          );
-        }
+        syncValidationFormError();
       },
       'expired-callback': () => {
         turnstileToken = '';
@@ -361,7 +383,7 @@ export function bindLeadForm(options) {
     const blocking = Object.keys(currentErrors()).length > 0;
     formError?.classList.toggle('hidden', !blocking);
     if (blocking) {
-      showFormError(VALIDATION_MESSAGE);
+      showFormError(VALIDATION_MESSAGE, { request: false });
       return;
     }
     if (pending) return;
@@ -396,9 +418,9 @@ export function bindLeadForm(options) {
         ...serverFieldsToErrors(result.fields ?? []),
       };
       paintErrors();
-      showFormError(result.message || VALIDATION_MESSAGE);
+      showFormError(result.message || VALIDATION_MESSAGE, { request: false });
     } else {
-      showFormError(result.message || RETRY_MESSAGE);
+      showFormError(result.message || RETRY_MESSAGE, { request: true });
     }
     if (result.resetTurnstile) resetTurnstile();
     setPending(false);
@@ -416,12 +438,7 @@ export function bindLeadForm(options) {
         serverFieldErrors = next;
       }
       paintErrors();
-      if (attemptedSubmit) {
-        formError?.classList.toggle(
-          'hidden',
-          Object.keys({ ...currentErrors(), ...serverFieldErrors }).length === 0,
-        );
-      }
+      syncValidationFormError();
     };
     field.addEventListener('blur', () => {
       touched.add(id);

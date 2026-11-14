@@ -165,6 +165,41 @@ test.describe('lead forms with JavaScript', () => {
       'Lead intake is temporarily unavailable. Please try again later.',
     );
   });
+
+  test('404 request error stays visible after Turnstile reset and field edit', async ({ page }) => {
+    await mockLeads(page, async (route) => {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'function_disabled',
+          message: 'function lead-intake is disabled',
+        }),
+      });
+    });
+
+    await page.goto('/contact');
+    await page.getByLabel('First & Last Name').fill('Ada Lovelace');
+    await page.getByLabel('Email Address').fill('ada@example.com');
+    await page.getByLabel('Subject').selectOption('general');
+    await page.getByLabel('Message').fill('Please get in touch about a demo.');
+    await page.getByLabel(/I agree to the processing/).check();
+    await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Send message' }).click();
+
+    const formError = page.locator('#contact-form-error');
+    await expect(formError).toContainText(
+      'Lead intake is temporarily unavailable. Please try again later.',
+    );
+    await expect(formError).not.toHaveClass(/hidden/);
+    await expect(page.locator('#contact-success')).toBeHidden();
+
+    await page.getByLabel('Message').fill('Please get in touch about a demo. Updated.');
+    await expect(formError).toContainText(
+      'Lead intake is temporarily unavailable. Please try again later.',
+    );
+    await expect(formError).not.toHaveClass(/hidden/);
+  });
 });
 
 test.describe('lead forms without JavaScript', () => {

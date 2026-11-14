@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { foldSubjectIntoMessage, serverFieldsToErrors } from './bind-lead-form.mjs';
+import {
+  foldSubjectIntoMessage,
+  serverFieldsToErrors,
+  shouldHideValidationSummary,
+} from './bind-lead-form.mjs';
 import { LEAD_MESSAGE_MAX } from './lead-config.mjs';
 
 test('server field paths map onto brochure copy', () => {
@@ -19,4 +23,11 @@ test('subject prefix plus a max-length message exceeds the schema cap', () => {
     'm'.repeat(LEAD_MESSAGE_MAX - '[Sales / demo request]\n\n'.length),
   );
   assert.equal(reserved.length, LEAD_MESSAGE_MAX);
+});
+
+test('request errors stay visible after Turnstile reset or field revalidate', () => {
+  assert.equal(shouldHideValidationSummary(true, 0), false);
+  assert.equal(shouldHideValidationSummary(true, 2), false);
+  assert.equal(shouldHideValidationSummary(false, 0), true);
+  assert.equal(shouldHideValidationSummary(false, 1), false);
 });
