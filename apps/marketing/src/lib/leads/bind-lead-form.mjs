@@ -2,6 +2,8 @@ import { buildLeadPayload, validateLeadValues } from './build-lead-payload.mjs';
 import { LEAD_MESSAGE_MAX, createSubmissionId } from './lead-config.mjs';
 import {
   RETRY_MESSAGE,
+  TOKEN_ERROR_MESSAGE,
+  TOKEN_EXPIRED_MESSAGE,
   TOKEN_REQUIRED_MESSAGE,
   VALIDATION_MESSAGE,
   submitLead,
@@ -222,13 +224,17 @@ export function bindLeadForm(options) {
     if (formErrorText) formErrorText.textContent = VALIDATION_MESSAGE;
   }
 
+  function syncSubmitEnabled() {
+    if (!(submitButton instanceof HTMLButtonElement)) return;
+    const ready = Boolean(turnstileToken) && !pending;
+    submitButton.disabled = !ready;
+    submitButton.setAttribute('aria-busy', pending ? 'true' : 'false');
+    submitButton.textContent = pending ? 'Sending…' : idleLabel;
+  }
+
   function setPending(next) {
     pending = next;
-    if (submitButton instanceof HTMLButtonElement) {
-      submitButton.disabled = next;
-      submitButton.setAttribute('aria-busy', next ? 'true' : 'false');
-      submitButton.textContent = next ? 'Sending…' : idleLabel;
-    }
+    syncSubmitEnabled();
   }
 
   function currentErrors() {
@@ -304,6 +310,7 @@ export function bindLeadForm(options) {
           serverFieldErrors = next;
         }
         paintErrors();
+        syncSubmitEnabled();
         if (attemptedSubmit) {
           formError?.classList.toggle(
             'hidden',
@@ -313,15 +320,22 @@ export function bindLeadForm(options) {
       },
       'expired-callback': () => {
         turnstileToken = '';
+        setFieldError(`${prefix}-turnstile`, TOKEN_EXPIRED_MESSAGE);
+        syncSubmitEnabled();
       },
       'error-callback': () => {
         turnstileToken = '';
+        setFieldError(`${prefix}-turnstile`, TOKEN_ERROR_MESSAGE);
+        syncSubmitEnabled();
       },
     });
   }
 
   function loadTurnstile() {
-    if (!siteKey) return;
+    if (!siteKey) {
+      setFieldError(`${prefix}-turnstile`, TOKEN_REQUIRED_MESSAGE);
+      return;
+    }
     if (globalThis.turnstile) {
       renderTurnstile();
       return;
@@ -429,6 +443,7 @@ export function bindLeadForm(options) {
     successPanel?.classList.add('hidden');
     formPanel?.classList.remove('hidden');
     resetTurnstile();
+    syncSubmitEnabled();
   });
 
   loadTurnstile();

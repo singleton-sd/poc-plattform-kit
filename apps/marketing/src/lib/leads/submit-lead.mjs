@@ -19,8 +19,40 @@ export const RETRY_MESSAGE = 'Something went wrong. Please try again.';
 export const NETWORK_MESSAGE =
   'We could not reach the server. Check your connection and try again.';
 export const TOKEN_REQUIRED_MESSAGE = 'Complete the security check.';
+export const TOKEN_EXPIRED_MESSAGE = 'The security check expired. Complete it again.';
+export const TOKEN_ERROR_MESSAGE = 'The security check failed. Please try again.';
+export const TURNSTILE_FAILED_MESSAGE =
+  'The security check could not be verified. Complete it again and retry.';
+export const RATE_LIMIT_MESSAGE = 'Too many attempts. Please wait and try again.';
 export const BODY_TOO_LARGE_MESSAGE = 'Your message is too long. Shorten it and try again.';
 export const LEAD_SUBMIT_TIMEOUT_MS = 15_000;
+
+/**
+ * @param {Pick<Headers, 'get'> | null | undefined} headers
+ * @returns {number | null}
+ */
+export function readRetryAfterSeconds(headers) {
+  const raw = headers?.get?.('Retry-After') ?? headers?.get?.('retry-after');
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const delta = Number(raw);
+  if (Number.isFinite(delta) && delta >= 0) return Math.ceil(delta);
+  const date = Date.parse(raw);
+  if (Number.isNaN(date)) return null;
+  return Math.max(0, Math.ceil((date - Date.now()) / 1000));
+}
+
+/**
+ * @param {number | null} seconds
+ * @returns {string}
+ */
+export function retryAfterMessage(seconds) {
+  if (seconds == null || seconds <= 0) return RATE_LIMIT_MESSAGE;
+  if (seconds < 60) {
+    return `Too many attempts. Try again in ${seconds} second${seconds === 1 ? '' : 's'}.`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
 
 /**
  * @param {unknown} value
@@ -59,12 +91,14 @@ export function readErrorCode(value) {
 
 /**
  * Map job-kit / APISIX status codes to brochure UX.
- * 400 → field paths; 404 function_disabled → unavailable; 403/429/5xx → retry.
+ * 400 → field paths; 404 function_disabled → unavailable;
+ * 403 turnstile_failed → specific copy; 429 honours Retry-After; 5xx → retry.
  * @param {number} status
  * @param {unknown} body
+ * @param {Pick<Headers, 'get'> | null} [headers]
  * @returns {LeadSubmitResult}
  */
-export function mapLeadResponse(status, body) {
+export function mapLeadResponse(status, body, headers) {
   const code = readErrorCode(body);
   const fields = readFieldPaths(body);
 
@@ -91,7 +125,25 @@ export function mapLeadResponse(status, body) {
     };
   }
 
-  if (status === 403 || status === 429 || status >= 500) {
+  if (code === 'turnstile_failed') {
+    return {
+      ok: false,
+      kind: 'retry',
+      message: TURNSTILE_FAILED_MESSAGE,
+      resetTurnstile: true,
+    };
+  }
+
+  if (status === 429) {
+    return {
+      ok: false,
+      kind: 'retry',
+      message: retryAfterMessage(readRetryAfterSeconds(headers)),
+      resetTurnstile: true,
+    };
+  }
+
+  if (status === 403 || status >= 500) {
     return {
       ok: false,
       kind: 'retry',
@@ -171,7 +223,7 @@ export async function submitLead(payload, options = {}) {
     } catch {
       parsed = null;
     }
-    return mapLeadResponse(response.status, parsed);
+    return mapLeadResponse(response.status, parsed, response.headers);
   })();
   fetchPromise.catch(() => undefined);
 

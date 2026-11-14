@@ -4,12 +4,16 @@ import { buildLeadPayload } from './build-lead-payload.mjs';
 import { LEAD_INTAKE_URL } from './lead-config.mjs';
 import {
   NETWORK_MESSAGE,
+  RATE_LIMIT_MESSAGE,
   RETRY_MESSAGE,
+  TURNSTILE_FAILED_MESSAGE,
   UNAVAILABLE_MESSAGE,
   VALIDATION_MESSAGE,
   mapLeadResponse,
   readErrorCode,
   readFieldPaths,
+  readRetryAfterSeconds,
+  retryAfterMessage,
   submitLead,
 } from './submit-lead.mjs';
 
@@ -26,10 +30,17 @@ const payload = buildLeadPayload({
   },
 });
 
-function jsonResponse(status, body) {
+function jsonResponse(status, body, headerMap = {}) {
   return {
     status,
-    headers: { get: () => 'application/json' },
+    headers: {
+      get: (name) => {
+        const key = String(name).toLowerCase();
+        if (Object.hasOwn(headerMap, key)) return headerMap[key];
+        if (key === 'content-type') return 'application/json';
+        return null;
+      },
+    },
     json: async () => body,
   };
 }
@@ -70,9 +81,30 @@ test('404 function_disabled is temporarily unavailable', () => {
   assert.equal(result.message, UNAVAILABLE_MESSAGE);
 });
 
-test('403, 429, and 5xx use a generic retry message', () => {
-  for (const status of [403, 429, 500, 503]) {
-    const result = mapLeadResponse(status, { error: 'turnstile_failed' });
+test('403 turnstile_failed uses a specific message', () => {
+  const result = mapLeadResponse(403, { error: 'turnstile_failed' });
+  assert.equal(result.kind, 'retry');
+  assert.equal(result.message, TURNSTILE_FAILED_MESSAGE);
+  assert.equal(result.resetTurnstile, true);
+});
+
+test('403 without turnstile_failed stays generic retry', () => {
+  const result = mapLeadResponse(403, { error: 'forbidden' });
+  assert.equal(result.message, RETRY_MESSAGE);
+});
+
+test('429 honours Retry-After delta-seconds', () => {
+  const headers = { get: (name) => (String(name).toLowerCase() === 'retry-after' ? '12' : null) };
+  const result = mapLeadResponse(429, { error: 'rate_limited' }, headers);
+  assert.equal(result.kind, 'retry');
+  assert.equal(result.message, 'Too many attempts. Try again in 12 seconds.');
+  assert.equal(readRetryAfterSeconds(headers), 12);
+  assert.equal(retryAfterMessage(null), RATE_LIMIT_MESSAGE);
+});
+
+test('5xx uses a generic retry message', () => {
+  for (const status of [500, 503]) {
+    const result = mapLeadResponse(status, { error: 'upstream' });
     assert.equal(result.kind, 'retry');
     assert.equal(result.message, RETRY_MESSAGE);
     assert.equal(result.resetTurnstile, true);
@@ -125,6 +157,15 @@ test('submitLead maps a mocked 404 function_disabled body', async () => {
   });
   assert.equal(result.kind, 'unavailable');
   assert.equal(result.message, UNAVAILABLE_MESSAGE);
+});
+
+test('submitLead maps 429 Retry-After from response headers', async () => {
+  const result = await submitLead(payload, {
+    fetchImpl: async () => jsonResponse(429, { error: 'rate_limited' }, { 'retry-after': '5' }),
+  });
+  assert.equal(result.kind, 'retry');
+  assert.equal(result.message, 'Too many attempts. Try again in 5 seconds.');
+  assert.equal(result.resetTurnstile, true);
 });
 
 test('submitLead times out as retry', async () => {
