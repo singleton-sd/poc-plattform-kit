@@ -50,7 +50,7 @@ Server / Auth.js: `AUTH_SECRET`, `AUTH_URL`, `AUTH_COOKIE_DOMAIN`, `KEYCLOAK_ISS
 
 Web (build-time, inlined): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_KEYCLOAK_ISSUER`, `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID`, optional `NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE` (defaults to the SPA client id). Nest accepts `KEYCLOAK_API_AUDIENCE` (fallback: `KEYCLOAK_CLIENT_ID`) as JWT `aud`.
 
-Production issuer: `https://auth.singletonsd.com/realms/singletonsd`. Client IDs are created by Singleton Auth — never hardcode them.
+Production issuer: `https://auth.singletonsd.com/realms/<product>` (one realm per product; ADR-004). Clients are `<realm>-web` and `<realm>-api`, created by Singleton Auth — never hardcode them.
 
 KV secret names (human): `auth-secret`, `keycloak-client-secret`.
 

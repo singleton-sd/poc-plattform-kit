@@ -46,8 +46,11 @@ pnpm dev:web
 pnpm dev:marketing
 ```
 
-Auth is Keycloak OIDC (see [docs/sso.md](./docs/sso.md)). Unit tests use a mock
-JWT and do not need a live IdP. Optional local realm:
+Auth is Keycloak OIDC — one realm per product
+(`https://auth.singletonsd.com/realms/<product>`), with `<realm>-web` (public SPA)
+and `<realm>-api` (confidential Auth.js / Swagger) clients. See
+[docs/sso.md](./docs/sso.md). Unit tests use a mock JWT and do not need a live
+IdP. Optional local realm:
 
 ```bash
 docker compose -f infra/keycloak/docker-compose.yml up

@@ -23,18 +23,14 @@ describe('mapAuthJsUserToAuthenticatedUser', () => {
     });
   });
 
-  it('maps preferred_username when email is absent', () => {
+  it('does not treat preferred_username as an email', () => {
     expect(
       mapAuthJsUserToAuthenticatedUser({
         sub: 'kc-sub-1',
         preferred_username: 'agent@example.com',
         realm_access: { roles: ['tenant-admin'] },
       }),
-    ).toMatchObject({
-      keycloakSub: 'kc-sub-1',
-      email: 'agent@example.com',
-      roles: ['tenant-admin'],
-    });
+    ).toBeNull();
   });
 
   it('returns null for incomplete profiles', () => {

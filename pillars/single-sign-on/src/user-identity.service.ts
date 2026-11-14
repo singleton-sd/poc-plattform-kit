@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '@poc-plattform-kit/db';
 import type { AuthenticatedUser } from './map-keycloak-claims';
 
@@ -25,11 +25,11 @@ export class UserIdentityService {
    *
    * 1. Match on `keycloakSub`.
    * 2. Else, when email is verified, backfill `keycloakSub` onto the existing
-   *    unique email row (Entra leftover).
+   *    unique email row (Entra leftover; case-insensitive).
    * 3. Else create a new user (`entraOid` stays null).
    */
   async persist(identity: AuthenticatedUser): Promise<AuthenticatedUser> {
-    const email = identity.email.trim();
+    const email = identity.email.trim().toLowerCase();
     if (!email) {
       throw new UnauthorizedException('Keycloak identity is missing an email address');
     }
@@ -45,7 +45,7 @@ export class UserIdentityService {
     }
 
     if (identity.emailVerified) {
-      const byEmail = await this.prisma.user.findUnique({ where: { email } });
+      const byEmail = await this.findUserByEmail(email);
       if (byEmail) {
         if (byEmail.keycloakSub && byEmail.keycloakSub !== identity.keycloakSub) {
           throw new UnauthorizedException('Email already linked to another Keycloak subject');
@@ -55,6 +55,7 @@ export class UserIdentityService {
           data: {
             keycloakSub: identity.keycloakSub,
             name: identity.name,
+            email,
           },
         });
         if (linked.count === 0) {
@@ -92,6 +93,9 @@ export class UserIdentityService {
         if (raced) {
           return this.refresh(identity, raced, email);
         }
+        if (isEmailUniqueConstraint(error)) {
+          throw new ConflictException('Email already linked to another Keycloak subject');
+        }
       }
       throw error;
     }
@@ -111,6 +115,21 @@ export class UserIdentityService {
     });
   }
 
+  private async findUserByEmail(email: string): Promise<UserRow | null> {
+    try {
+      return await this.prisma.user.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (!/insensitive|sqlite|mode/i.test(message)) {
+        throw error;
+      }
+      // SQLite preview has no `mode: 'insensitive'`; migration lowercases rows.
+      return this.prisma.user.findUnique({ where: { email } });
+    }
+  }
+
   private async refresh(
     identity: AuthenticatedUser,
     row: UserRow,
@@ -118,7 +137,7 @@ export class UserIdentityService {
   ): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.update({
       where: { id: row.id },
-      data: { email, name: identity.name },
+      data: identity.emailVerified ? { email, name: identity.name } : { name: identity.name },
     });
     return this.toAuthenticated(identity, user);
   }
@@ -142,4 +161,18 @@ function isUniqueConstraintError(error: unknown): boolean {
     'code' in error &&
     (error as { code: unknown }).code === 'P2002'
   );
+}
+
+function isEmailUniqueConstraint(error: unknown): boolean {
+  if (!isUniqueConstraintError(error)) {
+    return false;
+  }
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  if (Array.isArray(target)) {
+    return target.map(String).some((field) => field.toLowerCase().includes('email'));
+  }
+  if (typeof target === 'string') {
+    return target.toLowerCase().includes('email');
+  }
+  return false;
 }

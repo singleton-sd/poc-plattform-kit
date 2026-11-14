@@ -59,7 +59,9 @@ export function resolveSwaggerOAuth2RedirectUrl(env: EnvBag = process.env): stri
   return envTrim(env, 'SWAGGER_OAUTH2_REDIRECT_URL');
 }
 
-const fallbackIssuer = 'https://auth.singletonsd.com/realms/singletonsd';
+/** Offline OpenAPI placeholder — one Keycloak realm per product (ADR-004), never `singletonsd`. */
+const productRealmAuthorizePlaceholder =
+  'https://auth.singletonsd.com/realms/<product>/protocol/openid-connect/auth';
 
 /** Shared DocumentBuilder config for runtime Swagger UI and offline OpenAPI export. */
 export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
@@ -74,10 +76,13 @@ export function buildOpenApiDocumentConfig(env: EnvBag = process.env) {
   // (CI has no KEYCLOAK_*). Runtime initOAuth still prefills clientId when set.
   // tokenUrl is our Nest proxy (not Keycloak) so Swagger can exchange codes
   // without browser CORS / exposing client_secret.
-  const issuer = resolveKeycloakIssuer(env) ?? fallbackIssuer;
+  const issuer = resolveKeycloakIssuer(env);
+  const authorizationUrl = issuer
+    ? keycloakAuthorizationUrl(issuer)
+    : productRealmAuthorizePlaceholder;
   const tokenUrl = resolveSwaggerTokenProxyUrl(env) ?? '/docs/oauth2/token';
   const oauthUrls = {
-    authorizationUrl: keycloakAuthorizationUrl(issuer),
+    authorizationUrl,
     tokenUrl,
   };
   const apiScope = resolveSwaggerApiScope(env);

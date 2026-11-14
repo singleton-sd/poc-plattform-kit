@@ -6,15 +6,17 @@ jest.mock('@auth/express/providers/keycloak', () => ({
   })),
 }));
 
-import { generateKeyPair, SignJWT } from 'jose';
+import { generateKeyPair, exportSPKI, SignJWT } from 'jose';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 import { buildAuthConfig } from './auth.config';
+import { buildKeycloakJwtStrategyOptions } from './keycloak-jwt.strategy';
 import { mapAuthJsUserToAuthenticatedUser } from './map-authjs-user';
-import { verifyKeycloakAccessTokenWithKey } from './verify-keycloak-jwt';
 
 /**
  * Login smoke: Auth.js Keycloak provider is wired, a mock RS256 token with
- * the test-realm issuer/audience is accepted, and the session profile maps
- * to a platform user. Does not call production Keycloak.
+ * the test-realm issuer/audience is accepted by the passport-jwt options the
+ * Nest strategy uses, and the session profile maps to a platform user.
+ * Does not call production Keycloak.
  */
 describe('Keycloak login smoke', () => {
   const env = { ...process.env };
@@ -36,7 +38,17 @@ describe('Keycloak login smoke', () => {
   });
 
   it('maps a verified mock-OIDC profile after JWT validation', async () => {
+    const options = buildKeycloakJwtStrategyOptions({
+      KEYCLOAK_ISSUER: issuer,
+      KEYCLOAK_API_AUDIENCE: audience,
+    });
+    expect(options).toMatchObject({ issuer, audience, algorithms: ['RS256'] });
+    if (!options) {
+      throw new Error('expected Keycloak JWT strategy options');
+    }
+
     const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const publicKeyPem = await exportSPKI(publicKey);
     const token = await new SignJWT({
       email: 'testuser@example.test',
       email_verified: true,
@@ -50,10 +62,31 @@ describe('Keycloak login smoke', () => {
       .setExpirationTime('5m')
       .sign(privateKey);
 
-    const payload = await verifyKeycloakAccessTokenWithKey(token, publicKey, {
-      issuer,
-      audience,
+    const payload = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const strategy = new Strategy(
+        {
+          jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+          audience: options.audience,
+          issuer: options.issuer,
+          algorithms: [...options.algorithms],
+          secretOrKey: publicKeyPem,
+        },
+        (verified, done) => done(null, verified),
+      );
+      Object.assign(strategy, {
+        success(user: Record<string, unknown>) {
+          resolve(user);
+        },
+        fail(challenge?: unknown) {
+          reject(challenge instanceof Error ? challenge : new Error(String(challenge)));
+        },
+        error(err: Error) {
+          reject(err);
+        },
+      });
+      strategy.authenticate({ headers: { authorization: `Bearer ${token}` } } as never);
     });
+
     const user = mapAuthJsUserToAuthenticatedUser(payload);
 
     expect(user).toMatchObject({

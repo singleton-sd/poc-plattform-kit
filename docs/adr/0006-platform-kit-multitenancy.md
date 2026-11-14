@@ -23,15 +23,17 @@ This repository already has a Postgres/Prisma tenant model (`Tenant`,
 `TenantInvitation` with create/list/revoke, per-tenant role revisions,
 outbox and audit tables). Its gap was identity: `User` was keyed on
 `entraOid` and login was Entra + Auth.js, while the org now runs Keycloak
-(`https://auth.singletonsd.com/realms/singletonsd`) and OpenFGA.
+(`https://auth.singletonsd.com/realms/<product>`, one realm per product)
+and OpenFGA.
 
 ## Decision
 
 Platform Kit is the multi-tenant base. A new app gets tenancy by importing
 the kit:
 
-1. **Authentication (A):** Keycloak (realm `singletonsd`, one OIDC client
-   per app, owned by Singleton Auth). `User` is keyed by Keycloak `sub`;
+1. **Authentication (A):** Keycloak (one realm per product, clients
+   `<realm>-web` and `<realm>-api`, owned by Singleton Auth). `User` is
+   keyed by Keycloak `sub`;
    email is unique. Google and Microsoft sign-in via Keycloak IdPs; Apple
    sign-in is added as a Keycloak IdP when Singleton Auth rolls it out and
    is not an MVP blocker. Existing users: add `keycloakSub`, backfill it

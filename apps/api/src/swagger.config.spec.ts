@@ -88,14 +88,14 @@ describe('swagger.config', () => {
       });
     });
 
-    it('falls back to the org issuer for offline export without KEYCLOAK_*', () => {
+    it('uses a per-product realm placeholder when KEYCLOAK_ISSUER is unset', () => {
       const doc = buildOpenApiDocumentConfig({});
       expect(doc.components?.securitySchemes?.oauth2).toMatchObject({
         type: 'oauth2',
         flows: {
           authorizationCode: {
             authorizationUrl:
-              'https://auth.singletonsd.com/realms/singletonsd/protocol/openid-connect/auth',
+              'https://auth.singletonsd.com/realms/<product>/protocol/openid-connect/auth',
             tokenUrl: '/docs/oauth2/token',
           },
         },

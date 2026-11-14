@@ -123,9 +123,9 @@ export function mapKeycloakClaims(claims: KeycloakClaims, localUserId?: string):
     throw new Error('Keycloak token missing sub');
   }
 
-  const email = claims.email ?? claims.preferred_username;
+  const email = claims.email;
   if (!isNonEmptyString(email)) {
-    throw new Error('Keycloak token missing email/preferred_username');
+    throw new Error('Keycloak token missing email');
   }
 
   const tenantId =

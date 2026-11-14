@@ -82,11 +82,12 @@ describe('mapKeycloakClaims', () => {
     ).toBe('tenant-xyz');
   });
 
-  it('falls back to preferred_username and given/family name', () => {
+  it('uses given/family name and requires a real email claim', () => {
     expect(
       mapKeycloakClaims({
         sub: 'kc-sub-1',
-        preferred_username: 'user@example.com',
+        email: 'user@example.com',
+        preferred_username: 'ada',
         given_name: 'Ada',
         family_name: 'Lovelace',
         email_verified: 'true',
@@ -109,7 +110,10 @@ describe('mapKeycloakClaims', () => {
   });
 
   it('rejects tokens without email claims', () => {
-    expect(() => mapKeycloakClaims({ sub: 'kc-sub-1' })).toThrow(/email\/preferred_username/);
+    expect(() => mapKeycloakClaims({ sub: 'kc-sub-1' })).toThrow(/missing email/);
+    expect(() =>
+      mapKeycloakClaims({ sub: 'kc-sub-1', preferred_username: 'user@example.com' }),
+    ).toThrow(/missing email/);
   });
 });
 

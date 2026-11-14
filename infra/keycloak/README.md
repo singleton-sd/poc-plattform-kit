@@ -1,7 +1,9 @@
 # Local Keycloak (test realm)
 
-Dockerised Keycloak for Platform Kit login smoke tests. It is **not** production
-Singleton Auth (`https://auth.singletonsd.com/realms/singletonsd`).
+Dockerised Keycloak for Platform Kit login smoke tests. Production is one
+realm per product (`https://auth.singletonsd.com/realms/<product>`), with
+`<realm>-web` (public) and `<realm>-api` (confidential) clients — never a
+shared `singletonsd` realm (ADR-004).
 
 ```bash
 docker compose -f infra/keycloak/docker-compose.yml up
