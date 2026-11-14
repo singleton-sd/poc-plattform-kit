@@ -2,6 +2,32 @@
   "product": "@poc-plattform-kit/marketing",
   "releases": [
     {
+      "version": "0.10.0",
+      "date": "2026-11-14",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Wire marketing forms to lead intake",
+          "reason": "Replace PostKit contact with browser POSTs to the shared"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Keep request errors visible after Turnstile reset",
+          "reason": "Hide only the validation summary when fields are clean. Disclose Turnstile"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Stop no-JS GET leak on lead forms",
+          "reason": "Post to the brochure page instead of a GET, keep submit disabled until"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address CodeRabbit lead-form findings",
+          "reason": "Fail production Pages builds without a Turnstile site key, pin the"
+        }
+      ]
+    },
+    {
       "version": "0.9.1",
       "date": "2026-11-11",
       "changes": [

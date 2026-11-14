@@ -2,6 +2,28 @@
 
 Release history for **@poc-plattform-kit/marketing**, generated from conventional commits by the release-it workflow.
 
+## 0.10.0 — 2026-11-14
+
+### New
+
+- Wire marketing forms to lead intake
+
+  Replace PostKit contact with browser POSTs to the shared
+
+### Fixed
+
+- Keep request errors visible after Turnstile reset
+
+  Hide only the validation summary when fields are clean. Disclose Turnstile
+
+- Stop no-JS GET leak on lead forms
+
+  Post to the brochure page instead of a GET, keep submit disabled until
+
+- Address CodeRabbit lead-form findings
+
+  Fail production Pages builds without a Turnstile site key, pin the
+
 ## 0.9.1 — 2026-11-11
 
 ### Fixed
