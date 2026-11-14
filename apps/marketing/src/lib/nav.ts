@@ -9,6 +9,7 @@ export const primaryNav: NavLink[] = [
   { label: 'Pricing', href: '/pricing' },
   { label: 'About', href: '/about' },
   { label: 'Contact', href: '/contact' },
+  { label: 'Waitlist', href: '/waitlist' },
 ];
 
 export const footerColumns: { title: string; links: NavLink[] }[] = [
@@ -25,6 +26,7 @@ export const footerColumns: { title: string; links: NavLink[] }[] = [
     links: [
       { label: 'About', href: '/about' },
       { label: 'Contact', href: '/contact' },
+      { label: 'Waitlist', href: '/waitlist' },
     ],
   },
   {

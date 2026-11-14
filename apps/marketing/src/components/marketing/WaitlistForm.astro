@@ -1,0 +1,144 @@
+---
+import {
+  LEAD_COMPANY_MAX,
+  LEAD_EMAIL_MAX,
+  LEAD_INTAKE_URL,
+  LEAD_NAME_MAX,
+  WAITLIST_FEATURES,
+} from '../../lib/leads/lead-config.mjs';
+import { withBase } from '../../lib/with-base.mjs';
+import TextInput from '../ui/TextInput.astro';
+import Select from '../ui/Select.astro';
+import Checkbox from '../ui/Checkbox.astro';
+import Button from '../ui/Button.astro';
+import Alert from '../ui/Alert.astro';
+import PageContainer from '../shell/PageContainer.astro';
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+const privacyHref = withBase('/privacy');
+const contactHref = withBase('/contact');
+const turnstileSiteKey = (import.meta.env.PUBLIC_TURNSTILE_SITE_KEY as string | undefined) ?? '';
+const intakeUrl =
+  (import.meta.env.PUBLIC_LEAD_INTAKE_URL as string | undefined)?.replace(/\/$/, '') ||
+  LEAD_INTAKE_URL;
+---
+
+<section class:list={['pb-20 pt-4 md:pb-[7.5rem] md:pt-10', className]}>
+  <PageContainer>
+    <div class="mx-auto max-w-xl">
+      <div id="waitlist-form-panel">
+        <form
+          id="waitlist-form"
+          class="flex flex-col gap-8"
+          novalidate
+          data-lead-form="waitlist"
+          data-turnstile-site-key={turnstileSiteKey}
+          data-intake-url={intakeUrl}
+        >
+          <div id="waitlist-form-error" class="hidden" role="alert">
+            <Alert variant="error">
+              <span id="waitlist-form-error-text"
+                >Please fix the highlighted fields and try again.</span
+              >
+            </Alert>
+          </div>
+
+          <div class="flex flex-col gap-6">
+            <TextInput
+              id="waitlist-name"
+              name="name"
+              label="First & Last Name"
+              placeholder="e.g. John Doe"
+              autocomplete="name"
+              required
+              maxLength={LEAD_NAME_MAX}
+            />
+            <TextInput
+              id="waitlist-email"
+              name="email"
+              type="email"
+              label="Email Address"
+              placeholder="you@company.com"
+              autocomplete="email"
+              required
+              maxLength={LEAD_EMAIL_MAX}
+            />
+            <TextInput
+              id="waitlist-company"
+              name="company"
+              label="Company"
+              placeholder="Optional"
+              autocomplete="organization"
+              maxLength={LEAD_COMPANY_MAX}
+            />
+            <Select
+              id="waitlist-feature"
+              name="feature"
+              label="What are you waiting for?"
+              placeholder="Select an option"
+              options={WAITLIST_FEATURES}
+              required
+            />
+            <div class="lead-honeypot" aria-hidden="true">
+              <label for="waitlist-website">Website</label>
+              <input
+                id="waitlist-website"
+                name="website"
+                type="text"
+                tabindex="-1"
+                autocomplete="off"
+              />
+            </div>
+            <div class="flex flex-col gap-3">
+              <Checkbox id="waitlist-consent" name="consent" required>
+                I agree to the processing of my details as described in the{' '}
+                <a href={privacyHref} class="font-semibold text-accent underline-offset-2 hover:underline"
+                  >privacy policy</a
+                >.
+              </Checkbox>
+              <Checkbox id="waitlist-marketing" name="marketingOptIn">
+                Email me when Platform Kit has an update. Leave this unchecked to join silently.
+              </Checkbox>
+            </div>
+            <div id="waitlist-turnstile" class="min-h-16" data-lead-field></div>
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <Button type="submit" size="lg" class="w-full sm:w-[12.5rem]"> Join waitlist </Button>
+            <p class="m-0 text-caption text-fg-muted">
+              Have a question now?{' '}
+              <a href={contactHref} class="font-semibold text-accent hover:underline">Contact us</a>.
+            </p>
+          </div>
+        </form>
+      </div>
+
+      <div id="waitlist-success" class="hidden space-y-4" role="status">
+        <Alert variant="success">
+          You’re on the list. We’ll email you when this Platform Kit feature is ready.
+        </Alert>
+        <div id="waitlist-reset">
+          <Button type="button" variant="outline" size="lg"> Submit another address </Button>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</section>
+
+<script>
+  import { bindLeadForm } from '../../lib/leads/bind-lead-form.mjs';
+
+  const form = document.getElementById('waitlist-form');
+  if (form instanceof HTMLFormElement) {
+    bindLeadForm({
+      form,
+      formType: 'waitlist',
+      siteKey: form.dataset.turnstileSiteKey ?? '',
+      intakeUrl: form.dataset.intakeUrl,
+    });
+  }
+</script>

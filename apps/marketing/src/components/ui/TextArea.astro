@@ -8,6 +8,7 @@ interface Props {
   error?: string;
   rows?: number;
   required?: boolean;
+  maxLength?: number;
   class?: string;
 }
 
@@ -20,13 +21,17 @@ const {
   error,
   rows = 5,
   required = false,
+  maxLength,
   class: className = '',
 } = Astro.props;
 
-const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
+const countId = maxLength ? `${id}-count` : undefined;
+const describedBy = [error ? `${id}-error` : null, helper ? `${id}-helper` : null, countId]
+  .filter(Boolean)
+  .join(' ') || undefined;
 ---
 
-<div class:list={['flex w-full flex-col gap-2', className]}>
+<div class:list={['flex w-full flex-col gap-2', className]} data-lead-field>
   <label for={id} class="text-body-sm font-semibold text-fg">
     {label}
     {
@@ -44,14 +49,15 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
     rows={rows}
     placeholder={placeholder}
     required={required}
+    aria-required={required || undefined}
+    maxlength={maxLength}
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={describedBy}
     class:list={[
       'w-full rounded-md border bg-bg px-3 py-3 text-body-sm text-fg outline-none transition placeholder:text-fg-subtle',
       'focus:border-2 focus:border-accent',
       error ? 'border-status-error' : 'border-border',
-    ]}
-  ><slot /></textarea>
+    ]}></textarea>
   {
     error ? (
       <p id={`${id}-error`} class="m-0 text-caption text-status-error">
@@ -60,6 +66,13 @@ const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined;
     ) : helper ? (
       <p id={`${id}-helper`} class="m-0 text-caption text-fg-muted">
         {helper}
+      </p>
+    ) : null
+  }
+  {
+    maxLength ? (
+      <p id={countId} class="m-0 text-caption text-fg-muted">
+        0/{maxLength}
       </p>
     ) : null
   }
