@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   buildCheckPlan,
   changedFilesForPushRef,
@@ -9,6 +12,8 @@ import {
   resolveDiffRange,
   runPlannedChecks,
 } from './pre-push-checks.mjs';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('parsePrePushLine parses git pre-push stdin rows', () => {
   assert.deepEqual(parsePrePushLine('refs/heads/feat/foo abc123 refs/heads/feat/foo def456'), {
@@ -110,6 +115,42 @@ test('plannedCommands includes packages workspace in api test and build', () => 
   const buildCmd = commands.find(([, label]) => label === 'Build (api + pillars + packages)');
   assert.match(testCmd[0], /packages\/\*\*/);
   assert.match(buildCmd[0], /packages\/\*\*/);
+});
+
+test('plannedCommands builds db package once before api tests and builds', () => {
+  const commands = plannedCommands({
+    api: true,
+    web: false,
+    paths: ['apps/api/src/main.ts'],
+  });
+  const labels = commands.map(([, label]) => label);
+  const dbIdx = labels.indexOf('Build db package');
+  const testIdx = labels.indexOf('Test (api + pillars + packages)');
+  const buildIdx = labels.indexOf('Build (api + pillars + packages)');
+  assert.equal(commands.filter(([, label]) => label === 'Build db package').length, 1);
+  assert.ok(dbIdx >= 0 && dbIdx < testIdx && testIdx < buildIdx);
+  assert.equal(commands[dbIdx][0], 'pnpm --filter @poc-plattform-kit/db run build');
+});
+
+test('db-dependent pillars do not re-invoke the db package build', () => {
+  const files = [
+    'pillars/tenant/package.json',
+    'pillars/permissions/package.json',
+    'pillars/single-sign-on/package.json',
+  ];
+  for (const file of files) {
+    const pkg = JSON.parse(readFileSync(join(repoRoot, file), 'utf8'));
+    for (const script of ['prebuild', 'pretest', 'build', 'test']) {
+      const value = pkg.scripts?.[script];
+      if (typeof value === 'string') {
+        assert.doesNotMatch(
+          value,
+          /pnpm --filter @poc-plattform-kit\/db(?: run)? build/,
+          `${file} scripts.${script} must not rebuild @poc-plattform-kit/db`,
+        );
+      }
+    }
+  }
 });
 
 test('runPlannedChecks dry-run lists selected steps only', () => {

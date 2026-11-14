@@ -104,6 +104,12 @@ jobs:
           pnpm --filter "./pillars/**" run lint
           pnpm exec eslint .
 
+      # Build @poc-plattform-kit/db once before dependents. Concurrent
+      # `prisma generate` from pillar prebuild/pretest races on
+      # node_modules/.prisma/client (TS1002 Unterminated string literal).
+      - name: Build db package
+        run: pnpm --filter @poc-plattform-kit/db run build
+
       - name: Test (api + pillars + packages)
         run: |
           pnpm --filter @poc-plattform-kit/api... run test
