@@ -1,17 +1,14 @@
-# Path-aware tag-only releases on merge to main.
-# Computes the next per-package semver in memory from the latest
-# `@scope/name@version` git tag plus conventional commits since then,
-# pushes ONLY those tags, and publishes a GitHub Release per tag.
+# Path-aware independent releases. Bumps each workspace package that has
+# releasable conventional commits since its last @scope/name@version tag,
+# commits version bumps + CHANGELOG.md as "chore: Release package versions
+# [skip ci]", tags, and pushes to main. The singleton-release GitHub App
+# (vars.RELEASE_APP_ID + secrets.RELEASE_APP_PRIVATE_KEY) authenticates the
+# push and is on the main branch ruleset bypass list. Production deploys
+# trigger only for packages this run actually tagged.
 #
-# Never commits or pushes to the default branch (no version-bump or
-# CHANGELOG commits). Uses GITHUB_TOKEN only — no PAT, no ruleset bypass.
-# Branch rulesets target `refs/heads/main` / ~DEFAULT_BRANCH and do not
-# apply to tags; do not add a tag ruleset that requires a pull request.
-#
-# GITHUB_TOKEN tag pushes do not trigger other workflows, so this job
-# dispatches deploy-api / deploy-web / pages via workflow_dispatch only
-# for packages it actually tagged, passing release_tag AND release_sha.
-# Tagless runs never enter those deploy concurrency groups.
+# Loop skip is by commit message, not actor: the App's non-release commits
+# (if any) still run this workflow; only `[skip ci]` / `chore: Release`
+# skip it.
 name: Release
 
 on:
@@ -25,131 +22,159 @@ concurrency:
 
 jobs:
   release:
-    if: >-
+    if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' &&
-       github.actor != 'github-actions[bot]' &&
-       !contains(github.event.head_commit.message, '[skip ci]') &&
-       !startsWith(github.event.head_commit.message, 'chore: Release'))
+      (
+        github.event_name == 'push' &&
+        github.ref == 'refs/heads/main' &&
+        !contains(github.event.head_commit.message, '[skip ci]') &&
+        !startsWith(github.event.head_commit.message, 'chore: Release')
+      )
     runs-on: ubuntu-latest
-    name: Tag changed packages
+    timeout-minutes: 20
     permissions:
       contents: write
       actions: write
+    env:
+      # Placeholders so `pnpm openapi:export` (Prisma generate) can run after an API bump.
+      DATABASE_URL: 'postgresql://ci:ci@127.0.0.1:5432/ci?schema=public'
+      DATABASE_URL_UNPOOLED: 'postgresql://ci:ci@127.0.0.1:5432/ci?schema=public'
     steps:
-      - uses: actions/checkout@v4
+      - name: Require singleton-release App credentials
+        env:
+          RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          missing=0
+          if [ -z "${RELEASE_APP_ID}" ]; then
+            echo '::error::Repository variable RELEASE_APP_ID is missing. Set it to the singleton-release GitHub App id. Do not fall back to GITHUB_TOKEN.'
+            missing=1
+          fi
+          if [ -z "${RELEASE_APP_PRIVATE_KEY}" ]; then
+            echo '::error::Repository secret RELEASE_APP_PRIVATE_KEY is missing. Set it to the singleton-release GitHub App private key. Do not fall back to GITHUB_TOKEN.'
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo 'Release cannot push to main without the singleton-release App. See SETUP.md.'
+            exit 1
+          fi
+
+      - name: Create singleton-release App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: singleton-sd
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           persist-credentials: true
+          token: ${{ steps.app-token.outputs.token }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 9.15.0
+          version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 24
+          node-version: '24'
           cache: pnpm
 
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Configure git identity for annotated tags
+      - name: Configure git identity
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          slug="${APP_SLUG:-singleton-release}"
+          git config user.name "${slug}[bot]"
+          git config user.email "${slug}[bot]@users.noreply.github.com"
 
       - name: Release changed packages
         id: release
         env:
           HUSKY: '0'
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Tag push only (does not start other workflows). Never used for HEAD:main.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          tmp=$(mktemp)
-          set +e
-          pnpm release:ci 2>&1 | tee "$tmp"
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -ne 0 ]; then
-            exit "$status"
-          fi
-          sha=$(grep '^RELEASE_SHA=' "$tmp" | tail -1 | cut -d= -f2- || true)
-          echo "release_sha=$sha" >> "$GITHUB_OUTPUT"
-          if grep -q 'Nothing to release' "$tmp"; then
-            echo "released=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if grep -q 'Release tags pushed' "$tmp"; then
+          output=$(pnpm release:ci)
+          echo "$output"
+          sha=$(echo "$output" | sed -n 's/^RELEASE_SHA=//p' | tail -n1)
+          tags=$(echo "$output" | sed -n 's/^RELEASE_TAGS=//p' | tail -n1)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+          if echo "$output" | grep -q 'Release commit and tags pushed.'; then
             echo "released=true" >> "$GITHUB_OUTPUT"
-            tags=$(grep '^RELEASE_TAGS=' "$tmp" | tail -1 | cut -d= -f2-)
-            if [ -z "$tags" ]; then
-              echo "::error::Release succeeded but RELEASE_TAGS line was missing from release:ci output."
-              exit 1
-            fi
-            echo "release_tags=$tags" >> "$GITHUB_OUTPUT"
-            exit 0
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "::error::Unexpected release:ci output (no tag push and not empty)."
-          exit 1
 
       - name: Reconcile GitHub Releases
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAGS: ${{ steps.release.outputs.release_tags }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RELEASE_TAGS: ${{ steps.release.outputs.tags }}
         run: |
           set -euo pipefail
-          mapfile -t tags < <(node scripts/release-changed.mjs --reconcile-tags)
-          if [ "${#tags[@]}" -eq 0 ]; then
-            echo "No package tags to reconcile."
-            exit 0
-          fi
-          for tag in "${tags[@]}"; do
-            tag="${tag#"${tag%%[![:space:]]*}"}"
-            tag="${tag%"${tag##*[![:space:]]}"}"
+          notes_file=$(mktemp)
+          trap 'rm -f "$notes_file"' EXIT
+          while IFS= read -r tag; do
             [ -n "$tag" ] || continue
-            echo "Reconciling GitHub Release for $tag"
             if gh release view "$tag" >/dev/null 2>&1; then
-              echo "Release $tag already exists — skipping."
+              echo "GitHub Release already exists for ${tag}; skipping."
               continue
             fi
-            gh release create "$tag" \
-              --verify-tag \
-              --generate-notes \
-              --title "$tag"
-          done
+            echo "Creating GitHub Release for ${tag}"
+            gh release create "$tag" --generate-notes --notes-file /dev/null \
+              --verify-tag >"$notes_file" 2>&1 || {
+              cat "$notes_file"
+              if grep -qiE 'already exists|name already exists' "$notes_file"; then
+                echo "GitHub Release raced into existence for ${tag}; treating as success."
+                continue
+              fi
+              echo "Failed to create GitHub Release for ${tag}"
+              exit 1
+            }
+          done < <(node scripts/release-changed.mjs --reconcile-tags)
 
       - name: Dispatch production deploys
         if: steps.release.outputs.released == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAGS: ${{ steps.release.outputs.release_tags }}
-          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RELEASE_TAGS: ${{ steps.release.outputs.tags }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
         run: |
           set -euo pipefail
-          if [ -z "${RELEASE_SHA:-}" ]; then
-            echo "::error::RELEASE_SHA missing; cannot dispatch deploys."
+          sha="${RELEASE_SHA}"
+          if [ -z "$sha" ]; then
+            echo '::error::RELEASE_SHA is empty after a successful release. Refusing to dispatch deploys.'
             exit 1
           fi
-          IFS=',' read -r -a tags <<< "$RELEASE_TAGS"
-          dispatched=0
-          for tag in "${tags[@]}"; do
-            tag="${tag#"${tag%%[![:space:]]*}"}"
-            tag="${tag%"${tag##*[![:space:]]}"}"
-            [ -n "$tag" ] || continue
-            workflow=""
-            case "$tag" in
-              @poc-plattform-kit/api@*) workflow=deploy-api.yml ;;
-              @poc-plattform-kit/web@*) workflow=deploy-web.yml ;;
-              @poc-plattform-kit/marketing@*) workflow=pages.yml ;;
-              *)
-                echo "No production deploy workflow for $tag — GitHub Release only."
-                continue
-                ;;
-            esac
-            echo "Dispatching $workflow for $tag at $RELEASE_SHA"
-            gh workflow run "$workflow" --ref main \
-              -f "release_tag=$tag" \
-              -f "release_sha=$RELEASE_SHA"
-            dispatched=$((dispatched + 1))
-          done
-          echo "Dispatched $dispatched production deploy workflow(s)."
+          IFS=',' read -r -a tags <<< "${RELEASE_TAGS}"
+          dispatch_if_tagged() {
+            local needle="$1"
+            local workflow="$2"
+            local tag=""
+            for candidate in "${tags[@]}"; do
+              [ -n "$candidate" ] || continue
+              case "$candidate" in
+                "${needle}"@*) tag="$candidate"; break ;;
+              esac
+            done
+            if [ -z "$tag" ]; then
+              echo "No ${needle} tag this run; skipping ${workflow}."
+              return 0
+            fi
+            echo "Dispatching ${workflow} for ${tag} at ${sha}"
+            gh workflow run "$workflow" \
+              --ref main \
+              -f release_tag="$tag" \
+              -f release_sha="$sha"
+          }
+          dispatch_if_tagged '@poc-plattform-kit/api' deploy-api.yml
+          dispatch_if_tagged '@poc-plattform-kit/web' deploy-web.yml
+          dispatch_if_tagged '@poc-plattform-kit/marketing' pages.yml

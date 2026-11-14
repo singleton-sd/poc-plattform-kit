@@ -20,33 +20,55 @@ This is a solo GitHub identity repo. GitHub forbids self-approve, so do not requ
 4. Block force pushes and deletions; disallow direct pushes to `main`.
 5. **Human merge only** - agents never merge or review other agents' work. Connected review bots leave PR comments; the human validates the test plan and merges.
 
-**Tag-only releases (no default-branch push, no ruleset bypass):**
+**Committed releases via the `singleton-release` GitHub App (ruleset bypass):**
 
-Org policy (14 Nov 2026): every singleton-sd repo releases by pushing **git tags
-only**. `release.yml` must never commit or push to `main` (no version-bump or
-CHANGELOG commits) and must not use a PAT or admin token to bypass the
-default-branch ruleset.
+Protected default branches block `GITHUB_TOKEN` pushes on Free orgs (GitHub
+Actions integration bypass is unavailable). `release.yml` bumps per-package
+`package.json` versions, updates `CHANGELOG.md`, commits
+`chore: Release package versions [skip ci]`, tags, and pushes that commit to
+`main`. Authentication is a **dedicated GitHub App** (`singleton-release`)
+whose installation is on the default-branch ruleset **bypass list**. It
+replaces the `github-automation-pat` machine-user bypass. After this
+workflow is on `main`, remove the PAT owner from the bypass list. The PAT
+secret may remain in org devtools Key Vault `ssd-devtools-kv-prod-ae` for
+other repos until they migrate; this repo’s OIDC principal no longer needs
+Key Vault Secrets User on that vault for release.
 
 | Artifact | Name | Scope |
 | --- | --- | --- |
-| Workflow | `release.yml` | On merge to `main`, compute next `@poc-plattform-kit/<pkg>@<semver>` from the latest per-package tag + conventional commits, push **tags only**, reconcile GitHub Releases, dispatch deploys only for tagged packages |
-| Token | `GITHUB_TOKEN` | `contents: write` (tags + GitHub Releases) and `actions: write` (dispatch deploys for tagged packages only) |
-| Deploy version | git tag | `deploy-api.yml` / `deploy-web.yml` set `APP_VERSION` / `NEXT_PUBLIC_APP_VERSION` from the tag at build time |
+| Workflow | `release.yml` | On merge to `main`, bump changed packages, commit + tag, push `HEAD:main`, reconcile GitHub Releases, dispatch deploys only for tagged packages |
+| GitHub App | `singleton-release` | Installed on `singleton-sd`; **Contents** read/write (commits, tags, Releases), **Actions** read/write (`workflow_dispatch`), **Metadata** read |
+| Variable | `RELEASE_APP_ID` | Numeric GitHub App id (repository or org Variable) |
+| Secret | `RELEASE_APP_PRIVATE_KEY` | App private key (PEM). Exception to “no secrets in GitHub Secrets”; never a PAT; never loaded from Key Vault |
+| Loop skip | commit message | Skip `[skip ci]` / `chore: Release` only — **not** by `github.actor` |
+| Deploy version | git tag + bumped `package.json` | `deploy-api.yml` / `deploy-web.yml` set `APP_VERSION` / `NEXT_PUBLIC_APP_VERSION` from the tag and check out that commit |
 
-This repository **no longer uses `github-automation-pat`**. After this workflow
-is on `main`, remove the automation user from the default-branch ruleset bypass
-list. The secret may remain in org devtools Key Vault `ssd-devtools-kv-prod-ae`
-for other repos until they migrate; this repo’s OIDC principal no longer needs
-Key Vault Secrets User on that vault for release.
+Missing `RELEASE_APP_ID` or `RELEASE_APP_PRIVATE_KEY` fails the job with a
+clear error. The workflow **never** falls back to `GITHUB_TOKEN` for the
+push to `main`. Tag pushes may use `GITHUB_TOKEN` so they do not start
+other workflows; production deploys are `workflow_dispatch`ed for tagged
+packages only.
+
+**One-time App + ruleset setup:**
+
+1. Create org GitHub App `singleton-release` (owner `singleton-sd`) with
+   Contents R/W, Actions R/W, Metadata R. Install it on this repository.
+2. Set repository Variable `RELEASE_APP_ID` and Secret
+   `RELEASE_APP_PRIVATE_KEY`.
+3. **Settings → Rules → Rulesets** → default-branch ruleset → **Bypass
+   list → Add bypass** → select the **GitHub App** `singleton-release` →
+   **Always bypass**.
+4. After merge, remove the `github-automation-pat` machine user from the
+   same bypass list.
 
 **Tags vs branch rulesets:** existing rulesets target `branch` /
-`~DEFAULT_BRANCH` / `refs/heads/main` and do **not** apply to tags, so
-`GITHUB_TOKEN` can `git push origin <tag>`. Do **not** apply branch rulesets to tags,
-and do not add a tag ruleset that requires a pull request. If you add a
-tag ruleset, allow GitHub Actions to create tags (`contents: write`) and only
-block force-updates or deletions.
+`~DEFAULT_BRANCH` / `refs/heads/main`. Do **not** apply branch rulesets to
+tags, and do not add a tag ruleset that requires a pull request. If you add a
+tag ruleset, allow GitHub Actions to create tags and only block force-updates
+or deletions.
 
-Live release notes: GitHub Releases. Root `CHANGELOG.md` is historical.
+Live release notes: GitHub Releases plus root `CHANGELOG.md` (CI prepends
+each bump).
 
 ### Branch naming (agents + optional GitHub rules)
 
@@ -212,7 +234,7 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 
 **Key Vault secret names (not values):** `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `swa-marketing-deployment-token` may remain until the marketing SWA is deleted (manual).
 
-**Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): this repo’s release workflow no longer reads `github-automation-pat`. See **Tag-only releases** above.
+**Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): this repo’s release workflow no longer reads `github-automation-pat`. See **Committed releases via the `singleton-release` GitHub App** above.
 
 **Entra / Auth.js (App Config -> Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` -> `AUTH_SECRET`, `secret:azure-ad-client-secret` -> `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
 
@@ -225,8 +247,13 @@ Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in 
 | `AZURE_CLIENT_ID` | OIDC app registration application (client) ID |
 | `AZURE_TENANT_ID` | Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID (app resources; OIDC login default) |
+| `RELEASE_APP_ID` | `singleton-release` GitHub App id (release.yml; fail if missing) |
 
-App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Contributor** on RG (ACA API production + API/web preview deploy), **Key Vault Secrets User** on `ssd-pocpk-kv-dev-ae` (app runtime + `acr-admin-*`), **App Configuration Data Reader**. Release no longer needs Key Vault Secrets User on `ssd-devtools-kv-prod-ae`. Production ACA Bicep (`infra/container-apps-api-prod.bicep`) also creates MI role assignments on Key Vault + App Configuration — grant the OIDC SP **Role Based Access Control Administrator** (or **User Access Administrator**) scoped to those two resources (Contributor alone cannot `Microsoft.Authorization/roleAssignments/write`), or create those assignments once with a bootstrap Owner identity. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
+**GitHub Actions secret (release only):** `RELEASE_APP_PRIVATE_KEY` — PEM for
+the `singleton-release` App. Do not store PATs, SWA tokens, or connection
+strings as GitHub Secrets.
+
+App registration: `ssd-pocpk-gha-oidc-dev` with federated credentials. Prefer **ID-form** subjects (`repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` / `:ref:refs/heads/main`); classic `repo:org/repo:...` subjects may remain for compatibility. **FIC subject must match JWT `sub` exactly.** Roles: **Contributor** on RG (ACA API production + API/web preview deploy), **Key Vault Secrets User** on `ssd-pocpk-kv-dev-ae` (app runtime + `acr-admin-*`), **App Configuration Data Reader**. Release uses the `singleton-release` App (not Key Vault Secrets User on `ssd-devtools-kv-prod-ae`). Production ACA Bicep (`infra/container-apps-api-prod.bicep`) also creates MI role assignments on Key Vault + App Configuration — grant the OIDC SP **Role Based Access Control Administrator** (or **User Access Administrator**) scoped to those two resources (Contributor alone cannot `Microsoft.Authorization/roleAssignments/write`), or create those assignments once with a bootstrap Owner identity. ACR push uses OIDC -> KV `acr-admin-*` (not AcrPush / not GitHub Secrets).
 
 **Do not** store `AZURE_STATIC_WEB_APPS_API_TOKEN`, `AZURE_CREDENTIALS`, connection strings, passwords, or deploy tokens in GitHub Secrets.
 

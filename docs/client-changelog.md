@@ -13,10 +13,9 @@ editing a release section by hand.
 | App | `apps/web/CHANGELOG.md` | `apps/web/src/content/changelog.json` | `/changelog` |
 | Marketing | `apps/marketing/CHANGELOG.md` | `apps/marketing/src/data/changelog.json` | `/changelog` |
 
-Live notes for new versions are **GitHub Releases**. The root `CHANGELOG.md` is a
-historical workspace-level version-bump index from before tag-only releases
-(14 Nov 2026) and is no longer updated by CI. It still links to the three
-detailed product histories but is not their source.
+Live notes for new versions are **GitHub Releases**. Root `CHANGELOG.md` is
+the workspace-level version-bump index (CI prepends each release). It links
+to the three detailed product histories but is not their source.
 
 ## Write a client-facing commit
 

@@ -20,7 +20,7 @@ Nest Swagger is the **contract of record**. Consumers generate typed clients fro
 
 After API contract changes: update Swagger → `pnpm openapi:export && pnpm openapi:generate` → commit both the spec and generated sources.
 
-**API version:** Nest Swagger `info.version` prefers `APP_VERSION` (set from the `@poc-plattform-kit/api@*` git tag in production deploy) and falls back to `apps/api/package.json`. Tag-only releases do not bump committed `package.json` or regenerate OpenAPI, so `pnpm openapi:check` stays green on `main`. The committed spec version is a contract snapshot, not the live release tag.
+**API version:** Nest Swagger `info.version` prefers `APP_VERSION` (set from the `@poc-plattform-kit/api@*` git tag in production deploy) and falls back to `apps/api/package.json`. When Release bumps the API package it also runs `pnpm openapi:export && pnpm openapi:generate` so `pnpm openapi:check` stays green on `main`.
 
 ## Other platforms (e.g. Android)
 

@@ -43,7 +43,7 @@ test('versionFromTag parses @scope/name@version tags only', () => {
   assert.equal(versionFromTag('@poc-plattform-kit/api', null), null);
 });
 
-test('resolveNextVersion uses the git tag, not a stale package.json', () => {
+test('resolveNextVersion uses the max of package.json and last git tag', () => {
   const exists = () => false;
   const fromTag = resolveNextVersion(
     '@poc-plattform-kit/api',
@@ -56,6 +56,19 @@ test('resolveNextVersion uses the git tag, not a stale package.json', () => {
     base: '0.25.0',
     next: '0.26.0',
     tag: '@poc-plattform-kit/api@0.26.0',
+  });
+
+  const fromPackage = resolveNextVersion(
+    '@poc-plattform-kit/api',
+    '@poc-plattform-kit/api@0.25.0',
+    'minor',
+    '0.26.0',
+    exists,
+  );
+  assert.deepEqual(fromPackage, {
+    base: '0.26.0',
+    next: '0.27.0',
+    tag: '@poc-plattform-kit/api@0.27.0',
   });
 
   const untagged = resolveNextVersion('@poc-plattform-kit/config', null, 'patch', '0.0.0', exists);
@@ -115,45 +128,54 @@ test('collectTagsToReconcile unions extras, HEAD tags, and latest tags', () => {
   ]);
 });
 
-test('release-changed.mjs is tag-only (no commit or push to main)', async () => {
+test('release-changed.mjs bumps, changelogs, commits, and pushes HEAD:main', async () => {
   const script = await readFile(scriptUrl, 'utf8');
+  assert.match(script, /RELEASE_SUBJECT = 'chore: Release package versions \[skip ci\]'/);
   assert.match(script, /RELEASE_TAGS=/);
   assert.match(script, /RELEASE_SHA=/);
-  assert.match(script, /Release tags pushed/);
-  assert.match(script, /push', 'origin', \.\.\.tags/);
-  assert.match(script, /create and push tags only/);
+  assert.match(script, /Release commit and tags pushed/);
+  assert.match(script, /HEAD:main/);
+  assert.match(script, /pushReleaseCommit/);
+  assert.match(script, /updateChangelog/);
+  assert.match(script, /bumpPackageVersion/);
   assert.match(script, /--reconcile-tags/);
-  assert.doesNotMatch(script, /HEAD:main/);
-  assert.doesNotMatch(script, /pushReleaseCommit/);
-  assert.doesNotMatch(script, /\[skip ci\]/);
-  assert.doesNotMatch(script, /chore\/release-package-versions/);
-  assert.doesNotMatch(script, /writeFileSync/);
-  assert.doesNotMatch(script, /updateChangelog/);
-  assert.doesNotMatch(script, /bumpPackageVersion/);
+  assert.match(script, /AUTHORIZATION: bearer \$\{tagToken\}/);
   assert.doesNotMatch(script, /github-automation-pat/);
+  assert.doesNotMatch(script, /chore\/release-package-versions/);
+  assert.doesNotMatch(script, /execSync/);
 });
 
-test('release.yml uses GITHUB_TOKEN, tags only, and no PAT / OIDC vault', async () => {
+test('release.yml authenticates with the singleton-release App, not a PAT', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
+  assert.match(
+    workflow,
+    /actions\/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510/,
+  );
+  assert.match(workflow, /app-id: \$\{\{ vars\.RELEASE_APP_ID \}\}/);
+  assert.match(workflow, /private-key: \$\{\{ secrets\.RELEASE_APP_PRIVATE_KEY \}\}/);
+  assert.match(workflow, /owner: singleton-sd/);
+  assert.match(workflow, /token: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
+  assert.match(workflow, /GH_TOKEN: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
+  assert.match(workflow, /Require singleton-release App credentials/);
+  assert.match(workflow, /Do not fall back to GITHUB_TOKEN/);
+  assert.match(workflow, /!contains\(github\.event\.head_commit\.message, '\[skip ci\]'\)/);
+  assert.match(workflow, /!startsWith\(github\.event\.head_commit\.message, 'chore: Release'\)/);
   assert.match(workflow, /Reconcile GitHub Releases/);
   assert.match(workflow, /gh release create/);
   assert.match(workflow, /--reconcile-tags/);
-  assert.match(workflow, /RELEASE_TAGS=/);
-  assert.match(workflow, /Release tags pushed/);
-  assert.match(workflow, /contents: write/);
-  assert.match(workflow, /actions: write/);
-  assert.match(workflow, /secrets\.GITHUB_TOKEN/);
-  assert.match(workflow, /github-actions\[bot\]/);
+  assert.match(workflow, /Release commit and tags pushed/);
   assert.match(workflow, /Dispatch production deploys/);
   assert.match(workflow, /gh workflow run "\$workflow"/);
   assert.match(workflow, /release_tag=/);
   assert.match(workflow, /release_sha=/);
+  assert.match(workflow, /actions\/checkout@11bd71901bbe5b1630ceea73d27597364c9af683/);
+  assert.doesNotMatch(workflow, /github\.actor/);
+  assert.doesNotMatch(workflow, /github-actions\[bot\]/);
   assert.doesNotMatch(workflow, /github-automation-pat/);
   assert.doesNotMatch(workflow, /SSD_OPS_KEY_VAULT/);
   assert.doesNotMatch(workflow, /id-token: write/);
   assert.doesNotMatch(workflow, /azure\/login/);
   assert.doesNotMatch(workflow, /vault\.azure\.net/);
-  assert.doesNotMatch(workflow, /HEAD:main/);
   assert.doesNotMatch(workflow, /Merge release PR/);
   assert.doesNotMatch(workflow, /workflow_run:/);
 });
@@ -187,15 +209,19 @@ test('production deploys trigger on package tags or tagged dispatch, not every R
   assert.match(deployApi, /APP_VERSION/);
   assert.match(deployWeb, /NEXT_PUBLIC_APP_VERSION/);
   assert.match(pages, /@poc-plattform-kit\/marketing@/);
+  for (const workflow of [deployApi, deployWeb, pages]) {
+    assert.match(workflow, /actions\/checkout@11bd71901bbe5b1630ceea73d27597364c9af683/);
+  }
 });
 
-test('SETUP documents tag-only releases with GITHUB_TOKEN and no ruleset bypass', async () => {
+test('SETUP documents singleton-release App bypass and PAT removal after merge', async () => {
   const setup = await readFile(setupUrl, 'utf8');
-  assert.match(setup, /tag-only/i);
-  assert.match(setup, /GITHUB_TOKEN/);
-  assert.match(setup, /apply branch rulesets to tags/i);
-  assert.match(setup, /no longer uses `github-automation-pat`/i);
-  assert.doesNotMatch(setup, /PAT owner must be on each target repository ruleset bypass list/);
+  assert.match(setup, /singleton-release/);
+  assert.match(setup, /RELEASE_APP_ID/);
+  assert.match(setup, /RELEASE_APP_PRIVATE_KEY/);
+  assert.match(setup, /ruleset bypass/i);
+  assert.match(setup, /github-automation-pat/);
+  assert.doesNotMatch(setup, /tag-only/i);
   assert.doesNotMatch(setup, /copy release\.yml \(or the PAT-read steps\)/);
 });
 

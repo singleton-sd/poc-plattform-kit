@@ -82,13 +82,13 @@ Example: `ssd-pocpk-kv-dev-ae`, `ssd-pocpk-appcs-dev-ae`
 | `openfga-database-url` | Neon pooled URI for OpenFGA runtime (`OPENFGA_DATASTORE_URI`) |
 | `openfga-database-url-unpooled` | Neon direct URI for OpenFGA migrate (`OPENFGA_DATASTORE_URI_UNPOOLED`) |
 
-**Org devtools vault** (`ssd-devtools-kv-prod-ae`, not this app vault): org-wide CI/provision secrets. This repo’s tag-only `release.yml` uses `GITHUB_TOKEN` and does not read `github-automation-pat` (`SETUP.md`).
+**Org devtools vault** (`ssd-devtools-kv-prod-ae`, not this app vault): org-wide CI/provision secrets. This repo’s `release.yml` authenticates with the `singleton-release` GitHub App and does not read `github-automation-pat` (`SETUP.md`).
 
 Auth.js Option B (Free SWA): set App Config `app:auth:url` + `app:auth:cookieDomain` and wire `AUTH_*` / `AZURE_AD_*` on App Service (secrets from KV). Do **not** require SWA Standard linked backends for SSO cookies — see `docs/sso.md`.
 
 Vault URI: `https://ssd-pocpk-kv-dev-ae.vault.azure.net/`
 
-**Org devtools Key Vault (CI/provision — not app runtime):** `ssd-devtools-kv-prod-ae` in subscription **Singleton SD** (`01c0bb8b-3770-4765-979a-cb13ae7e3dd2`), RG `ssd-devtools-rg-prod-ae`. Shared across org repos. This repo’s release workflow no longer reads it (tag-only `GITHUB_TOKEN` tags). App managed identities do **not** get access. See `SETUP.md` → Tag-only releases.
+**Org devtools Key Vault (CI/provision — not app runtime):** `ssd-devtools-kv-prod-ae` in subscription **Singleton SD** (`01c0bb8b-3770-4765-979a-cb13ae7e3dd2`), RG `ssd-devtools-rg-prod-ae`. Shared across org repos. This repo’s release workflow no longer reads it (`singleton-release` GitHub App). App managed identities do **not** get access. See `SETUP.md` → Committed releases via the `singleton-release` GitHub App.
 
 ### App Configuration
 

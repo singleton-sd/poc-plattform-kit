@@ -1,8 +1,9 @@
 # NestJS → Azure Container Apps Consumption — production deploy on package tag
 # push, or workflow_dispatch with release_tag + release_sha (Release dispatches
-# only when it actually tagged this package). Version is derived from the
-# `@poc-plattform-kit/api@*` tag at build time (`APP_VERSION`) and is not
-# committed to main. Always checks out the tagged commit.
+# only when it actually tagged this package). Version comes from the
+# `@poc-plattform-kit/api@*` tag at build time (`APP_VERSION`); package.json
+# on the tagged commit is bumped in the same release. Always checks out the
+# tagged commit.
 #
 # Auth: OIDC Variables only (no publish profile / AZURE_CREDENTIALS in GitHub Secrets).
 # Image: apps/api/Dockerfile --target production → ACR pocpk-api:<sha> (+ :latest).
@@ -53,7 +54,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.inputs.release_tag || github.event.inputs.release_sha || github.sha }}
           fetch-depth: 0

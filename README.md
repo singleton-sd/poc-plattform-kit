@@ -53,29 +53,31 @@ See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md),
 
 ## Releases
 
-Releases are **tag-only**. Merging to `main` runs
+Merging to `main` runs
 [`.github/workflows/release.yml`](./.github/workflows/release.yml), which
-computes the next per-package semver from the latest
-`@poc-plattform-kit/<package>@<semver>` git tag plus conventional commits
-since then, pushes **only those tags**, and opens a GitHub Release per tag.
+bumps each changed workspace package, updates `CHANGELOG.md`, commits
+`chore: Release package versions [skip ci]`, tags, and pushes that commit
+to `main` as the **`singleton-release` GitHub App** (on the default-branch
+ruleset bypass list). It then opens a GitHub Release per tag.
 
 - Tag format stays `@poc-plattform-kit/api@0.25.0` (and the same pattern
   for every workspace package).
-- The workflow never commits or pushes to `main` (no version-bump or
-  CHANGELOG commits) and uses `GITHUB_TOKEN` only — no PAT and no
-  ruleset bypass. Branch rulesets apply to `main`, not to tags; do not
-  add a tag ruleset that requires a pull request.
+- The App authenticates with `vars.RELEASE_APP_ID` +
+  `secrets.RELEASE_APP_PRIVATE_KEY`. Missing credentials fail the job;
+  there is no `GITHUB_TOKEN` fallback for the push to `main`. The
+  `github-automation-pat` bypass can be removed after this lands.
+- Loop skip is by commit message (`[skip ci]` / `chore: Release`), not by
+  actor.
 - Production deploys are `workflow_dispatch`ed only for packages that
   run actually tagged, with `release_tag` and `release_sha`. Tagless
   Release runs do not start deploy-api / deploy-web / pages.
 - Build and publish jobs read the version from the git tag (`APP_VERSION`
   / `NEXT_PUBLIC_APP_VERSION`) and check out the tagged commit.
-  Committed `package.json` versions are not the release source of truth.
 - Live notes live in
-  [GitHub Releases](https://github.com/singleton-sd/poc-plattform-kit/releases).
-  Root `CHANGELOG.md` is historical.
+  [GitHub Releases](https://github.com/singleton-sd/poc-plattform-kit/releases)
+  and root `CHANGELOG.md`.
 
-Preview the in-memory version computation locally:
+Preview locally (no commit):
 
 ```bash
 git fetch origin --tags
