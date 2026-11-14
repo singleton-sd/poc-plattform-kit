@@ -104,6 +104,12 @@ jobs:
           pnpm --filter "./pillars/**" run lint
           pnpm exec eslint .
 
+      # Serial prerequisite for pillar-scoped test/build: db dist must exist
+      # before tenant/permissions pretest compiles SSO. Do not put this back
+      # in those pretest hooks — they run in parallel and race prisma generate.
+      - name: Build db package
+        run: pnpm --filter @poc-plattform-kit/db run build
+
       - name: Test (api + pillars + packages)
         run: |
           pnpm --filter @poc-plattform-kit/api... run test
