@@ -2,6 +2,17 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.25.1",
+      "date": "2026-11-14",
+      "changes": [
+        {
+          "type": "Fixed",
+          "summary": "Build db package once before dependents",
+          "reason": "Stop tenant and permissions prebuild/pretest from invoking"
+        }
+      ]
+    },
+    {
       "version": "0.25.0",
       "date": "2026-09-10",
       "changes": [

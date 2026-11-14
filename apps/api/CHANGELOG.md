@@ -2,6 +2,14 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.25.1 — 2026-11-14
+
+### Fixed
+
+- Build db package once before dependents
+
+  Stop tenant and permissions prebuild/pretest from invoking
+
 ## 0.25.0 — 2026-09-10
 
 ### New

@@ -2,6 +2,12 @@
 
 ## 2026-11-14
 
+- **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.25.0` → `0.25.1` (patch)
+- **@poc-plattform-kit/pillar-permissions** `0.6.0` → `0.6.1` (patch)
+- **@poc-plattform-kit/pillar-single-sign-on** `0.4.0` → `0.4.1` (patch)
+- **@poc-plattform-kit/pillar-tenant** `0.7.0` → `0.7.1` (patch)
+## 2026-11-14
+
 - **[@poc-plattform-kit/marketing](apps/marketing/CHANGELOG.md)** `0.9.1` → `0.10.0` (minor)
 ## 2026-11-11
 
