@@ -1,1 +1,0 @@
-import{b as e}from"./bind-lead-form.BuyTS70P.js";import"./hoisted.mWwhP2mC.js";const t=document.getElementById("waitlist-form");t instanceof HTMLFormElement&&e({form:t,formType:"waitlist",siteKey:t.dataset.turnstileSiteKey??"",intakeUrl:t.dataset.intakeUrl});
