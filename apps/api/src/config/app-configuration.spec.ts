@@ -39,6 +39,11 @@ describe('loadAppConfiguration', () => {
         setting('app:openfga:storeId', 'store-1'),
         setting('app:openfga:authorizationModelId', 'model-1'),
         setting('app:openfga:audience', 'api://ssd-pocpk-openfga'),
+        setting(
+          'app:openfga:apiToken',
+          JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/openfga-api-token' }),
+          'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
+        ),
         setting('app:azureAd:swaggerScope', 'entra-client-id/.default'),
         setting('app:notifications:emailSendingDomain', 'mail.example.test'),
         setting('app:notifications:emailDkimSelector', 'fe'),
@@ -74,6 +79,7 @@ describe('loadAppConfiguration', () => {
     const getSecret = jest.fn().mockImplementation(async (secretUri: string) => {
       if (secretUri.includes('auth-secret')) return { value: 'auth-js-secret' };
       if (secretUri.includes('azure-ad-client-secret')) return { value: 'entra-client-secret' };
+      if (secretUri.includes('openfga-api-token')) return { value: 'openfga-preshared-token' };
       return { value: 'sqlserver://secret' };
     });
 
@@ -92,6 +98,7 @@ describe('loadAppConfiguration', () => {
     expect(process.env.OPENFGA_STORE_ID).toBe('store-1');
     expect(process.env.OPENFGA_AUTHORIZATION_MODEL_ID).toBe('model-1');
     expect(process.env.OPENFGA_AUDIENCE).toBe('api://ssd-pocpk-openfga');
+    expect(process.env.OPENFGA_API_TOKEN).toBe('openfga-preshared-token');
     expect(process.env.AZURE_AD_SWAGGER_SCOPE).toBe('entra-client-id/.default');
     expect(process.env.EMAIL_SENDING_DOMAIN).toBe('mail.example.test');
     expect(process.env.EMAIL_DKIM_SELECTOR).toBe('fe');
@@ -101,7 +108,7 @@ describe('loadAppConfiguration', () => {
     expect(process.env.AZURE_AD_CLIENT_SECRET).toBe('entra-client-secret');
     expect(process.env.DATABASE_URL).toBe('sqlserver://secret');
     expect(process.env.AZURE_SERVICEBUS_CONNECTION_STRING).toBe('sqlserver://secret');
-    expect(getSecret).toHaveBeenCalledTimes(4);
+    expect(getSecret).toHaveBeenCalledTimes(5);
     expect(process.env.UNMAPPED_KEY).toBeUndefined();
   });
 

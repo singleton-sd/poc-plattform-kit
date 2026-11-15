@@ -1,11 +1,17 @@
 import { DefaultAzureCredential, type TokenCredential } from '@azure/identity';
-import { Injectable } from '@nestjs/common';
+import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { CheckPermissionDto } from './dto/check-permission.dto';
 import { CheckPermissionResponseDto } from './dto/check-permission-response.dto';
 import { GrantPermissionDto, PermissionGrantType } from './dto/grant-permission.dto';
 import { GrantPermissionResponseDto } from './dto/grant-permission-response.dto';
 import { RevokePermissionDto } from './dto/revoke-permission.dto';
 import { RevokePermissionResponseDto } from './dto/revoke-permission-response.dto';
+import {
+  assertOpenFgaAuthConfig,
+  isOpenFgaConfigured,
+  openFgaApiTokenHeader,
+  resolveOpenFgaAuthMode,
+} from './open-fga-auth';
 
 const tokenSkewMs = 60_000;
 const notYetExpiredCondition = 'not_yet_expired';
@@ -40,9 +46,13 @@ export function oneTimeGrantObject(resource: string, action: string): string {
 }
 
 @Injectable()
-export class PermissionsService {
+export class PermissionsService implements OnModuleInit {
   private tokenCredential: TokenCredential = new DefaultAzureCredential();
   private cachedAccessToken?: { token: string; expiresOnTimestamp: number };
+
+  onModuleInit(): void {
+    assertOpenFgaAuthConfig();
+  }
 
   /** Test-only seam for Entra token acquisition (Nest must keep a zero-arg ctor). */
   setTokenCredential(credential: TokenCredential): void {
@@ -50,7 +60,7 @@ export class PermissionsService {
   }
 
   isConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-    return Boolean(env.OPENFGA_API_URL?.trim() && env.OPENFGA_STORE_ID?.trim());
+    return isOpenFgaConfigured(env);
   }
 
   async check(request: CheckPermissionDto): Promise<CheckPermissionResponseDto> {
@@ -428,26 +438,39 @@ export class PermissionsService {
   }
 
   private async resolveAuthorizationHeader(): Promise<Record<string, string>> {
-    const audience = process.env.OPENFGA_AUDIENCE?.trim();
-    if (!audience) {
-      return {};
-    }
+    const mode = resolveOpenFgaAuthMode();
+    switch (mode) {
+      case 'api-token':
+        return openFgaApiTokenHeader();
+      case 'none':
+        return {};
+      case 'azure': {
+        const audience = process.env.OPENFGA_AUDIENCE!.trim();
+        const scope = audience.endsWith('/.default') ? audience : `${audience}/.default`;
+        const now = Date.now();
+        if (
+          this.cachedAccessToken &&
+          this.cachedAccessToken.expiresOnTimestamp - tokenSkewMs > now
+        ) {
+          return { authorization: `Bearer ${this.cachedAccessToken.token}` };
+        }
 
-    const scope = audience.endsWith('/.default') ? audience : `${audience}/.default`;
-    const now = Date.now();
-    if (this.cachedAccessToken && this.cachedAccessToken.expiresOnTimestamp - tokenSkewMs > now) {
-      return { authorization: `Bearer ${this.cachedAccessToken.token}` };
-    }
+        const accessToken = await this.tokenCredential.getToken(scope);
+        if (!accessToken?.token) {
+          return {};
+        }
 
-    const accessToken = await this.tokenCredential.getToken(scope);
-    if (!accessToken?.token) {
-      return {};
+        this.cachedAccessToken = {
+          token: accessToken.token,
+          expiresOnTimestamp: accessToken.expiresOnTimestamp,
+        };
+        return { authorization: `Bearer ${accessToken.token}` };
+      }
+      default: {
+        const _exhaustive: never = mode;
+        void _exhaustive;
+        throw new Error('OpenFGA auth is misconfigured');
+      }
     }
-
-    this.cachedAccessToken = {
-      token: accessToken.token,
-      expiresOnTimestamp: accessToken.expiresOnTimestamp,
-    };
-    return { authorization: `Bearer ${accessToken.token}` };
   }
 }
