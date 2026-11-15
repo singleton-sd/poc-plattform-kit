@@ -1,0 +1,140 @@
+# linux/arm64 Nest API image for Coolify / Singleton Deploy (digest pin).
+# Rollback path remains deploy-api.yml (ACA + ACR). Do not change that workflow.
+#
+# Image: ghcr.io/singleton-sd/platform-kit-api:<full git sha>
+# Platform: linux/arm64 only. No :latest tag.
+#
+# Prisma generate runs in the production stage with no binaryTargets, so this
+# job must execute on arm64. Prefer GitHub's ubuntu-24.04-arm runner; fall back
+# to QEMU on ubuntu-24.04 only when that runner is not usable.
+name: Publish API image (GHCR arm64)
+
+on:
+  push:
+    tags:
+      - '@poc-plattform-kit/api@*'
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Commit SHA to publish (manual dispatch)
+        required: false
+        type: string
+
+concurrency:
+  group: publish-api-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: singleton-sd/platform-kit-api
+
+permissions: {}
+
+jobs:
+  select_runner:
+    name: Probe ubuntu-24.04-arm
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    continue-on-error: true
+    outputs:
+      label: ${{ steps.probe.outputs.label }}
+    steps:
+      - id: probe
+        run: |
+          set -euo pipefail
+          arch="$(uname -m)"
+          echo "arch=$arch"
+          test "$arch" = "aarch64"
+          echo "label=ubuntu-24.04-arm" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish linux/arm64 image
+    needs: select_runner
+    if: ${{ always() && needs.select_runner.result != 'cancelled' }}
+    runs-on: ${{ needs.select_runner.outputs.label || 'ubuntu-24.04' }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Resolve full git SHA
+        id: sha
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          SHA="$RELEASE_SHA"
+          if ! [[ "$SHA" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "::error::release_sha must be a git commit SHA (got: ${SHA:0:64})"
+            exit 1
+          fi
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Runner arch: ${{ runner.arch }} ($(uname -m))"
+
+      - name: Set up QEMU (amd64 fallback only)
+        if: runner.arch != 'ARM64'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=${{ steps.sha.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.sha.outputs.sha }}
+
+      - name: Build and push linux/arm64
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: production
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Write digest summary
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test -n "$DIGEST"
+          {
+            echo "## Published image"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Tag | \`$TAG\` |"
+            echo "| Digest | \`$DIGEST\` |"
+            echo "| Platform | \`linux/arm64\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
