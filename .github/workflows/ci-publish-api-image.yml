@@ -1,0 +1,35 @@
+# Contract tests for publish-api-image.yml. Does not build or push an image.
+name: Validate publish-api-image workflow
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/publish-api-image.yml'
+      - '.github/workflows/ci-publish-api-image.yml'
+      - '.github/workflows/deploy-api.yml'
+      - 'scripts/publish-api-image-workflow.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-api-image.yml'
+      - '.github/workflows/ci-publish-api-image.yml'
+      - '.github/workflows/deploy-api.yml'
+      - 'scripts/publish-api-image-workflow.test.mjs'
+
+concurrency:
+  group: ci-publish-api-image-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate publish-api-image workflow
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Run workflow contract tests
+        run: node --test scripts/publish-api-image-workflow.test.mjs
