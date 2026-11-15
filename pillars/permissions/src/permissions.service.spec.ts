@@ -1,4 +1,14 @@
-import type { TokenCredential } from '@azure/identity';
+jest.mock('@azure/identity', () => {
+  const actual = jest.requireActual<typeof import('@azure/identity')>('@azure/identity');
+  return {
+    ...actual,
+    DefaultAzureCredential: jest.fn().mockImplementation(() => ({
+      getToken: jest.fn().mockResolvedValue(null),
+    })),
+  };
+});
+
+import { DefaultAzureCredential, type TokenCredential } from '@azure/identity';
 import { PermissionGrantType } from './dto/grant-permission.dto';
 import { oneTimeGrantObject, PermissionsService } from './permissions.service';
 
@@ -14,6 +24,7 @@ describe('PermissionsService', () => {
     delete process.env.OPENFGA_AUDIENCE;
     delete process.env.OPENFGA_API_TOKEN;
     global.fetch = jest.fn();
+    (DefaultAzureCredential as unknown as jest.Mock).mockClear();
   });
 
   afterAll(() => {
@@ -141,11 +152,31 @@ describe('PermissionsService', () => {
         .flat()
         .join('\n');
       expect(logged).not.toContain(apiToken);
+      expect(DefaultAzureCredential).not.toHaveBeenCalled();
     } finally {
       for (const spy of consoleSpies) {
         spy.mockRestore();
       }
     }
+  });
+
+  it('never constructs DefaultAzureCredential on the preshared-token path', async () => {
+    configureOpenFga();
+    process.env.OPENFGA_API_TOKEN = 'super-secret-openfga-api-token';
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ allowed: true }),
+    });
+
+    const service = new PermissionsService();
+    service.onModuleInit();
+    await service.check({
+      subject: 'user:alice',
+      action: 'read',
+      resource: 'tenant:one',
+    });
+
+    expect(DefaultAzureCredential).not.toHaveBeenCalled();
   });
 
   it('fails closed at startup when both OpenFGA auth methods are set', () => {

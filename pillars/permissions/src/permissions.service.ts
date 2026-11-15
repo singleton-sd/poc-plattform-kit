@@ -47,7 +47,7 @@ export function oneTimeGrantObject(resource: string, action: string): string {
 
 @Injectable()
 export class PermissionsService implements OnModuleInit {
-  private tokenCredential: TokenCredential = new DefaultAzureCredential();
+  private tokenCredential?: TokenCredential;
   private cachedAccessToken?: { token: string; expiresOnTimestamp: number };
 
   onModuleInit(): void {
@@ -57,6 +57,12 @@ export class PermissionsService implements OnModuleInit {
   /** Test-only seam for Entra token acquisition (Nest must keep a zero-arg ctor). */
   setTokenCredential(credential: TokenCredential): void {
     this.tokenCredential = credential;
+  }
+
+  /** Built only on the managed-identity path; never on `OPENFGA_API_TOKEN`. */
+  private azureTokenCredential(): TokenCredential {
+    this.tokenCredential ??= new DefaultAzureCredential();
+    return this.tokenCredential;
   }
 
   isConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -455,7 +461,7 @@ export class PermissionsService implements OnModuleInit {
           return { authorization: `Bearer ${this.cachedAccessToken.token}` };
         }
 
-        const accessToken = await this.tokenCredential.getToken(scope);
+        const accessToken = await this.azureTokenCredential().getToken(scope);
         if (!accessToken?.token) {
           return {};
         }
