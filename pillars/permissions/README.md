@@ -23,9 +23,15 @@ The Nest module exposes:
 | `POST /permissions/access-requests/:id/deny` | Deny with optional reason |
 | `GET /permissions/health` | Pillar health |
 
-When `OPENFGA_AUDIENCE` is set, `PermissionsService` acquires an Entra token via
-managed identity (`DefaultAzureCredential`) and calls OpenFGA with
-`Authorization: Bearer …` for Check and Write.
+OpenFGA HTTP auth is exclusive (fail closed at Nest startup):
+
+| Config | Behavior |
+| --- | --- |
+| `OPENFGA_API_TOKEN` | Preshared key. Sent as `Authorization: Bearer <token>` (OpenFGA SDK `CredentialsMethod.ApiToken`). Loaded from App Configuration `app:openfga:apiToken` (plain or Key Vault reference). Never commit the value; it is never logged. |
+| `OPENFGA_AUDIENCE` | Entra token via managed identity (`DefaultAzureCredential`) with scope `<audience>/.default`. |
+| Both, or OpenFGA configured (`OPENFGA_API_URL` + `OPENFGA_STORE_ID`) with neither | Startup throws. Check/Write stay fail-closed. |
+
+`OPENFGA_API_URL`, `OPENFGA_STORE_ID`, and `OPENFGA_AUTHORIZATION_MODEL_ID` are unchanged.
 
 Grant types:
 
