@@ -10,6 +10,7 @@ const customJestConfig = {
   testPathIgnorePatterns: ['<rootDir>/e2e/.*\\.spec\\.(ts|tsx|js|jsx)$'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@singleton-sd/kit-ui$': '<rootDir>/../../packages/ui/src/index.ts',
   },
 };
 

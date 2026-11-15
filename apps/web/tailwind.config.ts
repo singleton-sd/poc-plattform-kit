@@ -3,7 +3,7 @@ import type { Config } from 'tailwindcss';
 // Colors map to @singleton-sd/tokens CSS variables imported in
 // src/app/globals.css -- never hardcode palette hex here (see AGENTS.md).
 const config: Config = {
-  content: ['./src/**/*.{ts,tsx}'],
+  content: ['./src/**/*.{ts,tsx}', '../../packages/ui/src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
