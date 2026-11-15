@@ -27,6 +27,7 @@
     "resolve:conflicts": "node ./scripts/invoke-ps1.mjs ./scripts/resolve-merge-conflicts.ps1",
     "release": "node ./scripts/release-changed.mjs",
     "release:ci": "node ./scripts/release-changed.mjs --ci",
+    "release:test": "node --test ./scripts/release-changed.test.mjs ./scripts/resolve-release-tag.test.mjs ./scripts/pages-workflows.test.mjs",
     "changelog:check": "node ./scripts/check-client-changelogs.mjs",
     "permissions:check": "node ./scripts/check-permissions-catalog.mjs",
     "permissions:register": "node ./scripts/register-permission.mjs",

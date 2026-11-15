@@ -33,10 +33,12 @@ test('close workflow has no path filter and explicitly removes the preview', asy
   assert.ok(close.includes('ref: ${{ github.event.pull_request.base.sha }}'));
 });
 
-test('pages.yml rebuilds after Release and shares the gh-pages concurrency group', async () => {
+test('pages.yml rebuilds on marketing content or a tagged Release dispatch', async () => {
   const pages = await readFile(pagesUrl, 'utf8');
-  assert.match(pages, /workflow_run:/);
-  assert.match(pages, /workflows: \[Release\]/);
+  assert.doesNotMatch(pages, /workflow_run:/);
+  assert.match(pages, /release_tag:/);
+  assert.match(pages, /release_sha:/);
+  assert.match(pages, /Verify release tag matches SHA/);
   assert.match(pages, /group: gh-pages/);
   assert.match(pages, /pnpm-lock\.yaml/);
   assert.match(pages, /persist-credentials: false/);

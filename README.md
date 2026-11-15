@@ -50,3 +50,36 @@ See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md),
 [the client-facing changelog workflow](./docs/client-changelog.md),
 [docs/pr-pipelines.md](./docs/pr-pipelines.md), and
 [docs/marketing-astro-decap.md](./docs/marketing-astro-decap.md).
+
+## Releases
+
+Merging to `main` runs
+[`.github/workflows/release.yml`](./.github/workflows/release.yml), which
+bumps each changed workspace package, updates `CHANGELOG.md`, commits
+`chore(release): Release package versions [skip ci]`, tags, and pushes that commit
+to `main` as the **`singleton-release` GitHub App** (on the default-branch
+ruleset bypass list). It then opens a GitHub Release per tag.
+
+- Tag format stays `@poc-plattform-kit/api@0.25.0` (and the same pattern
+  for every workspace package).
+- The App authenticates with `vars.RELEASE_APP_ID` +
+  `secrets.RELEASE_APP_PRIVATE_KEY`. Missing credentials fail the job;
+  there is no `GITHUB_TOKEN` fallback for the push to `main`. The
+  `github-automation-pat` bypass can be removed after this lands.
+- Loop skip is by commit message (`[skip ci]` / `chore(release):`), not by
+  actor.
+- Production deploys are `workflow_dispatch`ed only for packages that
+  run actually tagged, with `release_tag` and `release_sha`. Tagless
+  Release runs do not start deploy-api / deploy-web / pages.
+- Build and publish jobs read the version from the git tag (`APP_VERSION`
+  / `NEXT_PUBLIC_APP_VERSION`) and check out the tagged commit.
+- Live notes live in
+  [GitHub Releases](https://github.com/singleton-sd/poc-plattform-kit/releases)
+  and root `CHANGELOG.md`.
+
+Preview locally (no commit):
+
+```bash
+git fetch origin --tags
+pnpm release
+```

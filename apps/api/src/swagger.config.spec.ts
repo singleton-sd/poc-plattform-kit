@@ -96,6 +96,11 @@ describe('swagger.config', () => {
       });
     });
 
+    it('prefers APP_VERSION over package.json for the document version', () => {
+      const doc = buildOpenApiDocumentConfig({ APP_VERSION: '9.9.9' });
+      expect(doc.info.version).toBe('9.9.9');
+    });
+
     it('falls back to common tenant for offline export without AZURE_AD_*', () => {
       const doc = buildOpenApiDocumentConfig({});
       expect(doc.components?.securitySchemes?.oauth2).toMatchObject({

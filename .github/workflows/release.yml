@@ -1,11 +1,15 @@
-# Path-aware release: bump workspace package versions on main merge.
-# Skips release-bot pushes (InkAds-style actor guard + [skip ci] release commits).
-# Git push uses the org-wide platform automation PAT from devtools Key Vault
-# (OIDC). Vault: ssd-devtools-kv-prod-ae / secret github-automation-pat.
-# Same vault + secret name across all singleton-sd repos — see SETUP.md.
-# PAT owner must be on the main ruleset bypass list (User, Always bypass).
-# Production deploys run on package tag push (deploy-*.yml); GitHub Releases are
-# published here after tags land.
+# Path-aware independent releases. Bumps each workspace package that has
+# releasable conventional commits since its last @scope/name@version tag,
+# commits version bumps + CHANGELOG.md as
+# "chore(release): Release package versions [skip ci]", tags, and pushes
+# to main. The singleton-release GitHub App (vars.RELEASE_APP_ID +
+# secrets.RELEASE_APP_PRIVATE_KEY) authenticates the push and is on the
+# main branch ruleset bypass list. Production deploys trigger only for
+# packages this run actually tagged.
+#
+# Loop skip is by commit message, not actor: the App's non-release commits
+# (if any) still run this workflow; only `[skip ci]` / `chore(release):`
+# skip it.
 name: Release
 
 on:
@@ -17,181 +21,164 @@ concurrency:
   group: release-main
   cancel-in-progress: false
 
-env:
-  # Org-locked singleton-sd constants — copy release.yml unchanged into other repos.
-  SSD_OPS_KEY_VAULT_NAME: ssd-devtools-kv-prod-ae
-  SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: 01c0bb8b-3770-4765-979a-cb13ae7e3dd2
-  SSD_GITHUB_AUTOMATION_PAT_SECRET: github-automation-pat
-
 jobs:
   release:
-    if: >-
+    if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' &&
-       github.actor != 'github-actions[bot]' &&
-       !contains(github.event.head_commit.message, '[skip ci]') &&
-       !startsWith(github.event.head_commit.message, 'chore: Release'))
+      (
+        github.event_name == 'push' &&
+        github.ref == 'refs/heads/main' &&
+        !contains(github.event.head_commit.message, '[skip ci]') &&
+        !startsWith(github.event.head_commit.message, 'chore(release):')
+      )
     runs-on: ubuntu-latest
-    name: Bump package versions
-    # Placeholder URLs for Prisma generate during openapi:export (no live DB).
-    env:
-      DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
-      DATABASE_URL_UNPOOLED: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
+    timeout-minutes: 20
     permissions:
       contents: write
-      id-token: write
+      actions: write
+    env:
+      # Placeholders so `pnpm openapi:export` (Prisma generate) can run after an API bump.
+      DATABASE_URL: 'postgresql://ci:ci@127.0.0.1:5432/ci?schema=public'
+      DATABASE_URL_UNPOOLED: 'postgresql://ci:ci@127.0.0.1:5432/ci?schema=public'
     steps:
-      - uses: actions/checkout@v4
+      - name: Require singleton-release App credentials
+        env:
+          RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          missing=0
+          if [ -z "${RELEASE_APP_ID}" ]; then
+            echo '::error::Repository variable RELEASE_APP_ID is missing. Set it to the singleton-release GitHub App id. Do not fall back to GITHUB_TOKEN.'
+            missing=1
+          fi
+          if [ -z "${RELEASE_APP_PRIVATE_KEY}" ]; then
+            echo '::error::Repository secret RELEASE_APP_PRIVATE_KEY is missing. Set it to the singleton-release GitHub App private key. Do not fall back to GITHUB_TOKEN.'
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo 'Release cannot push to main without the singleton-release App. See SETUP.md.'
+            exit 1
+          fi
+
+      - name: Create singleton-release App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: singleton-sd
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          # Keep the write token out of git config until the push step.
           persist-credentials: false
 
-      - name: Require Azure OIDC Variables
-        run: |
-          set -euo pipefail
-          missing=0
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::Missing GitHub Variable $name. Release requires OIDC — see SETUP.md."
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
-        env:
-          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          version: 9
 
-      - name: Stage platform automation PAT from devtools Key Vault
-        id: automation_pat
-        run: |
-          set -euo pipefail
-          vault_uri="https://${SSD_OPS_KEY_VAULT_NAME}.vault.azure.net"
-          secret_uri="${vault_uri}/secrets/${SSD_GITHUB_AUTOMATION_PAT_SECRET}/?api-version=7.4"
-          # Cross-subscription: OIDC login uses the app subscription. Data-plane REST
-          # + Key Vault Secrets User on the vault avoids needing subscription access.
-          err_file="$RUNNER_TEMP/kv-pat.err"
-          if ! pat=$(az rest \
-            --method GET \
-            --uri "$secret_uri" \
-            --resource "https://vault.azure.net" \
-            --query value \
-            -o tsv 2>"$err_file"); then
-            echo "::error::Failed to read $SSD_GITHUB_AUTOMATION_PAT_SECRET from $SSD_OPS_KEY_VAULT_NAME."
-            if grep -Eiq 'Forbidden|403|AuthorizationFailed|Access denied|KeyVaultAccessForbidden|does not have.*secret get' "$err_file"; then
-              echo "Grant this repo's OIDC service principal Key Vault Secrets User on the devtools vault (cross-subscription RBAC — subscription Reader is not required). See SETUP.md."
-            else
-              echo "Check vault name, secret name, network/firewall, and that $SSD_GITHUB_AUTOMATION_PAT_SECRET exists. See SETUP.md."
-            fi
-            cat "$err_file" >&2
-            exit 1
-          fi
-          if [ -z "$pat" ]; then
-            echo "::error::Key Vault secret $SSD_GITHUB_AUTOMATION_PAT_SECRET in $SSD_OPS_KEY_VAULT_NAME is empty. Follow SETUP.md."
-            exit 1
-          fi
-          echo "::add-mask::$pat"
-          pat_file="$RUNNER_TEMP/github-automation-pat"
-          printf '%s' "$pat" > "$pat_file"
-          chmod 600 "$pat_file"
-          echo "pat_file=$pat_file" >> "$GITHUB_OUTPUT"
-        env:
-          SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID: ${{ env.SSD_OPS_KEY_VAULT_SUBSCRIPTION_ID }}
-          SSD_OPS_KEY_VAULT_NAME: ${{ env.SSD_OPS_KEY_VAULT_NAME }}
-          SSD_GITHUB_AUTOMATION_PAT_SECRET: ${{ env.SSD_GITHUB_AUTOMATION_PAT_SECRET }}
-
-      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          version: 9.15.0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
+          node-version: '24'
           cache: pnpm
 
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Configure git identity
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          slug="${APP_SLUG:-singleton-release}"
+          git config user.name "${slug}[bot]"
+          git config user.email "${slug}[bot]@users.noreply.github.com"
+
       - name: Release changed packages
         id: release
-        run: |
-          set -euo pipefail
-          pat_file="${{ steps.automation_pat.outputs.pat_file }}"
-          origin_url="https://github.com/${{ github.repository }}.git"
-          cleanup() {
-            git remote set-url origin "$origin_url"
-            rm -f "$pat_file"
-          }
-          trap cleanup EXIT
-
-          pat=$(<"$pat_file")
-          user_json=$(curl -sf \
-            -H "Authorization: bearer $pat" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/user)
-          login=$(echo "$user_json" | jq -r '.login')
-          user_id=$(echo "$user_json" | jq -r '.id')
-          if [ -z "$login" ] || [ "$login" = null ] || [ -z "$user_id" ] || [ "$user_id" = null ]; then
-            echo "::error::Could not resolve platform automation user from PAT (check token Metadata + Contents permissions)."
-            exit 1
-          fi
-          git config user.name "$login"
-          git config user.email "${user_id}+${login}@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${pat}@github.com/${{ github.repository }}.git"
-          tmp=$(mktemp)
-          set +e
-          pnpm release:ci 2>&1 | tee "$tmp"
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -ne 0 ]; then
-            exit "$status"
-          fi
-          if grep -q 'Nothing to release' "$tmp"; then
-            echo "released=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if grep -q 'Release commit and tags pushed' "$tmp"; then
-            echo "released=true" >> "$GITHUB_OUTPUT"
-            tags=$(grep '^RELEASE_TAGS=' "$tmp" | tail -1 | cut -d= -f2-)
-            if [ -z "$tags" ]; then
-              echo "::error::Release succeeded but RELEASE_TAGS line was missing from release:ci output."
-              exit 1
-            fi
-            echo "release_tags=$tags" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "::error::Unexpected release:ci output (no release push and not empty)."
-          exit 1
-
-      - name: Publish GitHub releases
-        if: steps.release.outputs.released == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAGS: ${{ steps.release.outputs.release_tags }}
+          HUSKY: '0'
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Tag push only (does not start other workflows). Never used for HEAD:main.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          IFS=',' read -r -a tags <<< "$RELEASE_TAGS"
-          for tag in "${tags[@]}"; do
-            tag="${tag#"${tag%%[![:space:]]*}"}"
-            tag="${tag%"${tag##*[![:space:]]}"}"
+          git remote set-url origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          output=$(pnpm release:ci)
+          echo "$output"
+          sha=$(echo "$output" | sed -n 's/^RELEASE_SHA=//p' | tail -n1)
+          tags=$(echo "$output" | sed -n 's/^RELEASE_TAGS=//p' | tail -n1)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+          if echo "$output" | grep -q 'Release commit and tags pushed.'; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reconcile GitHub Releases
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RELEASE_TAGS: ${{ steps.release.outputs.tags }}
+        run: |
+          set -euo pipefail
+          notes_file=$(mktemp)
+          trap 'rm -f "$notes_file"' EXIT
+          while IFS= read -r tag; do
             [ -n "$tag" ] || continue
-            echo "Publishing GitHub release for $tag"
             if gh release view "$tag" >/dev/null 2>&1; then
-              echo "Release $tag already exists — skipping."
+              echo "GitHub Release already exists for ${tag}; skipping."
               continue
             fi
-            gh release create "$tag" \
-              --verify-tag \
-              --generate-notes \
-              --title "$tag"
-          done
+            echo "Creating GitHub Release for ${tag}"
+            gh release create "$tag" --generate-notes --notes-file /dev/null \
+              --verify-tag >"$notes_file" 2>&1 || {
+              cat "$notes_file"
+              if grep -qiE 'already exists|name already exists' "$notes_file"; then
+                echo "GitHub Release raced into existence for ${tag}; treating as success."
+                continue
+              fi
+              echo "Failed to create GitHub Release for ${tag}"
+              exit 1
+            }
+          done < <(node scripts/release-changed.mjs --reconcile-tags)
+
+      - name: Dispatch production deploys
+        if: steps.release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RELEASE_TAGS: ${{ steps.release.outputs.tags }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          sha="${RELEASE_SHA}"
+          if [ -z "$sha" ]; then
+            echo '::error::RELEASE_SHA is empty after a successful release. Refusing to dispatch deploys.'
+            exit 1
+          fi
+          IFS=',' read -r -a tags <<< "${RELEASE_TAGS}"
+          dispatch_if_tagged() {
+            local needle="$1"
+            local workflow="$2"
+            local tag=""
+            for candidate in "${tags[@]}"; do
+              [ -n "$candidate" ] || continue
+              case "$candidate" in
+                "${needle}"@*) tag="$candidate"; break ;;
+              esac
+            done
+            if [ -z "$tag" ]; then
+              echo "No ${needle} tag this run; skipping ${workflow}."
+              return 0
+            fi
+            echo "Dispatching ${workflow} for ${tag} at ${sha}"
+            gh workflow run "$workflow" \
+              --ref main \
+              -f release_tag="$tag" \
+              -f release_sha="$sha"
+          }
+          dispatch_if_tagged '@poc-plattform-kit/api' deploy-api.yml
+          dispatch_if_tagged '@poc-plattform-kit/web' deploy-web.yml
+          dispatch_if_tagged '@poc-plattform-kit/marketing' pages.yml
