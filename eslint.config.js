@@ -10,6 +10,7 @@ export default [
       '**/dist/**',
       '**/.next/**',
       '**/out/**',
+      '**/storybook-static/**',
       '**/coverage/**',
       '.worktrees/**',
       'infra/main.json',

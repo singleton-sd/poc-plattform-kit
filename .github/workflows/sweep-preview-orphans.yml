@@ -82,8 +82,6 @@ jobs:
       - name: Sweep orphans
         env:
           GH_TOKEN: ${{ github.token }}
-          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-          ENTRA_SPA_APP_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '0' }}
         run: |
           set -euo pipefail

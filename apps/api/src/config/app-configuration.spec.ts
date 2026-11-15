@@ -32,14 +32,14 @@ describe('loadAppConfiguration', () => {
           'app:notifications:contactEmailProfilesByHost',
           '{"inkads.poc.singletonsd.com":{"fromAddress":"noreply@mail.inkads.poc.singletonsd.com"}}',
         ),
-        setting('app:azureAd:clientId', 'entra-client-id'),
-        setting('app:azureAd:tenantId', 'entra-tenant-id'),
-        setting('app:azureAd:apiAudience', 'api://platform-kit'),
+        setting('app:keycloak:clientId', 'keycloak-client-id'),
+        setting('app:keycloak:issuer', 'https://auth.example.test/realms/singletonsd'),
+        setting('app:keycloak:apiAudience', 'platform-kit-api'),
         setting('app:openfga:apiUrl', 'https://openfga.example.test'),
         setting('app:openfga:storeId', 'store-1'),
         setting('app:openfga:authorizationModelId', 'model-1'),
         setting('app:openfga:audience', 'api://ssd-pocpk-openfga'),
-        setting('app:azureAd:swaggerScope', 'entra-client-id/.default'),
+        setting('app:keycloak:swaggerScope', 'platform-kit-api'),
         setting('app:notifications:emailSendingDomain', 'mail.example.test'),
         setting('app:notifications:emailDkimSelector', 'fe'),
         setting('app:notifications:emailDmarcPolicy', 'reject'),
@@ -62,9 +62,9 @@ describe('loadAppConfiguration', () => {
           'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
         ),
         setting(
-          'secret:azure-ad-client-secret',
+          'secret:keycloak-client-secret',
           JSON.stringify({
-            uri: 'https://vault.vault.azure.net/secrets/azure-ad-client-secret',
+            uri: 'https://vault.vault.azure.net/secrets/keycloak-client-secret',
           }),
           'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
         ),
@@ -73,7 +73,7 @@ describe('loadAppConfiguration', () => {
     );
     const getSecret = jest.fn().mockImplementation(async (secretUri: string) => {
       if (secretUri.includes('auth-secret')) return { value: 'auth-js-secret' };
-      if (secretUri.includes('azure-ad-client-secret')) return { value: 'entra-client-secret' };
+      if (secretUri.includes('keycloak-client-secret')) return { value: 'keycloak-client-secret' };
       return { value: 'sqlserver://secret' };
     });
 
@@ -85,20 +85,20 @@ describe('loadAppConfiguration', () => {
     expect(process.env.CONTACT_EMAIL_PROFILES_BY_HOST).toBe(
       '{"inkads.poc.singletonsd.com":{"fromAddress":"noreply@mail.inkads.poc.singletonsd.com"}}',
     );
-    expect(process.env.AZURE_AD_CLIENT_ID).toBe('entra-client-id');
-    expect(process.env.AZURE_AD_TENANT_ID).toBe('entra-tenant-id');
-    expect(process.env.AZURE_AD_API_AUDIENCE).toBe('api://platform-kit');
+    expect(process.env.KEYCLOAK_CLIENT_ID).toBe('keycloak-client-id');
+    expect(process.env.KEYCLOAK_ISSUER).toBe('https://auth.example.test/realms/singletonsd');
+    expect(process.env.KEYCLOAK_API_AUDIENCE).toBe('platform-kit-api');
     expect(process.env.OPENFGA_API_URL).toBe('https://openfga.example.test');
     expect(process.env.OPENFGA_STORE_ID).toBe('store-1');
     expect(process.env.OPENFGA_AUTHORIZATION_MODEL_ID).toBe('model-1');
     expect(process.env.OPENFGA_AUDIENCE).toBe('api://ssd-pocpk-openfga');
-    expect(process.env.AZURE_AD_SWAGGER_SCOPE).toBe('entra-client-id/.default');
+    expect(process.env.KEYCLOAK_SWAGGER_SCOPE).toBe('platform-kit-api');
     expect(process.env.EMAIL_SENDING_DOMAIN).toBe('mail.example.test');
     expect(process.env.EMAIL_DKIM_SELECTOR).toBe('fe');
     expect(process.env.EMAIL_DMARC_POLICY).toBe('reject');
     expect(process.env.EMAIL_DMARC_RUA).toBe('mailto:dmarc@example.test');
     expect(process.env.AUTH_SECRET).toBe('auth-js-secret');
-    expect(process.env.AZURE_AD_CLIENT_SECRET).toBe('entra-client-secret');
+    expect(process.env.KEYCLOAK_CLIENT_SECRET).toBe('keycloak-client-secret');
     expect(process.env.DATABASE_URL).toBe('sqlserver://secret');
     expect(process.env.AZURE_SERVICEBUS_CONNECTION_STRING).toBe('sqlserver://secret');
     expect(getSecret).toHaveBeenCalledTimes(4);

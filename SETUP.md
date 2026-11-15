@@ -188,7 +188,7 @@ Public hostnames under `singletonsd.com` (DNS stays in **AWS**; Azure only gets 
 | `app.plattform-kit.poc.singletonsd.com` | Web app (PWA/SPA) | SWA `pocpk-web-si5fhs6dvxiha` (Free) |
 | `api.plattform-kit.poc.singletonsd.com` | Nest API | Container Apps `ssd-pocpk-aca-api-dev-ae` (Consumption; see [`docs/aca-api-cutover-303.md`](./docs/aca-api-cutover-303.md)) |
 
-PR / preview URLs: marketing is `/pr-preview/pr-<n>/` on the Pages custom domain; production web stays on `*.azurestaticapps.net`; API and web PR previews stay on `*.azurecontainerapps.io`. API CORS / Auth.js redirects allow this repo's **app** SWA instance prefix (`https://kind-rock-0f409fe00*.azurestaticapps.net`) plus ACA web preview hosts (`ssd-pocpk-aca-web-pr-<n>-ae`) via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Entra Auth.js callback stays on the API host; MSAL SPA redirect URIs need exact preview origins (no Entra wildcard). Marketing Pages previews do not need Entra redirects.
+PR / preview URLs: marketing is `/pr-preview/pr-<n>/` on the Pages custom domain; production web stays on `*.azurestaticapps.net`; API and web PR previews stay on `*.azurecontainerapps.io`. API CORS / Auth.js redirects allow this repo's **app** SWA instance prefix (`https://kind-rock-0f409fe00*.azurestaticapps.net`) plus ACA web preview hosts (`ssd-pocpk-aca-web-pr-<n>-ae`) via `CORS_ORIGINS` / App Config `app:cors:origins` (see [docs/sso.md](./docs/sso.md)). Keycloak Auth.js callback stays on the API host; SPA OIDC redirect URIs need exact preview origins (no wildcard). Marketing Pages previews do not need Keycloak redirects.
 
 #### Route53 checklist (zone `singletonsd.com` or delegated `poc.singletonsd.com`)
 
@@ -237,24 +237,24 @@ Topics: `tenant.events`, `single-sign-on.events`, `permissions.events`, `subscri
 
 | Layer | Store | Rule |
 | --- | --- | --- |
-| **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, ACR admin, Entra client secrets, notification provider keys. Never in git or GitHub Actions secrets. |
+| **Secrets** | Azure Key Vault `ssd-pocpk-kv-dev-ae` | Passwords, connection strings, SWA deploy token, ACR admin, Keycloak client secrets, notification provider keys. Never in git or GitHub Actions secrets. |
 | **App configuration** | Azure App Configuration `ssd-pocpk-appcs-dev-ae` | Non-secret settings + **Key Vault references** for secret values (not inline secrets). |
 | **CI/CD** | GitHub Actions **OIDC** -> Azure (web/API); **GitHub Pages** `GITHUB_TOKEN` (marketing) | Azure-hosted workflows log in with federated creds, then `az keyvault secret show` / App Config at **job runtime**. Marketing Pages (`pages.yml`) is not an Azure resource and deploys with `GITHUB_TOKEN` to `gh-pages`. |
 
 | Layer | Choice |
 | --- | --- |
-| AuthN + coarse roles | Entra via **SingleSignOn** (e.g. tenant-admin, support-agent) |
+| AuthN + coarse roles | Keycloak OIDC via **SingleSignOn** (e.g. tenant-admin, support-agent) |
 | Fine-grained authZ | **Permissions** pillar - `Check(subject, action, resource)` |
 | Engine (PoC) | **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption** |
 | Avoid unless insisted | Auth0 FGA / Permit.io (extra vendor); flat SQL ACLs alone (harder to scale relationships) |
 
 Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional permission-denial events -> Audit.
 
-**Key Vault secret names (not values):** `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `swa-marketing-deployment-token` may remain until the marketing SWA is deleted (manual).
+**Key Vault secret names (not values):** `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `keycloak-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `azure-ad-client-secret` / `swa-marketing-deployment-token` may remain until rotated/deleted (manual).
 
 **Org devtools Key Vault** (`ssd-devtools-kv-prod-ae`, subscription Singleton SD — CI/provision only, not app runtime): `github-automation-pat` (org-wide platform automation PAT). See **Platform GitHub automation PAT** above.
 
-**Entra / Auth.js (App Config -> Nest env):** plain `app:azureAd:clientId` / `tenantId` / `apiAudience`; KV refs `secret:auth-secret` -> `AUTH_SECRET`, `secret:azure-ad-client-secret` -> `AZURE_AD_CLIENT_SECRET`. Do not put these secrets on App Service app settings.
+**Keycloak / Auth.js (App Config -> Nest env):** plain `app:keycloak:issuer` / `clientId` / `apiAudience` / `swaggerScope`; KV refs `secret:auth-secret` -> `AUTH_SECRET`, `secret:keycloak-client-secret` -> `KEYCLOAK_CLIENT_SECRET`. Do not put these secrets on App Service app settings. Client IDs come from Singleton Auth — never hardcode them.
 
 **Telemetry:** shared App Insights + LAW - see [`docs/telemetry.md`](docs/telemetry.md) / ClickUp Architecture Doc.
 

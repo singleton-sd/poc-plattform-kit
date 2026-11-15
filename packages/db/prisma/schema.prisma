@@ -20,12 +20,15 @@ generator client {
 
 /// Shared identity stub -- tenancy/roles land with the SingleSignOn ticket.
 model User {
-  id        String   @id @default(cuid()) @db.VarChar(64)
-  entraOid  String   @unique @db.VarChar(36)
-  email     String   @unique @db.VarChar(320)
-  name      String?  @db.VarChar(200)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid()) @db.VarChar(64)
+  /// Leftover Entra object id; nullable during Keycloak backfill (ADR 0006).
+  entraOid    String?  @unique @db.VarChar(36)
+  /// Keycloak `sub`. Unique when present; null until first Keycloak login.
+  keycloakSub String?  @unique @db.VarChar(255)
+  email       String   @unique @db.VarChar(320)
+  name        String?  @db.VarChar(200)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("users")
 }

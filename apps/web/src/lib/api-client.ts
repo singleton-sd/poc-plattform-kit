@@ -12,7 +12,7 @@ export type ConfigureApiClientOptions = {
  * Configures the shared Orval/fetch client for this SPA.
  * Call once at app startup and again whenever the active tenant changes.
  *
- * On SWA and ACA preview hosts, attaches a per-request MSAL Bearer token
+ * On SWA and ACA preview hosts, attaches a per-request Keycloak Bearer token
  * provider so Nest JWT auth works without cross-site Auth.js cookies.
  */
 export function configureApiClient(options: ConfigureApiClientOptions = {}): void {

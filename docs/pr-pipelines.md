@@ -60,7 +60,7 @@ Web **PR** previews run on **Azure Container Apps Consumption** (same Path B pat
 - Image: `apps/web/Dockerfile` (Next static export + nginx) pushed to ACR `pocpk-web:pr-<n>`
 - App: `ssd-pocpk-aca-web-pr-<n>-ae` on `ssd-pocpk-cae-dev-ae` (do **not** reuse `ssd-pocpk-aca-pr-<n>-ae`)
 - Auth: OIDC → Key Vault `acr-admin-*` (never a GitHub secret; never the SWA deploy token)
-- After deploy: `scripts/entra-spa-preview-redirect.sh add --origin https://<fqdn>` registers the preview origin as an Entra **SPA** redirect URI (MSAL). On PR `closed`, ACA/ACR cleanup uses the per-PR `preview-web-*` concurrency group (cancels in-flight deploy). Entra URI removal is a **separate job** on the global `entra-spa-preview-redirects` group (same as registration and the orphan sweep) so overlapping read-modify-PATCH of `spa.redirectUris` cannot clobber each other. The close job captures the origin before deleting the app. Requires Graph `Application.ReadWrite.OwnedBy` + ownership on the Entra app (see `docs/sso.md`); missing rights soft-fail.
+- After deploy: `scripts/entra-spa-preview-redirect.sh` is a no-op (ADR 0006: Keycloak clients are owned by Singleton Auth). On PR `closed`, ACA/ACR cleanup uses the per-PR `preview-web-*` concurrency group (cancels in-flight deploy). The close job still captures the origin before deleting the app.
 - Generated-only OpenAPI/Orval diffs under `packages/api-client/openapi.json` and `packages/api-client/src/generated/**` skip the web ACA build/deploy (job succeeds with a notice) so preview apps are not created for generated-only PRs — see `scripts/should-run-web-preview.mjs`.
 - `NEXT_PUBLIC_API_BASE_URL` is this PR’s API preview `ssd-pocpk-aca-pr-<n>-ae` when that app exists, otherwise the production API.
 
@@ -97,7 +97,7 @@ Marketing Pages leftovers:
 | ACA `ssd-pocpk-aca-web-pr-<n>-ae` | `az containerapp delete` |
 | SWA staging builds (product app SWA only), except `default` | `az staticwebapp environment delete` |
 | ACR tags `pocpk-api:pr-<n>` / `pocpk-web:pr-<n>` (and `pr-<n>-<sha>`) | `az acr repository delete` |
-| Entra SPA redirect URIs matching SWA or ACA web PR preview hosts | Graph PATCH (same ownership as `preview-web.yml`) |
+| Keycloak SPA redirect URIs for SWA / ACA web PR preview hosts | Not swept here — Singleton Auth owns Keycloak clients (ADR 0006); no Entra Graph PATCH |
 | `gh-pages` `pr-preview/pr-<n>/` | `sweep-pages-previews.yml` (not this Azure sweep) |
 
 Manual dry-run:

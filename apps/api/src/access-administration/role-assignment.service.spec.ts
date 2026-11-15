@@ -5,6 +5,8 @@ describe('RoleAssignmentService', () => {
   const actor = {
     id: 'admin-1',
     entraOid: 'oid-admin',
+    keycloakSub: 'oid-admin',
+    emailVerified: true,
     email: 'admin@example.invalid',
     name: 'Admin',
     roles: ['tenant-admin'],

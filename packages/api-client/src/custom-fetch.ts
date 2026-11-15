@@ -26,7 +26,7 @@ export async function customFetch<T>(url: string, options?: RequestInit): Promis
     ...(options?.headers ? Object.fromEntries(new Headers(options.headers).entries()) : {}),
   };
 
-  // Per-request Bearer (MSAL) wins over a stale static Authorization header.
+  // Per-request Bearer (OIDC) wins over a stale static Authorization header.
   if (getAccessToken) {
     const token = await getAccessToken();
     if (token) {

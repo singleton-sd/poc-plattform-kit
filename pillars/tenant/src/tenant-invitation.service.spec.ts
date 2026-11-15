@@ -5,6 +5,8 @@ import { TenantInvitationService } from './tenant-invitation.service';
 function user(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser {
   return {
     entraOid: 'entra-1',
+    keycloakSub: 'entra-1',
+    emailVerified: true,
     email: 'actor@example.test',
     name: 'Actor',
     roles: [],

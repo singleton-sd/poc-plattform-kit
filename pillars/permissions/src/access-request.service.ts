@@ -148,14 +148,17 @@ export class AccessRequestService {
       return toRecord(existingPending);
     }
 
-    const managerEntraOids = await this.managerChain.getManagerChain(actor.entraOid);
+    const requesterDirectoryId = requesterDirectoryIdFor(actor);
+    const managerEntraOids = actor.entraOid
+      ? await this.managerChain.getManagerChain(actor.entraOid)
+      : [];
 
     const created = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const row = await tx.accessRequest.create({
         data: {
           tenantId,
           requesterId: actor.id,
-          requesterEntraOid: actor.entraOid,
+          requesterEntraOid: requesterDirectoryId,
           action: dto.action,
           resource: dto.resource,
           status: 'pending',
@@ -191,7 +194,7 @@ export class AccessRequestService {
         payload: {
           requestId: row.id,
           requesterId: actor.id,
-          requesterEntraOid: actor.entraOid,
+          requesterEntraOid: requesterDirectoryId,
           action: row.action,
           resource: row.resource,
           managerEntraOids,
@@ -253,6 +256,10 @@ export class AccessRequestService {
       return pending.map(toRecord);
     }
 
+    if (!actor.entraOid) {
+      return [];
+    }
+
     const chainByRequester = new Map<string, string[]>();
     const visible: AccessRequestRecord[] = [];
     for (const row of pending) {
@@ -261,7 +268,7 @@ export class AccessRequestService {
         chain = await this.managerChain.getManagerChain(row.requesterEntraOid);
         chainByRequester.set(row.requesterEntraOid, chain);
       }
-      if (chain.includes(actor.entraOid)) {
+      if (actor.entraOid && chain.includes(actor.entraOid)) {
         visible.push(toRecord(row));
       }
     }
@@ -550,6 +557,9 @@ export class AccessRequestService {
       return true;
     }
 
+    if (!actor.entraOid) {
+      return false;
+    }
     const chain = await this.managerChain.getManagerChain(row.requesterEntraOid);
     return chain.includes(actor.entraOid);
   }
@@ -583,4 +593,12 @@ export class AccessRequestService {
       });
     });
   }
+}
+
+/** Store leftover Entra oid, else a Keycloak sub that fits VarChar(36). */
+function requesterDirectoryIdFor(actor: AuthenticatedUser): string {
+  if (actor.entraOid) {
+    return actor.entraOid;
+  }
+  return actor.keycloakSub.slice(0, 36);
 }

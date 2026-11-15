@@ -49,14 +49,22 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Check Keycloak Variables
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.NEXT_PUBLIC_KEYCLOAK_ISSUER }}" ] || [ -z "${{ vars.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID }}" ]; then
+            echo "::error::NEXT_PUBLIC_KEYCLOAK_ISSUER and NEXT_PUBLIC_KEYCLOAK_CLIENT_ID must be set."
+            exit 1
+          fi
+
       - name: Build web
         env:
           # Baked into the static export; SWA runtime cannot inject this later.
-          # Option B cookies on custom domains; MSAL Bearer on *.azurestaticapps.net.
+          # Option B cookies on custom domains; Keycloak OIDC Bearer on *.azurestaticapps.net.
           NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.plattform-kit.poc.singletonsd.com' }}
-          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
-          NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
-          NEXT_PUBLIC_AZURE_AD_API_SCOPE: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE }}
+          NEXT_PUBLIC_KEYCLOAK_ISSUER: ${{ vars.NEXT_PUBLIC_KEYCLOAK_ISSUER }}
+          NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${{ vars.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID }}
+          NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE: ${{ vars.NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE }}
         run: pnpm --filter @poc-plattform-kit/web... run build
 
       - name: Check OIDC Variables

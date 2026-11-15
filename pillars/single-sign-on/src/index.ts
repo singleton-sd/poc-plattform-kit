@@ -1,8 +1,9 @@
 ﻿export {
-  mapEntraClaims,
-  normalizeEntraRoles,
+  mapKeycloakClaims,
+  normalizeKeycloakRoles,
+  isEmailVerifiedClaim,
   toMeResponse,
-  type EntraClaims,
+  type KeycloakClaims,
   type AuthenticatedUser,
-} from './map-entra-claims';
+} from './map-keycloak-claims';
 export { UserIdentityService, type UserDisplayRecord } from './user-identity.service';
