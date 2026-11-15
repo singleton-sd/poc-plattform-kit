@@ -5,21 +5,21 @@
 -- deploy fails with an opaque unique_violation in production.
 DO $$
 DECLARE
-  dup_emails text;
+  dup_count integer;
 BEGIN
-  SELECT string_agg(grouped.email, ', ' ORDER BY grouped.email)
-  INTO dup_emails
+  SELECT COUNT(*)
+  INTO dup_count
   FROM (
-    SELECT lower(email) AS email
+    SELECT 1
     FROM users
     GROUP BY lower(email)
     HAVING COUNT(*) > 1
   ) AS grouped;
 
-  IF dup_emails IS NOT NULL THEN
+  IF dup_count > 0 THEN
     RAISE EXCEPTION
-      'Cannot lowercase users.email: case-insensitive duplicates exist (%). Resolve those rows before migrating.',
-      dup_emails;
+      'Cannot lowercase users.email: % case-insensitive duplicate group(s). Resolve those rows before migrating.',
+      dup_count;
   END IF;
 END $$;
 

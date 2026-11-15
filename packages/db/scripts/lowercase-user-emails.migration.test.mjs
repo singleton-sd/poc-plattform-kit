@@ -49,7 +49,15 @@ test('lowercase migration aborts when Agent@x.com and agent@x.com both exist', a
     async (db) => {
       await assert.rejects(
         () => db.exec(MIGRATION_SQL),
-        /Cannot lowercase users\.email: case-insensitive duplicates exist \(agent@x.com\)/,
+        (error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          assert.match(
+            message,
+            /Cannot lowercase users\.email: 1 case-insensitive duplicate group\(s\)/,
+          );
+          assert.doesNotMatch(message, /agent@x\.com/i);
+          return true;
+        },
       );
       const remaining = await db.query('SELECT id, email FROM users ORDER BY id');
       assert.deepEqual(remaining.rows, [

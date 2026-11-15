@@ -457,7 +457,13 @@ set_appconfig_plain "$APP_CONFIG_OUT" 'app:telemetry:cloudRoleName:api' 'api'
 set_appconfig_plain "$APP_CONFIG_OUT" 'app:telemetry:cloudRoleName:web' 'web'
 set_appconfig_kv_ref "$APP_CONFIG_OUT" 'secret:swa-marketing-deployment-token' "$KV_NAME_OUT" 'swa-marketing-deployment-token'
 
-set_appconfig_plain "$APP_CONFIG_OUT" 'app:keycloak:issuer' "$(read_dotenv_value "$ENV_FILE" KEYCLOAK_ISSUER 2>/dev/null || true)"
+keycloak_issuer="$(read_dotenv_value "$ENV_FILE" KEYCLOAK_ISSUER 2>/dev/null || true)"
+if [[ "$keycloak_issuer" == *'<product>'* ]]; then
+  echo "  skipped app:keycloak:issuer (set the product realm in $ENV_FILE, then re-run)" >&2
+else
+  set_appconfig_plain "$APP_CONFIG_OUT" 'app:keycloak:issuer' "$keycloak_issuer"
+fi
+unset keycloak_issuer
 set_appconfig_plain "$APP_CONFIG_OUT" 'app:keycloak:clientId' "$(read_dotenv_value "$ENV_FILE" KEYCLOAK_CLIENT_ID 2>/dev/null || true)"
 set_appconfig_plain "$APP_CONFIG_OUT" 'app:keycloak:apiAudience' "$(read_dotenv_value "$ENV_FILE" KEYCLOAK_API_AUDIENCE 2>/dev/null || true)"
 

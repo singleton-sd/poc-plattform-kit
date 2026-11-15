@@ -135,11 +135,18 @@ export class UserIdentityService {
     row: UserRow,
     email: string,
   ): Promise<AuthenticatedUser> {
-    const user = await this.prisma.user.update({
-      where: { id: row.id },
-      data: identity.emailVerified ? { email, name: identity.name } : { name: identity.name },
-    });
-    return this.toAuthenticated(identity, user);
+    try {
+      const user = await this.prisma.user.update({
+        where: { id: row.id },
+        data: identity.emailVerified ? { email, name: identity.name } : { name: identity.name },
+      });
+      return this.toAuthenticated(identity, user);
+    } catch (error) {
+      if (isEmailUniqueConstraint(error)) {
+        throw new ConflictException('Email already linked to another Keycloak subject');
+      }
+      throw error;
+    }
   }
 
   private toAuthenticated(identity: AuthenticatedUser, user: UserRow): AuthenticatedUser {

@@ -252,6 +252,30 @@ describe('UserIdentityService', () => {
     expect(create).toHaveBeenCalled();
   });
 
+  it('maps an email unique conflict on refresh to 409 instead of 500', async () => {
+    findUnique.mockResolvedValueOnce({
+      id: 'local-1',
+      entraOid: 'oid-1',
+      keycloakSub: 'kc-sub-1',
+      email: 'old@example.com',
+      name: 'Old',
+    });
+    update.mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), {
+        code: 'P2002',
+        meta: { target: ['email'] },
+      }),
+    );
+
+    try {
+      await service.persist(identity({ email: 'taken@example.com' }));
+      throw new Error('expected persist to reject');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getStatus()).toBe(409);
+    }
+  });
+
   it('maps an email unique conflict to 409 instead of 500', async () => {
     findUnique.mockResolvedValue(null);
     findFirst.mockResolvedValue(null);
