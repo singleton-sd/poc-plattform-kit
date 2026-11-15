@@ -1,10 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { DefaultAzureCredential, type TokenCredential } from '@azure/identity';
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 
 const GRAPH_SCOPE = 'https://graph.microsoft.com/.default';
 const GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0';
 const DEFAULT_MAX_DEPTH = 5;
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
+const MANAGER_CHAIN_PROVIDERS = ['graph', 'none'] as const;
+
+export type ManagerChainProvider = (typeof MANAGER_CHAIN_PROVIDERS)[number];
 
 interface CacheEntry {
   managerId: string | null;
@@ -23,6 +26,23 @@ export interface ManagerChainDependencies {
   now?: () => number;
 }
 
+function isManagerChainProvider(value: string): value is ManagerChainProvider {
+  return (MANAGER_CHAIN_PROVIDERS as readonly string[]).includes(value);
+}
+
+export function resolveManagerChainProvider(
+  raw: string | undefined = process.env.MANAGER_CHAIN_PROVIDER,
+): ManagerChainProvider {
+  const value = raw?.trim();
+  if (!value) {
+    return 'graph';
+  }
+  if (isManagerChainProvider(value)) {
+    return value;
+  }
+  throw new Error(`Invalid MANAGER_CHAIN_PROVIDER '${value}'. Allowed values: graph, none.`);
+}
+
 /**
  * Resolves a user's Entra reporting-line chain (direct manager, their
  * manager, and so on) via Microsoft Graph `/users/{id}/manager`. Read-only —
@@ -34,14 +54,34 @@ export interface ManagerChainDependencies {
  * unregistered `Object` provider and breaks app boot). Use
  * `ManagerChainService.createForTesting(...)` to override the Graph
  * credential/fetch/clock in tests.
+ *
+ * `MANAGER_CHAIN_PROVIDER=graph` (default when unset) uses Microsoft Graph
+ * via `DefaultAzureCredential`, constructed lazily on the first lookup.
+ * `none` always returns no manager (Coolify / no managed identity). Unknown
+ * values fail closed at construction so Nest startup cannot silently skip
+ * manager resolution.
  */
 @Injectable()
-export class ManagerChainService {
+export class ManagerChainService implements OnModuleInit {
   private readonly logger = new Logger(ManagerChainService.name);
-  private credential: TokenCredential = new DefaultAzureCredential();
+  private readonly provider: ManagerChainProvider;
+  private credential: TokenCredential | undefined;
   private fetchFn: typeof fetch = fetch;
   private now: () => number = () => Date.now();
   private readonly cache = new Map<string, CacheEntry>();
+
+  constructor() {
+    this.provider = resolveManagerChainProvider();
+  }
+
+  onModuleInit(): void {
+    if (this.provider === 'none') {
+      this.logger.log(
+        'Manager chain lookups are disabled (MANAGER_CHAIN_PROVIDER=none); ' +
+          'access-request approval falls back to tenant-admin only',
+      );
+    }
+  }
 
   static createForTesting(dependencies: ManagerChainDependencies): ManagerChainService {
     const service = new ManagerChainService();
@@ -63,6 +103,13 @@ export class ManagerChainService {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_CACHE_TTL_MS;
   }
 
+  private getCredential(): TokenCredential {
+    if (!this.credential) {
+      this.credential = new DefaultAzureCredential();
+    }
+    return this.credential;
+  }
+
   /**
    * Ordered chain of manager Entra object ids for `userId`, direct manager
    * first. Stops at the first missing link, a cycle, or the depth cap —
@@ -71,6 +118,17 @@ export class ManagerChainService {
    * their own terms (e.g. fall back to tenant-admin-only approval).
    */
   async getManagerChain(userId: string, options: { maxDepth?: number } = {}): Promise<string[]> {
+    switch (this.provider) {
+      case 'none':
+        return [];
+      case 'graph':
+        break;
+      default: {
+        const exhaustive: never = this.provider;
+        throw new Error(`Unhandled manager chain provider: ${String(exhaustive)}`);
+      }
+    }
+
     const limit = options.maxDepth ?? this.maxDepth;
     const chain: string[] = [];
     const seen = new Set<string>([userId]);
@@ -112,9 +170,13 @@ export class ManagerChainService {
    * resolution for a full TTL window after Graph recovers.
    */
   private async fetchDirectManager(userId: string): Promise<DirectManagerResult> {
+    if (this.provider === 'none') {
+      return { managerId: null, cacheable: true };
+    }
+
     let token;
     try {
-      token = await this.credential.getToken(GRAPH_SCOPE);
+      token = await this.getCredential().getToken(GRAPH_SCOPE);
     } catch (error) {
       this.logger.warn(`Graph token acquisition failed for ${userId}: ${(error as Error).message}`);
       return { managerId: null, cacheable: false };

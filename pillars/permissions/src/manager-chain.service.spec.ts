@@ -1,5 +1,13 @@
-import type { TokenCredential } from '@azure/identity';
-import { ManagerChainService } from './manager-chain.service';
+import { DefaultAzureCredential, type TokenCredential } from '@azure/identity';
+import { Logger } from '@nestjs/common';
+import { ManagerChainService, resolveManagerChainProvider } from './manager-chain.service';
+
+jest.mock('@azure/identity', () => {
+  const DefaultAzureCredential = jest.fn();
+  return { DefaultAzureCredential };
+});
+
+const MockDefaultAzureCredential = DefaultAzureCredential as unknown as jest.Mock;
 
 function jsonResponse(status: number, body?: unknown) {
   return {
@@ -189,5 +197,88 @@ describe('ManagerChainService', () => {
 
     await service.getManagerChain('user-1');
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('MANAGER_CHAIN_PROVIDER', () => {
+  const originalProvider = process.env.MANAGER_CHAIN_PROVIDER;
+  const mockGetToken = jest.fn();
+
+  beforeEach(() => {
+    delete process.env.MANAGER_CHAIN_PROVIDER;
+    mockGetToken.mockReset();
+    MockDefaultAzureCredential.mockReset();
+    MockDefaultAzureCredential.mockImplementation(() => ({ getToken: mockGetToken }));
+  });
+
+  afterEach(() => {
+    if (originalProvider === undefined) {
+      delete process.env.MANAGER_CHAIN_PROVIDER;
+    } else {
+      process.env.MANAGER_CHAIN_PROVIDER = originalProvider;
+    }
+  });
+
+  it.each([
+    ['graph', 'graph'],
+    ['unset', undefined],
+    ['blank', '  '],
+  ] as const)(
+    'treats %s as graph and constructs DefaultAzureCredential lazily',
+    async (_label, value) => {
+      if (value === undefined) {
+        delete process.env.MANAGER_CHAIN_PROVIDER;
+      } else {
+        process.env.MANAGER_CHAIN_PROVIDER = value;
+      }
+      mockGetToken.mockResolvedValue({ token: 't', expiresOnTimestamp: Date.now() });
+      const fetchFn = jest.fn().mockResolvedValue(jsonResponse(404));
+      const service = ManagerChainService.createForTesting({ fetchFn });
+
+      expect(MockDefaultAzureCredential).not.toHaveBeenCalled();
+      await expect(service.getManagerChain('user-1')).resolves.toEqual([]);
+      expect(MockDefaultAzureCredential).toHaveBeenCalledTimes(1);
+      expect(mockGetToken).toHaveBeenCalledWith('https://graph.microsoft.com/.default');
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('returns no manager without Azure credentials, network, or warning spam when provider is none', async () => {
+    process.env.MANAGER_CHAIN_PROVIDER = 'none';
+    const fetchFn = jest.fn();
+    const getToken = jest.fn();
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const service = ManagerChainService.createForTesting({
+      credential: { getToken } as unknown as TokenCredential,
+      fetchFn,
+    });
+
+    service.onModuleInit();
+    await expect(service.getManagerChain('user-1')).resolves.toEqual([]);
+    await expect(service.getManagerChain('user-2')).resolves.toEqual([]);
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Manager chain lookups are disabled'));
+    expect(MockDefaultAzureCredential).not.toHaveBeenCalled();
+    expect(getToken).not.toHaveBeenCalled();
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    warn.mockRestore();
+    error.mockRestore();
+    log.mockRestore();
+  });
+
+  it('fails closed at startup for unknown provider values', () => {
+    expect(() => resolveManagerChainProvider('ldap')).toThrow(
+      "Invalid MANAGER_CHAIN_PROVIDER 'ldap'. Allowed values: graph, none.",
+    );
+    process.env.MANAGER_CHAIN_PROVIDER = 'ldap';
+    expect(() => new ManagerChainService()).toThrow(
+      "Invalid MANAGER_CHAIN_PROVIDER 'ldap'. Allowed values: graph, none.",
+    );
+    expect(MockDefaultAzureCredential).not.toHaveBeenCalled();
   });
 });
