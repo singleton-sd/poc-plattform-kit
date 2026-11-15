@@ -5,10 +5,10 @@ import {
   useTenantControllerFindAll,
   type TenantResponseDto,
 } from '@poc-plattform-kit/api-client';
+import { Toast } from '@singleton-sd/kit-ui';
 import { keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { PlusIcon } from '@/components/icons';
-import { Toast } from '@/components/toast';
 import { tenantListPayload } from './api';
 import { TenantCreateDrawer } from './tenant-create-drawer';
 import { TenantDetailsDrawer } from './tenant-details-drawer';

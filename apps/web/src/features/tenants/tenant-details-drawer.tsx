@@ -5,8 +5,8 @@ import {
   useTenantControllerUpdate,
   type TenantResponseDto,
 } from '@poc-plattform-kit/api-client';
+import { Drawer } from '@singleton-sd/kit-ui';
 import { useEffect, useState } from 'react';
-import { Drawer } from '@/components/drawer';
 import { AlertIcon } from '@/components/icons';
 import { PermissionGate } from '@/features/permissions/permission-gate';
 import { configureApiClient } from '@/lib/api-client';

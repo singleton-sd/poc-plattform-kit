@@ -4,9 +4,9 @@ import {
   useTenantControllerFindOne,
   useTenantControllerUpdate,
 } from '@poc-plattform-kit/api-client';
+import { Toast } from '@singleton-sd/kit-ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { AlertIcon } from '@/components/icons';
-import { Toast } from '@/components/toast';
 import { errorMessage, errorStatus, tenantPayload } from '@/features/tenants/api';
 import { UPDATE_TENANT_FORM_ID, UpdateTenantForm } from '@/features/tenants/update-tenant-form';
 import type { UpdateTenantInput } from '@/features/tenants/schemas';
