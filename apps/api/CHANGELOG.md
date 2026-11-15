@@ -2,6 +2,20 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.26.0 — 2026-11-15
+
+### New
+
+- Add OpenFGA preshared API key
+
+  Prefer OPENFGA_API_TOKEN (ApiToken bearer) when set; otherwise
+
+### Fixed
+
+- Lazy-load Azure OpenFGA credential
+
+  Construct DefaultAzureCredential only on the audience path so
+
 ## 0.25.1 — 2026-11-14
 
 ### Fixed

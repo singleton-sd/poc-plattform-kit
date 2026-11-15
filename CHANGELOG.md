@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-15
+
+- **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.25.1` → `0.26.0` (minor)
+- **@poc-plattform-kit/pillar-permissions** `0.6.1` → `0.7.0` (minor)
 ## 2026-11-14
 
 - **[@poc-plattform-kit/api](apps/api/CHANGELOG.md)** `0.25.0` → `0.25.1` (patch)
