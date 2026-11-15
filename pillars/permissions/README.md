@@ -76,11 +76,23 @@ and cached for `MANAGER_CHAIN_CACHE_TTL_MS` (default 5 minutes) to avoid a Graph
 call on every request. See [`docs/permissions.md`](../../docs/permissions.md) for
 the authorization model and tenant access-administration ownership boundaries.
 
-**Human/infra follow-up required:** the runtime Managed Identity has no Graph
-permission by default. Reading another user's `manager` via app-only auth needs
-the Microsoft Graph **application permission** `User.Read.All`, granted and
-admin-consented to the API's Managed Identity service principal (Entra portal
-or `az rest` against `/servicePrincipals/{id}/appRoleAssignments`). Until that
-grant exists, Graph returns 403 and `getManagerChain` returns `[]` for every
-user (logged at `error`, not cached, so it retries on the next call rather than
-suppressing resolution for the cache TTL).
+`MANAGER_CHAIN_PROVIDER` selects the lookup backend (unset defaults to `graph`
+so Azure behaviour is unchanged):
+
+| Value | Behaviour |
+| --- | --- |
+| `graph` | Microsoft Graph via `DefaultAzureCredential`. The credential is constructed lazily on the first lookup, not at Nest boot. |
+| `none` | Always returns no manager. No Azure credential, no Graph call, no per-request warning spam. Logs once at startup that lookups are disabled. Access-request approval then falls back to tenant-admin only (same as a failed Graph lookup). |
+
+Unknown values fail closed at API startup with a clear error. On Coolify (no
+managed identity) set `MANAGER_CHAIN_PROVIDER=none`.
+
+**Human/infra follow-up required (Azure / `graph` only):** the runtime Managed
+Identity has no Graph permission by default. Reading another user's `manager`
+via app-only auth needs the Microsoft Graph **application permission**
+`User.Read.All`, granted and admin-consented to the API's Managed Identity
+service principal (Entra portal or `az rest` against
+`/servicePrincipals/{id}/appRoleAssignments`). Until that grant exists, Graph
+returns 403 and `getManagerChain` returns `[]` for every user (logged at
+`error`, not cached, so it retries on the next call rather than suppressing
+resolution for the cache TTL).
