@@ -5,8 +5,9 @@
 # Platform: linux/arm64 only. No :latest tag.
 #
 # Prisma generate runs in the production stage with no binaryTargets, so this
-# job must execute on arm64. Prefer GitHub's ubuntu-24.04-arm runner; fall back
-# to QEMU on ubuntu-24.04 only when that runner is not usable.
+# job must execute on arm64. Prefer GitHub's ubuntu-24.04-arm runner. QEMU on
+# ubuntu-24.04 is selected in this job (workflow_dispatch use_qemu, or a
+# non-ARM runner) and does not wait for a separate ARM probe to be scheduled.
 name: Publish API image (GHCR arm64)
 
 on:
@@ -16,9 +17,14 @@ on:
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Commit SHA to publish (manual dispatch)
+        description: Full 40-character commit SHA to publish
         required: false
         type: string
+      use_qemu:
+        description: Build via QEMU on ubuntu-24.04 if the ARM runner is unusable
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: publish-api-image-${{ github.ref }}
@@ -31,27 +37,9 @@ env:
 permissions: {}
 
 jobs:
-  select_runner:
-    name: Probe ubuntu-24.04-arm
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
-    continue-on-error: true
-    outputs:
-      label: ${{ steps.probe.outputs.label }}
-    steps:
-      - id: probe
-        run: |
-          set -euo pipefail
-          arch="$(uname -m)"
-          echo "arch=$arch"
-          test "$arch" = "aarch64"
-          echo "label=ubuntu-24.04-arm" >> "$GITHUB_OUTPUT"
-
   publish:
     name: Publish linux/arm64 image
-    needs: select_runner
-    if: ${{ always() && needs.select_runner.result != 'cancelled' }}
-    runs-on: ${{ needs.select_runner.outputs.label || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.use_qemu && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     timeout-minutes: 90
     permissions:
       contents: read
@@ -59,25 +47,24 @@ jobs:
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.release_sha || github.sha }}
-          persist-credentials: false
-
-      - name: Resolve full git SHA
+      - name: Require full git SHA
         id: sha
         env:
           RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
         run: |
           set -euo pipefail
           SHA="$RELEASE_SHA"
-          if ! [[ "$SHA" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
-            echo "::error::release_sha must be a git commit SHA (got: ${SHA:0:64})"
+          if ! [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::release_sha must be a full 40-character git SHA (got: ${SHA:0:64})"
             exit 1
           fi
-          SHA="$(git rev-parse HEAD)"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Runner arch: ${{ runner.arch }} ($(uname -m))"
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
+          persist-credentials: false
 
       - name: Set up QEMU (amd64 fallback only)
         if: runner.arch != 'ARM64'
