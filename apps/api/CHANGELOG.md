@@ -2,6 +2,14 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.27.0 — 2026-11-22
+
+### New
+
+- Add manager chain provider
+
+  Coolify has no managed identity. MANAGER_CHAIN_PROVIDER=none
+
 ## 0.26.0 — 2026-11-15
 
 ### New
