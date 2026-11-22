@@ -27,9 +27,10 @@ describe('StickyActionFooter', () => {
       />,
     );
     const primary = screen.getByRole('button', { name: 'Continue' });
+    const reason = screen.getByText('Continue when the upload finishes');
     expect(primary).toHaveAttribute('aria-disabled', 'true');
     expect(primary).not.toHaveAttribute('disabled');
-    expect(screen.getByText('Continue when the upload finishes')).toBeInTheDocument();
+    expect(primary).toHaveAttribute('aria-describedby', reason.id);
     fireEvent.click(primary);
     expect(onPrimary).not.toHaveBeenCalled();
     primary.focus();

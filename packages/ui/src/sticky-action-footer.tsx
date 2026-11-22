@@ -1,5 +1,7 @@
 'use client';
 
+import { useId } from 'react';
+
 export const WIZARD_FOOTER_HEIGHT = '5.5rem';
 
 export type StickyActionFooterProps = {
@@ -22,20 +24,27 @@ export function StickyActionFooter({
   primaryUnavailableReason,
 }: StickyActionFooterProps) {
   const unavailable = Boolean(primaryUnavailableReason);
+  const reasonId = useId();
 
   return (
     <footer
       className="sticky bottom-0 z-30 flex min-h-[5.5rem] flex-wrap items-center justify-between gap-3 border-t border-fg-subtle/30 bg-bg px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      data-kit-ui="wizard-footer"
       data-testid="sticky-action-footer"
     >
       <button type="button" onClick={onBack} className={`${TARGET} text-fg ${FOCUS}`}>
         {backLabel}
       </button>
       <div className="flex min-w-0 flex-col items-end gap-1">
-        {unavailable ? <p className="text-sm text-fg">{primaryUnavailableReason}</p> : null}
+        {unavailable ? (
+          <p id={reasonId} className="text-sm text-fg">
+            {primaryUnavailableReason}
+          </p>
+        ) : null}
         <button
           type="button"
           aria-disabled={unavailable || undefined}
+          aria-describedby={unavailable ? reasonId : undefined}
           onClick={() => {
             if (!unavailable) onPrimary();
           }}

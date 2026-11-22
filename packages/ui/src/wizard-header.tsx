@@ -25,6 +25,7 @@ export function WizardHeader({
   return (
     <header
       className="sticky top-0 z-30 flex min-h-[4.75rem] flex-wrap items-center gap-3 border-b border-fg-subtle/30 bg-bg px-4 py-2 text-fg"
+      data-kit-ui="wizard-header"
       data-testid="wizard-header"
     >
       <div className="flex min-h-11 min-w-11 items-center">{logo}</div>
