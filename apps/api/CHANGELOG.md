@@ -2,6 +2,20 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.28.0 — 2026-11-22
+
+### New
+
+- Add kit-ui wizard shell components
+
+  SSD-986, SSD-987, SSD-988. Add @singleton-sd/kit-ui with
+
+### Fixed
+
+- Measure wizard chrome for scroll-padding
+
+  Restore prior root scroll-padding on unmount, re-focus on
+
 ## 0.27.0 — 2026-11-22
 
 ### New

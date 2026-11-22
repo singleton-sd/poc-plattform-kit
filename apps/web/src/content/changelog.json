@@ -2,6 +2,22 @@
   "product": "@poc-plattform-kit/web",
   "releases": [
     {
+      "version": "0.18.0",
+      "date": "2026-11-22",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add kit-ui wizard shell components",
+          "reason": "SSD-986, SSD-987, SSD-988. Add @singleton-sd/kit-ui with"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Measure wizard chrome for scroll-padding",
+          "reason": "Restore prior root scroll-padding on unmount, re-focus on"
+        }
+      ]
+    },
+    {
       "version": "0.17.0",
       "date": "2026-09-01",
       "changes": [

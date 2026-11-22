@@ -1,8 +1,8 @@
 'use client';
 
 import { useTenantControllerCreate, type TenantResponseDto } from '@poc-plattform-kit/api-client';
+import { Drawer } from '@singleton-sd/kit-ui';
 import { useEffect, useState } from 'react';
-import { Drawer } from '@/components/drawer';
 import { errorMessage, tenantPayload } from './api';
 import { CREATE_TENANT_FORM_ID, CreateTenantForm } from './create-tenant-form';
 

@@ -25,8 +25,9 @@ export class UserIdentityService {
    *
    * 1. Match on `keycloakSub`.
    * 2. Else, when email is verified, backfill `keycloakSub` onto the existing
-   *    unique email row (Entra leftover; case-insensitive).
-   * 3. Else create a new user (`entraOid` stays null).
+   *    unique email row (Entra leftover; exact match on the lowercased key).
+   * 3. Else, when email is verified, create a new user (`entraOid` stays null).
+   *    Unverified identities never reserve `User.email`.
    */
   async persist(identity: AuthenticatedUser): Promise<AuthenticatedUser> {
     const email = identity.email.trim().toLowerCase();
@@ -44,35 +45,37 @@ export class UserIdentityService {
       return this.refresh(identity, bySub, email);
     }
 
-    if (identity.emailVerified) {
-      const byEmail = await this.findUserByEmail(email);
-      if (byEmail) {
-        if (byEmail.keycloakSub && byEmail.keycloakSub !== identity.keycloakSub) {
-          throw new UnauthorizedException('Email already linked to another Keycloak subject');
-        }
-        const linked = await this.prisma.user.updateMany({
-          where: { id: byEmail.id, keycloakSub: null },
-          data: {
-            keycloakSub: identity.keycloakSub,
-            name: identity.name,
-            email,
-          },
-        });
-        if (linked.count === 0) {
-          const raced = await this.prisma.user.findUnique({
-            where: { keycloakSub: identity.keycloakSub },
-          });
-          if (raced) {
-            return this.refresh(identity, raced, email);
-          }
-          throw new UnauthorizedException('Email already linked to another Keycloak subject');
-        }
-        const updated = await this.prisma.user.findUnique({ where: { id: byEmail.id } });
-        if (!updated) {
-          throw new UnauthorizedException('Keycloak identity could not be linked');
-        }
-        return this.toAuthenticated(identity, updated);
+    if (!identity.emailVerified) {
+      throw new UnauthorizedException('Keycloak email is not verified');
+    }
+
+    const byEmail = await this.findUserByEmail(email);
+    if (byEmail) {
+      if (byEmail.keycloakSub && byEmail.keycloakSub !== identity.keycloakSub) {
+        throw new UnauthorizedException('Email already linked to another Keycloak subject');
       }
+      const linked = await this.prisma.user.updateMany({
+        where: { id: byEmail.id, keycloakSub: null },
+        data: {
+          keycloakSub: identity.keycloakSub,
+          name: identity.name,
+          email,
+        },
+      });
+      if (linked.count === 0) {
+        const raced = await this.prisma.user.findUnique({
+          where: { keycloakSub: identity.keycloakSub },
+        });
+        if (raced) {
+          return this.refresh(identity, raced, email);
+        }
+        throw new UnauthorizedException('Email already linked to another Keycloak subject');
+      }
+      const updated = await this.prisma.user.findUnique({ where: { id: byEmail.id } });
+      if (!updated) {
+        throw new UnauthorizedException('Keycloak identity could not be linked');
+      }
+      return this.toAuthenticated(identity, updated);
     }
 
     try {
@@ -115,19 +118,9 @@ export class UserIdentityService {
     });
   }
 
+  /** Exact match on the already-lowercased unique key. Avoids Prisma ILIKE wildcards. */
   private async findUserByEmail(email: string): Promise<UserRow | null> {
-    try {
-      return await this.prisma.user.findFirst({
-        where: { email: { equals: email, mode: 'insensitive' } },
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      if (!/insensitive|sqlite|mode/i.test(message)) {
-        throw error;
-      }
-      // SQLite preview has no `mode: 'insensitive'`; migration lowercases rows.
-      return this.prisma.user.findUnique({ where: { email } });
-    }
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
   private async refresh(
