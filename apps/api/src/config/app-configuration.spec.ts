@@ -40,6 +40,11 @@ describe('loadAppConfiguration', () => {
         setting('app:openfga:authorizationModelId', 'model-1'),
         setting('app:openfga:audience', 'api://ssd-pocpk-openfga'),
         setting('app:keycloak:swaggerScope', 'platform-kit-api'),
+        setting(
+          'app:openfga:apiToken',
+          JSON.stringify({ uri: 'https://vault.vault.azure.net/secrets/openfga-api-token' }),
+          'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8',
+        ),
         setting('app:notifications:emailSendingDomain', 'mail.example.test'),
         setting('app:notifications:emailDkimSelector', 'fe'),
         setting('app:notifications:emailDmarcPolicy', 'reject'),
@@ -74,6 +79,7 @@ describe('loadAppConfiguration', () => {
     const getSecret = jest.fn().mockImplementation(async (secretUri: string) => {
       if (secretUri.includes('auth-secret')) return { value: 'auth-js-secret' };
       if (secretUri.includes('keycloak-client-secret')) return { value: 'keycloak-client-secret' };
+      if (secretUri.includes('openfga-api-token')) return { value: 'openfga-preshared-token' };
       return { value: 'sqlserver://secret' };
     });
 
@@ -93,6 +99,7 @@ describe('loadAppConfiguration', () => {
     expect(process.env.OPENFGA_AUTHORIZATION_MODEL_ID).toBe('model-1');
     expect(process.env.OPENFGA_AUDIENCE).toBe('api://ssd-pocpk-openfga');
     expect(process.env.KEYCLOAK_SWAGGER_SCOPE).toBe('platform-kit-api');
+    expect(process.env.OPENFGA_API_TOKEN).toBe('openfga-preshared-token');
     expect(process.env.EMAIL_SENDING_DOMAIN).toBe('mail.example.test');
     expect(process.env.EMAIL_DKIM_SELECTOR).toBe('fe');
     expect(process.env.EMAIL_DMARC_POLICY).toBe('reject');
@@ -101,7 +108,7 @@ describe('loadAppConfiguration', () => {
     expect(process.env.KEYCLOAK_CLIENT_SECRET).toBe('keycloak-client-secret');
     expect(process.env.DATABASE_URL).toBe('sqlserver://secret');
     expect(process.env.AZURE_SERVICEBUS_CONNECTION_STRING).toBe('sqlserver://secret');
-    expect(getSecret).toHaveBeenCalledTimes(4);
+    expect(getSecret).toHaveBeenCalledTimes(5);
     expect(process.env.UNMAPPED_KEY).toBeUndefined();
   });
 

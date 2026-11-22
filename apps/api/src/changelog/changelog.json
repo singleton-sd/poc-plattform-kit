@@ -2,6 +2,44 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.27.0",
+      "date": "2026-11-22",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add manager chain provider",
+          "reason": "Coolify has no managed identity. MANAGER_CHAIN_PROVIDER=none"
+        }
+      ]
+    },
+    {
+      "version": "0.26.0",
+      "date": "2026-11-15",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Add OpenFGA preshared API key",
+          "reason": "Prefer OPENFGA_API_TOKEN (ApiToken bearer) when set; otherwise"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Lazy-load Azure OpenFGA credential",
+          "reason": "Construct DefaultAzureCredential only on the audience path so"
+        }
+      ]
+    },
+    {
+      "version": "0.25.1",
+      "date": "2026-11-14",
+      "changes": [
+        {
+          "type": "Fixed",
+          "summary": "Build db package once before dependents",
+          "reason": "Stop tenant and permissions prebuild/pretest from invoking"
+        }
+      ]
+    },
+    {
       "version": "0.25.0",
       "date": "2026-09-10",
       "changes": [

@@ -19,6 +19,7 @@ const environmentKeys: Readonly<Record<string, string>> = {
   'app:openfga:storeId': 'OPENFGA_STORE_ID',
   'app:openfga:authorizationModelId': 'OPENFGA_AUTHORIZATION_MODEL_ID',
   'app:openfga:audience': 'OPENFGA_AUDIENCE',
+  'app:openfga:apiToken': 'OPENFGA_API_TOKEN',
   'secret:appinsights-connection-string': 'APPLICATIONINSIGHTS_CONNECTION_STRING',
   'secret:auth-secret': 'AUTH_SECRET',
   'secret:keycloak-client-secret': 'KEYCLOAK_CLIENT_SECRET',

@@ -373,6 +373,63 @@ describe('AccessRequestService', () => {
     });
   });
 
+  it('stores an empty manager chain on create when Graph lookup returns none', async () => {
+    managerChain.getManagerChain.mockResolvedValue([]);
+    prisma.accessRequest.create.mockResolvedValue(pendingRow);
+
+    await service.create({ action: 'update', resource: 'tenant:t1' }, requester);
+
+    expect(managerChain.getManagerChain).toHaveBeenCalledWith(requester.entraOid);
+    const outbox = prisma.permissionsOutbox.create.mock.calls[0]?.[0] as {
+      data: { payload: string };
+    };
+    expect(JSON.parse(outbox.data.payload).payload.managerEntraOids).toEqual([]);
+  });
+
+  it('lists pending only for tenant admins when the manager chain is empty', async () => {
+    prisma.accessRequest.findMany.mockResolvedValue([pendingRow]);
+    managerChain.getManagerChain.mockResolvedValue([]);
+
+    await expect(service.listPendingForApprover(manager)).resolves.toEqual([]);
+
+    permissions.check.mockResolvedValue({ allowed: true });
+    await expect(service.listPendingForApprover(stranger)).resolves.toEqual([
+      expect.objectContaining({ id: 'ar1' }),
+    ]);
+    expect(managerChain.getManagerChain).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets only a tenant admin approve when the manager chain is empty', async () => {
+    prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
+    managerChain.getManagerChain.mockResolvedValue([]);
+    permissions.check.mockResolvedValue({ allowed: false });
+
+    await expect(
+      service.approve('ar1', { grantType: PermissionGrantType.Permanent }, manager),
+    ).rejects.toMatchObject({
+      response: { statusCode: 403, message: 'Not an eligible approver for this access request' },
+    });
+    expect(permissions.grant).not.toHaveBeenCalled();
+
+    permissions.check.mockResolvedValue({ allowed: true });
+    permissions.grant.mockResolvedValue({
+      granted: true,
+      grantType: PermissionGrantType.Permanent,
+    });
+    prisma.accessRequest.findUniqueOrThrow.mockResolvedValue({
+      ...pendingRow,
+      status: 'approved',
+      decidedById: stranger.id,
+      decidedAt: now,
+      grantType: PermissionGrantType.Permanent,
+    });
+
+    await expect(
+      service.approve('ar1', { grantType: PermissionGrantType.Permanent }, stranger),
+    ).resolves.toMatchObject({ status: 'approved', decidedById: stranger.id });
+    expect(permissions.grant).toHaveBeenCalled();
+  });
+
   it('allows a tenant admin (OpenFGA admin) to approve even when not the manager', async () => {
     prisma.accessRequest.findUnique.mockResolvedValue(pendingRow);
     managerChain.getManagerChain.mockResolvedValue(['oid-mgr']);
