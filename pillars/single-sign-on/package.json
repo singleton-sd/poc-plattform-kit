@@ -1,6 +1,6 @@
 {
   "name": "@poc-plattform-kit/pillar-single-sign-on",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,10 +11,8 @@
     }
   },
   "scripts": {
-    "prebuild": "pnpm --filter @poc-plattform-kit/db run build",
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"lint:pillar-single-sign-on stub\"",
-    "pretest": "pnpm --filter @poc-plattform-kit/db run build",
     "test": "jest"
   },
   "dependencies": {

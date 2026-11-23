@@ -148,6 +148,7 @@ export const apiChecks = [
     'pnpm --filter @poc-plattform-kit/api... run lint && pnpm --filter "./pillars/**" run lint',
     'Lint (api + pillars + packages)',
   ],
+  ['pnpm --filter @poc-plattform-kit/db run build', 'Build db package'],
   [
     'pnpm --filter @poc-plattform-kit/api... run test && pnpm --filter "./pillars/**" run test && pnpm --filter "./packages/**" run test',
     'Test (api + pillars + packages)',

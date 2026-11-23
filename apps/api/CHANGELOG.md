@@ -2,6 +2,50 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.28.0 — 2026-11-22
+
+### New
+
+- Add kit-ui wizard shell components
+
+  SSD-986, SSD-987, SSD-988. Add @singleton-sd/kit-ui with
+
+### Fixed
+
+- Measure wizard chrome for scroll-padding
+
+  Restore prior root scroll-padding on unmount, re-focus on
+
+## 0.27.0 — 2026-11-22
+
+### New
+
+- Add manager chain provider
+
+  Coolify has no managed identity. MANAGER_CHAIN_PROVIDER=none
+
+## 0.26.0 — 2026-11-15
+
+### New
+
+- Add OpenFGA preshared API key
+
+  Prefer OPENFGA_API_TOKEN (ApiToken bearer) when set; otherwise
+
+### Fixed
+
+- Lazy-load Azure OpenFGA credential
+
+  Construct DefaultAzureCredential only on the audience path so
+
+## 0.25.1 — 2026-11-14
+
+### Fixed
+
+- Build db package once before dependents
+
+  Stop tenant and permissions prebuild/pretest from invoking
+
 ## 0.25.0 — 2026-09-10
 
 ### New

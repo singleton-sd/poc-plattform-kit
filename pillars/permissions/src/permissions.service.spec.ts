@@ -1,4 +1,14 @@
-import type { TokenCredential } from '@azure/identity';
+jest.mock('@azure/identity', () => {
+  const actual = jest.requireActual<typeof import('@azure/identity')>('@azure/identity');
+  return {
+    ...actual,
+    DefaultAzureCredential: jest.fn().mockImplementation(() => ({
+      getToken: jest.fn().mockResolvedValue(null),
+    })),
+  };
+});
+
+import { DefaultAzureCredential, type TokenCredential } from '@azure/identity';
 import { PermissionGrantType } from './dto/grant-permission.dto';
 import { oneTimeGrantObject, PermissionsService } from './permissions.service';
 
@@ -12,7 +22,9 @@ describe('PermissionsService', () => {
     delete process.env.OPENFGA_STORE_ID;
     delete process.env.OPENFGA_AUTHORIZATION_MODEL_ID;
     delete process.env.OPENFGA_AUDIENCE;
+    delete process.env.OPENFGA_API_TOKEN;
     global.fetch = jest.fn();
+    (DefaultAzureCredential as unknown as jest.Mock).mockClear();
   });
 
   afterAll(() => {
@@ -100,6 +112,88 @@ describe('PermissionsService', () => {
           authorization: 'Bearer openfga-access-token',
         }),
       }),
+    );
+  });
+
+  it('sends the preshared token when OPENFGA_API_TOKEN is set', async () => {
+    configureOpenFga();
+    const apiToken = 'super-secret-openfga-api-token';
+    process.env.OPENFGA_API_TOKEN = apiToken;
+    const credential: TokenCredential = { getToken: jest.fn() };
+    const consoleSpies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((method) =>
+      jest.spyOn(console, method).mockImplementation(() => undefined),
+    );
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ allowed: true }),
+    });
+
+    const service = new PermissionsService();
+    service.setTokenCredential(credential);
+    try {
+      service.onModuleInit();
+      await service.check({
+        subject: 'user:alice',
+        action: 'read',
+        resource: 'tenant:one',
+      });
+
+      expect(credential.getToken).not.toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://openfga.example.test/stores/store-1/check',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            authorization: `Bearer ${apiToken}`,
+          }),
+        }),
+      );
+      const logged = consoleSpies
+        .flatMap((spy) => spy.mock.calls)
+        .flat()
+        .join('\n');
+      expect(logged).not.toContain(apiToken);
+      expect(DefaultAzureCredential).not.toHaveBeenCalled();
+    } finally {
+      for (const spy of consoleSpies) {
+        spy.mockRestore();
+      }
+    }
+  });
+
+  it('never constructs DefaultAzureCredential on the preshared-token path', async () => {
+    configureOpenFga();
+    process.env.OPENFGA_API_TOKEN = 'super-secret-openfga-api-token';
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ allowed: true }),
+    });
+
+    const service = new PermissionsService();
+    service.onModuleInit();
+    await service.check({
+      subject: 'user:alice',
+      action: 'read',
+      resource: 'tenant:one',
+    });
+
+    expect(DefaultAzureCredential).not.toHaveBeenCalled();
+  });
+
+  it('fails closed at startup when both OpenFGA auth methods are set', () => {
+    configureOpenFga();
+    process.env.OPENFGA_API_TOKEN = 'super-secret-openfga-api-token';
+    process.env.OPENFGA_AUDIENCE = 'api://ssd-pocpk-openfga';
+
+    expect(() => new PermissionsService().onModuleInit()).toThrow(
+      'OpenFGA auth is misconfigured: set OPENFGA_API_TOKEN or OPENFGA_AUDIENCE, not both',
+    );
+  });
+
+  it('fails closed at startup when OpenFGA is configured with neither auth method', () => {
+    configureOpenFga();
+
+    expect(() => new PermissionsService().onModuleInit()).toThrow(
+      'OpenFGA auth is misconfigured: set OPENFGA_API_TOKEN or OPENFGA_AUDIENCE',
     );
   });
 

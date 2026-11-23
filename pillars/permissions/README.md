@@ -23,9 +23,15 @@ The Nest module exposes:
 | `POST /permissions/access-requests/:id/deny` | Deny with optional reason |
 | `GET /permissions/health` | Pillar health |
 
-When `OPENFGA_AUDIENCE` is set, `PermissionsService` acquires an Entra token via
-managed identity (`DefaultAzureCredential`) and calls OpenFGA with
-`Authorization: Bearer …` for Check and Write.
+OpenFGA HTTP auth is exclusive (fail closed at Nest startup):
+
+| Config | Behavior |
+| --- | --- |
+| `OPENFGA_API_TOKEN` | Preshared key. Sent as `Authorization: Bearer <token>` (OpenFGA SDK `CredentialsMethod.ApiToken`). Loaded from App Configuration `app:openfga:apiToken` (plain or Key Vault reference). Never commit the value; it is never logged. |
+| `OPENFGA_AUDIENCE` | Entra token via managed identity (`DefaultAzureCredential`) with scope `<audience>/.default`. |
+| Both, or OpenFGA configured (`OPENFGA_API_URL` + `OPENFGA_STORE_ID`) with neither | Startup throws. Check/Write stay fail-closed. |
+
+`OPENFGA_API_URL`, `OPENFGA_STORE_ID`, and `OPENFGA_AUTHORIZATION_MODEL_ID` are unchanged.
 
 Grant types:
 
@@ -76,11 +82,23 @@ and cached for `MANAGER_CHAIN_CACHE_TTL_MS` (default 5 minutes) to avoid a Graph
 call on every request. See [`docs/permissions.md`](../../docs/permissions.md) for
 the authorization model and tenant access-administration ownership boundaries.
 
-**Human/infra follow-up required:** the runtime Managed Identity has no Graph
-permission by default. Reading another user's `manager` via app-only auth needs
-the Microsoft Graph **application permission** `User.Read.All`, granted and
-admin-consented to the API's Managed Identity service principal (Entra portal
-or `az rest` against `/servicePrincipals/{id}/appRoleAssignments`). Until that
-grant exists, Graph returns 403 and `getManagerChain` returns `[]` for every
-user (logged at `error`, not cached, so it retries on the next call rather than
-suppressing resolution for the cache TTL).
+`MANAGER_CHAIN_PROVIDER` selects the lookup backend (unset defaults to `graph`
+so Azure behaviour is unchanged):
+
+| Value | Behaviour |
+| --- | --- |
+| `graph` | Microsoft Graph via `DefaultAzureCredential`. The credential is constructed lazily on the first lookup, not at Nest boot. |
+| `none` | Always returns no manager. No Azure credential, no Graph call, no per-request warning spam. Logs once at startup that lookups are disabled. Access-request approval then falls back to tenant-admin only (same as a failed Graph lookup). |
+
+Unknown values fail closed at API startup with a clear error. On Coolify (no
+managed identity) set `MANAGER_CHAIN_PROVIDER=none`.
+
+**Human/infra follow-up required (Azure / `graph` only):** the runtime Managed
+Identity has no Graph permission by default. Reading another user's `manager`
+via app-only auth needs the Microsoft Graph **application permission**
+`User.Read.All`, granted and admin-consented to the API's Managed Identity
+service principal (Entra portal or `az rest` against
+`/servicePrincipals/{id}/appRoleAssignments`). Until that grant exists, Graph
+returns 403 and `getManagerChain` returns `[]` for every user (logged at
+`error`, not cached, so it retries on the next call rather than suppressing
+resolution for the cache TTL).

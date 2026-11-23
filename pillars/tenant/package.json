@@ -1,15 +1,15 @@
 {
   "name": "@poc-plattform-kit/pillar-tenant",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"lint:tenant stub\"",
-    "pretest": "pnpm --filter @poc-plattform-kit/db run build && pnpm --filter @poc-plattform-kit/email run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build",
+    "pretest": "pnpm --filter @poc-plattform-kit/email run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build",
     "test": "jest",
-    "prebuild": "pnpm --filter @poc-plattform-kit/db run build && pnpm --filter @poc-plattform-kit/email run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build"
+    "prebuild": "pnpm --filter @poc-plattform-kit/email run build && pnpm --filter @poc-plattform-kit/pillar-single-sign-on run build"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",

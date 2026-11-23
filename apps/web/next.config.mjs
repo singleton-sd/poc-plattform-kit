@@ -11,6 +11,7 @@ const nextConfig = {
   // client-side via staticwebapp.config.json's navigationFallback.
   output: 'export',
   reactStrictMode: true,
+  transpilePackages: ['@singleton-sd/kit-ui'],
   images: {
     unoptimized: true, // static export can't use the Next.js Image loader
   },
