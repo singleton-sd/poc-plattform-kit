@@ -220,9 +220,13 @@ describe('UserIdentityService', () => {
     );
     updateMany.mockResolvedValue({ count: 0 });
 
-    await expect(service.persist(identity({ emailVerified: true }))).rejects.toThrow(
-      UnauthorizedException,
-    );
+    try {
+      await service.persist(identity({ emailVerified: true }));
+      throw new Error('expected persist to reject');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getStatus()).toBe(409);
+    }
     expect(update).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
   });
@@ -252,17 +256,15 @@ describe('UserIdentityService', () => {
       },
     );
     updateMany.mockRejectedValue(uniqueConstraintError(['keycloakSub']));
-    update.mockResolvedValue({ ...alreadyLinked, email: 'new@example.com', name: 'Agent' });
+    update.mockRejectedValue(uniqueConstraintError(['email']));
 
-    const persisted = await service.persist(
-      identity({ email: 'new@example.com', emailVerified: true }),
-    );
-
-    expect(persisted).toMatchObject({
-      id: 'local-old-email',
-      keycloakSub: 'kc-sub-1',
-      email: 'new@example.com',
-    });
+    try {
+      await service.persist(identity({ email: 'new@example.com', emailVerified: true }));
+      throw new Error('expected persist to reject');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getStatus()).toBe(409);
+    }
     expect(update).toHaveBeenCalledWith({
       where: { id: 'local-old-email' },
       data: { email: 'new@example.com', name: 'Agent' },

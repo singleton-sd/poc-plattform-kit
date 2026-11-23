@@ -118,8 +118,8 @@ export class UserIdentityService {
 
   /**
    * After a lost backfill/create race, reuse the subject if it is now linked.
-   * Unique email collisions map to 409. A lost null-only backfill (no Prisma
-   * error) maps to 401 so a competing row is never returned.
+   * Unique email collisions and a lost null-only backfill (email now owned by
+   * another subject) both map to 409 so a competing row is never returned.
    */
   private async recoverLinkedSubject(
     identity: AuthenticatedUser,
@@ -138,7 +138,7 @@ export class UserIdentityService {
       }
       throw error;
     }
-    throw new UnauthorizedException('Email already linked to another Keycloak subject');
+    throw new ConflictException('Email already linked to another Keycloak subject');
   }
 
   private async refresh(
