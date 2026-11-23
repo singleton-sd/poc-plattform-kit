@@ -2,6 +2,36 @@
 
 Release history for **@poc-plattform-kit/web**, generated from conventional commits by the release-it workflow.
 
+## 0.19.0 — 2026-11-23
+
+### New
+
+- Replace Entra ID login with Keycloak OIDC
+
+  Land accepted ADR 0006 (org ADR-002) and swap Auth.js, JWT validation,
+
+### Fixed
+
+- Address CodeRabbit findings on issuer, emails, and refresh
+
+  Skip publishing a placeholder Keycloak issuer, omit addresses from the
+
+- Guard lowercase email migration against case-only duplicates
+
+  Abort migrate deploy with the colliding addresses before UPDATE so a
+
+- Case-insensitive Keycloak email backfill and per-product realm
+
+  Match legacy Entra emails case-insensitively, map email unique conflicts
+
+- Serialize silent OIDC renewal and cover getter paths
+
+  Share one pending signinSilent promise across overlapping callers and
+
+- Address CodeRabbit findings on Keycloak OIDC login
+
+  Reject unconfigured JWT validation, keep audience off OIDC scopes,
+
 ## 0.18.0 — 2026-11-22
 
 ### New

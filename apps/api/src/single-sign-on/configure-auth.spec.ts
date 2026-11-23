@@ -16,9 +16,9 @@ describe('configureSingleSignOnAuth', () => {
   beforeEach(() => {
     process.env = {
       AUTH_SECRET: 'secret',
-      AZURE_AD_CLIENT_ID: 'client',
-      AZURE_AD_CLIENT_SECRET: 'client-secret',
-      AZURE_AD_TENANT_ID: 'tenant',
+      KEYCLOAK_CLIENT_ID: 'client',
+      KEYCLOAK_CLIENT_SECRET: 'client-secret',
+      KEYCLOAK_ISSUER: 'https://auth.example.test/realms/singletonsd',
     };
   });
 

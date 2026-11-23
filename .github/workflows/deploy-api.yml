@@ -1,9 +1,10 @@
-# NestJS → Azure Container Apps Consumption — production deploy on package tag
-# push, or workflow_dispatch with release_tag + release_sha (Release dispatches
-# only when it actually tagged this package). Version comes from the
+# NestJS → Azure Container Apps Consumption — production deploy via
+# workflow_dispatch with release_tag + release_sha (Release dispatches only
+# when it actually tagged this package). Version comes from the
 # `@poc-plattform-kit/api@*` tag at build time (`APP_VERSION`); package.json
 # on the tagged commit is bumped in the same release. Always checks out the
-# tagged commit.
+# tagged commit. No tag-push trigger: release.yml is the only production
+# deploy path.
 #
 # Auth: OIDC Variables only (no publish profile / AZURE_CREDENTIALS in GitHub Secrets).
 # Image: apps/api/Dockerfile --target production → ACR pocpk-api:<sha> (+ :latest).
@@ -19,9 +20,6 @@
 name: Deploy API (Container Apps)
 
 on:
-  push:
-    tags:
-      - '@poc-plattform-kit/api@*'
   workflow_dispatch:
     inputs:
       release_sha:

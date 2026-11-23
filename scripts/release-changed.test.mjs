@@ -143,7 +143,8 @@ test('release-changed.mjs bumps, changelogs, commits, and pushes HEAD:main', asy
   assert.match(script, /updateChangelog/);
   assert.match(script, /bumpPackageVersion/);
   assert.match(script, /--reconcile-tags/);
-  assert.match(script, /AUTHORIZATION: bearer \$\{tagToken\}/);
+  assert.doesNotMatch(script, /tagToken/);
+  assert.doesNotMatch(script, /AUTHORIZATION: bearer/);
   assert.doesNotMatch(script, /github-automation-pat/);
   assert.doesNotMatch(script, /chore\/release-package-versions/);
   assert.doesNotMatch(script, /execSync/);
@@ -158,8 +159,11 @@ test('release.yml authenticates with the singleton-release App, not a PAT', asyn
   assert.match(workflow, /app-id: \$\{\{ vars\.RELEASE_APP_ID \}\}/);
   assert.match(workflow, /private-key: \$\{\{ secrets\.RELEASE_APP_PRIVATE_KEY \}\}/);
   assert.match(workflow, /owner: singleton-sd/);
+  assert.match(workflow, /permission-contents: write/);
+  assert.match(workflow, /permission-actions: write/);
   assert.match(workflow, /token: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
   assert.match(workflow, /GH_TOKEN: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
+  assert.doesNotMatch(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
   assert.match(workflow, /Require singleton-release App credentials/);
   assert.match(workflow, /Do not fall back to GITHUB_TOKEN/);
   assert.match(workflow, /!contains\(github\.event\.head_commit\.message, '\[skip ci\]'\)/);
@@ -188,7 +192,7 @@ test('release.yml authenticates with the singleton-release App, not a PAT', asyn
   assert.doesNotMatch(workflow, /workflow_run:/);
 });
 
-test('production deploys trigger on package tags or tagged dispatch, not every Release', async () => {
+test('production deploys trigger on tagged dispatch only, not tag push or every Release', async () => {
   const deployApi = await readFile(
     new URL('../.github/workflows/deploy-api.yml', import.meta.url),
     'utf8',
@@ -202,6 +206,8 @@ test('production deploys trigger on package tags or tagged dispatch, not every R
     assert.doesNotMatch(workflow, /workflow_run:/);
     assert.match(workflow, /release_tag:/);
     assert.match(workflow, /release_sha:/);
+    assert.match(workflow, /workflow_dispatch:/);
+    assert.doesNotMatch(workflow, /'@poc-plattform-kit\/(?:api|web)@\*'/);
   }
   for (const workflow of [deployApi, deployWeb]) {
     assert.match(workflow, /resolve-release-tag\.mjs/);
@@ -212,8 +218,7 @@ test('production deploys trigger on package tags or tagged dispatch, not every R
       /github\.event\.inputs\.release_tag \|\| github\.event\.inputs\.release_sha \|\| github\.sha/,
     );
   }
-  assert.match(deployApi, /'@poc-plattform-kit\/api@\*'/);
-  assert.match(deployWeb, /'@poc-plattform-kit\/web@\*'/);
+  assert.match(pages, /branches: \[main\]/);
   assert.match(deployApi, /APP_VERSION/);
   assert.match(deployWeb, /NEXT_PUBLIC_APP_VERSION/);
   assert.match(pages, /@poc-plattform-kit\/marketing@/);

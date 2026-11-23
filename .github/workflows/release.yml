@@ -67,6 +67,8 @@ jobs:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
           owner: singleton-sd
+          permission-contents: write
+          permission-actions: write
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -100,8 +102,6 @@ jobs:
         env:
           HUSKY: '0'
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          # Tag push only (does not start other workflows). Never used for HEAD:main.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           git remote set-url origin \

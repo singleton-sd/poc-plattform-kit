@@ -11,7 +11,7 @@ export interface MeResponseDto {
   email: string;
   /** @nullable */
   name: string | null;
-  /** Coarse Entra app roles from the access token / session. */
+  /** Coarse app roles from the access token / session. */
   roles: string[];
   memberships: TenantMembershipResponseDto[];
 }

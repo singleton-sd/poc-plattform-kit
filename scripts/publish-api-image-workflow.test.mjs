@@ -20,7 +20,7 @@ function usesLines(text) {
   return [...text.matchAll(/^\s*-?\s*uses:\s+(\S+)/gm)].map((match) => match[1]);
 }
 
-test('publish workflow shares deploy-api tag and dispatch triggers', async () => {
+test('publish workflow keeps api tag trigger; deploy-api is dispatch-only', async () => {
   const publish = await readFile(publishUrl, 'utf8');
   const deploy = await readFile(deployUrl, 'utf8');
 
@@ -30,7 +30,7 @@ test('publish workflow shares deploy-api tag and dispatch triggers', async () =>
   assert.doesNotMatch(publish, /branches: \[main\]/);
   assert.doesNotMatch(publish, /pull_request:/);
 
-  assert.match(deploy, /'@poc-plattform-kit\/api@\*'/);
+  assert.doesNotMatch(deploy, /'@poc-plattform-kit\/api@\*'/);
   assert.match(deploy, /workflow_dispatch:/);
 });
 

@@ -421,28 +421,9 @@ function createAndPushTags(tags) {
   }
   if (tags.length === 0) return;
 
-  // Tag pushes use GITHUB_TOKEN so GitHub does not start other workflows.
-  // Production deploys are dispatched explicitly for tagged packages. The
-  // App token is reserved for the main-branch push (ruleset bypass) and
-  // is never used as a fallback when App credentials are missing.
-  const tagToken = process.env.GITHUB_TOKEN;
-  if (tagToken) {
-    // Override origin's App-token URL with GITHUB_TOKEN for the tag push.
-    run(
-      'git',
-      [
-        '-c',
-        'http.https://github.com/.extraheader=',
-        '-c',
-        `http.https://github.com/.extraheader=AUTHORIZATION: bearer ${tagToken}`,
-        'push',
-        'origin',
-        ...tags,
-      ],
-      { env: gitEnv },
-    );
-    return;
-  }
+  // Tags use the same singleton-release App token as HEAD:main (origin URL
+  // set in release.yml). Never GITHUB_TOKEN. Production deploys do not
+  // trigger on tag push; release.yml dispatches them explicitly.
   run('git', ['push', 'origin', ...tags], { env: gitEnv });
 }
 

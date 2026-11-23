@@ -25,7 +25,7 @@ sequenced, or claimed.
 | API | NestJS + Swagger |
 | DB | PostgreSQL + Prisma (`postgresql`) — Neon PoC; Azure Flexible Server for shared |
 | Messaging | Azure Service Bus |
-| AuthN | Entra + Auth.js cookies (SingleSignOn) |
+| AuthN | Keycloak OIDC + Auth.js cookies (SingleSignOn) |
 | AuthZ | Permissions pillar — OpenFGA (ReBAC) on ACA Consumption |
 | Notifications | Forward Email · android-sms-gateway · Meta WhatsApp Cloud API |
 | Secrets / config | Azure Key Vault · Azure App Configuration (KV refs) |
@@ -46,6 +46,16 @@ pnpm dev:web
 pnpm dev:marketing
 ```
 
+Auth is Keycloak OIDC — one realm per product
+(`https://auth.singletonsd.com/realms/<product>`), with `<realm>-web` (public SPA)
+and `<realm>-api` (confidential Auth.js / Swagger) clients. See
+[docs/sso.md](./docs/sso.md). Unit tests use a mock JWT and do not need a live
+IdP. Optional local realm:
+
+```bash
+docker compose -f infra/keycloak/docker-compose.yml up
+```
+
 See [SETUP.md](./SETUP.md), [AGENTS.md](./AGENTS.md),
 [the client-facing changelog workflow](./docs/client-changelog.md),
 [docs/pr-pipelines.md](./docs/pr-pipelines.md), and
@@ -64,8 +74,10 @@ ruleset bypass list). It then opens a GitHub Release per tag.
   for every workspace package).
 - The App authenticates with `vars.RELEASE_APP_ID` +
   `secrets.RELEASE_APP_PRIVATE_KEY`. Missing credentials fail the job;
-  there is no `GITHUB_TOKEN` fallback for the push to `main`. The
-  `github-automation-pat` bypass can be removed after this lands.
+  there is no `GITHUB_TOKEN` fallback for the push to `main` or for tags.
+  The App token is minted with Contents: write and Actions: write. The
+  App installation must have repository **Actions: write** for dispatch.
+  The `github-automation-pat` bypass can be removed after this lands.
 - Loop skip is by commit message (`[skip ci]` / `chore(release):`), not by
   actor.
 - Production deploys are `workflow_dispatch`ed only for packages that

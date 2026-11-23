@@ -28,11 +28,21 @@ function mockFetch(response: Partial<Response> & { json?: jest.Mock }) {
 
 describe('fetchMe', () => {
   const originalFetch = globalThis.fetch;
+  const previousApiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  beforeEach(() => {
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    authHeadersMock.mockResolvedValue({});
+  });
 
   afterEach(() => {
     (globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch = originalFetch;
     authHeadersMock.mockReset();
-    authHeadersMock.mockResolvedValue({});
+    if (previousApiBase === undefined) {
+      delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_BASE_URL = previousApiBase;
+    }
   });
 
   it('returns null when the response is not ok', async () => {

@@ -15,7 +15,8 @@ export class TenantInvitationResponseDto {
   role!: string;
 
   @ApiProperty({
-    description: 'Local User.id (or Entra oid fallback) of the caller who created the invitation.',
+    description:
+      'Local User.id (or Keycloak sub fallback) of the caller who created the invitation.',
   })
   invitedByUserId!: string;
 

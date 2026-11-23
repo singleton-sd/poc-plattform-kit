@@ -2,6 +2,40 @@
 
 Release history for **@poc-plattform-kit/api**, generated from conventional commits by the release-it workflow.
 
+## 0.29.0 — 2026-11-23
+
+### New
+
+- Replace Entra ID login with Keycloak OIDC
+
+  Land accepted ADR 0006 (org ADR-002) and swap Auth.js, JWT validation,
+
+### Fixed
+
+- Map lost Keycloak backfill to 409
+
+  Lost null-only backfill (count 0) now 409 Conflict, matching
+
+- Handle Keycloak backfill unique race
+
+  Catch P2002 on the null-only keycloakSub backfill, recover the
+
+- Address CodeRabbit findings on issuer, emails, and refresh
+
+  Skip publishing a placeholder Keycloak issuer, omit addresses from the
+
+- Guard lowercase email migration against case-only duplicates
+
+  Abort migrate deploy with the colliding addresses before UPDATE so a
+
+- Case-insensitive Keycloak email backfill and per-product realm
+
+  Match legacy Entra emails case-insensitively, map email unique conflicts
+
+- Address CodeRabbit findings on Keycloak OIDC login
+
+  Reject unconfigured JWT validation, keep audience off OIDC scopes,
+
 ## 0.28.0 — 2026-11-22
 
 ### New

@@ -4,6 +4,8 @@ import { TenantGroupController } from './tenant-group.controller';
 const actor: AuthenticatedUser = {
   id: 'owner-1',
   entraOid: 'entra-owner',
+  keycloakSub: 'entra-owner',
+  emailVerified: true,
   email: 'owner@example.test',
   name: 'Owner',
   roles: [],

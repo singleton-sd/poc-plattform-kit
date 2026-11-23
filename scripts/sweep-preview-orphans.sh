@@ -5,13 +5,13 @@
 #   1. Ephemeral ACA apps ssd-pocpk-aca-pr-<n>-ae and ssd-pocpk-aca-web-pr-<n>-ae
 #   2. SWA staging environments (product app SWA only) except "default"
 #   3. ACR tags pocpk-api:pr-<n> / pocpk-web:pr-<n> (and pr-<n>-<sha>) for closed PRs
-#   4. Entra SPA redirect URIs for closed SWA and ACA web PR preview origins
+#   4. Keycloak SPA redirect URIs are owned by Singleton Auth (no Graph PATCH)
 #
 # Marketing PR previews live on GitHub Pages (gh-pages /pr-preview/pr-<n>/)
 # and are removed by preview-marketing-close.yml on PR close, with a daily
 # reconciliation in sweep-pages-preview-orphans.sh — not here.
 #
-# Requires: az (logged in), gh, node (for Entra helper).
+# Requires: az (logged in), gh.
 # Usage:
 #   ./scripts/sweep-preview-orphans.sh
 #   ./scripts/sweep-preview-orphans.sh --dry-run
@@ -249,73 +249,11 @@ sweep_acr_repo() {
 sweep_acr_repo "$IMAGE_REPO"
 sweep_acr_repo "$WEB_IMAGE_REPO"
 
-# --- 4. Entra SPA redirect URIs (SWA + ACA web PR preview origins) ---------
+# --- 4. Preview SPA redirect URIs ------------------------------------------
+# Keycloak clients are owned by Singleton Auth (ADR 0006). Do not PATCH Entra.
 log ""
-log "=== Entra SPA PR preview redirect URIs ==="
-ENTRA_MJS="${SCRIPT_DIR}/entra-spa-preview-redirect.mjs"
-APP_ID="${ENTRA_SPA_APP_ID:-${NEXT_PUBLIC_AZURE_AD_CLIENT_ID:-}}"
-entra_deleted=0
-entra_kept=0
-
-if [[ -z "$APP_ID" ]]; then
-  log "SKIP  Entra sweep (ENTRA_SPA_APP_ID / NEXT_PUBLIC_AZURE_AD_CLIENT_ID not set)"
-elif [[ ! -f "$ENTRA_MJS" ]]; then
-  log "SKIP  Entra sweep (helper script missing)"
-elif ! command -v node >/dev/null 2>&1; then
-  log "SKIP  Entra sweep (node not available)"
-else
-  object_id="$(az rest --method GET \
-    --uri "https://graph.microsoft.com/v1.0/applications(appId='${APP_ID}')?\$select=id,spa" \
-    --query id -o tsv 2>/dev/null || true)"
-  if [[ -z "$object_id" || "$object_id" == "null" ]]; then
-    log "SKIP  Entra sweep (Graph could not resolve appId=${APP_ID})"
-  else
-    current_json="$(az rest --method GET \
-      --uri "https://graph.microsoft.com/v1.0/applications/${object_id}?\$select=spa" \
-      -o json 2>/dev/null || true)"
-    if [[ -z "$current_json" ]]; then
-      log "SKIP  Entra sweep (Graph GET failed)"
-    else
-      tmp_dir="$(mktemp -d)"
-      printf '%s' "$current_json" >"${tmp_dir}/spa.json"
-      open_csv="$(IFS=,; echo "${OPEN_PRS[*]:-}")"
-      set +e
-      plan="$(node "$ENTRA_MJS" sweep-spa "${tmp_dir}/spa.json" "$open_csv" "$REGION" 2>"${tmp_dir}/err.txt")"
-      plan_rc=$?
-      set -e
-      if [[ "$plan_rc" -ne 0 ]]; then
-        log "SKIP  Entra sweep (failed to compute plan: $(tr '\n' ' ' <"${tmp_dir}/err.txt"))"
-      elif [[ "$plan" == "UNCHANGED" ]]; then
-        log "KEEP  no orphan SWA/ACA web preview redirect URIs"
-      else
-        remove_count="$(node -e "const p=JSON.parse(process.argv[1]); console.log((p.remove||[]).length)" "$plan")"
-        keep_count="$(node -e "const p=JSON.parse(process.argv[1]); console.log((p.keep||[]).length)" "$plan")"
-        while IFS= read -r uri; do
-          [[ -z "$uri" ]] && continue
-          log "DELETE Entra SPA redirect $uri"
-        done < <(node -e "const p=JSON.parse(process.argv[1]); for (const u of p.remove||[]) console.log(u)" "$plan")
-        next_uris="$(node -e "const p=JSON.parse(process.argv[1]); console.log(JSON.stringify(p.next||[]))" "$plan")"
-        printf '{"spa":{"redirectUris":%s}}\n' "$next_uris" >"${tmp_dir}/body.json"
-        if [[ "$DRY_RUN" == "1" ]]; then
-          log "DRY-RUN: would PATCH applications/${object_id} (remove=$remove_count keep_preview=$keep_count)"
-        else
-          if az rest --method PATCH \
-            --uri "https://graph.microsoft.com/v1.0/applications/${object_id}" \
-            --body @"${tmp_dir}/body.json" >/dev/null; then
-            log "Updated Entra SPA redirectUris (removed=$remove_count kept_preview=$keep_count)"
-          else
-            log "SKIP  Entra PATCH failed (check Application.ReadWrite.OwnedBy + ownership)"
-            remove_count=0
-          fi
-        fi
-        entra_deleted="$remove_count"
-        entra_kept="$keep_count"
-      fi
-      rm -rf "$tmp_dir"
-    fi
-  fi
-fi
-log "Entra summary: deleted=$entra_deleted kept_open_preview=$entra_kept"
+log "=== Keycloak SPA PR preview redirect URIs ==="
+log "SKIP  redirect sweep (Singleton Auth owns Keycloak clients; no Entra Graph PATCH)"
 
 log ""
 log "Sweep complete."

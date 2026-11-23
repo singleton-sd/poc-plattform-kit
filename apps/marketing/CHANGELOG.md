@@ -2,6 +2,24 @@
 
 Release history for **@poc-plattform-kit/marketing**, generated from conventional commits by the release-it workflow.
 
+## 0.11.0 — 2026-11-23
+
+### New
+
+- Replace Entra ID login with Keycloak OIDC
+
+  Land accepted ADR 0006 (org ADR-002) and swap Auth.js, JWT validation,
+
+### Fixed
+
+- Case-insensitive Keycloak email backfill and per-product realm
+
+  Match legacy Entra emails case-insensitively, map email unique conflicts
+
+- Address CodeRabbit findings on Keycloak OIDC login
+
+  Reject unconfigured JWT validation, keep audience off OIDC scopes,
+
 ## 0.10.0 — 2026-11-14
 
 ### New
