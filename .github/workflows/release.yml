@@ -126,6 +126,9 @@ jobs:
           set -euo pipefail
           notes_file=$(mktemp)
           trap 'rm -f "$notes_file"' EXIT
+          # Capture first so a collector failure fails this step. Process
+          # substitution (`done < <(...)`) is asynchronous and would hide it.
+          reconcile_tags=$(node scripts/release-changed.mjs --reconcile-tags)
           while IFS= read -r tag; do
             [ -n "$tag" ] || continue
             if gh release view "$tag" >/dev/null 2>&1; then
@@ -143,7 +146,7 @@ jobs:
               echo "Failed to create GitHub Release for ${tag}"
               exit 1
             }
-          done < <(node scripts/release-changed.mjs --reconcile-tags)
+          done <<< "$reconcile_tags"
 
       - name: Dispatch production deploys
         if: steps.release.outputs.released == 'true'

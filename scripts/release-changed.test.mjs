@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
@@ -175,6 +176,11 @@ test('release.yml authenticates with the singleton-release App, not a PAT', asyn
   assert.match(workflow, /Reconcile GitHub Releases/);
   assert.match(workflow, /gh release create/);
   assert.match(workflow, /--reconcile-tags/);
+  assert.match(
+    workflow,
+    /reconcile_tags=\$\(node scripts\/release-changed\.mjs --reconcile-tags\)/,
+  );
+  assert.doesNotMatch(workflow, /^\s+done < <\(/m);
   assert.match(workflow, /Release commit and tags pushed/);
   assert.match(workflow, /Dispatch production deploys/);
   assert.match(workflow, /gh workflow run "\$workflow"/);
@@ -190,6 +196,24 @@ test('release.yml authenticates with the singleton-release App, not a PAT', asyn
   assert.doesNotMatch(workflow, /vault\.azure\.net/);
   assert.doesNotMatch(workflow, /Merge release PR/);
   assert.doesNotMatch(workflow, /workflow_run:/);
+});
+
+test('Reconcile GitHub Releases fails when tag collection fails', () => {
+  const result = spawnSync(
+    'bash',
+    [
+      '-c',
+      [
+        'set -euo pipefail',
+        'reconcile_tags=$(node -e "process.exit(1)")',
+        'while IFS= read -r tag; do echo "got $tag"; done <<< "$reconcile_tags"',
+        'echo reached',
+      ].join('\n'),
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.notEqual(result.status, 0);
+  assert.doesNotMatch(result.stdout, /reached/);
 });
 
 test('production deploys trigger on tagged dispatch only, not tag push or every Release', async () => {
