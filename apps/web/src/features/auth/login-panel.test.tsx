@@ -102,13 +102,13 @@ describe('HomeAuthGate', () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it('shows Sign in with Microsoft on / when signed out', () => {
+  it('shows Sign in on / when signed out', () => {
     mockUseMe.mockReturnValue({ data: null, isLoading: false, isError: false });
 
     render(<HomeAuthGate />);
 
     expect(screen.getByTestId('brand-mark')).toHaveTextContent('Platform Kit.');
-    expect(screen.getByTestId('login-sign-in')).toHaveTextContent('Sign in with Microsoft');
+    expect(screen.getByTestId('login-sign-in')).toHaveTextContent('Sign in');
   });
 
   it('starts Auth.js sign-in on CTA click', () => {

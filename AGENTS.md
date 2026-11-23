@@ -457,7 +457,7 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 - **Marketing connectors (locked):** Decap `/admin` GitHub login uses the shared cms-auth gateway (`https://api.singletonsd.com`, `auth_endpoint: v1/cms-auth/auth`). Brochure Contact posts to shared [`PostKit`](https://github.com/singleton-sd/post-kit) via `PUBLIC_POSTKIT_API_BASE_URL`. This repo does not host OAuth or email Functions.
 - API: NestJS + Swagger on Azure App Service (prod/dev); **PR previews** on Azure Container Apps Consumption
 - **HTTP clients:** OpenAPI from Nest -> committed `packages/api-client/openapi.json` -> Orval TS client (`@poc-plattform-kit/api-client`); see `docs/openapi-client.md`
-- AuthN / coarse roles: Entra via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` - public allowlist in `docs/sso.md`
+- AuthN / coarse roles: Keycloak OIDC via **SingleSignOn** (e.g. tenant-admin, support-agent); Nest `APP_GUARD` session/JWT + `@Roles` - public allowlist in `docs/sso.md`
 - AuthZ (fine-grained): **Permissions** pillar - `Check(subject, action, resource)`; **OpenFGA** (Zanzibar/ReBAC) on **Azure Container Apps Consumption**. Azure has no first-class app-data authZ for domain items. Other pillars call Permissions (sync HTTP or cache); never embed authZ rules in Contact/etc. Optional denial events -> Audit.
 - Outbound messaging: **Notifications** pillar - email (Forward Email API), SMS (android-sms-gateway), WhatsApp (Meta Cloud API default; adapter swappable). Consumes domain events + queue `notifications.send`; publishes `notification.sent` / `notification.failed` on `notifications.events`.
 - **Secrets:** Azure Key Vault only (`ssd-pocpk-kv-dev-ae`)
@@ -473,10 +473,10 @@ Pillars (no cross-pillar DB joins or write HTTP): **Tenant**, **SingleSignOn**, 
 
 | Concern | Store |
 | --- | --- |
-| Secrets (passwords, connection strings, SWA deploy token, ACR admin, Entra secrets, notification provider keys) | Key Vault `ssd-pocpk-kv-dev-ae` |
+| Secrets (passwords, connection strings, SWA deploy token, ACR admin, Keycloak client secrets, notification provider keys) | Key Vault `ssd-pocpk-kv-dev-ae` |
 | Non-secret app settings + KV references | App Configuration `ssd-pocpk-appcs-dev-ae` |
 
-Secret **names** (not values): `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `azure-ad-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `swa-marketing-deployment-token` may remain in Key Vault until the marketing SWA is deleted (manual; see [`docs/dns-route53.md`](docs/dns-route53.md)).
+Secret **names** (not values): `database-url`, `database-url-unpooled`, `servicebus-connection-string`, `swa-deployment-token`, `acr-admin-username`, `acr-admin-password`, `acr-login-server`, `forwardemail-api-key`, `sms-gateway-username`, `sms-gateway-password`, `whatsapp-cloud-access-token`, `appinsights-connection-string`, `auth-secret`, `keycloak-client-secret`, `chromatic-project-token`, `clickup-api-token`, `openfga-database-url`, `openfga-database-url-unpooled`. Leftover `azure-ad-client-secret` / `swa-marketing-deployment-token` may remain in Key Vault until rotated/deleted (manual; see [`docs/dns-route53.md`](docs/dns-route53.md)).
 
 Decap `/admin` uses the shared cms-auth gateway at `https://api.singletonsd.com`. Marketing Contact email uses [`PostKit`](https://github.com/singleton-sd/post-kit).
 
@@ -565,8 +565,8 @@ When writing a GitHub Issue for `apps/api/**`, `pillars/**`, or `packages/db/**`
 
 pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scripts (`package.json`) fan out with `pnpm -r`, so `pnpm lint`/`test`/`build` results depend on which feature PRs have merged - several `pillars/*` and `apps/web` may still be placeholder `echo` stubs on a given checkout (real coverage today is `apps/api` Jest + `packages/db` `prisma validate`). The update script's `pnpm install` picks up new deps automatically as that work lands. Note: multiple foundation PRs are in flight (tracked in GitHub Issues, see `docs/github-source-of-truth.md`) and touch `AGENTS.md`, tooling, `apps/web`, and pillars; expect this repo to evolve and don't treat the current stub state as final.
 
-- **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. No DB/Prisma wiring yet, so it runs without live Azure resources.
-- **Web:** `pnpm dev:web` - Next.js PWA SPA (see `apps/web`).
+- **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. Auth is Keycloak OIDC (`KEYCLOAK_*` in `.env.example`); unit tests mock JWTs and do not need production Keycloak. Optional local realm: `docker compose -f infra/keycloak/docker-compose.yml up`.
+- **Web:** `pnpm dev:web` - Next.js PWA SPA (see `apps/web`). Bake `NEXT_PUBLIC_KEYCLOAK_ISSUER` / `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID` for Bearer preview hosts; custom domains use Auth.js cookies.
 - **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (GitHub login via `https://api.singletonsd.com/v1/cms-auth/auth`). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
 - **Prisma needs `DATABASE_URL` (+ `DATABASE_URL_UNPOOLED` for migrate):** `packages/db` scripts (`prisma validate`/`generate`, invoked by `pnpm test`/`pnpm build`) fail without them. Prisma reads `.env` from its own dir (cwd = `packages/db`), NOT the repo root — use `./scripts/neon-env-pull.sh` or copy placeholders. Real Neon values live in Key Vault (`database-url` / `database-url-unpooled`); CI uses dummy PostgreSQL URLs for validate/generate only.
 - **If `pnpm build` fails in `packages/events`** (build runs `tsc -p tsconfig.json`): older `main` is missing `packages/events/tsconfig.json` + a `typescript` dep; a pending ClickUp-tracked PR adds them. Until it merges, build the API directly with `pnpm --filter @poc-plattform-kit/api build`.

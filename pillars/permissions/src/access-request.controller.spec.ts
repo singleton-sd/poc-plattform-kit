@@ -9,6 +9,8 @@ describe('AccessRequestController', () => {
   const user: AuthenticatedUser = {
     id: 'user-1',
     entraOid: 'oid-1',
+    keycloakSub: 'oid-1',
+    emailVerified: true,
     email: 'u@example.com',
     name: 'User',
     roles: [],

@@ -1714,17 +1714,16 @@
         "type": "oauth2",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            "authorizationUrl": "https://auth.singletonsd.com/realms/<product>/protocol/openid-connect/auth",
             "tokenUrl": "/docs/oauth2/token",
             "scopes": {
               "openid": "Sign in",
               "profile": "User profile",
-              "offline_access": "Refresh token",
-              "platform-kit/.default": "Access Platform Kit API"
+              "email": "Email"
             }
           }
         },
-        "description": "Microsoft Entra ID (authorization code + PKCE). Register Web redirect URI `/docs/oauth2-redirect.html` on the API app registration. Token exchange is proxied by this API."
+        "description": "Keycloak (authorization code + PKCE). Register Web redirect URI `/docs/oauth2-redirect.html` on the API OIDC client. Token exchange is proxied by this API."
       }
     },
     "schemas": {
@@ -1938,7 +1937,7 @@
           },
           "invitedByUserId": {
             "type": "string",
-            "description": "Local User.id (or Entra oid fallback) of the caller who created the invitation."
+            "description": "Local User.id (or Keycloak sub fallback) of the caller who created the invitation."
           },
           "status": {
             "type": "string",
@@ -2148,7 +2147,7 @@
               "support-agent",
               "tenant-admin"
             ],
-            "description": "Coarse Entra app roles from the access token / session.",
+            "description": "Coarse app roles from the access token / session.",
             "type": "array",
             "items": {
               "type": "string"

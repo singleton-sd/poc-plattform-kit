@@ -27,7 +27,7 @@ rules that follow from it.
 | Pillar | Owns | Status in this repo |
 | --- | --- | --- |
 | **Tenant** | Tenants, tenancy boundaries, per-tenant membership | Implemented (`pillars/tenant`) |
-| **SingleSignOn** | Entra AuthN, Auth.js session cookies, coarse roles | Implemented (no dedicated pillar package yet — lives in `apps/api` auth wiring; see `docs/sso.md`) |
+| **SingleSignOn** | Keycloak OIDC AuthN, Auth.js session cookies, coarse roles | Implemented (`pillars/single-sign-on` + `apps/api` auth wiring; see `docs/sso.md`) |
 | **Permissions** | Fine-grained AuthZ (`Check(subject, action, resource)`) via OpenFGA | Implemented (`pillars/permissions`) |
 | **Subscriptions** | Tenant plans/entitlements | Outbox/Audit scaffold only so far |
 | **Contact** | Product contact domain | Outbox/Audit scaffold; brochure intake is handled by shared PostKit |
@@ -63,11 +63,11 @@ changes as feature work lands.
   by the authenticated tenant, never trust a client-supplied value alone —
   see [`docs/db-practices.md`](../db-practices.md)'s "Multi-tenancy" section.
 - The tenant id for a request is resolved from, in order: an optional
-  `tenant_id` claim on the Auth.js session / Entra JWT, then a legacy/dev
+  `tenant_id` claim on the Auth.js session / Keycloak JWT, then a legacy/dev
   `x-tenant-id` header when that claim is absent. A verified JWT claim
   always overrides a client-forged header once authentication has run. See
   [`docs/sso.md`](../sso.md)'s "Tenancy" section and `pillars/tenant/README.md`.
-- Entra's own directory tenant id (`tid`) is a different concept from this
+- A Keycloak realm id is a different concept from this
   platform's `Tenant.id` — never conflate the two.
 - Tenant membership/roles (`TenantMembership`) are identity/membership
   bookkeeping only; they don't enforce anything by themselves — enforcement
@@ -82,7 +82,7 @@ aren't merged into one system:
 
 | Layer | Mechanism | Doc |
 | --- | --- | --- |
-| AuthN + coarse roles | Entra ID via Auth.js (cookies) or Bearer JWT; Nest `APP_GUARD` + `@Roles(...)` | [`docs/sso.md`](../sso.md) |
+| AuthN + coarse roles | Keycloak OIDC via Auth.js (cookies) or Bearer JWT; Nest `APP_GUARD` + `@Roles(...)` | [`docs/sso.md`](../sso.md) |
 | Fine-grained AuthZ | Permissions pillar → OpenFGA (Zanzibar/ReBAC) `Check(subject, action, resource)` | [`docs/permissions.md`](../permissions.md), `pillars/permissions/README.md` |
 
 Other pillars call Permissions (sync HTTP or a cache in front of it) for

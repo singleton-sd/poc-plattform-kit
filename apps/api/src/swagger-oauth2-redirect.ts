@@ -1,7 +1,7 @@
 /**
  * Swagger UI oauth2-redirect.html replacement.
  *
- * Entra (and other IdPs) navigate the popup cross-origin, which severs or
+ * Keycloak (and other IdPs) navigate the popup cross-origin, which severs or
  * cross-origin-blocks `window.opener`. The stock swagger-ui redirect then
  * throws SecurityError / null opener and never returns the auth code.
  *
@@ -135,7 +135,7 @@ export function buildSwaggerOauth2RedirectHtml(): string {
     document.body.innerHTML =
       '<main style="font:16px/1.4 system-ui,sans-serif;max-width:36rem;margin:2rem auto;padding:0 1rem">' +
       '<h1>Swagger Authorize needs a popup</h1>' +
-      '<p>Entra signed you in, but this tab replaced Swagger UI, so the access token could not be returned.</p>' +
+      '<p>Keycloak signed you in, but this tab replaced Swagger UI, so the access token could not be returned.</p>' +
       '<p><a href="/docs">Back to Swagger</a>, click <strong>Authorize</strong> again, and <strong>allow popups</strong> for this site so login stays in a separate window.</p>' +
       '</main>';
     return;
@@ -154,7 +154,7 @@ export function buildSwaggerOauth2RedirectHtml(): string {
 
 /**
  * Inline script for Swagger UI (`customJsStr`) — completes OAuth when the
- * redirect popup cannot touch window.opener (Entra COOP / cross-origin).
+ * redirect popup cannot touch window.opener (IdP COOP / cross-origin).
  */
 export function buildSwaggerOauth2BridgeScript(): string {
   return `(function () {

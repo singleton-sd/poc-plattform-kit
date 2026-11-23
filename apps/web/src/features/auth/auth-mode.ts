@@ -2,7 +2,7 @@
  * Auth transport for the SPA.
  *
  * - `cookie` — Option B Auth.js session on custom domains (same-site Lax).
- * - `bearer` — MSAL access token on Azure Static Web Apps and Azure
+ * - `bearer` — Keycloak OIDC access token on Azure Static Web Apps and Azure
  *   Container Apps preview hosts (no shared cookie Domain with the API).
  */
 export type AuthMode = 'cookie' | 'bearer';

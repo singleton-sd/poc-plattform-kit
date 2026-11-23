@@ -5,9 +5,9 @@
 # Build from the repository root:
 #   docker build -f apps/web/Dockerfile -t pocpk-web \
 #     --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example \
-#     --build-arg NEXT_PUBLIC_AZURE_AD_CLIENT_ID= \
-#     --build-arg NEXT_PUBLIC_AZURE_AD_TENANT_ID= \
-#     --build-arg NEXT_PUBLIC_AZURE_AD_API_SCOPE= .
+#     --build-arg NEXT_PUBLIC_KEYCLOAK_ISSUER= \
+#     --build-arg NEXT_PUBLIC_KEYCLOAK_CLIENT_ID= \
+#     --build-arg NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE= .
 #
 # Workflows pass NEXT_PUBLIC_* build-args so Next inlines them at build time
 # (same contract as preview-web.yml today). Listen port is $PORT (default 80).
@@ -28,13 +28,13 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY apps/web ./apps/web
 ARG NEXT_PUBLIC_API_BASE_URL=
-ARG NEXT_PUBLIC_AZURE_AD_CLIENT_ID=
-ARG NEXT_PUBLIC_AZURE_AD_TENANT_ID=
-ARG NEXT_PUBLIC_AZURE_AD_API_SCOPE=
+ARG NEXT_PUBLIC_KEYCLOAK_ISSUER=
+ARG NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=
+ARG NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE=
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
-    NEXT_PUBLIC_AZURE_AD_CLIENT_ID=$NEXT_PUBLIC_AZURE_AD_CLIENT_ID \
-    NEXT_PUBLIC_AZURE_AD_TENANT_ID=$NEXT_PUBLIC_AZURE_AD_TENANT_ID \
-    NEXT_PUBLIC_AZURE_AD_API_SCOPE=$NEXT_PUBLIC_AZURE_AD_API_SCOPE
+    NEXT_PUBLIC_KEYCLOAK_ISSUER=$NEXT_PUBLIC_KEYCLOAK_ISSUER \
+    NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=$NEXT_PUBLIC_KEYCLOAK_CLIENT_ID \
+    NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE=$NEXT_PUBLIC_KEYCLOAK_API_AUDIENCE
 RUN pnpm --filter @poc-plattform-kit/web... run build \
  && test -f /app/apps/web/out/index.html
 

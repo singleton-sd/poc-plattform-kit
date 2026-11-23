@@ -10,6 +10,8 @@ import { TenantGroupService } from './tenant-group.service';
 const actor: AuthenticatedUser = {
   id: 'owner-1',
   entraOid: 'entra-owner',
+  keycloakSub: 'entra-owner',
+  emailVerified: true,
   email: 'owner@example.test',
   name: 'Owner',
   roles: [],

@@ -62,9 +62,9 @@ describe('mountSwaggerOauth2TokenProxy', () => {
     } as unknown as Express;
 
     mountSwaggerOauth2TokenProxy(expressApp, {
-      AZURE_AD_TENANT_ID: 'tenant',
-      AZURE_AD_CLIENT_ID: 'client',
-      AZURE_AD_CLIENT_SECRET: 'secret',
+      KEYCLOAK_ISSUER: 'https://auth.example.test/realms/singletonsd',
+      KEYCLOAK_CLIENT_ID: 'client',
+      KEYCLOAK_CLIENT_SECRET: 'secret',
       AUTH_URL: 'https://api.example.com',
     });
 

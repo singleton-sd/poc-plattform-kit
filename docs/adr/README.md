@@ -50,3 +50,4 @@ unused number. Sections:
 | [0003](./0003-sqlite-seeded-preview-databases.md) | SQLite-seeded ephemeral databases for API PR previews |
 | [0004](./0004-cross-subdomain-cookie-auth-swa-free.md) | Cross-subdomain session cookies instead of SWA Standard app-linking |
 | [0005](./0005-entity-id-strategy.md) | Entity ID strategy — keep CUID, explicit relational column sizing |
+| [0006](./0006-platform-kit-multitenancy.md) | Platform Kit as the multi-tenant base (Keycloak identity; org ADR-002) |
