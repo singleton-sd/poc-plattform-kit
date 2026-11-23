@@ -2,6 +2,27 @@
   "product": "@poc-plattform-kit/marketing",
   "releases": [
     {
+      "version": "0.11.0",
+      "date": "2026-11-23",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Replace Entra ID login with Keycloak OIDC",
+          "reason": "Land accepted ADR 0006 (org ADR-002) and swap Auth.js, JWT validation,"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Case-insensitive Keycloak email backfill and per-product realm",
+          "reason": "Match legacy Entra emails case-insensitively, map email unique conflicts"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address CodeRabbit findings on Keycloak OIDC login",
+          "reason": "Reject unconfigured JWT validation, keep audience off OIDC scopes,"
+        }
+      ]
+    },
+    {
       "version": "0.10.0",
       "date": "2026-11-14",
       "changes": [

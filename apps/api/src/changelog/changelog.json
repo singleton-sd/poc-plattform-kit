@@ -2,6 +2,47 @@
   "product": "@poc-plattform-kit/api",
   "releases": [
     {
+      "version": "0.29.0",
+      "date": "2026-11-23",
+      "changes": [
+        {
+          "type": "New",
+          "summary": "Replace Entra ID login with Keycloak OIDC",
+          "reason": "Land accepted ADR 0006 (org ADR-002) and swap Auth.js, JWT validation,"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Map lost Keycloak backfill to 409",
+          "reason": "Lost null-only backfill (count 0) now 409 Conflict, matching"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Handle Keycloak backfill unique race",
+          "reason": "Catch P2002 on the null-only keycloakSub backfill, recover the"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address CodeRabbit findings on issuer, emails, and refresh",
+          "reason": "Skip publishing a placeholder Keycloak issuer, omit addresses from the"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Guard lowercase email migration against case-only duplicates",
+          "reason": "Abort migrate deploy with the colliding addresses before UPDATE so a"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Case-insensitive Keycloak email backfill and per-product realm",
+          "reason": "Match legacy Entra emails case-insensitively, map email unique conflicts"
+        },
+        {
+          "type": "Fixed",
+          "summary": "Address CodeRabbit findings on Keycloak OIDC login",
+          "reason": "Reject unconfigured JWT validation, keep audience off OIDC scopes,"
+        }
+      ]
+    },
+    {
       "version": "0.28.0",
       "date": "2026-11-22",
       "changes": [
