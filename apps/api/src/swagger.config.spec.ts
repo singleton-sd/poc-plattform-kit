@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   buildOpenApiDocumentConfig,
   buildSwaggerUiOptions,
@@ -5,6 +7,10 @@ import {
   resolveSwaggerOAuth2RedirectUrl,
   resolveSwaggerOAuthUrls,
 } from './swagger.config';
+
+const apiPackageVersion = (
+  JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')) as { version: string }
+).version;
 
 describe('swagger.config', () => {
   describe('resolveSwaggerApiScope', () => {
@@ -86,6 +92,23 @@ describe('swagger.config', () => {
           },
         },
       });
+    });
+
+    it('prefers APP_VERSION over package.json for the document version', () => {
+      const doc = buildOpenApiDocumentConfig({ APP_VERSION: '9.9.9' });
+      expect(doc.info.version).toBe('9.9.9');
+    });
+
+    it('trims a padded APP_VERSION', () => {
+      expect(buildOpenApiDocumentConfig({ APP_VERSION: '  9.9.9  ' }).info.version).toBe('9.9.9');
+    });
+
+    it('falls back to package.json when APP_VERSION is absent, empty, or whitespace', () => {
+      expect(buildOpenApiDocumentConfig({}).info.version).toBe(apiPackageVersion);
+      expect(buildOpenApiDocumentConfig({ APP_VERSION: '' }).info.version).toBe(apiPackageVersion);
+      expect(buildOpenApiDocumentConfig({ APP_VERSION: '   ' }).info.version).toBe(
+        apiPackageVersion,
+      );
     });
 
     it('uses a per-product realm placeholder when KEYCLOAK_ISSUER is unset', () => {

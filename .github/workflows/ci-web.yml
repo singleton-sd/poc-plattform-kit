@@ -19,6 +19,7 @@ on:
       - 'scripts/worktree-paths.mjs'
       - 'scripts/worktree-paths.test.mjs'
       - '.github/workflows/ci-web.yml'
+      - '.github/workflows/deploy-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -42,6 +43,7 @@ on:
       - 'scripts/worktree-paths.mjs'
       - 'scripts/worktree-paths.test.mjs'
       - '.github/workflows/ci-web.yml'
+      - '.github/workflows/deploy-web.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -60,7 +62,7 @@ jobs:
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' &&
        !contains(github.event.head_commit.message, '[skip ci]') &&
-       !startsWith(github.event.head_commit.message, 'chore: Release'))
+       !startsWith(github.event.head_commit.message, 'chore(release):'))
     runs-on: ubuntu-latest
     env:
       # prisma validate/generate read schema url; no live DB in CI

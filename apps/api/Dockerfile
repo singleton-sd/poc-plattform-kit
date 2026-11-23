@@ -59,11 +59,13 @@ RUN PRISMA_JS="$(find /app/node_modules -path '*/node_modules/prisma/build/index
   && test -f /out/node_modules/.prisma/client/index.js
 
 FROM node:20-alpine AS production
+ARG APP_VERSION=
 RUN apk add --no-cache openssl \
   && addgroup -S app && adduser -S app -G app
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV APP_VERSION=$APP_VERSION
 COPY --from=prod-package /out ./
 USER app
 EXPOSE 3001
