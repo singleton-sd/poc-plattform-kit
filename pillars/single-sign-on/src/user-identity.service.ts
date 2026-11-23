@@ -54,22 +54,23 @@ export class UserIdentityService {
       if (byEmail.keycloakSub && byEmail.keycloakSub !== identity.keycloakSub) {
         throw new UnauthorizedException('Email already linked to another Keycloak subject');
       }
-      const linked = await this.prisma.user.updateMany({
-        where: { id: byEmail.id, keycloakSub: null },
-        data: {
-          keycloakSub: identity.keycloakSub,
-          name: identity.name,
-          email,
-        },
-      });
-      if (linked.count === 0) {
-        const raced = await this.prisma.user.findUnique({
-          where: { keycloakSub: identity.keycloakSub },
+      try {
+        const linked = await this.prisma.user.updateMany({
+          where: { id: byEmail.id, keycloakSub: null },
+          data: {
+            keycloakSub: identity.keycloakSub,
+            name: identity.name,
+            email,
+          },
         });
-        if (raced) {
-          return this.refresh(identity, raced, email);
+        if (linked.count === 0) {
+          return this.recoverLinkedSubject(identity, email);
         }
-        throw new UnauthorizedException('Email already linked to another Keycloak subject');
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          return this.recoverLinkedSubject(identity, email, error);
+        }
+        throw error;
       }
       const updated = await this.prisma.user.findUnique({ where: { id: byEmail.id } });
       if (!updated) {
@@ -90,15 +91,7 @@ export class UserIdentityService {
       return this.toAuthenticated(identity, created);
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        const raced = await this.prisma.user.findUnique({
-          where: { keycloakSub: identity.keycloakSub },
-        });
-        if (raced) {
-          return this.refresh(identity, raced, email);
-        }
-        if (isEmailUniqueConstraint(error)) {
-          throw new ConflictException('Email already linked to another Keycloak subject');
-        }
+        return this.recoverLinkedSubject(identity, email, error);
       }
       throw error;
     }
@@ -121,6 +114,31 @@ export class UserIdentityService {
   /** Exact match on the already-lowercased unique key. Avoids Prisma ILIKE wildcards. */
   private async findUserByEmail(email: string): Promise<UserRow | null> {
     return this.prisma.user.findUnique({ where: { email } });
+  }
+
+  /**
+   * After a lost backfill/create race, reuse the subject if it is now linked.
+   * Unique email collisions map to 409. A lost null-only backfill (no Prisma
+   * error) maps to 401 so a competing row is never returned.
+   */
+  private async recoverLinkedSubject(
+    identity: AuthenticatedUser,
+    email: string,
+    error?: unknown,
+  ): Promise<AuthenticatedUser> {
+    const raced = await this.prisma.user.findUnique({
+      where: { keycloakSub: identity.keycloakSub },
+    });
+    if (raced) {
+      return this.refresh(identity, raced, email);
+    }
+    if (error) {
+      if (isEmailUniqueConstraint(error)) {
+        throw new ConflictException('Email already linked to another Keycloak subject');
+      }
+      throw error;
+    }
+    throw new UnauthorizedException('Email already linked to another Keycloak subject');
   }
 
   private async refresh(

@@ -17,6 +17,13 @@ function identity(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser
   };
 }
 
+function uniqueConstraintError(target: string[]): Error {
+  return Object.assign(new Error('Unique constraint failed'), {
+    code: 'P2002',
+    meta: { target },
+  });
+}
+
 describe('UserIdentityService', () => {
   const findUnique = jest.fn();
   const findFirst = jest.fn();
@@ -154,6 +161,111 @@ describe('UserIdentityService', () => {
     expect(updateMany).toHaveBeenCalledWith({
       where: { id: 'local-legacy', keycloakSub: null },
       data: { keycloakSub: 'kc-sub-1', name: 'Agent', email: 'agent@example.com' },
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('refreshes when a concurrent backfill already linked the same subject (count 0)', async () => {
+    const unlinked = {
+      id: 'local-legacy',
+      entraOid: 'oid-legacy',
+      keycloakSub: null,
+      email: 'agent@example.com',
+      name: 'Legacy',
+    };
+    const linked = {
+      id: 'local-legacy',
+      entraOid: 'oid-legacy',
+      keycloakSub: 'kc-sub-1',
+      email: 'agent@example.com',
+      name: 'Other name',
+    };
+    findUnique.mockImplementation(
+      async (args: { where: { keycloakSub?: string; email?: string; id?: string } }) => {
+        if (args.where.keycloakSub === 'kc-sub-1') {
+          return updateMany.mock.calls.length > 0 ? linked : null;
+        }
+        if (args.where.email === 'agent@example.com') return unlinked;
+        return null;
+      },
+    );
+    updateMany.mockResolvedValue({ count: 0 });
+    update.mockResolvedValue({ ...linked, name: 'Agent' });
+
+    const persisted = await service.persist(identity({ emailVerified: true }));
+
+    expect(persisted).toMatchObject({ id: 'local-legacy', keycloakSub: 'kc-sub-1', name: 'Agent' });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'local-legacy' },
+      data: { email: 'agent@example.com', name: 'Agent' },
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('rejects when a concurrent backfill links the email to another subject (count 0)', async () => {
+    const competing = {
+      id: 'local-other',
+      entraOid: 'oid-other',
+      keycloakSub: null,
+      email: 'agent@example.com',
+      name: 'Other',
+    };
+    findUnique.mockImplementation(
+      async (args: { where: { keycloakSub?: string; email?: string; id?: string } }) => {
+        if (args.where.keycloakSub === 'kc-sub-1') return null;
+        if (args.where.email === 'agent@example.com') return competing;
+        if (args.where.id === 'local-other') return competing;
+        return null;
+      },
+    );
+    updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.persist(identity({ emailVerified: true }))).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('recovers when concurrent backfills hit a unique keycloakSub on different legacy rows', async () => {
+    const unlinkedNewEmail = {
+      id: 'local-new-email',
+      entraOid: 'oid-new',
+      keycloakSub: null,
+      email: 'new@example.com',
+      name: 'New leftover',
+    };
+    const alreadyLinked = {
+      id: 'local-old-email',
+      entraOid: 'oid-old',
+      keycloakSub: 'kc-sub-1',
+      email: 'old@example.com',
+      name: 'Old leftover',
+    };
+    findUnique.mockImplementation(
+      async (args: { where: { keycloakSub?: string; email?: string; id?: string } }) => {
+        if (args.where.keycloakSub === 'kc-sub-1') {
+          return updateMany.mock.calls.length > 0 ? alreadyLinked : null;
+        }
+        if (args.where.email === 'new@example.com') return unlinkedNewEmail;
+        return null;
+      },
+    );
+    updateMany.mockRejectedValue(uniqueConstraintError(['keycloakSub']));
+    update.mockResolvedValue({ ...alreadyLinked, email: 'new@example.com', name: 'Agent' });
+
+    const persisted = await service.persist(
+      identity({ email: 'new@example.com', emailVerified: true }),
+    );
+
+    expect(persisted).toMatchObject({
+      id: 'local-old-email',
+      keycloakSub: 'kc-sub-1',
+      email: 'new@example.com',
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'local-old-email' },
+      data: { email: 'new@example.com', name: 'Agent' },
     });
     expect(create).not.toHaveBeenCalled();
   });
@@ -298,12 +410,7 @@ describe('UserIdentityService', () => {
       email: 'agent@example.com',
       name: 'Agent',
     });
-    create.mockRejectedValue(
-      Object.assign(new Error('Unique constraint failed'), {
-        code: 'P2002',
-        meta: { target: ['keycloakSub'] },
-      }),
-    );
+    create.mockRejectedValue(uniqueConstraintError(['keycloakSub']));
     update.mockResolvedValue({
       id: 'local-1',
       entraOid: null,
@@ -324,12 +431,7 @@ describe('UserIdentityService', () => {
       email: 'old@example.com',
       name: 'Old',
     });
-    update.mockRejectedValue(
-      Object.assign(new Error('Unique constraint failed'), {
-        code: 'P2002',
-        meta: { target: ['email'] },
-      }),
-    );
+    update.mockRejectedValue(uniqueConstraintError(['email']));
 
     try {
       await service.persist(identity({ email: 'taken@example.com' }));
@@ -342,12 +444,7 @@ describe('UserIdentityService', () => {
 
   it('maps an email unique conflict to 409 instead of 500', async () => {
     findUnique.mockResolvedValue(null);
-    create.mockRejectedValue(
-      Object.assign(new Error('Unique constraint failed'), {
-        code: 'P2002',
-        meta: { target: ['email'] },
-      }),
-    );
+    create.mockRejectedValue(uniqueConstraintError(['email']));
 
     try {
       await service.persist(identity());
