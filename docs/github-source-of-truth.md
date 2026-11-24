@@ -268,8 +268,8 @@ automatic and does not depend on a human remembering to close it separately.
 6. Push normally. Never force-push, including `--force-with-lease`.
 7. Open/update the PR, with `Closes #N` linking the originating issue.
 8. If `origin/main` changes while CI/review is running and branch
-   protection or mergeability requires it, `git merge origin/main` again
-   and push.
+   protection or mergeability requires it, `git fetch origin`, then
+   `git merge origin/main` again and push.
 9. Humans merge. Agents do not approve or merge their own PRs.
 
 ## 7. Public-repository safety boundary

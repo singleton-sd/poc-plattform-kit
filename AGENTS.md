@@ -178,8 +178,8 @@ Per `docs/github-source-of-truth.md` section 6:
    Use `Closes`/`Fixes`/`Resolves`, not a plain `#174` reference, so merging
    closes the issue automatically.
 8. If `origin/main` changes while CI/review is running and branch
-   protection or mergeability requires it, `git merge origin/main` again
-   and push (counts toward the 3-push limit).
+   protection or mergeability requires it, `git fetch origin`, then
+   `git merge origin/main` again and push (counts toward the 3-push limit).
 9. Humans merge. Agents never approve or merge their own PRs (GitHub
    forbids self-approval on a solo identity anyway). Agents never enable
    auto-merge.
