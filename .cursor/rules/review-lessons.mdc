@@ -1,0 +1,41 @@
+---
+description: Lessons from earlier poc-plattform-kit PR reviews. Check every item before each push and report pass/fail under "Self-review" in the PR body.
+alwaysApply: true
+---
+
+# poc-plattform-kit review lessons (updated 24 Nov 2026)
+
+Sources are CodeRabbit findings on [#312](https://github.com/singleton-sd/poc-plattform-kit/pull/312), [#313](https://github.com/singleton-sd/poc-plattform-kit/pull/313) and [#318](https://github.com/singleton-sd/poc-plattform-kit/pull/318), merged 10-23 Nov 2026.
+
+## Release and deploy workflows deploy exactly what Release tagged (`release.yml`, `deploy-api.yml`, `deploy-web.yml`, `pages.yml`)
+
+- Resolve the release tag first, then check out **that** commit before building. Never use the upstream run's `head_sha` or the branch tip. [#312 Major: "Resolve the release tag before checking out the selected commit"; "Check out the selected manual release tag before building"; Minor: "Deploy the commit that Release tagged"]
+- Manual dispatch with `release_tag` selects the deployed source. Runs without a web tag must not replace a pending web deployment. [#312 Major: "Use release_tag to select the deployed source"; "Keep pending web deployments from being replaced by runs that have no web tag"]
+- Release retries preserve pending deployments. Tag-collection failures fail the job; they aren't swallowed. [#312 Major: "Preserve pending deployments across release retries"; Minor: "Propagate tag-collection failures"]
+- GitHub App tokens set `repositories:` to this repo and the minimum `permission-*`. [#312 Minor: "Restrict the App token to this repository"]
+- Production builds fail fast when a required Variable (e.g. Keycloak) is missing. [#313 Minor]
+
+## Auth and identity (Keycloak / OIDC)
+
+- Missing auth config **rejects** Bearer auth; it never falls open. [#313 Critical: "Reject Bearer authentication when Keycloak configuration is missing"]
+- Never use the API audience or client ID as an OAuth scope. Map the audience with a mapper. [#313 Major ×2; Minor: test-realm audience mapper]
+- Take platform roles only from the client that owns them. Cookie sessions keep realm roles and `preferred_username`. [#313 Major ×2; Minor]
+- Renew access tokens (and serialize concurrent silent renewals). Don't just read the stored user. [#313 Major; Minor]
+- Email backfill never replaces an existing subject. Use literal (not case-insensitive `equals`) email matches. Return 409 on email conflicts. Handle uniqueness races. [#313 Major ×2; Minor ×3]
+- No email addresses or other PII in migration errors or logs. Bind local dev ports (Keycloak) to loopback. [#313 Minor ×2]
+
+## UI hooks (`packages/ui`)
+
+- Effects restore the values they changed (e.g. scroll-padding) and disconnect observers on cleanup. Measure rendered sizes rather than assuming them. [#318 Minor ×2]
+
+## Tests must fail on regression
+
+- Assert behaviour: tag/SHA rejection, not step names. Make the unverified-email test fail if the check is removed. [#312 Major: "Test Pages tag/SHA rejection, not only the step name"; #313 Minor]
+- Race and renewal tests must actually reach the racing call (`create()`), and must run without a primed cache. [#313 Minor ×3, Trivial]
+- Cover the change after the initial render, resize-driven updates and observer cleanup, plus config fallbacks (`NEXT_PUBLIC_APP_VERSION`). [#318 Trivial, Minor; #312 Minor]
+
+## Process
+
+- Never post `@coderabbitai`. Wait for the automatic review of each head. [org lesson]
+- Answer every review thread before resolving it (#318 had one with no reply).
+- Agents never touch labels; run `pr:gate` with `--no-label`. [AGENTS.md; org baseline]
