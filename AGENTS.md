@@ -1,5 +1,23 @@
 # AGENTS.md - poc-plattform-kit
 
+## Agent rules (read first)
+
+Read `.cursor/rules/00-baseline.mdc` and `.cursor/rules/review-lessons.mdc`
+before starting.
+
+- Never rebase.
+- Never force-push (including `--force-with-lease`).
+- Bring in `origin/main` with `git merge` only.
+- One commit and one push per round, at most 3 rounds.
+- Never `[skip ci]`, `--no-verify` or `SKIP_PREPUSH`.
+- Agents never add or remove labels. Run the handoff gate only as
+  `pnpm pr:gate -- --pr <n> --no-label`.
+- Wait for the automatic bot reviews and never post bot commands.
+- PR says `Closes #N`.
+- Agents never merge, approve or enable auto-merge.
+
+These match `docs/github-source-of-truth.md` §3 and §6.
+
 ## Engineering source of truth (read first)
 
 The repository has migrated engineering delivery from ClickUp to GitHub
@@ -13,7 +31,7 @@ boundary. Read it before starting new engineering work.
 **All new engineering work uses the [GitHub-native engineering
 workflow](#github-native-engineering-workflow-primary) section below** — it
 implements that policy operationally (claiming, branch/worktree naming,
-rebase/push/PR, parallel-agent and blocked-work rules, review feedback,
+merge/push/PR, parallel-agent and blocked-work rules, review feedback,
 completion). GitHub Issues, not ClickUp, are the primary work identifier.
 
 The [Legacy ClickUp workflow](#legacy-clickup-workflow-existing-clickup-tracked-tickets-only)
@@ -136,7 +154,7 @@ git worktree remove ../worktrees/<issue-number>-<kebab-slug>
 git worktree prune
 ```
 
-### Repository workflow (fetch, rebase, push, PR)
+### Repository workflow (fetch, merge, push, PR)
 
 Per `docs/github-source-of-truth.md` section 6:
 
@@ -147,12 +165,10 @@ Per `docs/github-source-of-truth.md` section 6:
    issue explicitly declares that dependency.
 5. Before pushing completed implementation:
    - `git fetch origin`
-   - rebase (or merge, per the **Shared hub files / conflict playbook**
-     below — that mechanical playbook is unchanged by this migration, it is
-     just no longer gated on ClickUp) onto `origin/main`
+   - `git merge origin/main` (never rebase; see the conflict playbook below)
    - resolve conflicts
    - run the relevant test suite
-6. Push with `--force-with-lease` after a rebase. Never plain `--force`.
+6. Push normally. Never force-push, including `--force-with-lease`.
 7. Open/update the PR with a GitHub closing keyword linking the issue:
 
    ```text
@@ -162,14 +178,15 @@ Per `docs/github-source-of-truth.md` section 6:
    Use `Closes`/`Fixes`/`Resolves`, not a plain `#174` reference, so merging
    closes the issue automatically.
 8. If `origin/main` changes while CI/review is running and branch
-   protection or mergeability requires it, rebase again and re-push
-   (`--force-with-lease`).
+   protection or mergeability requires it, `git fetch origin`, then
+   `git merge origin/main` again and push (counts toward the 3-push limit).
 9. Humans merge. Agents never approve or merge their own PRs (GitHub
-   forbids self-approval on a solo identity anyway).
+   forbids self-approval on a solo identity anyway). Agents never enable
+   auto-merge.
 
 ### Review feedback
 
-Connected review bots (e.g. Cursor Bugbot, ChatGPT Codex Connector) review
+Connected review bots (CodeRabbit, Cursor Bugbot; ChatGPT Codex Connector where enabled) review
 PRs on GitHub; humans may also comment. This is unchanged by the ClickUp
 migration — it was already tracker-neutral:
 
@@ -178,6 +195,8 @@ migration — it was already tracker-neutral:
    conflict), `ci-failed` (required lint/test/build failed), `has-feedback`
    (Bugbot/Copilot/human comment), `preview-blocked` (SWA/ACA/Chromatic
    infra — not a code bounce). Filter with `gh pr list --label <name>`.
+   These labels are set by automation. Agents read them and never add or
+   remove labels.
 3. Address `needs-rebase` via the conflict playbook, `ci-failed` by fixing
    and pushing, `has-feedback` by fetching issue + review comments and
    replying in-thread once resolved.
@@ -185,18 +204,22 @@ migration — it was already tracker-neutral:
    and mark readiness:
 
    ```bash
-   pnpm pr:gate -- --pr <pr-number>
+   pnpm pr:gate -- --pr <pr-number> --no-label
    ```
 
-   This applies the `ready-for-human` label when the PR is truly mergeable,
-   required CI is green, and there are no unresolved review threads (see
-the "Enforced PR handoff gate" section of [`docs/pr-pipelines.md`](docs/pr-pipelines.md)
-   gate). It removes the label if any blocker reappears.
-5. Keep the Human Review Brief current: `node scripts/upsert-pr-review-brief.mjs --pr <n>`.
-6. Bot or human feedback that requires code changes: fetch the PR tip and
-   all feedback, make the change, push, and re-run the gate. There is no
-   separate ticket status to move — the labels and the PR itself are the
-   state.
+   It reports whether the PR is mergeable, required CI is green and no
+   review threads are unresolved. Agents run it with `--no-label` and
+   report the result in the PR; they never apply `ready-for-human`. See
+   the "Enforced PR handoff gate" section of [`docs/pr-pipelines.md`](docs/pr-pipelines.md).
+5. Wait for CodeRabbit's automatic review of each pushed head; never post
+   `@coderabbitai` or other bot commands. For each thread, fix a real
+   defect in the next round, or reply with a short reason, then resolve.
+   At most 2 review rounds, within the 3-push limit.
+6. Keep the Human Review Brief current: `node scripts/upsert-pr-review-brief.mjs --pr <n>`.
+7. Bot or human feedback that requires code changes: fetch the PR tip and
+   all feedback, make the change, push (within the push limit), and re-run
+   the gate with `--no-label`. There is no separate ticket status to move
+   — the labels and the PR itself are the state.
 
 ### Completion
 
@@ -398,6 +421,7 @@ Parallel PRs collide on shared hub paths. **Do not touch a hub unless the ticket
 | Root `package.json` / `pnpm-workspace.yaml` | Root tooling ticket | Prefer deps/scripts in `apps/*`, `packages/*`, `pillars/*` |
 | Workspace `**/package.json` | That package's ticket | Keep diffs minimal |
 | `.agents/skills/**`, `.claude/skills/**`, `.grok/skills/**`, `.cursor/skills/**` | Dedicated skills-install chore PR | Do not run `pnpm skills:install:pin` inside feature PRs |
+| `.cursor/rules/**` | Agent-rules issue | Org baseline lives in `00-baseline.mdc`; don't edit it in feature PRs |
 | `AGENTS.md`, `SETUP.md`, `docs/pr-pipelines.md`, `infra/README.md` | Docs/ops issue | Otherwise open a GitHub issue as a follow-up |
 | `infra/main.bicep` + `infra/main.json` | Infra ticket | Always regenerate JSON: `az bicep build -f infra/main.bicep --outfile infra/main.json` and commit both |
 | `apps/api/src/main.ts`, `app.module.ts` | API feature wiring | Minimal diffs (register module/provider only) |
@@ -408,7 +432,7 @@ High-churn hubs from recent PR history: workflows, `docs/**`, `SETUP.md`, skills
 
 ### Conflict playbook (mandatory on dirty / `needs-rebase`)
 
-Agents must not reason through lockfiles or ARM JSON. Prefer **merge** over rebase (simpler ours/theirs):
+Agents must not reason through lockfiles or ARM JSON. Always **merge**; never rebase:
 
 ```text
 1. git fetch origin main
@@ -417,7 +441,7 @@ Agents must not reason through lockfiles or ARM JSON. Prefer **merge** over reba
 4. Hand-fix only paths the script lists as remaining
 5. If infra/main.bicep was fixed: az bicep build -f infra/main.bicep --outfile infra/main.json
    then re-run pnpm resolve:conflicts (or git add infra/main.json)
-6. Commit the merge, push
+6. Commit the merge, push (counts toward the 3-push limit)
 7. gh pr checks --watch; confirm mergeable
 ```
 
@@ -434,12 +458,11 @@ Script: [`scripts/resolve-merge-conflicts.ps1`](scripts/resolve-merge-conflicts.
 
 **Hand-fix leftovers** (script lists these; do not auto-take): `infra/main.bicep`, `apps/api/src/main.ts`, `app.module.ts`, `.github/workflows/**`.
 
-Merge vs rebase checkout map (encoded in the script):
+Merge checkout map (encoded in the script):
 
 | Situation | main side | feature side |
 | --- | --- | --- |
 | Merging `main` into feature | `--theirs` | `--ours` |
-| Rebasing feature onto `main` | `--ours` | `--theirs` |
 
 Ops tip: merge foundation/hub PRs (CI, hooks, skills sync, SETUP) before long-lived feature PRs when possible.
 
@@ -499,7 +522,7 @@ Path-filtered GitHub Actions (see `docs/pr-pipelines.md` / `SETUP.md`):
 - **Path B locked:** per-PR API previews (`ssd-pocpk-aca-pr-<n>-ae`) and web PR previews (`ssd-pocpk-aca-web-pr-<n>-ae`) on Container Apps Consumption, scale to zero. Shared F1 overwrite and S1 slots are rejected/deprecated for per-PR need. F1 App Service remains prod/dev host. Production web stays SWA Free.
 - ACA auth: OIDC Variables only - `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` (no `AZURE_CREDENTIALS`).
 - Local checks: pre-commit runs Prettier + ESLint on staged files only via `lint-staged` (never bypass with `--no-verify` for format/lint). Full-repo `pnpm format:check` / `pnpm lint` remain for humans/CI; also `pnpm test`, `pnpm build`. Manual staged check: `pnpm lint:staged`.
-- Humans only merge; agents open PRs linking their GitHub issue (`Closes #N`) and run `pnpm pr:gate -- --pr <n>` to apply the `ready-for-human` label once mergeable/CI-green/feedback-clear (legacy ClickUp-tracked tickets still hand off via `./scripts/clickup.sh handoff` — see the "Legacy ClickUp workflow" section of `AGENTS.md`). Review bots provide PR feedback; humans validate the test plan and decide when the work is ready to merge.
+- Humans only merge; agents open PRs linking their GitHub issue (`Closes #N`) and run `pnpm pr:gate -- --pr <n> --no-label` to confirm the PR is mergeable/CI-green/feedback-clear (agents never apply labels) (legacy ClickUp-tracked tickets still hand off via `./scripts/clickup.sh handoff` — see the "Legacy ClickUp workflow" section of `AGENTS.md`). Review bots provide PR feedback; humans validate the test plan and decide when the work is ready to merge.
 - Production deploys of the **product app and API** use the same OIDC Variables + Key Vault pattern (no GitHub Secrets). Marketing production is GitHub Pages via `GITHUB_TOKEN` (`pages.yml`). API ACA deploy needs **Contributor** on the RG plus **roleAssignments/write** at Key Vault / App Configuration scope for `container-apps-api-prod.bicep` (see SETUP.md); optional **Website Contributor** only while App Service dual-run remains.
 
 ## Skills
@@ -565,6 +588,8 @@ When writing a GitHub Issue for `apps/api/**`, `pillars/**`, or `packages/db/**`
 
 pnpm workspace (`apps/*`, `packages/*`, `pillars/*`), Node 20+/pnpm 9. Root scripts (`package.json`) fan out with `pnpm -r`, so `pnpm lint`/`test`/`build` results depend on which feature PRs have merged - several `pillars/*` and `apps/web` may still be placeholder `echo` stubs on a given checkout (real coverage today is `apps/api` Jest + `packages/db` `prisma validate`). The update script's `pnpm install` picks up new deps automatically as that work lands. Note: multiple foundation PRs are in flight (tracked in GitHub Issues, see `docs/github-source-of-truth.md`) and touch `AGENTS.md`, tooling, `apps/web`, and pillars; expect this repo to evolve and don't treat the current stub state as final.
 
+- Cursor cloud agents work in the checkout they are given (no parent-workspace/worktree layout) and run `pnpm install --frozen-lockfile`. Rules auto-load from `.cursor/rules/`.
+- Cursor cloud agents only do GitHub-native work (a GitHub issue + `Closes #N`). They never use the legacy tracker workflow or its scripts or tokens.
 - **API (reliably runnable):** NestJS + Swagger. `pnpm dev:api` (watch) serves on `PORT` (default 3000): health `/health`, Swagger UI `/docs`, OpenAPI JSON `/docs-json`. Auth is Keycloak OIDC (`KEYCLOAK_*` in `.env.example`); unit tests mock JWTs and do not need production Keycloak. Optional local realm: `docker compose -f infra/keycloak/docker-compose.yml up`.
 - **Web:** `pnpm dev:web` - Next.js PWA SPA (see `apps/web`). Bake `NEXT_PUBLIC_KEYCLOAK_ISSUER` / `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID` for Bearer preview hosts; custom domains use Auth.js cookies.
 - **Marketing:** `pnpm dev:marketing` - Astro SSG + Tailwind + Singleton SD tokens; Markdown in `apps/marketing/src/content/`; Decap static admin at `/admin` (GitHub login via `https://api.singletonsd.com/v1/cms-auth/auth`). Build emits `apps/marketing/dist`. See `docs/marketing-astro-decap.md`.
