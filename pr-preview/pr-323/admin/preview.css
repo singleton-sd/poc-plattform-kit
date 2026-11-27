@@ -1,0 +1,205 @@
+/**
+ * Preview pane iframe styles — official CMS.registerPreviewStyle target.
+ * Mirrors marketing token roles + home / [slug] layouts.
+ *
+ * Token sheet vars are gated on [data-theme='dark']. Decap’s preview iframe
+ * has no data-theme by default (admin-preview.js stamps it). Import the
+ * :root dark sheet from @singleton-sd/tokens so contrast works before that.
+ */
+@import url('./tokens/root-dark.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/open-sauce-sans@5.3.0/index.css');
+
+:root {
+  --ssd-color-text-default: var(--ssd-color-gray-100);
+  --ssd-color-text-muted: var(--ssd-color-gray-400);
+  --ssd-color-background-default: var(--ssd-color-gray-900);
+  --ssd-color-background-brand: var(--ssd-color-yellow-light-400);
+  --ssd-color-text-on-brand: var(--ssd-color-gray-900);
+
+  --pk-bg: var(--ssd-color-gray-900);
+  --pk-fg: var(--ssd-color-gray-100);
+  --pk-muted: var(--ssd-color-gray-400);
+  --pk-accent: var(--ssd-color-yellow-light-400);
+  --pk-accent-on: var(--ssd-color-gray-900);
+  --pk-accent-bg: var(--ssd-color-yellow-light-900);
+  --pk-surface: var(--ssd-color-gray-800);
+  --fg-default: var(--pk-fg);
+  --fg-muted: var(--pk-muted);
+  --bg-default: var(--pk-bg);
+  --accent-default: var(--pk-accent);
+  --accent-on-accent: var(--pk-accent-on);
+  --accent-bg: var(--pk-accent-bg);
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--ssd-font-family-body), ui-sans-serif, system-ui, sans-serif;
+  background: var(--bg-default);
+  color: var(--fg-default);
+}
+
+/* ——— Home (index.astro) ——— */
+
+.pk-preview--home {
+  margin: 0 auto;
+  max-width: 36rem;
+  padding: clamp(3rem, 12vh, 6rem) 1.5rem 3rem;
+  text-align: center;
+}
+
+.pk-preview__brand {
+  margin: 0 0 1.25rem;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(2.25rem, 7vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--pk-fg);
+}
+
+.pk-preview__dot {
+  color: var(--pk-accent);
+}
+
+.pk-preview__headline {
+  margin: 0 0 0.75rem;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--pk-fg);
+}
+
+.pk-preview--home .pk-preview__body {
+  margin: 0 0 2rem;
+  color: var(--pk-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.pk-preview--home .pk-preview__body p {
+  margin: 0;
+}
+
+.pk-preview__cta {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.35rem;
+  background: var(--pk-accent) !important;
+  /* Must beat `.pk-preview a { color: accent }` — yellow-on-yellow hides the label. */
+  color: var(--pk-accent-on) !important;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pk-preview__cta:hover {
+  filter: brightness(1.05);
+  color: var(--pk-accent-on) !important;
+}
+
+/* ——— Legal / slug pages ([slug].astro) ——— */
+
+.pk-preview--page {
+  margin: 0 auto;
+  max-width: 42rem;
+  padding: clamp(2rem, 8vh, 4rem) 1.5rem 4rem;
+  text-align: left;
+}
+
+.pk-preview__back {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: var(--pk-muted);
+  text-decoration: none;
+}
+
+.pk-preview__back:hover {
+  color: var(--pk-accent);
+}
+
+.pk-preview__title {
+  margin: 0 0 0.25rem;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pk-fg);
+}
+
+.pk-preview__updated {
+  margin: 0 0 2rem;
+  color: var(--pk-muted);
+  font-size: 0.875rem;
+}
+
+.pk-preview--page .pk-preview__body {
+  color: var(--pk-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.pk-preview--page .pk-preview__body p {
+  margin: 0 0 0.75rem;
+}
+
+/* Decap markdown widget injects light-theme colors — force product contrast. */
+.pk-preview,
+.pk-preview .pk-preview__body,
+.pk-preview .pk-preview__body p,
+.pk-preview .pk-preview__body li,
+.pk-preview .pk-preview__body span,
+.pk-preview .pk-preview__body div {
+  color: var(--pk-muted);
+}
+
+.pk-preview__body h1,
+.pk-preview__body h2,
+.pk-preview__body h3,
+.pk-preview__title,
+.pk-preview__brand,
+.pk-preview__headline {
+  color: var(--pk-fg) !important;
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+.pk-preview__body a,
+.pk-preview a:not(.pk-preview__cta) {
+  color: var(--pk-accent) !important;
+}
+
+/* Fallback when preview template is not used */
+body > div:not(.pk-preview) {
+  padding: 1.5rem;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--fg-default);
+  font-family: var(--ssd-font-family-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+p,
+li {
+  color: var(--fg-muted);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent-default);
+}
+
+strong {
+  color: var(--fg-default);
+}
+
+code {
+  background: var(--pk-surface);
+  color: var(--pk-accent);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+}
