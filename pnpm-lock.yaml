@@ -181,8 +181,8 @@ importers:
         specifier: ^5.1.4
         version: 5.1.5(astro@4.16.19(@types/node@22.20.1)(rollup@4.62.4)(terser@5.49.0)(typescript@5.9.3))(tailwindcss@3.4.19(tsx@4.23.11)(yaml@2.9.0))(ts-node@10.9.2(@types/node@22.20.1)(typescript@5.9.3))
       '@singleton-sd/tokens':
-        specifier: 1.3.0
-        version: 1.3.0
+        specifier: 1.8.0
+        version: 1.8.0
       astro:
         specifier: ^4.16.18
         version: 4.16.19(@types/node@22.20.1)(rollup@4.62.4)(terser@5.49.0)(typescript@5.9.3)
@@ -221,8 +221,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@singleton-sd/tokens':
-        specifier: 1.3.0
-        version: 1.3.0
+        specifier: 1.8.0
+        version: 1.8.0
       '@tanstack/react-query':
         specifier: ^5.62.7
         version: 5.101.4(react@18.3.1)
@@ -3339,6 +3339,7 @@ packages:
   '@opentelemetry/propagator-jaeger@2.9.0':
     resolution: {integrity: sha512-4mYGty27rYvSM0jtp1ZUOqd3LfVRCYg9H5G9OFzSx5HViYToU21MFhWfco7x1HwXr7ER8yGOiCIHZUwjPksc0Q==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Package no longer supported. See https://github.com/open-telemetry/opentelemetry-js/pull/7077
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
@@ -3391,30 +3392,35 @@ packages:
   '@opentelemetry/sdk-trace-base@2.10.0':
     resolution: {integrity: sha512-GuYQQT7QD2EeO8lcZLRQzcbOyhqAzL+6WWTKTU9mSUBYBazkEDl+VrQcXQhbB08OWM9anD1aHleVadzulpOaUQ==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
   '@opentelemetry/sdk-trace-base@2.9.0':
     resolution: {integrity: sha512-cp9zmTl62R8PJrpvFcmc8N2JQU/xfa0S+61q511Nji+QxCfZ8Ifvg7H27G8cANe4crg4RTrWsVvanHiXjSp6ag==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
   '@opentelemetry/sdk-trace-node@2.10.0':
     resolution: {integrity: sha512-GZK/G6oZyBLGlH1pUgeDch7D91KoHd2uotUGIkWCPi9GI5T9X0p4L7nNAMDR1BQjkRYoDqo+ddfVx9t5Uhys+Q==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
   '@opentelemetry/sdk-trace-node@2.9.0':
     resolution: {integrity: sha512-ec9a7ps37huy5itYk0MalaZdSLlM6AXWp/FhtEjgMpp5leEGojBDvAl/UWttQnkMZOvFHKzRESn8TD3yKTF5nQ==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
   '@opentelemetry/sdk-trace-web@2.10.0':
     resolution: {integrity: sha512-6WqXdWSlBH0GNjDhv1gg6SLVtMtIBVhLaWqd1hiKSXS8meXXP13sVPQoYFHz1uVo0feUTUCdP9vMS54KflisAw==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
@@ -4010,8 +4016,8 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
-  '@singleton-sd/tokens@1.3.0':
-    resolution: {integrity: sha1-ERZjS4tz7E0TIOEUVhjkyC8URRA=, tarball: https://gitlab.com/api/v4/projects/70589530/packages/npm/@singleton-sd/tokens/-/@singleton-sd/tokens-1.3.0.tgz}
+  '@singleton-sd/tokens@1.8.0':
+    resolution: {integrity: sha1-6cArgDnJzsJPZyDdjtWDfS1FLc4=, tarball: https://gitlab.com/api/v4/projects/70589530/packages/npm/@singleton-sd/tokens/-/@singleton-sd/tokens-1.8.0.tgz}
     engines: {node: 22.x}
 
   '@sinonjs/commons@3.0.1':
@@ -6595,6 +6601,7 @@ packages:
   image-size@2.0.2:
     resolution: {integrity: sha512-IRqXKlaXwgSMAMtpNzZa1ZAe8m+Sa1770Dhk8VkSsP9LS+iHD62Zd8FQKs8fbPiagBE7BzoFX23cxFnwshpV6w==}
     engines: {node: '>=16.x'}
+    deprecated: Use latest 2.x please
     hasBin: true
 
   immer@9.0.21:
@@ -7832,6 +7839,7 @@ packages:
 
   node-abort-controller@3.1.1:
     resolution: {integrity: sha512-AGK2yQKIjRuqnc6VkX2Xj5d+QW8xZ87pa1UK6yA6ouUyuxfHuMP6umE5QK7UmTeOAymo+Zx1Fxiuw9rVx8taHQ==}
+    deprecated: This package is no longer needed on supported Node.js versions. Node.js 16+ includes AbortController and AbortSignal as built-in globals. All Node.js versions requiring this polyfill are end-of-life. Use the built-in globals instead.
 
   node-emoji@1.11.0:
     resolution: {integrity: sha512-wo2DpQkQp7Sjm2A0cq+sN7EHKO6Sl0ctXeBdFZrL9T9+UywORbufTcTZxom8YqpLQt/FqNMUkOpkZrJVYSKD3A==}
@@ -13947,7 +13955,7 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@singleton-sd/tokens@1.3.0': {}
+  '@singleton-sd/tokens@1.8.0': {}
 
   '@sinonjs/commons@3.0.1':
     dependencies:
