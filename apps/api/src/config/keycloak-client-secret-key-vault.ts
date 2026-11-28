@@ -13,6 +13,7 @@ const SECRET_NAME_PATTERN = /^[0-9A-Za-z-]{1,127}$/;
 const AZURE_AD_TOKEN_EXCHANGE_AUDIENCE = 'api://AzureADTokenExchange';
 const KEYCLOAK_TOKEN_PATH = '/protocol/openid-connect/token';
 const KEYCLOAK_TIMEOUT_MS = 10_000;
+const VAULT_TIMEOUT_MS = 10_000;
 const VAULT_TOKEN_SCOPE = 'https://vault.azure.net/.default';
 const SUCCESS_LOG = 'keycloak client secret loaded from key vault';
 
@@ -100,14 +101,18 @@ export async function loadKeycloakClientSecretFromKeyVault(
     const credential = createCredential(config.azureTenantId, config.azureClientId, getAssertion);
 
     try {
-      await credential.getToken(VAULT_TOKEN_SCOPE);
+      await credential.getToken(VAULT_TOKEN_SCOPE, {
+        abortSignal: AbortSignal.timeout(VAULT_TIMEOUT_MS),
+      });
     } catch (error) {
       throw toLoadFailure('azure-token', error);
     }
 
     let secret: KeyVaultSecret;
     try {
-      secret = await createSecretClient(config.vaultUrl, credential).getSecret(config.secretName);
+      secret = await createSecretClient(config.vaultUrl, credential).getSecret(config.secretName, {
+        abortSignal: AbortSignal.timeout(VAULT_TIMEOUT_MS),
+      });
     } catch (error) {
       throw toLoadFailure('key-vault', error);
     }

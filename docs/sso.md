@@ -93,17 +93,24 @@ Keycloak 401 (Auth.js receives the secret once when `buildAuthConfig()` runs).
 
 1. Create a confidential Keycloak client in the product realm with service
    accounts enabled, an audience mapper of `api://AzureADTokenExchange`, 300 s
-   access tokens, and no refresh tokens. Store its secret in Key Vault and on
-   the host as a file readable by the container `app` user.
-2. Add a federated credential on a user-assigned managed identity: issuer = the
+   access tokens, and no refresh tokens. Store that WIF client secret only in
+   the host file mounted at `PLATFORM_KIT_WIF_SECRET_FILE` (readable by the
+   container `app` user). Do not put the WIF secret in Key Vault or under
+   `PLATFORM_KIT_KEYCLOAK_SECRET_NAME`.
+2. Store the application's Keycloak client secret (the value that becomes
+   `KEYCLOAK_CLIENT_SECRET`) in Key Vault under
+   `PLATFORM_KIT_KEYCLOAK_SECRET_NAME` (default
+   `plattform-kit-keycloak-client-secret`). This is the only secret the loader
+   reads from the vault.
+3. Add a federated credential on a user-assigned managed identity: issuer = the
    realm URL, subject = the WIF client's service-account user id, audience
    `api://AzureADTokenExchange`.
-3. Grant that identity read access to the one Key Vault secret (Key Vault
+4. Grant that identity read access to that one Key Vault secret (Key Vault
    Secrets User, scoped to the secret).
-4. Set the `PLATFORM_KIT_*` env vars and the file mount on the container,
+5. Set the `PLATFORM_KIT_*` env vars and the file mount on the container,
    restart, and confirm the startup log line says the Keycloak client secret
    was loaded from Key Vault.
-5. Rollback: unset `PLATFORM_KIT_KV_URL` and restart. The env value is used as
+6. Rollback: unset `PLATFORM_KIT_KV_URL` and restart. The env value is used as
    before.
 
 Local Keycloak (optional, not required for unit tests):

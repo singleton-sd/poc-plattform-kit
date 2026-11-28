@@ -438,7 +438,10 @@ describe('loadKeycloakClientSecretFromKeyVault', () => {
       expect(body.get('client_id')).toBe(WIF_CLIENT_ID);
       expect(body.get('client_secret')).toBe(WIF_SECRET);
       expect(createSecretClient).toHaveBeenCalledWith(VAULT_URL, expect.anything());
-      expect(getSecret).toHaveBeenCalledWith(DEFAULT_SECRET_NAME);
+      expect(getSecret).toHaveBeenCalledWith(
+        DEFAULT_SECRET_NAME,
+        expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+      );
       expect(process.env.KEYCLOAK_CLIENT_SECRET).toBe(FETCHED_SECRET);
       expect(logLines).toEqual(['keycloak client secret loaded from key vault']);
       expectNoSecrets(logLines[0]);
@@ -463,7 +466,45 @@ describe('loadKeycloakClientSecretFromKeyVault', () => {
         }),
       );
 
-      expect(getSecret).toHaveBeenCalledWith('custom-keycloak-secret');
+      expect(getSecret).toHaveBeenCalledWith(
+        'custom-keycloak-secret',
+        expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+      );
+      expect(process.env.KEYCLOAK_CLIENT_SECRET).toBe(FETCHED_SECRET);
+    });
+
+    it('bounds Azure token and Key Vault calls with abort signals', async () => {
+      const getToken = jest.fn(
+        async (_scopes: string | string[], options?: { abortSignal?: AbortSignal }) => {
+          expect(options?.abortSignal).toBeInstanceOf(AbortSignal);
+          expect(options?.abortSignal?.aborted).toBe(false);
+          return {
+            token: ENTRA_TOKEN_RESPONSE.access_token,
+            expiresOnTimestamp: Date.now() + 86_399_000,
+          };
+        },
+      );
+      const getSecret = jest.fn(async (_name: string, options?: { abortSignal?: AbortSignal }) => {
+        expect(options?.abortSignal).toBeInstanceOf(AbortSignal);
+        expect(options?.abortSignal?.aborted).toBe(false);
+        return KEY_VAULT_SECRET;
+      });
+
+      await loadKeycloakClientSecretFromKeyVault(
+        successfulDeps({
+          createCredential: () => ({ getToken }),
+          createSecretClient: () => ({ getSecret }),
+        }),
+      );
+
+      expect(getToken).toHaveBeenCalledWith(
+        'https://vault.azure.net/.default',
+        expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+      );
+      expect(getSecret).toHaveBeenCalledWith(
+        DEFAULT_SECRET_NAME,
+        expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+      );
       expect(process.env.KEYCLOAK_CLIENT_SECRET).toBe(FETCHED_SECRET);
     });
 
@@ -608,6 +649,20 @@ describe('loadKeycloakClientSecretFromKeyVault', () => {
           }),
       },
       {
+        name: 'Azure token timeout',
+        step: 'azure-token',
+        deps: () =>
+          successfulDeps({
+            createCredential: () => ({
+              getToken: async () => {
+                const error = new Error('The operation was aborted due to timeout');
+                error.name = 'TimeoutError';
+                throw error;
+              },
+            }),
+          }),
+      },
+      {
         name: 'Key Vault 403',
         step: 'key-vault',
         status: 403,
@@ -616,6 +671,20 @@ describe('loadKeycloakClientSecretFromKeyVault', () => {
             createSecretClient: () => ({
               getSecret: async () => {
                 throw azureError(403, KEY_VAULT_FORBIDDEN);
+              },
+            }),
+          }),
+      },
+      {
+        name: 'Key Vault timeout',
+        step: 'key-vault',
+        deps: () =>
+          successfulDeps({
+            createSecretClient: () => ({
+              getSecret: async () => {
+                const error = new Error('The operation was aborted due to timeout');
+                error.name = 'TimeoutError';
+                throw error;
               },
             }),
           }),
@@ -728,6 +797,20 @@ describe('loadKeycloakClientSecretFromKeyVault', () => {
           }),
       },
       {
+        name: 'Azure token timeout',
+        step: 'azure-token',
+        deps: () =>
+          successfulDeps({
+            createCredential: () => ({
+              getToken: async () => {
+                const error = new Error('The operation was aborted due to timeout');
+                error.name = 'TimeoutError';
+                throw error;
+              },
+            }),
+          }),
+      },
+      {
         name: 'Key Vault 403',
         step: 'key-vault',
         status: 403,
@@ -736,6 +819,20 @@ describe('loadKeycloakClientSecretFromKeyVault', () => {
             createSecretClient: () => ({
               getSecret: async () => {
                 throw azureError(403, KEY_VAULT_FORBIDDEN);
+              },
+            }),
+          }),
+      },
+      {
+        name: 'Key Vault timeout',
+        step: 'key-vault',
+        deps: () =>
+          successfulDeps({
+            createSecretClient: () => ({
+              getSecret: async () => {
+                const error = new Error('The operation was aborted due to timeout');
+                error.name = 'TimeoutError';
+                throw error;
               },
             }),
           }),
