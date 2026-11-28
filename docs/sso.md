@@ -54,6 +54,58 @@ Production issuer: `https://auth.singletonsd.com/realms/<product>` (one realm pe
 
 KV secret names (human): `auth-secret`, `keycloak-client-secret`.
 
+## Keycloak client secret from Key Vault (opt-in)
+
+When `PLATFORM_KIT_KV_URL` is set, the API reads `KEYCLOAK_CLIENT_SECRET` from
+Azure Key Vault once at startup. Authentication to Azure uses Keycloak
+workload identity federation (`ClientAssertionCredential`) so the container
+does not store an Azure client secret. When `PLATFORM_KIT_KV_URL` is unset,
+behaviour is unchanged: `KEYCLOAK_CLIENT_SECRET` comes from the environment
+(or App Configuration on Azure-hosted environments).
+
+This loader is intentionally minimal (one secret) and will be replaced by the
+shared `@singleton-sd/config-kit` package when that is available.
+
+| Var | Meaning |
+| --- | --- |
+| `PLATFORM_KIT_KV_URL` | Vault URL (`https://<vault-name>.vault.azure.net`). Opt-in switch. Must be `https` with a host that ends in `.vault.azure.net`. |
+| `PLATFORM_KIT_KEYCLOAK_SECRET_NAME` | Optional. Default `plattform-kit-keycloak-client-secret`. Must match `^[0-9A-Za-z-]{1,127}$`. The only secret this loader reads. |
+| `PLATFORM_KIT_WIF_SECRET_FILE` | Absolute path of the bind-mounted file holding the Keycloak WIF client secret. Never set the WIF secret as an env var. |
+| `PLATFORM_KIT_WIF_TOKEN_URL` | Keycloak realm token endpoint (`https://<keycloak-host>/realms/<realm>/protocol/openid-connect/token`). `https` only. A bare realm URL is accepted and has the token path appended. |
+| `PLATFORM_KIT_WIF_CLIENT_ID` | Keycloak WIF client id. |
+| `PLATFORM_KIT_AZURE_TENANT_ID` | Entra tenant id of the federated credential. |
+| `PLATFORM_KIT_AZURE_CLIENT_ID` | Client id of the user-assigned managed identity that has the federated credential. |
+
+Use these `PLATFORM_KIT_*` names only. Do not set `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, or `AZURE_CLIENT_SECRET` for this path — those names
+change `DefaultAzureCredential` elsewhere in the API.
+
+**Precedence:** a successful Key Vault read overwrites `KEYCLOAK_CLIENT_SECRET`.
+On any failure, if `KEYCLOAK_CLIENT_SECRET` is already set, the API keeps that
+value and logs one warning with the failing `step=` and HTTP `status=` only.
+If it is not set, startup throws so the container stays unhealthy.
+
+**Rotation:** the value is read once per process. A new Key Vault version takes
+effect on the next restart. There is no periodic refresh and no refresh on a
+Keycloak 401 (Auth.js receives the secret once when `buildAuthConfig()` runs).
+
+### Operator steps (placeholders)
+
+1. Create a confidential Keycloak client in the product realm with service
+   accounts enabled, an audience mapper of `api://AzureADTokenExchange`, 300 s
+   access tokens, and no refresh tokens. Store its secret in Key Vault and on
+   the host as a file readable by the container `app` user.
+2. Add a federated credential on a user-assigned managed identity: issuer = the
+   realm URL, subject = the WIF client's service-account user id, audience
+   `api://AzureADTokenExchange`.
+3. Grant that identity read access to the one Key Vault secret (Key Vault
+   Secrets User, scoped to the secret).
+4. Set the `PLATFORM_KIT_*` env vars and the file mount on the container,
+   restart, and confirm the startup log line says the Keycloak client secret
+   was loaded from Key Vault.
+5. Rollback: unset `PLATFORM_KIT_KV_URL` and restart. The env value is used as
+   before.
+
 Local Keycloak (optional, not required for unit tests):
 
 ```bash
